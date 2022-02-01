@@ -1,0 +1,9 @@
+domain: avesha.io
+layout:
+- go.kubebuilder.io/v3
+plugins:
+  manifests.sdk.operatorframework.io/v2: {}
+  scorecard.sdk.operatorframework.io/v2: {}
+projectName: kubeslice-operator
+repo: bitbucket.org/realtimeai/kubeslice-operator
+version: "3"
