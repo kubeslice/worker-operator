@@ -20,22 +20,22 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
-// NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
-
 // SliceSpec defines the desired state of Slice
 type SliceSpec struct {
-	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
+}
 
-	// Foo is an example field of Slice. Edit slice_types.go to remove/update
-	Foo string `json:"foo,omitempty"`
+// SliceConfig defines the Config retrieved from backend
+type SliceConfig struct {
+	// SliceId is the UUID of the slice.
+	SliceID string `json:"sliceId"`
+	// SliceSubnet refers to the subnet the slice is part of
+	SliceSubnet string `json:"sliceSubnet"`
 }
 
 // SliceStatus defines the observed state of Slice
 type SliceStatus struct {
-	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
+	// SliceConfig is the spec for slice received from hub cluster
+	SliceConfig *SliceConfig `json:"sliceConfig,omitempty"`
 }
 
 //+kubebuilder:object:root=true
