@@ -1,0 +1,24 @@
+# permissions for end users to edit slice.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: slice-editor-role
+rules:
+- apiGroups:
+  - mesh.avesha.io
+  resources:
+  - slice
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - mesh.avesha.io
+  resources:
+  - slice/status
+  verbs:
+  - get
