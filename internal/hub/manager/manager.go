@@ -11,11 +11,11 @@ import (
 	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	log "sigs.k8s.io/controller-runtime/pkg/log"
-	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
 	"bitbucket.org/realtimeai/kubeslice-operator/internal/hub/controllers"
-	meshv1alpha1 "bitbucket.org/realtimeai/mesh-hub/apis/mesh/v1alpha1"
+	"bitbucket.org/realtimeai/kubeslice-operator/internal/logger"
+	spokev1alpha1 "bitbucket.org/realtimeai/mesh-hub/apis/mesh/v1alpha1"
 )
 
 const (
@@ -25,9 +25,9 @@ const (
 var scheme = runtime.NewScheme()
 
 func init() {
-	log.SetLogger(zap.New())
+	log.SetLogger(logger.NewLogger())
 	clientgoscheme.AddToScheme(scheme)
-	utilruntime.Must(meshv1alpha1.AddToScheme(scheme))
+	utilruntime.Must(spokev1alpha1.AddToScheme(scheme))
 }
 
 func Start(ctx context.Context) {
@@ -57,7 +57,7 @@ func Start(ctx context.Context) {
 
 	err = builder.
 		ControllerManagedBy(mgr).
-		For(&meshv1alpha1.Slice{}).
+		For(&spokev1alpha1.Slice{}).
 		Complete(&controllers.SliceReconciler{})
 	if err != nil {
 		log.Error(err, "could not create controller")

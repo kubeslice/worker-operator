@@ -34,6 +34,7 @@ import (
 	meshv1beta1 "bitbucket.org/realtimeai/kubeslice-operator/api/v1beta1"
 	"bitbucket.org/realtimeai/kubeslice-operator/controllers"
 	"bitbucket.org/realtimeai/kubeslice-operator/internal/hub/manager"
+	"bitbucket.org/realtimeai/kubeslice-operator/internal/logger"
 	//+kubebuilder:scaffold:imports
 )
 
@@ -64,7 +65,7 @@ func main() {
 	opts.BindFlags(flag.CommandLine)
 	flag.Parse()
 
-	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
+	ctrl.SetLogger(logger.NewLogger())
 
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Scheme:                 scheme,

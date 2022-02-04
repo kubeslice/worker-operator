@@ -3,7 +3,7 @@ package controllers
 import (
 	"context"
 
-	meshv1alpha1 "bitbucket.org/realtimeai/mesh-hub/apis/mesh/v1alpha1"
+	spokev1alpha1 "bitbucket.org/realtimeai/mesh-hub/apis/mesh/v1alpha1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -16,13 +16,13 @@ type SliceReconciler struct {
 func (a *SliceReconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
 	logger := log.FromContext(ctx)
 
-	slice := &meshv1alpha1.Slice{}
+	slice := &spokev1alpha1.Slice{}
 	err := a.Get(ctx, req.NamespacedName, slice)
 	if err != nil {
 		return reconcile.Result{}, err
 	}
 
-	logger.Info("got slice from hub", "slice", slice)
+	logger.Info("got slice from hub", "slice", slice.Name)
 
 	return reconcile.Result{}, nil
 }
