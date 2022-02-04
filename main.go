@@ -33,6 +33,7 @@ import (
 
 	meshv1beta1 "bitbucket.org/realtimeai/kubeslice-operator/api/v1beta1"
 	"bitbucket.org/realtimeai/kubeslice-operator/controllers"
+	"bitbucket.org/realtimeai/kubeslice-operator/internal/hub/manager"
 	//+kubebuilder:scaffold:imports
 )
 
@@ -95,9 +96,15 @@ func main() {
 		setupLog.Error(err, "unable to set up ready check")
 		os.Exit(1)
 	}
+	ctx := ctrl.SetupSignalHandler()
+
+	go func() {
+		setupLog.Info("starting hub manager")
+		manager.Start(ctx)
+	}()
 
 	setupLog.Info("starting manager")
-	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
+	if err := mgr.Start(ctx); err != nil {
 		setupLog.Error(err, "problem running manager")
 		os.Exit(1)
 	}
