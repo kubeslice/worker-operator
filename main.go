@@ -101,7 +101,7 @@ func main() {
 
 	go func() {
 		setupLog.Info("starting hub manager")
-		manager.Start(ctx)
+		manager.Start(mgr.GetClient(), ctx)
 	}()
 
 	setupLog.Info("starting manager")
