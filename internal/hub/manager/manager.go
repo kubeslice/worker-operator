@@ -16,7 +16,7 @@ import (
 
 	"bitbucket.org/realtimeai/kubeslice-operator/internal/hub/controllers"
 	"bitbucket.org/realtimeai/kubeslice-operator/internal/logger"
-	spokev1alpha1 "bitbucket.org/realtimeai/mesh-hub/apis/mesh/v1alpha1"
+	spokev1alpha1 "bitbucket.org/realtimeai/mesh-apis/pkg/mesh/v1alpha1"
 )
 
 const (
