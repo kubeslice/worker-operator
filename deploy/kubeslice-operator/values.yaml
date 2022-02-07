@@ -3,7 +3,6 @@ operator:
   tag: 1.14.0
   pullPolicy: IfNotPresent
 
-
 netop:
   networkInterface: ens160
   image: nexus.dev.aveshalabs.io/mesh-netops
