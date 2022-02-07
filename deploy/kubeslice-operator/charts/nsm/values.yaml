@@ -21,9 +21,6 @@ kernel:
     limitCPU: 1
     requestsCPU: 1m
 
-spire:
-  enabled: false
-
 global:
   # set to true to enable Jaeger tracing for NSM components
   JaegerTracing: true
