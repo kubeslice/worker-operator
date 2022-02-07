@@ -1,0 +1,24 @@
+operator:
+  image: nexus.dev.aveshalabs.io/avesha-slice-operator
+  tag: 1.14.0
+  pullPolicy: IfNotPresent
+
+
+netop:
+  networkInterface: ens160
+  image: nexus.dev.aveshalabs.io/mesh-netops
+  tag: 1.0.0
+  pullPolicy: IfNotPresent
+
+# Imagepullsecrets name which are needed if docker images are hosted in private registry
+# This secret has to be already present in the cluster
+imagePullSecrets:
+- name: avesha-nexus
+
+nsm:
+  forwardingPlane: kernel
+  imagePullSecrets:
+  - name: avesha-nexus
+
+jaeger:
+  enabled: false
