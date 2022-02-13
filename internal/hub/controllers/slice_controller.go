@@ -33,7 +33,7 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req reconcile.Request) 
 	}
 
 	log.Info("got slice from hub", "slice", slice.Name)
-	sliceName := slice.Name // Change it to actual slice name rather than the uuid from hub
+	sliceName := slice.Spec.SliceName
 
 	meshSlice := &meshv1beta1.Slice{}
 
