@@ -1,5 +1,7 @@
 bitbucket.org/realtimeai/mesh-apis v0.0.0-20220203234040-b03321e09ed0 h1:IuHAKBHpswDGNBD/DSgM5zFNHfTErwU9oTWSzdC27Q4=
 bitbucket.org/realtimeai/mesh-apis v0.0.0-20220203234040-b03321e09ed0/go.mod h1:llaX3dRfOZmd/29TXcMGpw5USVhMZ7u+YrPIrUX734I=
+bitbucket.org/realtimeai/mesh-apis v0.0.0-20220209111048-e08042d86358 h1:pdjLVdgp9KpPIKAHlo30JzVpt5/sCM+Vy5Ki2qQmYbc=
+bitbucket.org/realtimeai/mesh-apis v0.0.0-20220209111048-e08042d86358/go.mod h1:llaX3dRfOZmd/29TXcMGpw5USVhMZ7u+YrPIrUX734I=
 cloud.google.com/go v0.26.0/go.mod h1:aQUYkXzVsufM+DwF1aE+0xfcU+56JwCaLick0ClmMTw=
 cloud.google.com/go v0.34.0/go.mod h1:aQUYkXzVsufM+DwF1aE+0xfcU+56JwCaLick0ClmMTw=
 cloud.google.com/go v0.38.0/go.mod h1:990N+gfupTy94rShfmMCWGDn0LpTmnzTp2qbd1dvSRU=
