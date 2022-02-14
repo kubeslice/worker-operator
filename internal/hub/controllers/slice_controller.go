@@ -52,7 +52,16 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req reconcile.Request) 
 					Name:      sliceName,
 					Namespace: ControlPlaneNamespace,
 				},
-				Spec: meshv1beta1.SliceSpec{},
+				Spec: meshv1beta1.SliceSpec{
+					SliceDisplayName: sliceName,
+					SliceConfig: &meshv1beta1.SliceConfig{
+						SliceSubnet: slice.Spec.IpCidr,
+						SliceIpam: meshv1beta1.SliceIpamConfig{
+							SliceIpamType:    slice.Spec.SliceIpamType,
+							IpamClusterOctet: slice.Spec.IpamClusterOctet,
+						},
+					},
+				},
 			}
 
 			err = r.MeshClient.Create(ctx, s)
@@ -66,7 +75,6 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req reconcile.Request) 
 
 		return reconcile.Result{}, err
 	}
-	log.Info("got slice from spoke", "slice", slice.Name)
 
 	return reconcile.Result{}, nil
 }
