@@ -1,0 +1,512 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  labels:
+    control-plane: controller-manager
+  name: kubeslice-system
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.7.0
+  creationTimestamp: null
+  name: slice.mesh.avesha.io
+spec:
+  group: mesh.avesha.io
+  names:
+    kind: Slice
+    listKind: SliceList
+    plural: slice
+    singular: slice
+  scope: Namespaced
+  versions:
+  - name: v1beta1
+    schema:
+      openAPIV3Schema:
+        description: Slice is the Schema for the slice API
+        properties:
+          apiVersion:
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            type: string
+          kind:
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: SliceSpec defines the desired state of Slice
+            properties:
+              sliceConfig:
+                description: SliceConfig is the spec for slice received from hub cluster
+                properties:
+                  qosProfileDetails:
+                    description: QOS profile details
+                    properties:
+                      bandwidthCeilingKbps:
+                        description: Bandwidth Ceiling eg:5000
+                        type: string
+                      bandwidthGuaranteedKbps:
+                        description: Bandwidth Guaranteed eg:4000
+                        type: string
+                      dscpClass:
+                        description: DSCP code for inter cluster traffic
+                        type: string
+                      priority:
+                        description: Priority 0-3
+                        type: string
+                      queueType:
+                        description: Queue Type
+                        type: string
+                    required:
+                    - bandwidthCeilingKbps
+                    - bandwidthGuaranteedKbps
+                    - dscpClass
+                    - priority
+                    - queueType
+                    type: object
+                  sliceDisplayName:
+                    description: display name of the slice.
+                    type: string
+                  sliceId:
+                    description: UUID of the slice.
+                    type: string
+                  sliceIpam:
+                    description: IPAM configuration for the slice
+                    properties:
+                      ipamClusterOctet:
+                        description: Cluster specific octet for IPAM root subnet
+                        type: integer
+                      sliceIpamType:
+                        description: IPAM Type for slice
+                        type: string
+                    required:
+                    - sliceIpamType
+                    type: object
+                  sliceName:
+                    description: name of the slice.
+                    type: string
+                  sliceSubnet:
+                    description: IP subnet range of the slice.
+                    type: string
+                  sliceType:
+                    description: Type of the slice.
+                    type: string
+                required:
+                - qosProfileDetails
+                - sliceDisplayName
+                - sliceId
+                - sliceIpam
+                - sliceName
+                - sliceSubnet
+                - sliceType
+                type: object
+              sliceDisplayName:
+                description: Display name of the slice.
+                type: string
+            required:
+            - sliceDisplayName
+            type: object
+          status:
+            description: SliceStatus defines the observed state of Slice
+            properties:
+              sliceConfig:
+                description: SliceConfig is the spec for slice received from hub cluster
+                properties:
+                  qosProfileDetails:
+                    description: QOS profile details
+                    properties:
+                      bandwidthCeilingKbps:
+                        description: Bandwidth Ceiling eg:5000
+                        type: string
+                      bandwidthGuaranteedKbps:
+                        description: Bandwidth Guaranteed eg:4000
+                        type: string
+                      dscpClass:
+                        description: DSCP code for inter cluster traffic
+                        type: string
+                      priority:
+                        description: Priority 0-3
+                        type: string
+                      queueType:
+                        description: Queue Type
+                        type: string
+                    required:
+                    - bandwidthCeilingKbps
+                    - bandwidthGuaranteedKbps
+                    - dscpClass
+                    - priority
+                    - queueType
+                    type: object
+                  sliceDisplayName:
+                    description: display name of the slice.
+                    type: string
+                  sliceId:
+                    description: UUID of the slice.
+                    type: string
+                  sliceIpam:
+                    description: IPAM configuration for the slice
+                    properties:
+                      ipamClusterOctet:
+                        description: Cluster specific octet for IPAM root subnet
+                        type: integer
+                      sliceIpamType:
+                        description: IPAM Type for slice
+                        type: string
+                    required:
+                    - sliceIpamType
+                    type: object
+                  sliceName:
+                    description: name of the slice.
+                    type: string
+                  sliceSubnet:
+                    description: IP subnet range of the slice.
+                    type: string
+                  sliceType:
+                    description: Type of the slice.
+                    type: string
+                required:
+                - qosProfileDetails
+                - sliceDisplayName
+                - sliceId
+                - sliceIpam
+                - sliceName
+                - sliceSubnet
+                - sliceType
+                type: object
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: kubeslice-controller-manager
+  namespace: kubeslice-system
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: kubeslice-forward-plane-acc
+  namespace: kubeslice-system
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: kubeslice-nsc-acc
+  namespace: kubeslice-system
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: kubeslice-nse-acc
+  namespace: kubeslice-system
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: kubeslice-nsmgr-acc
+  namespace: kubeslice-system
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: kubeslice-leader-election-role
+  namespace: kubeslice-system
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - configmaps
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+- apiGroups:
+  - coordination.k8s.io
+  resources:
+  - leases
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+- apiGroups:
+  - ""
+  resources:
+  - events
+  verbs:
+  - create
+  - patch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  creationTimestamp: null
+  name: kubeslice-manager-role
+rules:
+- apiGroups:
+  - apps
+  resources:
+  - deployments
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - mesh.avesha.io
+  resources:
+  - slice
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - mesh.avesha.io
+  resources:
+  - slice/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - mesh.avesha.io
+  resources:
+  - slice/status
+  verbs:
+  - get
+  - patch
+  - update
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: kubeslice-metrics-reader
+rules:
+- nonResourceURLs:
+  - /metrics
+  verbs:
+  - get
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: kubeslice-proxy-role
+rules:
+- apiGroups:
+  - authentication.k8s.io
+  resources:
+  - tokenreviews
+  verbs:
+  - create
+- apiGroups:
+  - authorization.k8s.io
+  resources:
+  - subjectaccessreviews
+  verbs:
+  - create
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: kubeslice-leader-election-rolebinding
+  namespace: kubeslice-system
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: kubeslice-leader-election-role
+subjects:
+- kind: ServiceAccount
+  name: kubeslice-controller-manager
+  namespace: kubeslice-system
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: kubeslice-manager-rolebinding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: kubeslice-manager-role
+subjects:
+- kind: ServiceAccount
+  name: kubeslice-controller-manager
+  namespace: kubeslice-system
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: kubeslice-proxy-rolebinding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: kubeslice-proxy-role
+subjects:
+- kind: ServiceAccount
+  name: kubeslice-controller-manager
+  namespace: kubeslice-system
+---
+apiVersion: v1
+data:
+  controller_manager_config.yaml: |
+    apiVersion: controller-runtime.sigs.k8s.io/v1alpha1
+    kind: ControllerManagerConfig
+    health:
+      healthProbeBindAddress: :8081
+    metrics:
+      bindAddress: 127.0.0.1:8080
+    webhook:
+      port: 9443
+    leaderElection:
+      leaderElect: true
+      resourceName: f7425d89.avesha.io
+kind: ConfigMap
+metadata:
+  name: kubeslice-manager-config
+  namespace: kubeslice-system
+---
+apiVersion: v1
+data:
+  .dockerconfigjson: eyJhdXRocyI6eyJuZXh1cy5kZXYuYXZlc2hhbGFicy5pbyI6eyJ1c2VybmFtZSI6ImF2ZXNoYS1kb2NrZXItcHVsbCIsInBhc3N3b3JkIjoiYFdUUGs5OCtLbmg5flMlQCIsImVtYWlsIjoiYWRtaW5AYXZlc2hhc3lzdGVtcy5jb20iLCJhdXRoIjoiWVhabGMyaGhMV1J2WTJ0bGNpMXdkV3hzT21CWFZGQnJPVGdyUzI1b09YNVRKVUE9In19fQ==
+kind: Secret
+metadata:
+  name: kubeslice-avesha-nexus
+  namespace: kubeslice-system
+type: kubernetes.io/dockerconfigjson
+---
+apiVersion: v1
+data:
+  ca.crt: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSUM1ekNDQWMrZ0F3SUJBZ0lCQURBTkJna3Foa2lHOXcwQkFRc0ZBREFWTVJNd0VRWURWUVFERXdwcmRXSmwKY201bGRHVnpNQjRYRFRJd01URXhNVEV3TkRrMU1Gb1hEVE13TVRFd09URXdORGsxTUZvd0ZURVRNQkVHQTFVRQpBeE1LYTNWaVpYSnVaWFJsY3pDQ0FTSXdEUVlKS29aSWh2Y05BUUVCQlFBRGdnRVBBRENDQVFvQ2dnRUJBT2RBCmJ4eDRKWHh4aGthdUt1bS9tNW9CLzRuQi85MDlETmpTekZzQUpmbTBQS2h4bGs1bDZLMUdLNkRpRlJ0YWZSUjYKbEJsNy9KSDJvL3RUcWRBOU5VQmVEaUhWaHNOMEpaOFV3emcyYStWSlZzZHRSTXFnMmw1b3VhWGNveHRRck9kbQowQ0hxZkFaYlZSSXliMHFLUkVpemJpd0RpZSt2cmVJUGd1eFBiYVFFWUM2NHl0ZWxBQUxvTStHTXJRaHdrZzZkCktqZHl6RGV0THFRVWlNaERkbEM5VmpsY0ZCa1hlbXpWSFAwaWFUNU5JYVZINU9vR2hjU2wvcnRJQlVDZzdBV1UKanRzM2t0RE1UVU1IZU1ITmljU1JoZTdTUUdGVHdWQ2xETWtmdWZmZTlIN20wTmtDdm5iVEhhS0xtbGtGaHZXegp1WW9TaHlPZnhqbG5iZ0Z2ZHdrQ0F3RUFBYU5DTUVBd0RnWURWUjBQQVFIL0JBUURBZ0trTUE4R0ExVWRFd0VCCi93UUZNQU1CQWY4d0hRWURWUjBPQkJZRUZFTzlEVW94ZHljNit0Yzdnbm5Ba1U5SkFOUkhNQTBHQ1NxR1NJYjMKRFFFQkN3VUFBNElCQVFDU2tCVmxqNStXRzNBSGNNNUVReEdmaSsxT0FiRUlmbUNreTkvMllFRGZkV29JbTJDawo0MHNKOGhKV1h6TTd1VVNCM0h6R1YrT05xUTB2dTc5MzZwV0FnUmUvMlJYTFNURzB3bHF4Q3M3YmxyRzVRN3h6CldMekUyNUJxS20rSktNQ2dKTTVyQjIrWFN1aWx3RmVkMzZSNlgzVWk0ZW9IdlpOMVBwY3gyRXRGQy9rNTlKMGYKTVRZdHpEVzhLWFdtVHRodjROaG41RnVLMit6R0JYOS9VTDY1RUFSb0wvZXphSmt2eGl0ZG56SEo2Z2V3MTgrRwpCWlRmU3YvL2pEc2ZQZGZJdVlFWGY0eFlZTFVmMXFpWEw4eTNYRGtCdFRmTndMUmdwRHpoK0JLaG81L0F0b2ZRCmpqOXR6UklqeVBVbkkzYW5jdTlSYzBSRUI1ZHJncTVTMGRVNwotLS0tLUVORCBDRVJUSUZJQ0FURS0tLS0tCg==
+  namespace: aHViLWF2ZXNoYS10ZW5hbnQtY2lzY28=
+  token: ZXlKaGJHY2lPaUpTVXpJMU5pSXNJbXRwWkNJNklqQllNV05YVTJKd1JIQnNRbTlDYWt0cFJGTkVWMGRtVkc5cVRrTkJjRUpCTFU4M1R6ZEROemRvUVVFaWZRLmV5SnBjM01pT2lKcmRXSmxjbTVsZEdWekwzTmxjblpwWTJWaFkyTnZkVzUwSWl3aWEzVmlaWEp1WlhSbGN5NXBieTl6WlhKMmFXTmxZV05qYjNWdWRDOXVZVzFsYzNCaFkyVWlPaUpvZFdJdFlYWmxjMmhoTFhSbGJtRnVkQzFqYVhOamJ5SXNJbXQxWW1WeWJtVjBaWE11YVc4dmMyVnlkbWxqWldGalkyOTFiblF2YzJWamNtVjBMbTVoYldVaU9pSnJkV0psTFhOc2FXTmxMWE53YjJ0bExXTnNkWE4wWlhJdE1TMTBiMnRsYmkxak5IZHJkQ0lzSW10MVltVnlibVYwWlhNdWFXOHZjMlZ5ZG1salpXRmpZMjkxYm5RdmMyVnlkbWxqWlMxaFkyTnZkVzUwTG01aGJXVWlPaUpyZFdKbExYTnNhV05sTFhOd2IydGxMV05zZFhOMFpYSXRNU0lzSW10MVltVnlibVYwWlhNdWFXOHZjMlZ5ZG1salpXRmpZMjkxYm5RdmMyVnlkbWxqWlMxaFkyTnZkVzUwTG5WcFpDSTZJalJrWVdNMU1qWXhMV1JsWXpNdE5ETTVOaTA0TUdFekxXTTJOakZtTm1RMVl6aG1OaUlzSW5OMVlpSTZJbk41YzNSbGJUcHpaWEoyYVdObFlXTmpiM1Z1ZERwb2RXSXRZWFpsYzJoaExYUmxibUZ1ZEMxamFYTmpienByZFdKbExYTnNhV05sTFhOd2IydGxMV05zZFhOMFpYSXRNU0o5LmJ3Z3RTY0FZdlpLdDRtOUEzai1QRnFNd29BdHBCSVcyZFdhaWRuMjlFVTREU2JOc0Y0VFVEVHNWUGZzbXpFVTJSa252bklRQ1lkQnJGLVl6M0JwcUtEV1pSTDJRd21aMkpEb3kwSHFXUjduTW1zNzVOak9lUlJvMzB3NUlMbHp1cDFONXBsclBaMTVLODJvYzdNT0hOR0tzbUVtM3otWlVueUJqMlRXVlIyT0sxU0NjY0ZjSUZCMGxJRGxWVzVfN1JheDNSSWF4ME9MYXQ4U3NXdUV5QV9UeG9vbDlRRjB2SWJqRVpYT2tlbndtdms1am11WWo5NHJmdjZla2FnVkR4OU13a1pvUHkwNXk0dVBQQXdtM0FNZkVTSW5zQ1h2ZlJiS3hCTnVjWm5vNDFtR0hMT0pDeUdYRi1BV2xQbDg2RU5jWWlJU19DeE5ZS1E4VlhnZWtPUQ==
+kind: Secret
+metadata:
+  name: kubeslice-hub-avesha-tenant-token
+  namespace: kubeslice-system
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    control-plane: controller-manager
+  name: kubeslice-controller-manager-metrics-service
+  namespace: kubeslice-system
+spec:
+  ports:
+  - name: https
+    port: 8443
+    protocol: TCP
+    targetPort: https
+  selector:
+    control-plane: controller-manager
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    control-plane: controller-manager
+  name: kubeslice-operator
+  namespace: kubeslice-system
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      control-plane: controller-manager
+  template:
+    metadata:
+      annotations:
+        kubectl.kubernetes.io/default-container: manager
+      labels:
+        control-plane: controller-manager
+    spec:
+      containers:
+      - args:
+        - --secure-listen-address=0.0.0.0:8443
+        - --upstream=http://127.0.0.1:8080/
+        - --logtostderr=true
+        - --v=10
+        image: gcr.io/kubebuilder/kube-rbac-proxy:v0.8.0
+        name: kube-rbac-proxy
+        ports:
+        - containerPort: 8443
+          name: https
+          protocol: TCP
+      - args:
+        - --health-probe-bind-address=:8081
+        - --metrics-bind-address=127.0.0.1:8080
+        - --leader-elect
+        command:
+        - /manager
+        env:
+        - name: HUB_HOST_ENDPOINT
+          value: https://10.1.80.11:6443
+        image: avesha/kubeslice-operator:1.0.0
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 8081
+          initialDelaySeconds: 15
+          periodSeconds: 20
+        name: manager
+        readinessProbe:
+          httpGet:
+            path: /readyz
+            port: 8081
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        resources:
+          limits:
+            cpu: 500m
+            memory: 128Mi
+          requests:
+            cpu: 10m
+            memory: 64Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+        volumeMounts:
+        - mountPath: /var/run/secrets/kubernetes.io/hub-serviceaccount
+          name: hub-token
+          readOnly: true
+      securityContext:
+        runAsNonRoot: false
+      serviceAccountName: kubeslice-controller-manager
+      terminationGracePeriodSeconds: 10
+      volumes:
+      - name: hub-token
+        secret:
+          defaultMode: 420
+          secretName: kubeslice-hub-avesha-tenant-token

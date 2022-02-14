@@ -22,20 +22,56 @@ import (
 
 // SliceSpec defines the desired state of Slice
 type SliceSpec struct {
+	// Display name of the slice.
+	SliceDisplayName string `json:"sliceDisplayName"`
+	// SliceConfig is the spec for slice received from hub cluster
+	SliceConfig *SliceConfig `json:"sliceConfig,omitempty"`
 }
 
-// SliceConfig defines the Config retrieved from backend
+// QosProfileDetails is the QOS Profile for the slice
+type QosProfileDetails struct {
+	// Queue Type
+	QueueType string `json:"queueType"`
+	// Bandwidth Ceiling eg:5000
+	BandwidthCeilingKbps string `json:"bandwidthCeilingKbps"`
+	// Bandwidth Guaranteed eg:4000
+	BandwidthGuaranteedKbps string `json:"bandwidthGuaranteedKbps"`
+	// Priority 0-3
+	Priority string `json:"priority"`
+	// DSCP code for inter cluster traffic
+	DscpClass string `json:"dscpClass"`
+}
+
+type SliceIpamConfig struct {
+	// IPAM Type for slice
+	SliceIpamType string `json:"sliceIpamType"`
+	// Cluster specific octet for IPAM root subnet
+	IpamClusterOctet int `json:"ipamClusterOctet,omitempty"`
+}
+
+// SliceConfig defines the Config retrieved from Hub
 type SliceConfig struct {
-	// SliceId is the UUID of the slice.
+	// UUID of the slice.
 	SliceID string `json:"sliceId"`
-	// SliceSubnet refers to the subnet the slice is part of
+	// name of the slice.
+	SliceName string `json:"sliceName"`
+	// display name of the slice.
+	SliceDisplayName string `json:"sliceDisplayName"`
+	// IP subnet range of the slice.
 	SliceSubnet string `json:"sliceSubnet"`
+	// Type of the slice.
+	SliceType string `json:"sliceType"`
+	// QOS profile details
+	QosProfileDetails QosProfileDetails `json:"qosProfileDetails"`
+	// IPAM configuration for the slice
+	SliceIpam SliceIpamConfig `json:"sliceIpam"`
 }
 
 // SliceStatus defines the observed state of Slice
 type SliceStatus struct {
 	// SliceConfig is the spec for slice received from hub cluster
 	SliceConfig *SliceConfig `json:"sliceConfig,omitempty"`
+	DnsIP       string       `json:"dnsIP"`
 }
 
 //+kubebuilder:object:root=true

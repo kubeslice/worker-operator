@@ -25,14 +25,21 @@ spec:
         control-plane: controller-manager
     spec:
       securityContext:
-        runAsNonRoot: true
+        runAsNonRoot: false
       containers:
       - command:
         - /manager
         args:
         - --leader-elect
-        image: controller:latest
+        image: avesha/kubeslice-operator:1.0.0
         name: manager
+        env:
+          - name: HUB_HOST_ENDPOINT
+            value: "https://10.1.80.11:6443"
+        volumeMounts:
+          - mountPath: /var/run/secrets/kubernetes.io/hub-serviceaccount
+            name: hub-token
+            readOnly: true
         securityContext:
           allowPrivilegeEscalation: false
         livenessProbe:
@@ -58,3 +65,8 @@ spec:
             memory: 64Mi
       serviceAccountName: controller-manager
       terminationGracePeriodSeconds: 10
+      volumes:
+        - name: hub-token
+          secret:
+            defaultMode: 420
+            secretName: hub-avesha-tenant-token
