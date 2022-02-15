@@ -33,23 +33,176 @@ spec:
             type: object
           spec:
             description: SliceSpec defines the desired state of Slice
-            type: object
-          status:
-            description: SliceStatus defines the observed state of Slice
             properties:
               sliceConfig:
                 description: SliceConfig is the spec for slice received from hub cluster
                 properties:
+                  qosProfileDetails:
+                    description: QOS profile details
+                    properties:
+                      bandwidthCeilingKbps:
+                        description: Bandwidth Ceiling eg:5000
+                        type: string
+                      bandwidthGuaranteedKbps:
+                        description: Bandwidth Guaranteed eg:4000
+                        type: string
+                      dscpClass:
+                        description: DSCP code for inter cluster traffic
+                        type: string
+                      priority:
+                        description: Priority 0-3
+                        type: string
+                      queueType:
+                        description: Queue Type
+                        type: string
+                    required:
+                    - bandwidthCeilingKbps
+                    - bandwidthGuaranteedKbps
+                    - dscpClass
+                    - priority
+                    - queueType
+                    type: object
+                  sliceDisplayName:
+                    description: display name of the slice.
+                    type: string
                   sliceId:
-                    description: SliceId is the UUID of the slice.
+                    description: UUID of the slice.
+                    type: string
+                  sliceIpam:
+                    description: IPAM configuration for the slice
+                    properties:
+                      ipamClusterOctet:
+                        description: Cluster specific octet for IPAM root subnet
+                        type: integer
+                      sliceIpamType:
+                        description: IPAM Type for slice
+                        type: string
+                    required:
+                    - sliceIpamType
+                    type: object
+                  sliceName:
+                    description: name of the slice.
                     type: string
                   sliceSubnet:
-                    description: SliceSubnet refers to the subnet the slice is part
-                      of
+                    description: IP subnet range of the slice.
+                    type: string
+                  sliceType:
+                    description: Type of the slice.
                     type: string
                 required:
+                - qosProfileDetails
+                - sliceDisplayName
                 - sliceId
+                - sliceIpam
+                - sliceName
                 - sliceSubnet
+                - sliceType
+                type: object
+              sliceDisplayName:
+                description: Display name of the slice.
+                type: string
+            required:
+            - sliceDisplayName
+            type: object
+          status:
+            description: SliceStatus defines the observed state of Slice
+            properties:
+              appPods:
+                description: AppPods contains the list of app pods connected to the
+                  slice
+                items:
+                  description: AppPod defines the app pods connected to slice
+                  properties:
+                    nsmInterface:
+                      description: NsmInterface is the nsm interface of App
+                      type: string
+                    nsmIp:
+                      description: NsmIP is the nsm ip of App
+                      type: string
+                    nsmPeerIp:
+                      description: PeerIp is the nsm peer ip of gateway
+                      type: string
+                    podIp:
+                      description: PodIP is App Pod IP
+                      type: string
+                    podName:
+                      description: PodName is App Pod Name
+                      type: string
+                    podNamespace:
+                      description: PodNamespace is App Pod Namespace
+                      type: string
+                  type: object
+                type: array
+              appPodsUpdatedOn:
+                description: AppPodsUpdatedOn is the time when app pods list was updated
+                format: int64
+                type: integer
+              dnsIP:
+                description: DNSIP is the IP of Coredns server
+                type: string
+              sliceConfig:
+                description: SliceConfig is the spec for slice received from hub cluster
+                properties:
+                  qosProfileDetails:
+                    description: QOS profile details
+                    properties:
+                      bandwidthCeilingKbps:
+                        description: Bandwidth Ceiling eg:5000
+                        type: string
+                      bandwidthGuaranteedKbps:
+                        description: Bandwidth Guaranteed eg:4000
+                        type: string
+                      dscpClass:
+                        description: DSCP code for inter cluster traffic
+                        type: string
+                      priority:
+                        description: Priority 0-3
+                        type: string
+                      queueType:
+                        description: Queue Type
+                        type: string
+                    required:
+                    - bandwidthCeilingKbps
+                    - bandwidthGuaranteedKbps
+                    - dscpClass
+                    - priority
+                    - queueType
+                    type: object
+                  sliceDisplayName:
+                    description: display name of the slice.
+                    type: string
+                  sliceId:
+                    description: UUID of the slice.
+                    type: string
+                  sliceIpam:
+                    description: IPAM configuration for the slice
+                    properties:
+                      ipamClusterOctet:
+                        description: Cluster specific octet for IPAM root subnet
+                        type: integer
+                      sliceIpamType:
+                        description: IPAM Type for slice
+                        type: string
+                    required:
+                    - sliceIpamType
+                    type: object
+                  sliceName:
+                    description: name of the slice.
+                    type: string
+                  sliceSubnet:
+                    description: IP subnet range of the slice.
+                    type: string
+                  sliceType:
+                    description: Type of the slice.
+                    type: string
+                required:
+                - qosProfileDetails
+                - sliceDisplayName
+                - sliceId
+                - sliceIpam
+                - sliceName
+                - sliceSubnet
+                - sliceType
                 type: object
             type: object
         type: object
