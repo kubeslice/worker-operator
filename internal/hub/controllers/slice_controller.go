@@ -55,7 +55,7 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req reconcile.Request) 
 				Spec: meshv1beta1.SliceSpec{
 					SliceDisplayName: sliceName,
 					SliceConfig: &meshv1beta1.SliceConfig{
-						SliceSubnet: slice.Spec.IpCidr,
+						SliceSubnet: slice.Spec.SliceSubnet,
 						SliceIpam: meshv1beta1.SliceIpamConfig{
 							SliceIpamType:    slice.Spec.SliceIpamType,
 							IpamClusterOctet: slice.Spec.IpamClusterOctet,

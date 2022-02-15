@@ -141,7 +141,7 @@ func (r *SliceReconciler) getContainerSpecForSliceRouter(s *meshv1beta1.Slice, i
 			},
 			corev1.EnvVar{
 				Name:  "DNS_NAMESERVERS",
-				Value: s.Status.DnsIP,
+				Value: s.Status.DNSIP,
 			},
 			corev1.EnvVar{
 				Name:  "DNS_DOMAINS",
