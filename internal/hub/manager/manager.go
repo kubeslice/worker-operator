@@ -18,10 +18,6 @@ import (
 	spokev1alpha1 "bitbucket.org/realtimeai/mesh-apis/pkg/mesh/v1alpha1"
 )
 
-const (
-	ns = "hub-avesha-tenant-cisco"
-)
-
 var scheme = runtime.NewScheme()
 
 func init() {
@@ -34,16 +30,17 @@ func Start(meshClient client.Client, ctx context.Context) {
 
 	config := &rest.Config{
 		Host:            os.Getenv("HUB_HOST_ENDPOINT"),
-		BearerTokenFile: "/var/run/secrets/kubernetes.io/hub-serviceaccount/token",
+		BearerTokenFile: HubTokenFile,
 		TLSClientConfig: rest.TLSClientConfig{
-			CAFile: "/var/run/secrets/kubernetes.io/hub-serviceaccount/ca.crt",
+			CAFile: HubCAFile,
 		},
 	}
 
 	var log = log.Log.WithName("hub")
 
 	mgr, err := manager.New(config, manager.Options{
-		Namespace:          ns,
+		Host:               HubEndpoint,
+		Namespace:          ProjectNamespace,
 		Scheme:             scheme,
 		MetricsBindAddress: "0", // disable metrics for now
 	})
