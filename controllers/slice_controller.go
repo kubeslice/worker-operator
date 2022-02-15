@@ -56,7 +56,7 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 		svc := &corev1.Service{}
 		err := r.Get(ctx, types.NamespacedName{
 			Namespace: slice.Namespace,
-			Name:      "mesh-dns",
+			Name:      DNSDeploymentName,
 		}, svc)
 
 		if err != nil {

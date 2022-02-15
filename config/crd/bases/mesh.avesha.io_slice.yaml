@@ -109,7 +109,38 @@ spec:
           status:
             description: SliceStatus defines the observed state of Slice
             properties:
+              appPods:
+                description: AppPods contains the list of app pods connected to the
+                  slice
+                items:
+                  description: AppPod defines the app pods connected to slice
+                  properties:
+                    nsmInterface:
+                      description: NsmInterface is the nsm interface of App
+                      type: string
+                    nsmIp:
+                      description: NsmIP is the nsm ip of App
+                      type: string
+                    nsmPeerIp:
+                      description: PeerIp is the nsm peer ip of gateway
+                      type: string
+                    podIp:
+                      description: PodIP is App Pod IP
+                      type: string
+                    podName:
+                      description: PodName is App Pod Name
+                      type: string
+                    podNamespace:
+                      description: PodNamespace is App Pod Namespace
+                      type: string
+                  type: object
+                type: array
+              appPodsUpdatedOn:
+                description: AppPodsUpdatedOn is the time when app pods list was updated
+                format: int64
+                type: integer
               dnsIP:
+                description: DNSIP is the IP of Coredns server
                 type: string
               sliceConfig:
                 description: SliceConfig is the spec for slice received from hub cluster
@@ -175,8 +206,6 @@ spec:
                 - sliceSubnet
                 - sliceType
                 type: object
-            required:
-            - dnsIP
             type: object
         type: object
     served: true

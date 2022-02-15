@@ -11,7 +11,7 @@ var (
 	// DNSDeploymentName is the name of coredns deployment running in the cluster
 	DNSDeploymentName = "mesh-dns"
 
-	imagePullSecretName = "kubeslice-avesha-nexus"
+	imagePullSecretName = GetEnvOrDefault("IMAGE_PULL_SECRET_NAME", "kubeslice-avesha-nexus")
 
 	gwSidecarImage           = os.Getenv("AVESHA_GW_SIDECAR_IMAGE")
 	gwSidecarImagePullPolicy = os.Getenv("AVESHA_GW_SIDECAR_IMAGE_PULLPOLICY")
@@ -27,3 +27,11 @@ var (
 	sliceRouterSidecarImage           = os.Getenv("AVESHA_GW_SIDECAR_IMAGE")
 	sliceRouterSidecarImagePullPolicy = os.Getenv("AVESHA_GW_SIDECAR_IMAGE_PULLPOLICY")
 )
+
+func GetEnvOrDefault(key, def string) string {
+	val, ok := os.LookupEnv(key)
+	if !ok {
+		return def
+	}
+	return val
+}
