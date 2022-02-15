@@ -52,16 +52,32 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 
 	slice := &meshv1beta1.Slice{}
 
+	err := r.Get(ctx, req.NamespacedName, slice)
+	if err != nil {
+		if errors.IsNotFound(err) {
+			// Request object not found, could have been deleted after reconcile request.
+			// Return and don't requeue
+			log.Info("Slice resource not found. Ignoring since object must be deleted")
+			return ctrl.Result{}, nil
+		}
+		// Error reading the object - requeue the request.
+		log.Error(err, "Failed to get Slice")
+		return ctrl.Result{}, err
+	}
+
+	log.Info("reconciling", "slice", slice.Name)
+
 	if slice.Status.DNSIP == "" {
 		log.Info("Finding DNS IP")
 		svc := &corev1.Service{}
-		err := r.Get(ctx, types.NamespacedName{
-			Namespace: slice.Namespace,
+		err = r.Get(ctx, types.NamespacedName{
+			Namespace: ControlPlaneNamespace,
 			Name:      DNSDeploymentName,
 		}, svc)
 
 		if err != nil {
 			if errors.IsNotFound(err) {
+				log.Error(err, "dns not found")
 				log.Info("DNS service not found in the cluster, probably coredns is not deployed; continuing")
 			} else {
 				log.Error(err, "Unable to find DNS Service")
