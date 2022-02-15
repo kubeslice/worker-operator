@@ -22,10 +22,6 @@ import (
 
 // SliceSpec defines the desired state of Slice
 type SliceSpec struct {
-	// Display name of the slice.
-	SliceDisplayName string `json:"sliceDisplayName"`
-	// SliceConfig is the spec for slice received from hub cluster
-	SliceConfig *SliceConfig `json:"sliceConfig,omitempty"`
 }
 
 // QosProfileDetails is the QOS Profile for the slice
@@ -53,8 +49,6 @@ type SliceIpamConfig struct {
 type SliceConfig struct {
 	// UUID of the slice.
 	SliceID string `json:"sliceId"`
-	// name of the slice.
-	SliceName string `json:"sliceName"`
 	// display name of the slice.
 	SliceDisplayName string `json:"sliceDisplayName"`
 	// IP subnet range of the slice.

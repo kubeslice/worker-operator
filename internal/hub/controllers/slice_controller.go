@@ -52,16 +52,7 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req reconcile.Request) 
 					Name:      sliceName,
 					Namespace: ControlPlaneNamespace,
 				},
-				Spec: meshv1beta1.SliceSpec{
-					SliceDisplayName: sliceName,
-					SliceConfig: &meshv1beta1.SliceConfig{
-						SliceSubnet: slice.Spec.SliceSubnet,
-						SliceIpam: meshv1beta1.SliceIpamConfig{
-							SliceIpamType:    slice.Spec.SliceIpamType,
-							IpamClusterOctet: slice.Spec.IpamClusterOctet,
-						},
-					},
-				},
+				Spec: meshv1beta1.SliceSpec{},
 			}
 
 			err = r.MeshClient.Create(ctx, s)
@@ -70,6 +61,24 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req reconcile.Request) 
 				return reconcile.Result{}, err
 			}
 			log.Info("slice created in spoke cluster")
+
+			s.Status.SliceConfig = &meshv1beta1.SliceConfig{
+				SliceDisplayName: sliceName,
+				SliceSubnet:      slice.Spec.SliceSubnet,
+				SliceIpam: meshv1beta1.SliceIpamConfig{
+					SliceIpamType:    slice.Spec.SliceIpamType,
+					IpamClusterOctet: slice.Spec.IpamClusterOctet,
+				},
+				SliceType: slice.Spec.SliceType,
+			}
+
+			err = r.MeshClient.Status().Update(ctx, s)
+			if err != nil {
+				log.Error(err, "unable to update slice status in spoke cluster", "slice", s)
+				return reconcile.Result{}, err
+			}
+			log.Info("slice status updated in spoke cluster")
+
 			return reconcile.Result{}, nil
 		}
 

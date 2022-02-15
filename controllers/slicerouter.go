@@ -90,7 +90,7 @@ func (r *SliceReconciler) getContainerSpecForSliceRouter(s *meshv1beta1.Slice, i
 		vl3ImagePullPolicy = corev1.PullPolicy(vl3RouterPullPolicy)
 	}
 
-	clusterPrefixPool := getClusterPrefixPool(s.Spec.SliceConfig.SliceSubnet, ipamOctet)
+	clusterPrefixPool := getClusterPrefixPool(s.Status.SliceConfig.SliceSubnet, ipamOctet)
 
 	privileged := true
 
@@ -137,7 +137,7 @@ func (r *SliceReconciler) getContainerSpecForSliceRouter(s *meshv1beta1.Slice, i
 			},
 			corev1.EnvVar{
 				Name:  "DST_ROUTES",
-				Value: s.Spec.SliceConfig.SliceSubnet,
+				Value: s.Status.SliceConfig.SliceSubnet,
 			},
 			corev1.EnvVar{
 				Name:  "DNS_NAMESERVERS",
@@ -316,7 +316,7 @@ func (r *SliceReconciler) deploySliceRouter(ctx context.Context, slice *meshv1be
 		return goerrors.New(fmt.Sprintf("Invalid dataplane: %v", dataplane))
 	}
 
-	ipamOctet := strconv.Itoa(slice.Spec.SliceConfig.SliceIpam.IpamClusterOctet)
+	ipamOctet := strconv.Itoa(slice.Status.SliceConfig.SliceIpam.IpamClusterOctet)
 
 	dep := r.deploymentForSliceRouter(slice, ipamOctet, dataplane)
 	err = r.Create(ctx, dep)
@@ -336,7 +336,7 @@ func (r *SliceReconciler) ReconcileSliceRouter(ctx context.Context, slice *meshv
 	err := r.Get(ctx, types.NamespacedName{Name: sliceRouterDeploymentNamePrefix + slice.Name, Namespace: slice.Namespace}, foundSliceRouter)
 	if err != nil {
 		if errors.IsNotFound(err) {
-			if slice.Spec.SliceConfig == nil {
+			if slice.Status.SliceConfig == nil {
 				return ctrl.Result{
 					RequeueAfter: 10 * time.Second,
 				}, nil, true
