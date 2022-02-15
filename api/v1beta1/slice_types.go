@@ -67,11 +67,32 @@ type SliceConfig struct {
 	SliceIpam SliceIpamConfig `json:"sliceIpam"`
 }
 
+// AppPod defines the app pods connected to slice
+type AppPod struct {
+	// PodName is App Pod Name
+	PodName string `json:"podName,omitempty"`
+	// PodNamespace is App Pod Namespace
+	PodNamespace string `json:"podNamespace,omitempty"`
+	// PodIP is App Pod IP
+	PodIP string `json:"podIp,omitempty"`
+	// NsmIP is the nsm ip of App
+	NsmIP string `json:"nsmIp,omitempty"`
+	// NsmInterface is the nsm interface of App
+	NsmInterface string `json:"nsmInterface,omitempty"`
+	// PeerIp is the nsm peer ip of gateway
+	NsmPeerIP string `json:"nsmPeerIp,omitempty"`
+}
+
 // SliceStatus defines the observed state of Slice
 type SliceStatus struct {
 	// SliceConfig is the spec for slice received from hub cluster
 	SliceConfig *SliceConfig `json:"sliceConfig,omitempty"`
-	DnsIP       string       `json:"dnsIP"`
+	// DNSIP is the IP of Coredns server
+	DNSIP string `json:"dnsIP,omitempty"`
+	// AppPods contains the list of app pods connected to the slice
+	AppPods []AppPod `json:"appPods,omitempty"`
+	// AppPodsUpdatedOn is the time when app pods list was updated
+	AppPodsUpdatedOn int64 `json:"appPodsUpdatedOn,omitempty"`
 }
 
 //+kubebuilder:object:root=true

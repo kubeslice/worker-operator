@@ -20,12 +20,15 @@ import (
 	"context"
 
 	"github.com/go-logr/logr"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	meshv1beta1 "bitbucket.org/realtimeai/kubeslice-operator/api/v1beta1"
+	"bitbucket.org/realtimeai/kubeslice-operator/internal/logger"
 )
 
 // SliceReconciler reconciles a Slice object
@@ -40,34 +43,40 @@ type SliceReconciler struct {
 //+kubebuilder:rbac:groups=mesh.avesha.io,resources=slice/finalizers,verbs=update
 //+kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=core,resources=pods,verbs=get;list;watch
-
-// Reconcile is part of the main kubernetes reconciliation loop which aims to
-// move the current state of the cluster closer to the desired state.
-// TODO(user): Modify the Reconcile function to compare the state specified by
-// the Slice object against the actual cluster state, and then
-// perform operations to make the cluster state reflect the state specified by
-// the user.
-//
-// For more details, check Reconcile and its Result here:
-// - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.10.0/pkg/reconcile
+//+kubebuilder:rbac:groups=core,resources=services,verbs=get;list;watch;create;update;patch;delete
 func (r *SliceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := r.Log.WithValues("slice", req.NamespacedName)
+	debugLog := log.V(1)
+	ctx = logger.WithLogger(ctx, log)
 
 	slice := &meshv1beta1.Slice{}
-	err := r.Get(ctx, req.NamespacedName, slice)
-	if err != nil {
-		if errors.IsNotFound(err) {
-			// Request object not found, could have been deleted after reconcile request.
-			// Return and don't requeue
-			log.Info("Slice resource not found. Ignoring since object must be deleted")
+
+	if slice.Status.DNSIP == "" {
+		log.Info("Finding DNS IP")
+		svc := &corev1.Service{}
+		err := r.Get(ctx, types.NamespacedName{
+			Namespace: slice.Namespace,
+			Name:      "mesh-dns",
+		}, svc)
+
+		if err != nil {
+			if errors.IsNotFound(err) {
+				log.Info("DNS service not found in the cluster, probably coredns is not deployed; continuing")
+			} else {
+				log.Error(err, "Unable to find DNS Service")
+				return ctrl.Result{}, err
+			}
+		} else {
+			debugLog.Info("got dns service", "svc", svc)
+			slice.Status.DNSIP = svc.Spec.ClusterIP
+			err = r.Status().Update(ctx, slice)
+			if err != nil {
+				log.Error(err, "Failed to update Slice status for dns")
+				return ctrl.Result{}, err
+			}
 			return ctrl.Result{}, nil
 		}
-		// Error reading the object - requeue the request.
-		log.Error(err, "Failed to get Slice")
-		return ctrl.Result{}, err
 	}
-
-	log.Info("reconciling", "slice", slice.Name)
 
 	res, err, requeue := r.ReconcileSliceRouter(ctx, slice)
 	if requeue {
