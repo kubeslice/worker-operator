@@ -2,6 +2,8 @@ package controllers
 
 import (
 	"os"
+
+	"bitbucket.org/realtimeai/kubeslice-operator/internal/utils"
 )
 
 var (
@@ -11,7 +13,7 @@ var (
 	// DNSDeploymentName is the name of coredns deployment running in the cluster
 	DNSDeploymentName = "mesh-dns"
 
-	imagePullSecretName = GetEnvOrDefault("IMAGE_PULL_SECRET_NAME", "avesha-nexus")
+	imagePullSecretName = utils.GetEnvOrDefault("IMAGE_PULL_SECRET_NAME", "avesha-nexus")
 
 	gwSidecarImage           = os.Getenv("AVESHA_GW_SIDECAR_IMAGE")
 	gwSidecarImagePullPolicy = os.Getenv("AVESHA_GW_SIDECAR_IMAGE_PULLPOLICY")
@@ -28,10 +30,3 @@ var (
 	sliceRouterSidecarImagePullPolicy = os.Getenv("AVESHA_GW_SIDECAR_IMAGE_PULLPOLICY")
 )
 
-func GetEnvOrDefault(key, def string) string {
-	val, ok := os.LookupEnv(key)
-	if !ok {
-		return def
-	}
-	return val
-}
