@@ -36,6 +36,7 @@ import (
 	"bitbucket.org/realtimeai/kubeslice-operator/controllers"
 	"bitbucket.org/realtimeai/kubeslice-operator/internal/hub/manager"
 	"bitbucket.org/realtimeai/kubeslice-operator/internal/logger"
+	"bitbucket.org/realtimeai/kubeslice-operator/internal/utils"
 	deploywh "bitbucket.org/realtimeai/kubeslice-operator/internal/webhook/deploy"
 	//+kubebuilder:scaffold:imports
 )
@@ -78,11 +79,14 @@ func main() {
 		LeaderElectionID:       "f7425d89.avesha.io",
 	})
 
-	mgr.GetWebhookServer().Register("/mutate-appsv1-deploy", &webhook.Admission{
-		Handler: &deploywh.WebhookServer{
-			Client: mgr.GetClient(),
-		},
-	})
+	// Use an environment variable to be able to disable webhooks, so that we can run the operator locally
+	if utils.GetEnvOrDefault("ENABLE_WEBHOOKS", "true") == "true" {
+		mgr.GetWebhookServer().Register("/mutate-appsv1-deploy", &webhook.Admission{
+			Handler: &deploywh.WebhookServer{
+				Client: mgr.GetClient(),
+			},
+		})
+	}
 
 	if err != nil {
 		setupLog.Error(err, "unable to start manager")

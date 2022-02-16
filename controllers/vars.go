@@ -29,4 +29,3 @@ var (
 	sliceRouterSidecarImage           = os.Getenv("AVESHA_GW_SIDECAR_IMAGE")
 	sliceRouterSidecarImagePullPolicy = os.Getenv("AVESHA_GW_SIDECAR_IMAGE_PULLPOLICY")
 )
-
