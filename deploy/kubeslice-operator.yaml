@@ -405,6 +405,18 @@ spec:
   selector:
     control-plane: controller-manager
 ---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kubeslice-webhook-service
+  namespace: kubeslice-system
+spec:
+  ports:
+  - port: 443
+    targetPort: 9443
+  selector:
+    control-plane: controller-manager
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -472,12 +484,45 @@ spec:
         - mountPath: /var/run/secrets/kubernetes.io/hub-serviceaccount
           name: hub-token
           readOnly: true
+        - mountPath: /etc/webhook/certs
+          name: webhook-certs
+          readOnly: true
       securityContext:
         runAsNonRoot: false
       serviceAccountName: kubeslice-controller-manager
       terminationGracePeriodSeconds: 10
       volumes:
+      - name: webhook-certs
+        secret:
+          secretName: kubeslice-admission-webhook-certs
       - name: hub-token
         secret:
           defaultMode: 420
           secretName: kubeslice-hub-avesha-tenant-token
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: MutatingWebhookConfiguration
+metadata:
+  creationTimestamp: null
+  name: kubeslice-mutating-webhook-configuration
+webhooks:
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
+      path: /mutate-appsv1-deploy
+  failurePolicy: Fail
+  name: mdeploy.avesha.io
+  rules:
+  - apiGroups:
+    - apps
+    apiVersions:
+    - v1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - deployments
+  sideEffects: NoneOnDryRun
