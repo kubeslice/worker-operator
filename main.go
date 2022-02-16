@@ -30,11 +30,13 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
 	meshv1beta1 "bitbucket.org/realtimeai/kubeslice-operator/api/v1beta1"
 	"bitbucket.org/realtimeai/kubeslice-operator/controllers"
 	"bitbucket.org/realtimeai/kubeslice-operator/internal/hub/manager"
 	"bitbucket.org/realtimeai/kubeslice-operator/internal/logger"
+	deploywh "bitbucket.org/realtimeai/kubeslice-operator/internal/webhook/deploy"
 	//+kubebuilder:scaffold:imports
 )
 
@@ -75,6 +77,13 @@ func main() {
 		LeaderElection:         enableLeaderElection,
 		LeaderElectionID:       "f7425d89.avesha.io",
 	})
+
+	mgr.GetWebhookServer().Register("/mutate-appsv1-deploy", &webhook.Admission{
+		Handler: &deploywh.WebhookServer{
+			Client: mgr.GetClient(),
+		},
+	})
+
 	if err != nil {
 		setupLog.Error(err, "unable to start manager")
 		os.Exit(1)
