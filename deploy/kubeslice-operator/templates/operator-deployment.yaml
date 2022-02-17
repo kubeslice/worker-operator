@@ -71,8 +71,6 @@ spec:
           - mountPath: /etc/webhook/certs
             name: webhook-certs
             readOnly: true
-      securityContext:
-        runAsNonRoot: true
       serviceAccountName: kubeslice-controller-manager
       terminationGracePeriodSeconds: 10
       volumes:
