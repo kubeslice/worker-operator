@@ -47,3 +47,17 @@ webhooks:
     resources:
     - deployments
   sideEffects: NoneOnDryRun
+  namespaceSelector:
+    matchExpressions:
+    - key: name
+      operator: NotIn
+      values:
+      - kube-system
+    - key: kubernetes.io/metadata.name
+      operator: NotIn
+      values:
+      - kube-system
+    - key: name
+      operator: NotIn
+      values:
+      - {{ .Release.Namespace }}
