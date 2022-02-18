@@ -79,6 +79,7 @@ func main() {
 		HealthProbeBindAddress: probeAddr,
 		LeaderElection:         enableLeaderElection,
 		LeaderElectionID:       "f7425d89.avesha.io",
+		CertDir:                utils.GetEnvOrDefault("WEBHOOK_CERTS_DIR", "/etc/webhook/certs"),
 	})
 
 	// Use an environment variable to be able to disable webhooks, so that we can run the operator locally

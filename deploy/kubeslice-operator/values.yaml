@@ -1,7 +1,7 @@
 operator:
-  image: nexus.dev.aveshalabs.io/avesha-slice-operator
-  tag: 1.14.0
-  pullPolicy: IfNotPresent
+  image: nexus.dev.aveshalabs.io/kubeslice-operator
+  tag: latest
+  pullPolicy: Always
 
 netop:
   networkInterface: ens160

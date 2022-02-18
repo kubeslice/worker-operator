@@ -49,6 +49,9 @@ spec:
           - mountPath: /var/run/secrets/kubernetes.io/hub-serviceaccount
             name: hub-token
             readOnly: true
+          - mountPath: /etc/webhook/certs
+            name: webhook-certs
+            readOnly: true
         securityContext:
           allowPrivilegeEscalation: false
         livenessProbe:
@@ -74,6 +77,9 @@ spec:
             memory: 64Mi
       terminationGracePeriodSeconds: 10
       volumes:
+        - name: webhook-certs
+          secret:
+            secretName: kubeslice-admission-webhook-certs
         - name: hub-token
           secret:
             defaultMode: 420
