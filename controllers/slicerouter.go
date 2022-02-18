@@ -9,12 +9,13 @@ import (
 	"time"
 
 	meshv1beta1 "bitbucket.org/realtimeai/kubeslice-operator/api/v1beta1"
+	nsmv1alpha1 "github.com/networkservicemesh/networkservicemesh/k8s/pkg/apis/networkservice/v1alpha1"
 
 	"bitbucket.org/realtimeai/kubeslice-operator/internal/logger"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
-	//"k8s.io/apimachinery/pkg/api/resource"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -122,6 +123,11 @@ func (r *SliceReconciler) getContainerSpecForSliceRouter(s *meshv1beta1.Slice, i
 			{
 				Name:  "NSREGISTRY_PORT",
 				Value: "5000",
+			},
+		},
+		Resources: corev1.ResourceRequirements{
+			Limits: corev1.ResourceList{
+				"networkservicemesh.io/socket": *resource.NewQuantity(1, resource.DecimalExponent),
 			},
 		},
 		SecurityContext: &corev1.SecurityContext{
@@ -356,4 +362,25 @@ func (r *SliceReconciler) ReconcileSliceRouter(ctx context.Context, slice *meshv
 	}
 
 	return ctrl.Result{}, nil, false
+}
+
+func FindSliceRouterService(ctx context.Context, c client.Client, sliceName string) (bool, error) {
+	vl3NseEpList := &nsmv1alpha1.NetworkServiceEndpointList{}
+	opts := []client.ListOption{
+		client.InNamespace(ControlPlaneNamespace),
+		client.MatchingLabels{"app": "vl3-nse-" + sliceName,
+			"networkservicename": "vl3-service-" + sliceName},
+	}
+	err := c.List(ctx, vl3NseEpList, opts...)
+	if err != nil {
+		if errors.IsNotFound(err) {
+			return false, nil
+		}
+		return false, err
+	}
+	if len(vl3NseEpList.Items) == 0 {
+		return false, nil
+	}
+
+	return true, nil
 }

@@ -45,18 +45,29 @@ func Start(meshClient client.Client, ctx context.Context) {
 		MetricsBindAddress: "0", // disable metrics for now
 	})
 	if err != nil {
-		log.Error(err, "BBH: could not create manager")
+		log.Error(err, "Could not create manager")
 		os.Exit(1)
 	}
 
 	sliceReconciler := &controllers.SliceReconciler{
 		MeshClient: meshClient,
 	}
-
 	err = builder.
 		ControllerManagedBy(mgr).
 		For(&spokev1alpha1.Slice{}).
 		Complete(sliceReconciler)
+	if err != nil {
+		log.Error(err, "could not create controller")
+		os.Exit(1)
+	}
+
+	sliceGwReconciler := &controllers.SliceGwReconciler{
+		MeshClient: meshClient,
+	}
+	err = builder.
+		ControllerManagedBy(mgr).
+		For(&spokev1alpha1.SliceGateway{}).
+		Complete(sliceGwReconciler)
 	if err != nil {
 		log.Error(err, "could not create controller")
 		os.Exit(1)

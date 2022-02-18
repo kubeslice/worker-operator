@@ -32,6 +32,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
+	nsmv1alpha1 "github.com/networkservicemesh/networkservicemesh/k8s/pkg/apis/networkservice/v1alpha1"
+
 	meshv1beta1 "bitbucket.org/realtimeai/kubeslice-operator/api/v1beta1"
 	"bitbucket.org/realtimeai/kubeslice-operator/controllers"
 	"bitbucket.org/realtimeai/kubeslice-operator/internal/hub/manager"
@@ -48,7 +50,7 @@ var (
 
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
-
+	utilruntime.Must(nsmv1alpha1.AddToScheme(scheme))
 	utilruntime.Must(meshv1beta1.AddToScheme(scheme))
 	//+kubebuilder:scaffold:scheme
 }
@@ -99,6 +101,15 @@ func main() {
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Slice")
+		os.Exit(1)
+	}
+
+	if err = (&controllers.SliceGwReconciler{
+		Client: mgr.GetClient(),
+		Log:    ctrl.Log.WithName("controllers").WithName("SliceGw"),
+		Scheme: mgr.GetScheme(),
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "SliceGw")
 		os.Exit(1)
 	}
 	//+kubebuilder:scaffold:builder

@@ -9,7 +9,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: operator
-  namespace: system
+  namespace: kubeslice-system
   labels:
     control-plane: controller-manager
 spec:
@@ -26,6 +26,7 @@ spec:
     spec:
       securityContext:
         runAsNonRoot: false
+      serviceAccountName: kubeslice-controller-manager
       containers:
       - command:
         - /manager
@@ -36,6 +37,14 @@ spec:
         env:
           - name: HUB_HOST_ENDPOINT
             value: "https://10.1.80.11:6443"
+          - name: HUB_PROJECT_NAMESPACE
+            value: "hub-avesha-tenant-cisco"
+          - name: ENABLE_WEBHOOKS
+            value: "false"
+          - name: CLUSTER_NAME
+            value: "cluster-1"
+          - name: NODE_IP
+            value: "1.2.3.4"
         volumeMounts:
           - mountPath: /var/run/secrets/kubernetes.io/hub-serviceaccount
             name: hub-token
@@ -63,7 +72,6 @@ spec:
           requests:
             cpu: 10m
             memory: 64Mi
-      serviceAccountName: controller-manager
       terminationGracePeriodSeconds: 10
       volumes:
         - name: hub-token

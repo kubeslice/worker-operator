@@ -13,6 +13,10 @@ var (
 	// DNSDeploymentName is the name of coredns deployment running in the cluster
 	DNSDeploymentName = "mesh-dns"
 
+	clusterName = os.Getenv("CLUSTER_NAME")
+
+	nodeIP = os.Getenv("NODE_IP")
+
 	imagePullSecretName = utils.GetEnvOrDefault("IMAGE_PULL_SECRET_NAME", "avesha-nexus")
 
 	gwSidecarImage           = os.Getenv("AVESHA_GW_SIDECAR_IMAGE")

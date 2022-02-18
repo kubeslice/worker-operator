@@ -1,0 +1,20 @@
+# permissions for end users to view slice.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: slicegateway-viewer-role
+rules:
+- apiGroups:
+  - mesh.avesha.io
+  resources:
+  - slicegateways
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - mesh.avesha.io
+  resources:
+  - slicegateways/status
+  verbs:
+  - get
