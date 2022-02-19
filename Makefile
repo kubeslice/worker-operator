@@ -110,14 +110,16 @@ docker-build: test ## Build docker image with the manager.
 	docker build -t ${IMG} .
 
 .PHONY: docker-push
-docker-push:  docker-build ## Push docker image with the manager.
+docker-push: ## Push docker image with the manager.
 	docker push ${IMG}
 
 ##@ Deployment
 
 .PHONY: chart-deploy
-chart-deploy: ## Deploy the artifacts using helm
-	helm upgrade --install kubeslice -n kubeslice-system deploy/kubeslice-operator
+chart-deploy:
+	## Deploy the artifacts using helm
+	## Usage: make chart-deploy VALUESFILE=[valuesfilename]
+	helm upgrade --install kubeslice -n kubeslice-system deploy/kubeslice-operator -f deploy/kubeslice-operator/values/${VALUESFILE}
 
 ifndef ignore-not-found
   ignore-not-found = false
