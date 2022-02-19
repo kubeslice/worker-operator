@@ -2,6 +2,19 @@
 
 TODO: Add description
 
+## Getting secrets from hub cluster
+
+The following command will fetch the relevant secrets from hub cluster
+and copy them to `secrets` folder. It will also output them so that we
+can use it to populate helm chart values.
+
+```
+deploy/hub_secret.sh [hub_cluster_context] [tenant_namespace] [spoke_cluster_name]
+
+eg:
+deploy/hub_secret.sh gke_avesha-dev_us-east1-c_xxxx hub-avesha-tenant-cisco my-awesome-cluster
+```
+
 ## Build and push docker images
 
 Adjust `VERSION` variable in the Makefile to change the docker tag to be built.
@@ -64,17 +77,23 @@ it is possible to run the operator locally and forward the webhook
 requests from within the cluster to your local instance.
 
 Copy webhook tls key and tls cert under `secrets/webhook` folder
+
+Use the script `deploy/webhook-secret.sh` to automatically fetch webhook secrets from curent cluster and copy it to the folder.
+
+```
+deploy/webhook-secret.sh
+```
+
 ```
 ❯ tree secrets
 secrets
 ├── ca.crt
 ├── token
-├── webhook
-│   ├── tls.crt
-│   └── tls.key
-└── webhook-server-cert.yaml
+└── webhook
+    ├── tls.crt
+    └── tls.key
 
-1 directory, 5 files
+1 directory, 4 files
 ```
 
 Adjust `.env` values
