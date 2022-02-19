@@ -78,6 +78,7 @@ time.
 Now we can start the operator locally and test the webhooks
 
 ```
+source .env
 make run
 ```
 

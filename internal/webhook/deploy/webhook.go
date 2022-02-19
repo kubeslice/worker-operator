@@ -36,12 +36,12 @@ func (wh *WebhookServer) Handle(ctx context.Context, req admission.Request) admi
 	log := logger.FromContext(ctx)
 
 	if !MutationRequired(deploy.ObjectMeta) {
-		log.Info("mutation not required", "deploy", deploy)
+		log.Info("mutation not required", "pod metadata", deploy.Spec.Template.ObjectMeta)
 	} else {
-		log.Info("mutating deploy", "deploy", deploy)
+		log.Info("mutating deploy", "pod metadata", deploy.Spec.Template.ObjectMeta)
 		slice := deploy.ObjectMeta.Annotations[admissionWebhookAnnotationInjectKey]
 		deploy = Mutate(deploy, slice)
-		log.Info("mutated deploy", "deploy", deploy)
+		log.Info("mutated deploy", "pod metadata", deploy.Spec.Template.ObjectMeta)
 	}
 
 	marshaled, err := json.Marshal(deploy)
