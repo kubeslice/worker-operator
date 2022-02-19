@@ -53,11 +53,9 @@ webhooks:
       operator: NotIn
       values:
       - kube-system
+      - {{ .Release.Namespace }}
     - key: kubernetes.io/metadata.name
       operator: NotIn
       values:
       - kube-system
-    - key: name
-      operator: NotIn
-      values:
       - {{ .Release.Namespace }}
