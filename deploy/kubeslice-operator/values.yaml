@@ -2,6 +2,7 @@ operator:
   image: nexus.dev.aveshalabs.io/kubeslice-operator
   tag: 0.0.1
   pullPolicy: IfNotPresent
+  logLevel: DEBUG
 
 hubSecret:
   namespace: aHViLWF2ZXNoYS10ZW5hbnQtY2lzY28=

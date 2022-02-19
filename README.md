@@ -83,3 +83,9 @@ make run
 
 When you create the corresponding kubernetes object in the cluster, the
 webhook request will be forwarded into your local cluster.
+
+To stop telepresence,
+
+```
+telepresence uninstall --everything
+```

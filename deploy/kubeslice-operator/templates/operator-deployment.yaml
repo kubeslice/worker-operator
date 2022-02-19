@@ -38,6 +38,8 @@ spec:
         image: '{{ .Values.operator.image }}:{{ .Values.operator.tag }}'
         imagePullPolicy: '{{ .Values.operator.pullPolicy }}'
         env:
+          - name: LOG_LEVEL
+            value: {{ .Values.operator.logLevel }}
           - name: HUB_HOST_ENDPOINT
             valueFrom:
               secretKeyRef:
