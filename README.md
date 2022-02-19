@@ -38,3 +38,48 @@ You can add more env variables to override defaults as needed
 source .env
 make run
 ```
+
+## Developing webhooks locally
+
+it is possible to run the operator locally and forward the webhook
+requests from within the cluster to your local instance.
+
+Copy webhook tls key and tls cert under `secrets/webhook` folder
+```
+❯ tree secrets
+secrets
+├── ca.crt
+├── token
+├── webhook
+│   ├── tls.crt
+│   └── tls.key
+└── webhook-server-cert.yaml
+
+1 directory, 5 files
+```
+
+Adjust `.env` values
+
+```
+export ENABLE_WEBHOOKS=true
+export WEBHOOK_CERTS_DIR=/home/jayadeep/workspace/work/avesha/mesh/repos/kubeslice-operator/secrets/webhook
+```
+
+Use [Telepresence](https://www.telepresence.io/) to intercept traffic into your manager pod in the
+cluster and forward it locally
+
+```
+telepresence intercept kubeslice-operator -p 9443
+```
+
+Make sure an instance of operator is running in the cluster at this
+time.
+
+Now we can start the operator locally and test the webhooks
+
+```
+make run
+```
+
+When you create the corresponding kubernetes object in the cluster, the
+webhook request will be forwarded into your local cluster.
