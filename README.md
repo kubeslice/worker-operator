@@ -1,17 +1,49 @@
 # kubeslice-operator
 
-TODO: Add description and basic instructions here
+TODO: Add description
+
+## Getting secrets from hub cluster
+
+The following command will fetch the relevant secrets from hub cluster
+and copy them to `secrets` folder. It will also output them so that we
+can use it to populate helm chart values.
+
+```
+deploy/hub_secret.sh [hub_cluster_context] [tenant_namespace] [spoke_cluster_name]
+
+eg:
+deploy/hub_secret.sh gke_avesha-dev_us-east1-c_xxxx hub-avesha-tenant-cisco my-awesome-cluster
+```
+
+## Build and push docker images
+
+Adjust `VERSION` variable in the Makefile to change the docker tag to be built.
+Image is set as `nexus.dev.aveshalabs.io/kubeslice-operator:$(VERSION)` in the makefile. Change this if required
+
+```
+make docker-build
+make docker-push
+```
+
+## Deploying in a cluster
+
+Create chart values file in `deploy/kubeslice-operator/values/yourvaluesfile.yaml`.
+Refer to `deploy/kubeslice-operator/values/values.yaml` on how to adjust this.
+
+```
+make chart-deploy VALUESFILE=yourvaluesfile.yaml
+```
 
 ## Running locally
 
 It is possible to run the operator locally while the remaining
-components (netops, dns, router etc) are deploted in the cluster.
+components (netops, dns, router etc) are deployed in the cluster.
 
-Install kubeslice helm chart
+Install kubeslice helm chart.
+Create values file in `deploy/kubeslice-operator/values/yourvaluesfile.yaml`
 
 ```
-cd deploy/kubeslice-operator
-helm install kubeslice . -n kubeslice-system
+make chart-deploy VALUESFILE=yourvaluesfile.yaml
 ```
 
 Scale down the operator deployment in the cluster to zero, so that we
@@ -37,4 +69,62 @@ You can add more env variables to override defaults as needed
 ```
 source .env
 make run
+```
+
+## Developing webhooks locally
+
+it is possible to run the operator locally and forward the webhook
+requests from within the cluster to your local instance.
+
+Copy webhook tls key and tls cert under `secrets/webhook` folder
+
+Use the script `deploy/webhook-secret.sh` to automatically fetch webhook secrets from curent cluster and copy it to the folder.
+
+```
+deploy/webhook-secret.sh
+```
+
+```
+❯ tree secrets
+secrets
+├── ca.crt
+├── token
+└── webhook
+    ├── tls.crt
+    └── tls.key
+
+1 directory, 4 files
+```
+
+Adjust `.env` values
+
+```
+export ENABLE_WEBHOOKS=true
+export WEBHOOK_CERTS_DIR=/home/jayadeep/workspace/work/avesha/mesh/repos/kubeslice-operator/secrets/webhook
+```
+
+Use [Telepresence](https://www.telepresence.io/) to intercept traffic into your manager pod in the
+cluster and forward it locally
+
+```
+telepresence intercept kubeslice-operator -p 9443
+```
+
+Make sure an instance of operator is running in the cluster at this
+time.
+
+Now we can start the operator locally and test the webhooks
+
+```
+source .env
+make run
+```
+
+When you create the corresponding kubernetes object in the cluster, the
+webhook request will be forwarded into your local cluster.
+
+To stop telepresence,
+
+```
+telepresence uninstall --everything
 ```

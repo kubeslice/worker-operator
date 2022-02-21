@@ -38,10 +38,18 @@ spec:
         image: '{{ .Values.operator.image }}:{{ .Values.operator.tag }}'
         imagePullPolicy: '{{ .Values.operator.pullPolicy }}'
         env:
+          - name: LOG_LEVEL
+            value: {{ .Values.operator.logLevel }}
           - name: HUB_HOST_ENDPOINT
-            value: "https://10.1.80.11:6443"
+            valueFrom:
+              secretKeyRef:
+                name: kubeslice-hub
+                key: endpoint
           - name: HUB_PROJECT_NAMESPACE
-            value: "hub-avesha-tenant-cisco"
+            valueFrom:
+              secretKeyRef:
+                name: kubeslice-hub
+                key: namespace
         livenessProbe:
           httpGet:
             path: /healthz
@@ -66,7 +74,7 @@ spec:
           allowPrivilegeEscalation: false
         volumeMounts:
           - mountPath: /var/run/secrets/kubernetes.io/hub-serviceaccount
-            name: hub-token
+            name: hub-secret
             readOnly: true
           - mountPath: /etc/webhook/certs
             name: webhook-certs
@@ -77,10 +85,15 @@ spec:
         - name: webhook-certs
           secret:
             secretName: kubeslice-admission-webhook-certs
-        - name: hub-token
+        - name: hub-secret
           secret:
             defaultMode: 420
-            secretName: hub-avesha-tenant-token
+            secretName: kubeslice-hub
+            items:
+            - key: "ca.crt"
+              path: "ca.crt"
+            - key: "token"
+              path: "token"
       {{- with .Values.imagePullSecrets }}
       imagePullSecrets:
         {{- toYaml . | nindent 6 }}

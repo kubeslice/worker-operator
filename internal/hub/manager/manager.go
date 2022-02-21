@@ -38,6 +38,8 @@ func Start(meshClient client.Client, ctx context.Context) {
 
 	var log = log.Log.WithName("hub")
 
+	log.Info("Connecting to hub cluster", "endpoint", HubEndpoint, "ns", ProjectNamespace)
+
 	mgr, err := manager.New(config, manager.Options{
 		Host:               HubEndpoint,
 		Namespace:          ProjectNamespace,

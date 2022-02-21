@@ -1,7 +1,15 @@
 operator:
   image: nexus.dev.aveshalabs.io/kubeslice-operator
-  tag: latest
-  pullPolicy: Always
+  tag: 0.0.1
+  pullPolicy: IfNotPresent
+  logLevel: INFO
+
+## Base64 encoded secret values from hub cluster
+hubSecret:
+  namespace:
+  endpoint:
+  ca.crt:
+  token:
 
 netop:
   networkInterface: ens160
@@ -10,7 +18,8 @@ netop:
   pullPolicy: IfNotPresent
 
 # Imagepullsecrets name which are needed if docker images are hosted in private registry
-# This secret has to be already present in the cluster
+# This secret should be already present in the cluster
+# avesha-nexus is provided as part of nsm chart
 imagePullSecrets:
 - name: avesha-nexus
 
