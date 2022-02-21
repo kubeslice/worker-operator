@@ -1,5 +1,5 @@
 operator:
-  tag: latest
+  tag: 0.0.2
   pullPolicy: Always
   logLevel: DEBUG
 
