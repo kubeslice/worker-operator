@@ -29,7 +29,7 @@ func (r *SliceGwReconciler) deploymentForGatewayServer(g *meshv1beta1.SliceGatew
 	var vpnSecretDefaultMode int32 = 420
 	var privileged bool = true
 
-	sidecarImg := "nexus.dev.aveshalabs.io/mesh-netops:1.0.0"
+	sidecarImg := "nexus.dev.aveshalabs.io/kubeslice-gw-sidecar:latest-stable"
 	sidecarPullPolicy := corev1.PullAlways
 	vpnImg := "nexus.dev.aveshalabs.io/avesha/openvpn-server.ubuntu.18.04:1.0.0"
 	vpnPullPolicy := corev1.PullAlways
@@ -116,6 +116,10 @@ func (r *SliceGwReconciler) deploymentForGatewayServer(g *meshv1beta1.SliceGatew
 							{
 								Name:  "OPEN_VPN_MODE",
 								Value: "SERVER",
+							},
+							{
+								Name: "MOUNT_PATH",
+								Value: "config"
 							},
 						},
 						SecurityContext: &corev1.SecurityContext{
