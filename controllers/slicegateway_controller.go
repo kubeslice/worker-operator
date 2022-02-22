@@ -22,7 +22,7 @@ import (
 
 	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
-	//corev1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -30,6 +30,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	meshv1beta1 "bitbucket.org/realtimeai/kubeslice-operator/api/v1beta1"
+	hub "bitbucket.org/realtimeai/kubeslice-operator/internal/hub/hub-client"
 	"bitbucket.org/realtimeai/kubeslice-operator/internal/logger"
 )
 
@@ -105,6 +106,33 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 
 	// true if the gateway is openvpn server
 	isServer := sliceGw.Status.Config.SliceGatewayHostType == "Server"
+	// Check if the Gw service already exists, if not create a new one if it is a server
+	if isServer {
+		foundsvc := &corev1.Service{}
+		err = r.Get(ctx, types.NamespacedName{Name: "svc-" + sliceGwName, Namespace: ControlPlaneNamespace}, foundsvc)
+		if err != nil {
+			if errors.IsNotFound(err) {
+				// Define a new service
+				svc := r.serviceForGateway(sliceGw)
+				log.Info("Creating a new Service", "Namespace", svc.Namespace, "Name", svc.Name)
+				err = r.Create(ctx, svc)
+				if err != nil {
+					log.Error(err, "Failed to create new Service", "Namespace", svc.Namespace, "Name", svc.Name)
+					return ctrl.Result{}, err
+				}
+				return ctrl.Result{Requeue: true}, nil
+			}
+			log.Error(err, "Failed to get Service")
+			return ctrl.Result{}, err
+		}
+
+		sliceGwNodePort := foundsvc.Spec.Ports[0].NodePort
+		err = hub.UpdateNodePortForSliceGwServer(ctx, sliceGwNodePort, sliceGwName)
+		if err != nil {
+			log.Error(err, "Failed to update NodePort for sliceGw in the hub")
+			return ctrl.Result{}, err
+		}
+	}
 
 	// client can be deployed only if remoteNodeIp is present
 	canDeployGw := isServer || sliceGw.Status.Config.SliceGatewayRemoteNodeIP != ""

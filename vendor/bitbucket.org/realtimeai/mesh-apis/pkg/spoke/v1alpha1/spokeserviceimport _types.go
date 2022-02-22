@@ -33,8 +33,8 @@ const (
 	MeshTypeNone MeshType = "none"
 )
 
-// ServiceEntriesSpec defines the desired state of ServiceEntries
-type ServiceEntriesSpec struct {
+// SpokeServiceImportSpec defines the desired state of SpokeServiceImport
+type SpokeServiceImportSpec struct {
 	//ServiceName is the name of the service
 	ServiceName string `json:"serviceName,omitempty"`
 	// clusterId is the id of the cluster where the service is available.
@@ -73,34 +73,33 @@ type ServiceDiscoveryPort struct {
 	Protocol string `json:"protocol,omitempty"`
 }
 
-// ServiceEntriesStatus defines the observed state of ServiceEntries
-type ServiceEntriesStatus struct {
+// SpokeServiceImportStatus defines the observed state of SpokeServiceImport
+type SpokeServiceImportStatus struct {
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 }
 
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
-// +kubebuilder:resource:path=serviceentries,singular=serviceentries
 
-// ServiceEntries is the Schema for the serviceentries API
-type ServiceEntries struct {
+// SpokeServiceImport is the Schema for the spokeserviceimport API
+type SpokeServiceImport struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   ServiceEntriesSpec   `json:"spec,omitempty"`
-	Status ServiceEntriesStatus `json:"status,omitempty"`
+	Spec   SpokeServiceImportSpec   `json:"spec,omitempty"`
+	Status SpokeServiceImportStatus `json:"status,omitempty"`
 }
 
 //+kubebuilder:object:root=true
 
-// ServiceEntriesList contains a list of ServiceEntries
-type ServiceEntriesList struct {
+// SpokeServiceImportList contains a list of SpokeServiceImport
+type SpokeServiceImportList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []ServiceEntries `json:"items"`
+	Items           []SpokeServiceImport `json:"items"`
 }
 
 func init() {
-	SchemeBuilder.Register(&ServiceEntries{}, &ServiceEntriesList{})
+	SchemeBuilder.Register(&SpokeServiceImport{}, &SpokeServiceImportList{})
 }

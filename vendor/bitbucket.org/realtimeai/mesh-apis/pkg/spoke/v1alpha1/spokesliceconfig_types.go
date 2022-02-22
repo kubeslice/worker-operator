@@ -24,12 +24,12 @@ import (
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
 
-// SliceSpec defines the desired state of Slice
-type SliceSpec struct {
+// SpokeSliceConfigSpec defines the desired state of Slice
+type SpokeSliceConfigSpec struct {
 	SliceSubnet string `json:"sliceSubnet,omitempty"`
 	//+kubebuilder:validation:Enum:=Application
-	SliceType            string               `json:"sliceType,omitempty"`
-	SliceGatewayProvider SliceGatewayProvider `json:"sliceGatewayProvider,omitempty"`
+	SliceType                 string                    `json:"sliceType,omitempty"`
+	SpokeSliceGatewayProvider SpokeSliceGatewayProvider `json:"spokeSliceGatewayProvider,omitempty"`
 	//+kubebuilder:validation:Enum:=Local
 	SliceIpamType             string                    `json:"sliceIpamType,omitempty"`
 	SchSliceClusterSite       string                    `json:"schSliceClusterSite,omitempty"` //FIXME:: what's the purpose
@@ -41,10 +41,10 @@ type SliceSpec struct {
 	SliceName                 string                    `json:"sliceName,omitempty"`
 }
 
-// SliceGatewayProvider defines the configuration for slicegateway
-type SliceGatewayProvider struct {
+// SpokeSliceGatewayProvider defines the configuration for slicegateway
+type SpokeSliceGatewayProvider struct {
 	//+kubebuilder:validation:Enum:=OpenVPN
-	SliceGatewayType string `json:"sliceGatewayType,omitempty"`
+	SpokeSliceGatewayType string `json:"spokeSliceGatewayType,omitempty"`
 	//+kubebuilder:validation:Enum:=Local
 	SliceCAType string `json:"sliceCaType,omitempty"`
 	//+kubebuilder:validation:Enum:=IDPCognito;IDPOkta;IDPOAuth;IDPOpenID
@@ -92,8 +92,8 @@ func (in *SubNamespaces) DeepCopyInto(out *SubNamespaces) {
 	}
 }
 
-// SliceStatus defines the observed state of Slice
-type SliceStatus struct {
+// SpokeSliceConfigStatus defines the observed state of Slice
+type SpokeSliceConfigStatus struct {
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 }
@@ -101,24 +101,24 @@ type SliceStatus struct {
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
 
-// Slice is the Schema for the slice API
-type Slice struct {
+// SpokeSliceConfig is the Schema for the slice API
+type SpokeSliceConfig struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   SliceSpec   `json:"spec,omitempty"`
-	Status SliceStatus `json:"status,omitempty"`
+	Spec   SpokeSliceConfigSpec   `json:"spec,omitempty"`
+	Status SpokeSliceConfigStatus `json:"status,omitempty"`
 }
 
 //+kubebuilder:object:root=true
 
-// SliceList contains a list of Slice
-type SliceList struct {
+// SpokeSliceConfigList contains a list of Slice
+type SpokeSliceConfigList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []Slice `json:"items"`
+	Items           []SpokeSliceConfig `json:"items"`
 }
 
 func init() {
-	SchemeBuilder.Register(&Slice{}, &SliceList{})
+	SchemeBuilder.Register(&SpokeSliceConfig{}, &SpokeSliceConfigList{})
 }

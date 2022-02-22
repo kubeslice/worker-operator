@@ -15,7 +15,7 @@ import (
 
 	"bitbucket.org/realtimeai/kubeslice-operator/internal/hub/controllers"
 	"bitbucket.org/realtimeai/kubeslice-operator/internal/logger"
-	spokev1alpha1 "bitbucket.org/realtimeai/mesh-apis/pkg/mesh/v1alpha1"
+	spokev1alpha1 "bitbucket.org/realtimeai/mesh-apis/pkg/spoke/v1alpha1"
 )
 
 var scheme = runtime.NewScheme()
@@ -56,7 +56,7 @@ func Start(meshClient client.Client, ctx context.Context) {
 	}
 	err = builder.
 		ControllerManagedBy(mgr).
-		For(&spokev1alpha1.Slice{}).
+		For(&spokev1alpha1.SpokeSliceConfig{}).
 		Complete(sliceReconciler)
 	if err != nil {
 		log.Error(err, "could not create controller")
@@ -68,7 +68,7 @@ func Start(meshClient client.Client, ctx context.Context) {
 	}
 	err = builder.
 		ControllerManagedBy(mgr).
-		For(&spokev1alpha1.SliceGateway{}).
+		For(&spokev1alpha1.SpokeSliceGateway{}).
 		Complete(sliceGwReconciler)
 	if err != nil {
 		log.Error(err, "could not create controller")

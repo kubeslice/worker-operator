@@ -6,7 +6,7 @@ import (
 
 	meshv1beta1 "bitbucket.org/realtimeai/kubeslice-operator/api/v1beta1"
 	"bitbucket.org/realtimeai/kubeslice-operator/internal/logger"
-	spokev1alpha1 "bitbucket.org/realtimeai/mesh-apis/pkg/mesh/v1alpha1"
+	spokev1alpha1 "bitbucket.org/realtimeai/mesh-apis/pkg/spoke/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -23,7 +23,7 @@ type SliceGwReconciler struct {
 func (r *SliceGwReconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
 	log := logger.FromContext(ctx)
 
-	sliceGw := &spokev1alpha1.SliceGateway{}
+	sliceGw := &spokev1alpha1.SpokeSliceGateway{}
 	err := r.Get(ctx, req.NamespacedName, sliceGw)
 	if err != nil {
 		if errors.IsNotFound(err) {
@@ -114,9 +114,9 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req reconcile.Request
 	}
 
 	meshSliceGw.Status.Config = meshv1beta1.SliceGatewayConfig{
-		SliceGatewaySubnet:   sliceGw.Spec.SliceGatewaySubnet,
-		SliceGatewayHostType: sliceGw.Spec.SliceGatewayHostType,
-		SliceGatewayStatus:   sliceGw.Spec.SliceGatewayStatus,
+		SliceGatewaySubnet:   sliceGw.Spec.SpokeSliceGatewaySubnet,
+		SliceGatewayHostType: sliceGw.Spec.SpokeSliceGatewayHostType,
+		SliceGatewayStatus:   sliceGw.Spec.SpokeSliceGatewayStatus,
 	}
 	err = r.MeshClient.Status().Update(ctx, meshSliceGw)
 	if err != nil {
