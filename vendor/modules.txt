@@ -1,5 +1,6 @@
 # bitbucket.org/realtimeai/mesh-apis v0.0.0-20220209111048-e08042d86358
 ## explicit
+bitbucket.org/realtimeai/mesh-apis/pkg/hub/v1alpha1
 bitbucket.org/realtimeai/mesh-apis/pkg/mesh/v1alpha1
 # cloud.google.com/go v0.81.0
 cloud.google.com/go/compute/metadata

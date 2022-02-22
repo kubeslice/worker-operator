@@ -41,10 +41,7 @@ spec:
           - name: LOG_LEVEL
             value: {{ .Values.operator.logLevel }}
           - name: HUB_HOST_ENDPOINT
-            valueFrom:
-              secretKeyRef:
-                name: kubeslice-hub
-                key: endpoint
+            value: https://34.127.28.47
           - name: HUB_PROJECT_NAMESPACE
             valueFrom:
               secretKeyRef:

@@ -118,8 +118,8 @@ func (r *SliceGwReconciler) deploymentForGatewayServer(g *meshv1beta1.SliceGatew
 								Value: "SERVER",
 							},
 							{
-								Name: "MOUNT_PATH",
-								Value: "config"
+								Name:  "MOUNT_PATH",
+								Value: "config",
 							},
 						},
 						SecurityContext: &corev1.SecurityContext{
