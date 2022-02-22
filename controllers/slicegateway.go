@@ -11,7 +11,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	//	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	ctrl "sigs.k8s.io/controller-runtime"
 
 	meshv1beta1 "bitbucket.org/realtimeai/kubeslice-operator/api/v1beta1"
@@ -224,4 +224,27 @@ func (r *SliceGwReconciler) deploymentForGateway(g *meshv1beta1.SliceGateway) *a
 		return r.deploymentForGatewayServer(g)
 	}
 	return nil
+}
+
+func (r *SliceGwReconciler) serviceForGateway(g *meshv1beta1.SliceGateway) *corev1.Service {
+	svc := &corev1.Service{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "svc-" + g.Name,
+			Namespace: g.Namespace,
+			Labels: map[string]string{
+				"avesha.io/slice": g.Spec.SliceName,
+			},
+		},
+		Spec: corev1.ServiceSpec{
+			Type:     "NodePort",
+			Selector: labelsForSliceGwDeployment(g.Name, g.Spec.SliceName),
+			Ports: []corev1.ServicePort{{
+				Port:       11194,
+				Protocol:   corev1.ProtocolUDP,
+				TargetPort: intstr.FromInt(11194),
+			}},
+		},
+	}
+	ctrl.SetControllerReference(g, svc, r.Scheme)
+	return svc
 }

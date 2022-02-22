@@ -5,7 +5,7 @@ import (
 
 	meshv1beta1 "bitbucket.org/realtimeai/kubeslice-operator/api/v1beta1"
 	"bitbucket.org/realtimeai/kubeslice-operator/internal/logger"
-	spokev1alpha1 "bitbucket.org/realtimeai/mesh-apis/pkg/mesh/v1alpha1"
+	spokev1alpha1 "bitbucket.org/realtimeai/mesh-apis/pkg/spoke/v1alpha1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -20,7 +20,7 @@ type SliceReconciler struct {
 func (r *SliceReconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
 	log := logger.FromContext(ctx)
 
-	slice := &spokev1alpha1.Slice{}
+	slice := &spokev1alpha1.SpokeSliceConfig{}
 	err := r.Get(ctx, req.NamespacedName, slice)
 	if err != nil {
 		if errors.IsNotFound(err) {
