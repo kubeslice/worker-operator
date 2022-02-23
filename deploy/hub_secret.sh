@@ -33,7 +33,7 @@ if [ "$p" != "y" ];then
 fi
 
 
-secret=$(kubectl get serviceaccount --context "$1" -n "$2" "kube-slice-spoke-$3" -o jsonpath="{.secrets[0].name}")
+secret=$(kubectl get serviceaccount --context "$1" -n "$2" "kubeslice-spoke-$3" -o jsonpath="{.secrets[0].name}")
 
 
 echo "Serviceaccount secret: $secret"
