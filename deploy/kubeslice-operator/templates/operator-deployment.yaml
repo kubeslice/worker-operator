@@ -41,12 +41,19 @@ spec:
           - name: LOG_LEVEL
             value: {{ .Values.operator.logLevel }}
           - name: HUB_HOST_ENDPOINT
-            value: https://34.127.28.47
+            valueFrom:
+              secretKeyRef:
+                name: kubeslice-hub
+                key: endpoint
           - name: HUB_PROJECT_NAMESPACE
             valueFrom:
               secretKeyRef:
                 name: kubeslice-hub
                 key: namespace
+          - name: ENABLE_WEBHOOKS
+            value: {{ .Values.webhooks.enable }}
+          - name: CLUSTER_NAME
+            value: {{ .Values.cluster.name }}
         livenessProbe:
           httpGet:
             path: /healthz
