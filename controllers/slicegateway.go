@@ -3,7 +3,7 @@ package controllers
 import (
 	//	"context"
 	//	"errors"
-	//	"os"
+	"os"
 	//	"strconv"
 	//	"strings"
 
@@ -27,12 +27,13 @@ func (r *SliceGwReconciler) deploymentForGatewayServer(g *meshv1beta1.SliceGatew
 
 	var replicas int32 = 1
 	var vpnSecretDefaultMode int32 = 420
+	var vpnFilesRestrictedMode int32 = 0600
 	var privileged bool = true
-
 	sidecarImg := "nexus.dev.aveshalabs.io/kubeslice-gw-sidecar:latest-stable"
 	sidecarPullPolicy := corev1.PullAlways
 	vpnImg := "nexus.dev.aveshalabs.io/avesha/openvpn-server.ubuntu.18.04:1.0.0"
 	vpnPullPolicy := corev1.PullAlways
+	baseFileName := os.Getenv("CLUSTER_NAME") + "-" + g.Spec.SliceName + "-1.vpn.aveshasystems.com"
 
 	if len(gwSidecarImage) != 0 {
 		sidecarImg = gwSidecarImage
@@ -139,7 +140,6 @@ func (r *SliceGwReconciler) deploymentForGatewayServer(g *meshv1beta1.SliceGatew
 							{
 								Name:      "vpn-certs",
 								MountPath: "/var/run/vpn",
-								ReadOnly:  true,
 							},
 						},
 						Resources: corev1.ResourceRequirements{
@@ -191,6 +191,32 @@ func (r *SliceGwReconciler) deploymentForGatewayServer(g *meshv1beta1.SliceGatew
 								Secret: &corev1.SecretVolumeSource{
 									SecretName:  g.Name,
 									DefaultMode: &vpnSecretDefaultMode,
+									Items: []corev1.KeyToPath{
+										{
+											Key:  "ovpnConfigFile",
+											Path: "openvpn.conf",
+										}, {
+											Key:  "pkiCACertFile",
+											Path: "pki/" + "ca.crt",
+										}, {
+											Key:  "pkiDhPemFile",
+											Path: "pki/" + "dh.pem",
+										}, {
+											Key:  "pkiTAKeyFile",
+											Path: "pki/" + baseFileName + "-" + "ta.key",
+										}, {
+											Key:  "pkiIssuedCertFile",
+											Path: "pki/issued/" + baseFileName + ".crt",
+											Mode: &vpnFilesRestrictedMode,
+										}, {
+											Key:  "pkiPrivateKeyFile",
+											Path: "pki/private/" + baseFileName + ".key",
+											Mode: &vpnFilesRestrictedMode,
+										}, {
+											Key:  "ccdFile",
+											Path: "ccd/" + "slice" + "-" + g.Spec.SliceName,
+										},
+									},
 								},
 							},
 						},
