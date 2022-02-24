@@ -335,6 +335,36 @@ func (r *SliceReconciler) deploySliceRouter(ctx context.Context, slice *meshv1be
 	return nil
 }
 
+// Deploys the vL3 slice router service
+func (r *SliceReconciler) deploySliceRouterSvc(ctx context.Context, slice *meshv1beta1.Slice) error {
+	log := logger.FromContext(ctx).WithName("slice-router-svc")
+
+	ls := labelsForSliceRouterDeployment(slice.Name)
+
+	svc := &corev1.Service{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      sliceRouterDeploymentNamePrefix + slice.Name,
+			Namespace: ControlPlaneNamespace,
+		},
+		Spec: corev1.ServiceSpec{
+			Selector: ls,
+			Ports: []corev1.ServicePort{{
+				Port: 5000,
+				Name: "grpc",
+			}},
+		},
+	}
+
+	err := r.Create(ctx, svc)
+	if err != nil {
+		log.Error(err, "Failed to create svc for slice router")
+		return err
+	}
+	log.Info("Created svc spec for slice router: ", "Name: ", slice.Name)
+
+	return nil
+}
+
 func (r *SliceReconciler) ReconcileSliceRouter(ctx context.Context, slice *meshv1beta1.Slice) (ctrl.Result, error, bool) {
 	log := logger.FromContext(ctx).WithName("slice-router")
 	// Spawn the slice router for the slice if not done already
@@ -354,6 +384,33 @@ func (r *SliceReconciler) ReconcileSliceRouter(ctx context.Context, slice *meshv
 				return ctrl.Result{}, err, true
 			}
 			log.Info("Creating slice router", "Namespace", slice.Namespace, "Name", "vl3-nse-"+slice.Name)
+			return ctrl.Result{
+				RequeueAfter: 10 * time.Second,
+			}, nil, true
+		}
+		return ctrl.Result{}, err, true
+	}
+
+	foundSvc := &corev1.Service{}
+	err = r.Get(ctx, types.NamespacedName{
+		Name:      sliceRouterDeploymentNamePrefix + slice.Name,
+		Namespace: ControlPlaneNamespace,
+	}, foundSvc)
+
+	if err != nil {
+		if errors.IsNotFound(err) {
+			if slice.Status.SliceConfig == nil {
+				return ctrl.Result{
+					RequeueAfter: 10 * time.Second,
+				}, nil, true
+			}
+			// Define and create a new deployment for the slice router
+			err := r.deploySliceRouterSvc(ctx, slice)
+			if err != nil {
+				log.Error(err, "Failed to deploy slice router service")
+				return ctrl.Result{}, err, true
+			}
+			log.Info("Creating slice router", "Namespace svc", slice.Namespace, "Name", "vl3-nse-"+slice.Name)
 			return ctrl.Result{
 				RequeueAfter: 10 * time.Second,
 			}, nil, true
