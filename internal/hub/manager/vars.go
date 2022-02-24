@@ -1,9 +1,8 @@
 package manager
 
 import (
-	"os"
-
 	"bitbucket.org/realtimeai/kubeslice-operator/internal/utils"
+	"os"
 )
 
 var (

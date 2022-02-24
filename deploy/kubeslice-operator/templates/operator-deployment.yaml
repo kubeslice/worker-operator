@@ -50,6 +50,10 @@ spec:
               secretKeyRef:
                 name: kubeslice-hub
                 key: namespace
+          - name: ENABLE_WEBHOOKS
+            value: {{ .Values.webhooks.enable }}
+          - name: CLUSTER_NAME
+            value: {{ .Values.cluster.name }}
         livenessProbe:
           httpGet:
             path: /healthz

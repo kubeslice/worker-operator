@@ -11,6 +11,12 @@ hubSecret:
   ca.crt:
   token:
 
+cluster:
+  name:
+
+webhooks:
+  enable: "true"
+
 netop:
   networkInterface: ens160
   image: nexus.dev.aveshalabs.io/mesh-netops
