@@ -12,6 +12,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	log "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	"bitbucket.org/realtimeai/kubeslice-operator/internal/hub/controllers"
 	"bitbucket.org/realtimeai/kubeslice-operator/internal/logger"
@@ -57,6 +58,9 @@ func Start(meshClient client.Client, ctx context.Context) {
 	err = builder.
 		ControllerManagedBy(mgr).
 		For(&spokev1alpha1.SpokeSliceConfig{}).
+		WithEventFilter(predicate.NewPredicateFuncs(func(object client.Object) bool {
+			return object.GetLabels()["spoke-cluster"] == ClusterName
+		})).
 		Complete(sliceReconciler)
 	if err != nil {
 		log.Error(err, "could not create controller")
