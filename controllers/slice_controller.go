@@ -120,6 +120,15 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 		return ctrl.Result{Requeue: true}, nil
 	}
 
+	debugLog.Info("reconciling app pods")
+	res, err, requeue = r.ReconcileAppPod(ctx, slice)
+
+	if requeue {
+		log.Info("app pods reconciled")
+		debugLog.Info("requeuing after app pod list reconcile", "res", res, "er", err)
+		return res, err
+	}
+
 	return ctrl.Result{
 		RequeueAfter: ReconcileInterval,
 	}, nil
