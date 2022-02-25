@@ -52,6 +52,14 @@ spec:
                 key: namespace
           - name: CLUSTER_NAME
             value: {{ .Values.cluster.name }}
+          - name: AVESHA_VL3_ROUTER_IMAGE
+            value: "{{ .Values.router.image }}:{{ .Values.router.tag }}"
+          - name: AVESHA_VL3_ROUTER_PULLPOLICY
+            value: {{ .Values.router.pullPolicy }}
+          - name: AVESHA_VL3_SIDECAR_IMAGE
+            value: "{{ .Values.routerSidecar.image }}:{{ .Values.routerSidecar.tag }}"
+          - name: AVESHA_VL3_SIDECAR_IMAGE_PULLPOLICY
+            value: {{ .Values.routerSidecar.pullPolicy }}
         livenessProbe:
           httpGet:
             path: /healthz
