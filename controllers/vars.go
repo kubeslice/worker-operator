@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"os"
+	"time"
 
 	"bitbucket.org/realtimeai/kubeslice-operator/internal/utils"
 )
@@ -32,4 +33,6 @@ var (
 
 	sliceRouterSidecarImage           = os.Getenv("AVESHA_GW_SIDECAR_IMAGE")
 	sliceRouterSidecarImagePullPolicy = os.Getenv("AVESHA_GW_SIDECAR_IMAGE_PULLPOLICY")
+
+	ReconcileInterval = 10 * time.Second
 )

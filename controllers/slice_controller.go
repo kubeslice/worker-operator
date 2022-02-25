@@ -18,6 +18,7 @@ package controllers
 
 import (
 	"context"
+	"time"
 
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
@@ -101,7 +102,47 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 		return res, err
 	}
 
-	return ctrl.Result{}, nil
+	debugLog.Info("fetching app pods")
+	appPods, err := r.getAppPods(ctx, slice)
+	debugLog.Info("app pods", "pods", appPods, "err", err)
+
+	if isAppPodStatusChanged(appPods, slice.Status.AppPods) {
+		log.Info("App pod status changed")
+		slice.Status.AppPods = appPods
+		slice.Status.AppPodsUpdatedOn = time.Now().Unix()
+
+		err = r.Status().Update(ctx, slice)
+		if err != nil {
+			log.Error(err, "Failed to update Slice status for app pods")
+			return ctrl.Result{}, err
+		}
+		log.Info("App pod status updated in slice")
+		return ctrl.Result{Requeue: true}, nil
+	}
+
+	return ctrl.Result{
+		RequeueAfter: ReconcileInterval,
+	}, nil
+}
+
+func isAppPodStatusChanged(current []meshv1beta1.AppPod, old []meshv1beta1.AppPod) bool {
+	if len(current) != len(old) {
+		return true
+	}
+
+	s := make(map[string]string)
+
+	for _, c := range old {
+		s[c.PodIP] = c.PodName
+	}
+
+	for _, c := range current {
+		if s[c.PodIP] != c.PodName {
+			return true
+		}
+	}
+
+	return false
 }
 
 // SetupWithManager sets up the controller with the Manager.
