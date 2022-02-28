@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"bitbucket.org/realtimeai/kubeslice-operator/pkg/events"
 	"context"
 	goerrors "errors"
 	"fmt"
@@ -328,9 +329,25 @@ func (r *SliceReconciler) deploySliceRouter(ctx context.Context, slice *meshv1be
 	err = r.Create(ctx, dep)
 	if err != nil {
 		log.Error(err, "Failed to create deployment for slice router")
+		event := events.Event{
+			Object:      slice,
+			ClusterName: clusterName,
+			EventType:   events.EventTypeWarning,
+			Reason:      "Error Creating slice router",
+			Message:     "Error Creating slice router",
+		}
+		event.NewEvent(r.EventRecorder)
 		return err
 	}
 	log.Info("Created deployment spec for slice router: ", "Name: ", slice.Name, "ipamOctet: ", ipamOctet)
+	event := events.Event{
+		Object:      slice,
+		ClusterName: clusterName,
+		EventType:   events.EventTypeNormal,
+		Reason:      "Created slice router",
+		Message:     "Created slice router",
+	}
+	event.NewEvent(r.EventRecorder)
 
 	return nil
 }

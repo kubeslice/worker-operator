@@ -30,13 +30,15 @@ import (
 
 	meshv1beta1 "bitbucket.org/realtimeai/kubeslice-operator/api/v1beta1"
 	"bitbucket.org/realtimeai/kubeslice-operator/internal/logger"
+	"bitbucket.org/realtimeai/kubeslice-operator/pkg/events"
 )
 
 // SliceReconciler reconciles a Slice object
 type SliceReconciler struct {
 	client.Client
-	Scheme *runtime.Scheme
-	Log    logr.Logger
+	Scheme        *runtime.Scheme
+	Log           logr.Logger
+	EventRecorder *events.EventRecorder
 }
 
 //+kubebuilder:rbac:groups=mesh.avesha.io,resources=slice,verbs=get;list;watch;create;update;patch;delete
