@@ -134,15 +134,15 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		}
 	}
 
-	// client can be deployed only if remoteNodeIp is present
-	canDeployGw := isServer || sliceGw.Status.Config.SliceGatewayRemoteNodeIP != ""
-	if !canDeployGw {
-		// no need to deploy gateway deployment or service
-		log.Info("Unable to deploy slicegateway client, as remoteIP is not available, requeuing")
-		return ctrl.Result{
-			RequeueAfter: 10 * time.Second,
-		}, nil
-	}
+	//// client can be deployed only if remoteNodeIp is present
+	//canDeployGw := isServer || sliceGw.Status.Config.SliceGatewayRemoteNodeIP != ""
+	//if !canDeployGw {
+	//	// no need to deploy gateway deployment or service
+	//	log.Info("Unable to deploy slicegateway client, as remoteIP is not available, requeuing")
+	//	return ctrl.Result{
+	//		RequeueAfter: 10 * time.Second,
+	//	}, nil
+	//}
 
 	// Check if the deployment already exists, if not create a new one
 	found := &appsv1.Deployment{}
