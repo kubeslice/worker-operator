@@ -41,17 +41,13 @@ func labelsForSliceRouterDeployment(name string) map[string]string {
 }
 
 func getSliceRouterSidecarImageAndPullPolicy() (string, corev1.PullPolicy) {
-	image := "nexus.dev.aveshalabs.io/mesh-netops:1.0.0"
 	pullPolicy := corev1.PullAlways
 
-	if len(sliceRouterSidecarImage) > 0 {
-		image = sliceRouterSidecarImage
-	}
 	if len(sliceRouterSidecarImagePullPolicy) > 0 {
 		pullPolicy = corev1.PullPolicy(sliceRouterSidecarImagePullPolicy)
 	}
 
-	return image, pullPolicy
+	return sliceRouterSidecarImage, pullPolicy
 }
 
 func (r *SliceReconciler) getNsmDataplaneMode(ctx context.Context, slice *meshv1beta1.Slice) (string, error) {
