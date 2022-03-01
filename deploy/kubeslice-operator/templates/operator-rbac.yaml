@@ -10,7 +10,7 @@ metadata:
   name: kubeslice-leader-election-role
   namespace: kubeslice-system
 rules:
-- apiGroups:
+  - apiGroups:
   - ""
   resources:
   - configmaps
@@ -27,20 +27,26 @@ rules:
   resources:
   - leases
   verbs:
-  - get
+    - get
   - list
   - watch
   - create
-  - update
-  - patch
-  - delete
-- apiGroups:
-  - ""
-  resources:
-  - events
-  verbs:
-  - create
-  - patch
+    - update
+    - patch
+    - delete
+  - apiGroups:
+      - ""
+    resources:
+      - events
+    verbs:
+      - create
+      - patch
+  - apiGroups:
+      - ""
+    resources:
+      - nodes
+    verbs:
+
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole

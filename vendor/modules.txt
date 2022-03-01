@@ -3,6 +3,7 @@
 bitbucket.org/realtimeai/kubeslice-router-sidecar/pkg/proto
 # bitbucket.org/realtimeai/mesh-apis v0.0.0-20220221023856-3c009efbc77d
 ## explicit
+bitbucket.org/realtimeai/mesh-apis/pkg/hub/v1alpha1
 bitbucket.org/realtimeai/mesh-apis/pkg/spoke/v1alpha1
 # cloud.google.com/go v0.81.0
 cloud.google.com/go/compute/metadata
