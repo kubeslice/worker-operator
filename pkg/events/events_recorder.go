@@ -24,11 +24,10 @@ func NewEventRecorder(recorder record.EventRecorder) *EventRecorder {
 }
 
 type Event struct {
-	Object      runtime.Object
-	EventType   EventType
-	Reason      string
-	Message     string
-	ClusterName string
+	Object    runtime.Object
+	EventType EventType
+	Reason    string
+	Message   string
 }
 
 func (event *Event) NewEvent(eventRecorder *EventRecorder) {

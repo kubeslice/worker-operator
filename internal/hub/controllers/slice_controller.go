@@ -1,11 +1,11 @@
 package controllers
 
 import (
-	"context"
-
 	meshv1beta1 "bitbucket.org/realtimeai/kubeslice-operator/api/v1beta1"
 	"bitbucket.org/realtimeai/kubeslice-operator/internal/logger"
+	"bitbucket.org/realtimeai/kubeslice-operator/pkg/events"
 	spokev1alpha1 "bitbucket.org/realtimeai/mesh-apis/pkg/spoke/v1alpha1"
+	"context"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -14,7 +14,8 @@ import (
 
 type SliceReconciler struct {
 	client.Client
-	MeshClient client.Client
+	MeshClient    client.Client
+	EventRecorder *events.EventRecorder
 }
 
 func (r *SliceReconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
@@ -61,6 +62,13 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req reconcile.Request) 
 				return reconcile.Result{}, err
 			}
 			log.Info("slice created in spoke cluster")
+			event := events.Event{
+				Object:    slice,
+				EventType: events.EventTypeNormal,
+				Reason:    "Created",
+				Message:   "Created slice in spoke cluster " + clusterName,
+			}
+			event.NewEvent(r.EventRecorder)
 
 			s.Status.SliceConfig = &meshv1beta1.SliceConfig{
 				SliceDisplayName: sliceName,
