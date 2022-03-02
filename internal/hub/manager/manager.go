@@ -74,6 +74,9 @@ func Start(meshClient client.Client, ctx context.Context) {
 	err = builder.
 		ControllerManagedBy(mgr).
 		For(&spokev1alpha1.SpokeSliceGateway{}).
+		WithEventFilter(predicate.NewPredicateFuncs(func(object client.Object) bool {
+			return object.GetLabels()["spoke-cluster"] == ClusterName
+		})).
 		Complete(sliceGwReconciler)
 	if err != nil {
 		log.Error(err, "could not create controller")

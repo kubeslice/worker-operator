@@ -38,13 +38,13 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req reconcile.Request
 	log.Info("got sliceGw from hub", "sliceGw", sliceGw.Name)
 
 	// Return if the slice gw resource does not belong to our cluster
-	if sliceGw.Spec.SliceClusterId != clusterName {
+	if sliceGw.Spec.LocalGatewayConfig.ClusterName != clusterName {
 		return reconcile.Result{}, nil
 	}
 
 	meshSliceGwCerts := &corev1.Secret{}
 	err = r.MeshClient.Get(ctx, types.NamespacedName{
-		Name:      sliceGw.Name,
+		Name:      sliceGw.Spec.GatewayCredentials.SecretName,
 		Namespace: ControlPlaneNamespace,
 	}, meshSliceGwCerts)
 	if err != nil {
@@ -77,7 +77,7 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req reconcile.Request
 	}
 
 	sliceGwName := sliceGw.Name
-	sliceName := sliceGw.Spec.Slice
+	sliceName := sliceGw.Spec.SliceName
 
 	meshSliceGw := &meshv1beta1.SliceGateway{}
 
@@ -114,9 +114,9 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req reconcile.Request
 	}
 
 	meshSliceGw.Status.Config = meshv1beta1.SliceGatewayConfig{
-		SliceGatewaySubnet:   sliceGw.Spec.SpokeSliceGatewaySubnet,
-		SliceGatewayHostType: sliceGw.Spec.SpokeSliceGatewayHostType,
-		SliceGatewayStatus:   sliceGw.Spec.SpokeSliceGatewayStatus,
+		SliceGatewaySubnet:          sliceGw.Spec.LocalGatewayConfig.GatewaySubnet,
+		SliceGatewayHostType:        sliceGw.Spec.GatewayHostType,
+		SliceGatewayRemoteGatewayID: sliceGw.Spec.RemoteGatewayConfig.GatewayName,
 	}
 	err = r.MeshClient.Status().Update(ctx, meshSliceGw)
 	if err != nil {
