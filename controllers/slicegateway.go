@@ -26,8 +26,9 @@ func labelsForSliceGwDeployment(name string, slice string) map[string]string {
 func (r *SliceGwReconciler) deploymentForGateway(g *meshv1beta1.SliceGateway) *appsv1.Deployment {
 	if g.Status.Config.SliceGatewayHostType == "Server" {
 		return r.deploymentForGatewayServer(g)
+	} else {
+		return r.deploymentForGatewayClient(g)
 	}
-	return r.deploymentForGatewayClient(g)
 }
 
 func (r *SliceGwReconciler) deploymentForGatewayServer(g *meshv1beta1.SliceGateway) *appsv1.Deployment {
@@ -222,7 +223,7 @@ func (r *SliceGwReconciler) deploymentForGatewayServer(g *meshv1beta1.SliceGatew
 											Mode: &vpnFilesRestrictedMode,
 										}, {
 											Key:  "ccdFile",
-											Path: "ccd/" + "slice" + "-" + g.Spec.SliceName,
+											Path: "ccd/" + g.Status.Config.SliceGatewayRemoteGatewayID,
 										},
 									},
 								},
@@ -336,12 +337,6 @@ func (r *SliceGwReconciler) deploymentForGatewayClient(g *meshv1beta1.SliceGatew
 							},
 						},
 					},
-					HostAliases: []corev1.HostAlias{{
-						IP: "35.203.191.84",
-						Hostnames: []string{
-							"red-cluster-1-cluster-2",
-						},
-					}},
 					Containers: []corev1.Container{{
 						Name:            "avesha-sidecar",
 						Image:           sidecarImg,
@@ -411,9 +406,9 @@ func (r *SliceGwReconciler) deploymentForGatewayClient(g *meshv1beta1.SliceGatew
 							"90",
 							"openvpn",
 							"--remote",
-							"35.203.191.84",
+							"",
 							"--port",
-							"30795",
+							"",
 							"--proto",
 							"udp",
 							"--config",

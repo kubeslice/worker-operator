@@ -25,89 +25,34 @@ import (
 
 // SpokeSliceGatewaySpec defines the desired state of SpokeSliceGateway
 type SpokeSliceGatewaySpec struct {
-	Slice                 string `json:"slice,omitempty"`
-	SliceClusterId        string `json:"sliceClusterId,omitempty"`
-	RemoteClusterId       string `json:"remoteClusterId,omitempty"`
-	SliceClusterNamespace string `json:"sliceClusterNamespace,omitempty"`
-	SliceSiteName         string `json:"sliceSiteName,omitempty"`
-	//+kubebuilder:validation:Enum:=Unassigned;Assigned;Deployed;Registered;LinkActive;LinkInactive;InError;PendingCerts
-	SpokeSliceGatewayStatus string `json:"spokeSliceGatewayStatus,omitempty"`
-	//+kubebuilder:validation:Enum:=Registered;NotRegistered
-	SpokeSliceGatewayRegistration     string `json:"spokeSliceGatewayRegistration,omitempty"`
-	SpokeSliceGatewayRegisteredAtTime string `json:"spokeSliceGatewayRegisteredAtTime,omitempty"`
+	SliceName string `json:"sliceName,omitempty"`
 	//+kubebuilder:validation:Enum:=OpenVPN
-	SpokeSliceGatewayType        string `json:"spokeSliceGatewayType,omitempty"`
-	SpokeSliceGatewaySubnet      string `json:"spokeSliceGatewaySubnet,omitempty"`
-	SpokeSliceGatewayQosProfile  string `json:"spokeSliceGatewayQosProfile,omitempty"`
-	AssignedAtTime               string `json:"assignedAtTime,omitempty"`
-	SpokeSliceGatewayPodIp       string `json:"spokeSliceGatewayPodIp,omitempty"`
-	SpokeSliceGatewayRemotePodIp string `json:"spokeSliceGatewayRemotePodIp,omitempty"`
+	GatewayType string `json:"gatewayType,omitempty"`
 	//+kubebuilder:validation:Enum:=Client;Server
-	SpokeSliceGatewayHostType string               `json:"spokeSliceGatewayHostType,omitempty"`
-	OpenVPN                   OpenVPNConfiguration `json:"openVPN,omitempty"`
-	GatewayNumber             int                  `json:"gatewayNumber,omitempty"`
-	ClusterInsertionIndex     int                  `json:"clusterInsertionIndex,omitempty"`
-	SliceGatewayNodePort      int                  `json:"sliceGatewayNodePort,omitempty"`
-	SliceGatewayNodeIp        string               `json:"sliceGatewayNodeIp,omitempty"`
-	SliceGatewayLocalVpnIp    string               `json:"sliceGatewayLocalVpnIp,omitempty"`
-	RemoteSliceGatewayName    string               `json:"remoteSliceGatewayName,omitempty"`
+	GatewayHostType     string             `json:"gatewayHostType,omitempty"`
+	GatewayCredentials  GatewayCredentials `json:"gatewayCredentials,omitempty"`
+	LocalGatewayConfig  SliceGatewayConfig `json:"localGatewayConfig,omitempty"`
+	RemoteGatewayConfig SliceGatewayConfig `json:"remoteGatewayConfig,omitempty"`
+	GatewayNumber       int                `json:"gatewayNumber,omitempty"`
 }
 
-type OpenVPNConfiguration struct {
-	Client OpenVPNClientConfiguration `json:"client,omitempty"`
-	Server OpenVPNServerConfiguration `json:"server,omitempty"`
+type SliceGatewayConfig struct {
+	NodeIp        string `json:"nodeIp,omitempty"`
+	NodePort      int    `json:"nodePort,omitempty"`
+	GatewayName   string `json:"gatewayName,omitempty"`
+	ClusterName   string `json:"clusterName,omitempty"`
+	VpnIp         string `json:"vpnIp,omitempty"`
+	GatewaySubnet string `json:"gatewaySubnet,omitempty"`
 }
 
-type OpenVPNClientConfiguration struct {
-	OvpnConfigFile string `json:"ovpnConfigFile,omitempty"`
-}
-
-type OpenVPNServerConfiguration struct {
-	OvpnConfFile      string `json:"ovpnConfFile,omitempty"`
-	CcdFile           string `json:"ccdFile,omitempty"`
-	PkiCACertFile     string `json:"pkiCACertFile,omitempty"`
-	PkiTAKeyFile      string `json:"pkiTAKeyFile,omitempty"`
-	PkiDhPemFile      string `json:"pkiDhPemFile,omitempty"`
-	PkiIssuedCertFile string `json:"pkiIssuedCertFile,omitempty"`
-	PkiPrivateKeyFile string `json:"pkiPrivateKeyFile,omitempty"`
+type GatewayCredentials struct {
+	SecretName string `json:"secretName,omitempty"`
 }
 
 // SpokeSliceGatewayStatus defines the observed state of SpokeSliceGateway
 type SpokeSliceGatewayStatus struct {
-	NodeIp             string                                 `json:"nodeIp,omitempty"`
-	GatewayPodIp       string                                 `json:"gatewayPodIp,omitempty"`
-	TunnelStatus       SpokeSliceGatewayConnectedTunnelStatus `json:"tunnelStatus,omitempty"`
-	AppStatus          []SpokeSliceGatewayConnectedAppStatus  `json:"appStatus,omitempty"`
-	LastHealthPingTime string                                 `json:"lastHealthPingTime,omitempty"`
-	//+kubebuilder:validation:Enum:=Initializing;Healthy;Unhealthy;Terminated
-	PodStatus                        string `json:"podStatus,omitempty"`
-	SpokeSliceGatewayRemoteNodeIp    string `json:"spokeSliceGatewayRemoteNodeIp,omitempty"`
-	SpokeSliceGatewayNodePort        int    `json:"spokeSliceGatewayNodePort,omitempty"`
-	SpokeSliceGatewayRemoteSubnet    string `json:"spokeSliceGatewayRemoteSubnet,omitempty"`
-	SpokeSliceGatewayRemoteVpnIp     string `json:"spokeSliceGatewayRemoteVpnIp,omitempty"`
-	SpokeSliceGatewayRemoteNodePort  int    `json:"spokeSliceGatewayRemoteNodePort,omitempty"`
-	SpokeSliceGatewayLocalVpnIp      string `json:"spokeSliceGatewayLocalVpnIp,omitempty"`
-	SpokeSliceGatewayRemoteGatewayId string `json:"spokeSliceGatewayRemoteGatewayId,omitempty"`
-	SpokeSliceGatewayRemoteClusterId string `json:"spokeSliceGatewayRemoteClusterId,omitempty"`
-}
-
-type SpokeSliceGatewayConnectedTunnelStatus struct {
-	NetInterface string `json:"netInterface,omitempty"`
-	LocalIp      string `json:"localIp,omitempty"`
-	PeerIp       string `json:"peerIp,omitempty"`
-	Latency      int    `json:"latency,omitempty"`
-	TxRate       string `json:"txRate,omitempty"`
-	RxRate       string `json:"rxRate,omitempty"`
-}
-
-type SpokeSliceGatewayConnectedAppStatus struct {
-	PodName             string `json:"podName,omitempty"`
-	NsmInterface        string `json:"nsmInterface,omitempty"`
-	NsmIp               string `json:"nsmIp,omitempty"`
-	PodIp               string `json:"podIp,omitempty"`
-	NsmGatewayInterface string `json:"nsmGatewayInterface,omitempty"`
-	NsmGatewayIp        string `json:"nsmGatewayIp,omitempty"`
-	Namespace           string `json:"namespace,omitempty"`
+	GatewayNumber         int `json:"gatewayNumber,omitempty"`
+	ClusterInsertionIndex int `json:"clusterInsertionIndex,omitempty"`
 }
 
 //+kubebuilder:object:root=true

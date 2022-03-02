@@ -45,12 +45,12 @@ func UpdateNodePortForSliceGwServer(ctx context.Context, sliceGwNodePort int32, 
 		return err
 	}
 
-	if sliceGw.Spec.SliceGatewayNodePort == int(sliceGwNodePort) {
+	if sliceGw.Spec.LocalGatewayConfig.NodePort == int(sliceGwNodePort) {
 		// No update needed
 		return nil
 	}
 
-	sliceGw.Spec.SliceGatewayNodePort = int(sliceGwNodePort)
+	sliceGw.Spec.LocalGatewayConfig.NodePort = int(sliceGwNodePort)
 
 	return hubClient.Update(ctx, sliceGw)
 }
