@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -160,5 +161,7 @@ func isAppPodStatusChanged(current []meshv1beta1.AppPod, old []meshv1beta1.AppPo
 func (r *SliceReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&meshv1beta1.Slice{}).
+		Owns(&appsv1.Deployment{}).
+		Owns(&meshv1beta1.SliceGateway{}).
 		Complete(r)
 }

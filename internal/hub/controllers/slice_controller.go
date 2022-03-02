@@ -75,7 +75,7 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req reconcile.Request) 
 				SliceSubnet:      slice.Spec.SliceSubnet,
 				SliceIpam: meshv1beta1.SliceIpamConfig{
 					SliceIpamType:    slice.Spec.SliceIpamType,
-					IpamClusterOctet: slice.Spec.IpamClusterOctet,
+					IpamClusterOctet: slice.Status.IpamClusterOctet,
 				},
 				SliceType: slice.Spec.SliceType,
 			}

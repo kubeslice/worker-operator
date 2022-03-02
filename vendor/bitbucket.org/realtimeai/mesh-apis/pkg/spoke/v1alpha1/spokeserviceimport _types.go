@@ -38,11 +38,12 @@ type SpokeServiceImportSpec struct {
 	//ServiceName is the name of the service
 	ServiceName string `json:"serviceName,omitempty"`
 	// clusterId is the id of the cluster where the service is available.
-	SourceCluster string `json:"sourceCluster,omitempty"`
+	SourceClusters []string `json:"sourceCluster,omitempty"`
 	// The name of the slice.
 	SliceName string `json:"sliceName,omitempty"`
 	// The type of service mesh running in the cluster
-	MeshType MeshType `json:"meshType,omitempty"`
+	//+kubebuilder:validation:Enum:=istio;none
+	MeshType string `json:"meshType,omitempty"`
 	// Proxy enabled or disabled.
 	Proxy bool `json:"proxy,omitempty"`
 	// the service discovery endpoint array

@@ -27,15 +27,17 @@ type SliceSpec struct {
 // QosProfileDetails is the QOS Profile for the slice
 type QosProfileDetails struct {
 	// Queue Type
-	QueueType string `json:"queueType"`
+	QueueType string `json:"queueType,omitempty"`
 	// Bandwidth Ceiling eg:5000
-	BandwidthCeilingKbps string `json:"bandwidthCeilingKbps"`
+	BandwidthCeilingKbps int `json:"bandwidthCeilingKbps,omitempty"`
 	// Bandwidth Guaranteed eg:4000
-	BandwidthGuaranteedKbps string `json:"bandwidthGuaranteedKbps"`
+	BandwidthGuaranteedKbps int `json:"bandwidthGuaranteedKbps,omitempty"`
 	// Priority 0-3
-	Priority string `json:"priority"`
+	Priority int `json:"priority,omitempty"`
 	// DSCP code for inter cluster traffic
-	DscpClass string `json:"dscpClass"`
+	DscpClass string `json:"dscpClass,omitempty"`
+	// TC type
+	TcType string `json:"tcType,omitempty"`
 }
 
 type SliceIpamConfig struct {
