@@ -3,6 +3,7 @@ module bitbucket.org/realtimeai/kubeslice-operator
 go 1.16
 
 require (
+	bitbucket.org/realtimeai/kubeslice-netops v0.0.0-20220225091428-05183d983334
 	bitbucket.org/realtimeai/kubeslice-router-sidecar v0.0.0-20220221080454-e2276f57c978
 	bitbucket.org/realtimeai/mesh-apis v0.0.0-20220221023856-3c009efbc77d
 	github.com/go-logr/logr v1.2.0

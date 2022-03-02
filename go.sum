@@ -1,3 +1,5 @@
+bitbucket.org/realtimeai/kubeslice-netops v0.0.0-20220225091428-05183d983334 h1:b1QT9X0hhwnJ47ZoYoUjZ89iVLmG8OPVxA/gjuYMENQ=
+bitbucket.org/realtimeai/kubeslice-netops v0.0.0-20220225091428-05183d983334/go.mod h1:Z/gZ3Y0L/TLV9ooDWOZRfCJAOo94izfUFHSeA4XufTE=
 bitbucket.org/realtimeai/kubeslice-router-sidecar v0.0.0-20220221080454-e2276f57c978 h1:AVc644qjnQoD7sZtHRR1wbnKTlnyNoejvSkGHI31aWU=
 bitbucket.org/realtimeai/kubeslice-router-sidecar v0.0.0-20220221080454-e2276f57c978/go.mod h1:BCoBSv6w/467ehg1QTeH+ruJv0fFa9hKNSModWk9L88=
 bitbucket.org/realtimeai/mesh-apis v0.0.0-20220221023856-3c009efbc77d h1:qTMmdeKFCRRQnUoJYQusJeyo6YiLpl9EJ+vZfjv7JhQ=
@@ -319,6 +321,8 @@ github.com/google/pprof v0.0.0-20201203190320-1bf35d6f28c2/go.mod h1:kpwsk12EmLe
 github.com/google/pprof v0.0.0-20210122040257-d980be63207e/go.mod h1:kpwsk12EmLew5upagYY7GY0pfYCcupk39gWOCRROcvE=
 github.com/google/pprof v0.0.0-20210226084205-cbba55b83ad5/go.mod h1:kpwsk12EmLew5upagYY7GY0pfYCcupk39gWOCRROcvE=
 github.com/google/renameio v0.1.0/go.mod h1:KWCgfxg9yswjAJkECMjeO8J8rahYeXnNhOm40UhjYkI=
+github.com/google/shlex v0.0.0-20191202100458-e7afc7fbc510 h1:El6M4kTTCOh6aBiKaUGG7oYTSPP8MxqL4YI3kZKwcP4=
+github.com/google/shlex v0.0.0-20191202100458-e7afc7fbc510/go.mod h1:pupxD2MaaD3pAXIBCelhxNneeOaAeabZDe5s4K6zSpQ=
 github.com/google/uuid v1.1.1/go.mod h1:TIyPZe4MgqvfeYDBFedMoGGpEw/LqOeaOT+nhxU+yHo=
 github.com/google/uuid v1.1.2 h1:EVhdT+1Kseyi1/pUmXKaFxYsDNy9RQYkMWRH68J/W7Y=
 github.com/google/uuid v1.1.2/go.mod h1:TIyPZe4MgqvfeYDBFedMoGGpEw/LqOeaOT+nhxU+yHo=

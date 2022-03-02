@@ -76,6 +76,13 @@ func Mutate(deploy *appsv1.Deployment, sliceName string) *appsv1.Deployment {
 }
 
 func MutationRequired(metadata metav1.ObjectMeta) bool {
+	annotations := metadata.GetAnnotations()
+
+	// no annotations available for the object, skip mutation
+	if annotations == nil {
+		return false
+	}
+
 	if metadata.GetAnnotations()[admissionWebhookAnnotationStatusKey] == "injected" {
 		log.Info("Deployment is already injected")
 		return false
@@ -94,5 +101,6 @@ func MutationRequired(metadata metav1.ObjectMeta) bool {
 		return false
 	}
 
-	return true
+	// The annotation avesha.io/slice:SLICENAME is present, enable mutation
+	return annotations[admissionWebhookAnnotationInjectKey] != ""
 }
