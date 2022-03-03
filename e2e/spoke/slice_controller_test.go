@@ -7,6 +7,7 @@ import (
 	"bitbucket.org/realtimeai/kubeslice-operator/internal/logger"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 )
@@ -15,11 +16,11 @@ var log = logger.NewLogger()
 
 var _ = Describe("SliceController", func() {
 
-	Context("With a Slice CR created", func() {
-		It("Should create the slice and update status with config", func() {
+	Context("With a Slice CR and mesh dns service", func() {
+		It("Should update slice status with DNS IP", func() {
 
-			timeout := time.Second * 60
-			interval := time.Second * 1
+			timeout := time.Second * 10
+			interval := time.Millisecond * 250
 
 			slice := &meshv1beta1.Slice{
 				ObjectMeta: metav1.ObjectMeta{
@@ -29,35 +30,46 @@ var _ = Describe("SliceController", func() {
 				Spec: meshv1beta1.SliceSpec{},
 			}
 
-			Expect(k8sClient.Create(ctx, slice)).Should(Succeed())
-			slice.Status.SliceConfig = &meshv1beta1.SliceConfig{
-				SliceDisplayName: "test-slice",
-				SliceSubnet:      "10.0.0.1/8",
-				SliceIpam: meshv1beta1.SliceIpamConfig{
-					SliceIpamType:    "IPAM_TEST",
-					IpamClusterOctet: 1,
+			svc := &corev1.Service{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "mesh-dns",
+					Namespace: "kubeslice-system",
 				},
-				SliceType: "APPLICATION",
+				Spec: corev1.ServiceSpec{
+					ClusterIP: "10.0.0.20",
+					Ports: []corev1.ServicePort{{
+						Port: 52,
+					}},
+				},
 			}
-			Expect(k8sClient.Status().Update(ctx, slice)).Should(Succeed())
 
-			log.Info("updating slic", "slice", slice)
+			Expect(k8sClient.Create(ctx, slice)).Should(Succeed())
+			Expect(k8sClient.Create(ctx, svc)).Should(Succeed())
 
-			lookupKey := types.NamespacedName{Name: "test-slice", Namespace: "kubeslice-system"}
-			createdSlice := &meshv1beta1.Slice{}
+			svcKey := types.NamespacedName{Name: "mesh-dns", Namespace: "kubeslice-system"}
+			createdSvc := &corev1.Service{}
 
-			// Wait until slice is created properly
+			// Wait until service is created properly
 			Eventually(func() bool {
-				err := k8sClient.Get(ctx, lookupKey, createdSlice)
+				err := k8sClient.Get(ctx, svcKey, createdSvc)
 				if err != nil {
 					return false
 				}
-				// wait for status to be updated
-				return createdSlice.Status.SliceConfig != nil
+				return true
 			}, timeout, interval).Should(BeTrue())
-			// Expect(createdSlice.Status).ToNot(BeNil())
-			// Expect(createdSlice.Status.SliceConfig).ToNot(BeNil())
-			Expect(createdSlice.Status.SliceConfig.SliceDisplayName).Should(Equal("test-slice"))
+
+			sliceKey := types.NamespacedName{Name: "test-slice", Namespace: "kubeslice-system"}
+			createdSlice := &meshv1beta1.Slice{}
+
+			// Make sure slice status.Status.DNSIP is pointing to correct serviceIP
+			Eventually(func() string {
+				err := k8sClient.Get(ctx, sliceKey, createdSlice)
+				if err != nil {
+					return ""
+				}
+				return createdSlice.Status.DNSIP
+			}, timeout, interval).Should(Equal("10.0.0.20"))
+
 		})
 
 	})
