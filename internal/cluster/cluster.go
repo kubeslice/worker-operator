@@ -3,18 +3,18 @@ package cluster
 import (
 	"context"
 	"fmt"
-	corev1 "k8s.io/api/core/v1"
-	"sigs.k8s.io/controller-runtime/pkg/client"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
 	"strings"
 )
 
 type Cluster struct {
-	Client client.Client
+	Client kubernetes.Interface
 	Name   string `json:"clusterName,omitempty"`
 }
 
 //NewCluster returns ClusterInterface
-func NewCluster(client client.Client, clusterName string) ClusterInterface {
+func NewCluster(client kubernetes.Interface, clusterName string) ClusterInterface {
 	return &Cluster{
 		Client: client,
 		Name:   clusterName,
@@ -38,8 +38,7 @@ func (c *Cluster) GetClusterInfo(ctx context.Context) (*ClusterInfo, error) {
 func (c *Cluster) getClusterLocation(ctx context.Context) (GeoLocation, error) {
 	var g GeoLocation
 
-	nodeList := corev1.NodeList{}
-	err := c.Client.List(ctx, &nodeList)
+	nodeList, err := c.Client.CoreV1().Nodes().List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return g, fmt.Errorf("can't fetch node list: %+v ", err)
 	}

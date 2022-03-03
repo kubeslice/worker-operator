@@ -1,11 +1,13 @@
 package cluster
 
 import (
+	"bitbucket.org/realtimeai/kubeslice-operator/pkg/kube"
 	"context"
 	"fmt"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
 	"os"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sync"
 )
 
@@ -18,14 +20,14 @@ const (
 // Node info structure.
 // Protected by a mutex and contains information about the kubeslice gateway nodes in the cluster.
 type NodeInfo struct {
-	Client     client.Client
+	Client     kubernetes.Interface
 	ExternalIP []string
 	sync.Mutex
 }
 
 //GetNodeExternalIpList gets the list of External Node IPs of avesha-gateway nodes
 
-func GetNodeExternalIpList(client client.Client) ([]string, error) {
+func GetNodeExternalIpList() ([]string, error) {
 	// If node IP is set as an env variable, we use that as the only
 	// node IP available to us. Early exit from here, and there is no need
 	// spawn the node watcher thread.
@@ -38,7 +40,12 @@ func GetNodeExternalIpList(client client.Client) ([]string, error) {
 	nodeInfo.Lock()
 	defer nodeInfo.Unlock()
 
-	nodeInfo.Client = client
+	client, err := kube.NewClient()
+	if err != nil {
+		return nil, err
+	}
+
+	nodeInfo.Client = client.KubeCli
 	if len(nodeInfo.ExternalIP) == 0 {
 		err := nodeInfo.populateNodeIpList()
 		if err != nil {
@@ -49,22 +56,19 @@ func GetNodeExternalIpList(client client.Client) ([]string, error) {
 }
 
 func (n *NodeInfo) populateNodeIpList() error {
-	nodes := corev1.NodeList{}
-	listOpts := []client.ListOption{
-		client.MatchingLabels(map[string]string{
-			"avesha/node-type": "gateway",
-		}),
-	}
-	err := n.Client.List(context.Background(), &nodes, listOpts...)
+
+	nodes, err := n.Client.CoreV1().Nodes().List(context.Background(), metav1.ListOptions{
+		LabelSelector: "avesha/node-type=gateway",
+	})
 	if err != nil {
 		return fmt.Errorf("can't fetch node list: %+v ", err)
 	}
+
 	//TODO(rahulsawra):check if we can optimize this
 	nodeIpArr := []corev1.NodeAddress{}
 	for i := 0; i < len(nodes.Items); i++ {
 		nodeIpArr = append(nodeIpArr, nodes.Items[i].Status.Addresses...)
 	}
-
 	for i := 0; i < len(nodeIpArr); i++ {
 		if nodeIpArr[i].Type == NodeExternalIP {
 			n.ExternalIP = append(n.ExternalIP, nodeIpArr[i].Address)

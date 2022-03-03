@@ -1,6 +1,7 @@
 package hub
 
 import (
+	"bitbucket.org/realtimeai/kubeslice-operator/pkg/kube"
 	"context"
 	"os"
 
@@ -58,7 +59,7 @@ func UpdateNodePortForSliceGwServer(ctx context.Context, sliceGwNodePort int32, 
 	return hubClient.Update(ctx, sliceGw)
 }
 
-func UpdateClusterInfoToHub(ctx context.Context, client client.Client, clusterName, nodeIP string) error {
+func UpdateClusterInfoToHub(ctx context.Context, clusterName, nodeIP string) error {
 	hubCluster := &hubv1alpha1.Cluster{}
 	err := hubClient.Get(ctx, types.NamespacedName{
 		Name:      clusterName,
@@ -69,7 +70,13 @@ func UpdateClusterInfoToHub(ctx context.Context, client client.Client, clusterNa
 		return err
 	}
 
-	c := cluster.NewCluster(client, clusterName)
+	clientset, err := kube.NewClient()
+	if err != nil {
+		return err
+	}
+
+	kubeClient := clientset.KubeCli
+	c := cluster.NewCluster(kubeClient, clusterName)
 	//get geographical info
 	clusterInfo, err := c.GetClusterInfo(ctx)
 	if err != nil {
