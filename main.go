@@ -99,9 +99,6 @@ func main() {
 		os.Exit(1)
 	}
 
-	//check if user has provided NODE_IP as env variable, if not fetch the ExternalIP from gateway nodes
-	nodeIP, err := getNodeIp(mgr.GetClient())
-
 	if err = (&controllers.SliceReconciler{
 		Client: mgr.GetClient(),
 		Log:    ctrl.Log.WithName("controllers").WithName("Slice"),
@@ -111,6 +108,11 @@ func main() {
 		os.Exit(1)
 	}
 
+	//check if user has provided NODE_IP as env variable, if not fetch the ExternalIP from gateway nodes
+	nodeIP, err := getNodeIp(mgr.GetClient())
+	if err != nil {
+		setupLog.Error(err, "Error Getting nodeIP")
+	}
 	if err = (&controllers.SliceGwReconciler{
 		Client: mgr.GetClient(),
 		Log:    ctrl.Log.WithName("controllers").WithName("SliceGw"),
