@@ -112,8 +112,6 @@ func main() {
 	if err != nil {
 		setupLog.Error(err, "Error Getting nodeIP")
 	}
-	setupLog.Info("NodeIP selected", "nodeIP", nodeIP)
-
 	if err = (&controllers.SliceGwReconciler{
 		Client: mgr.GetClient(),
 		Log:    ctrl.Log.WithName("controllers").WithName("SliceGw"),

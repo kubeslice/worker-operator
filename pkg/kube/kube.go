@@ -9,7 +9,13 @@ import (
 	"k8s.io/client-go/util/homedir"
 	"os"
 	"path/filepath"
+	"sync"
 	"time"
+)
+
+var (
+	once       sync.Once
+	kubeClient *Client
 )
 
 // Client contains Kubernetes clients to call APIs
@@ -22,33 +28,29 @@ type Client struct {
 }
 
 // NewClient initializes and returns kubernetes client object
+// we follow singleton pattern using sync.Once.Do , which ensures that only one client object is produced
 func NewClient() (*Client, error) {
 	kubeConfig, err := getConfig()
 	if err != nil {
 		return nil, err
 	}
-	dynamicClient, err := dynamic.NewForConfig(kubeConfig)
-	disClient, err := discovery.NewDiscoveryClientForConfig(kubeConfig)
-	if err != nil {
-		return nil, err
+	if kubeClient == nil {
+		once.Do(
+			func() {
+				kubeClient.DynamicCli, err = dynamic.NewForConfig(kubeConfig)
+				kubeClient.DiscoveryCli, err = discovery.NewDiscoveryClientForConfig(kubeConfig)
+				kubeClient.KubeCli, err = kubernetes.NewForConfig(kubeConfig)
+				kubeClient.Interval = 500 * time.Millisecond
+				kubeClient.Timeout = 60 * time.Second
+			},
+		)
 	}
-	kubeClient, err := kubernetes.NewForConfig(kubeConfig)
-	if err != nil {
-		return nil, err
-	}
-	return &Client{
-		KubeCli:      kubeClient,
-		DiscoveryCli: disClient,
-		DynamicCli:   dynamicClient,
-		Interval:     500 * time.Millisecond,
-		Timeout:      60 * time.Second,
-	}, nil
+	return kubeClient, nil
 }
 
 // Returns client config for accessing kubernetes apikubernertes
 // Check if kubeconfig file is present in home/.kube and use it
 // Else use in-cluster config
-// TODO add logs
 func getConfig() (*rest.Config, error) {
 	if home := homedir.HomeDir(); home != "" {
 		kubeconfig := filepath.Join(home, ".kube", "config")
