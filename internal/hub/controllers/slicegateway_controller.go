@@ -44,7 +44,7 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req reconcile.Request
 
 	meshSliceGwCerts := &corev1.Secret{}
 	err = r.MeshClient.Get(ctx, types.NamespacedName{
-		Name:      sliceGw.Spec.GatewayCredentials.SecretName,
+		Name:      sliceGw.Name,
 		Namespace: ControlPlaneNamespace,
 	}, meshSliceGwCerts)
 	if err != nil {
@@ -59,7 +59,7 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req reconcile.Request
 			}
 			meshSliceGwCerts := &corev1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      sliceGwCerts.ObjectMeta.Name,
+					Name:      sliceGw.Name,
 					Namespace: ControlPlaneNamespace,
 				},
 				Data: sliceGwCerts.Data,
@@ -116,6 +116,9 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req reconcile.Request
 	meshSliceGw.Status.Config = meshv1beta1.SliceGatewayConfig{
 		SliceGatewaySubnet:          sliceGw.Spec.LocalGatewayConfig.GatewaySubnet,
 		SliceGatewayHostType:        sliceGw.Spec.GatewayHostType,
+		SliceGatewayRemoteNodeIP:    sliceGw.Spec.RemoteGatewayConfig.NodeIp,
+		SliceGatewayRemoteNodePort:  sliceGw.Spec.RemoteGatewayConfig.NodePort,
+		SliceGatewayRemoteClusterID: sliceGw.Spec.RemoteGatewayConfig.ClusterName,
 		SliceGatewayRemoteGatewayID: sliceGw.Spec.RemoteGatewayConfig.GatewayName,
 	}
 	err = r.MeshClient.Status().Update(ctx, meshSliceGw)

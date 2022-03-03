@@ -4,7 +4,7 @@ import (
 	//	"context"
 	//	"errors"
 	"os"
-	//	"strconv"
+	"strconv"
 	//	"strings"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -17,7 +17,7 @@ import (
 	meshv1beta1 "bitbucket.org/realtimeai/kubeslice-operator/api/v1beta1"
 )
 
-// LabelsForSliceGwDeployment returns the labels for creating slice gw deployment
+// labelsForSliceGwDeployment returns the labels for creating slice gw deployment
 func labelsForSliceGwDeployment(name string, slice string) map[string]string {
 	return map[string]string{"networkservicemesh.io/app": name, "avesha.io/pod-type": "slicegateway", "avesha.io/slice": slice}
 }
@@ -35,9 +35,12 @@ func (r *SliceGwReconciler) deploymentForGatewayServer(g *meshv1beta1.SliceGatew
 	ls := labelsForSliceGwDeployment(g.Name, g.Spec.SliceName)
 
 	var replicas int32 = 1
+
 	var vpnSecretDefaultMode int32 = 420
 	var vpnFilesRestrictedMode int32 = 0644
+
 	var privileged bool = true
+
 	sidecarImg := "nexus.dev.aveshalabs.io/kubeslice-gw-sidecar:latest-stable"
 	sidecarPullPolicy := corev1.PullAlways
 	vpnImg := "nexus.dev.aveshalabs.io/avesha/openvpn-server.ubuntu.18.04:1.0.0"
@@ -283,13 +286,17 @@ func (r *SliceGwReconciler) serviceForGateway(g *meshv1beta1.SliceGateway) *core
 func (r *SliceGwReconciler) deploymentForGatewayClient(g *meshv1beta1.SliceGateway) *appsv1.Deployment {
 	var replicas int32 = 1
 	var privileged bool = true
+
 	var vpnSecretDefaultMode int32 = 0644
-	fileName := "openvpn_client.ovpn"
+
+	certFileName := "openvpn_client.ovpn"
 	sidecarImg := "nexus.dev.aveshalabs.io/kubeslice-gw-sidecar:latest-stable"
 	sidecarPullPolicy := corev1.PullAlways
 
 	vpnImg := "nexus.dev.aveshalabs.io/avesha/openvpn-client.alpine.amd64:1.0.0"
 	vpnPullPolicy := corev1.PullAlways
+
+	ls := labelsForSliceGwDeployment(g.Name, g.Spec.SliceName)
 
 	if len(gwSidecarImage) != 0 {
 		sidecarImg = gwSidecarImage
@@ -306,7 +313,7 @@ func (r *SliceGwReconciler) deploymentForGatewayClient(g *meshv1beta1.SliceGatew
 	if len(openVpnClientPullPolicy) != 0 {
 		vpnPullPolicy = corev1.PullPolicy(openVpnClientPullPolicy)
 	}
-	ls := labelsForSliceGwDeployment(g.Name, g.Spec.SliceName)
+
 	dep := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        g.Name,
@@ -402,17 +409,17 @@ func (r *SliceGwReconciler) deploymentForGatewayClient(g *meshv1beta1.SliceGatew
 							"/usr/local/bin/waitForConfigToRunCmd.sh",
 						},
 						Args: []string{
-							"/vpnclient/" + fileName,
+							"/vpnclient/" + certFileName,
 							"90",
 							"openvpn",
 							"--remote",
-							"",
+							g.Status.Config.SliceGatewayRemoteNodeIP,
 							"--port",
-							"",
+							strconv.Itoa(g.Status.Config.SliceGatewayRemoteNodePort),
 							"--proto",
 							"udp",
 							"--config",
-							"/vpnclient/" + fileName,
+							"/vpnclient/" + certFileName,
 						},
 						SecurityContext: &corev1.SecurityContext{
 							Privileged:               &privileged,

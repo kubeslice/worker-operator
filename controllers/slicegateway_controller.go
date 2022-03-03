@@ -41,6 +41,10 @@ type SliceGwReconciler struct {
 	Log    logr.Logger
 }
 
+func readyToDeployGwClient(sliceGw *meshv1beta1.SliceGateway) bool {
+	return sliceGw.Status.Config.SliceGatewayRemoteNodeIP != "" && sliceGw.Status.Config.SliceGatewayRemoteNodePort != 0
+}
+
 //+kubebuilder:rbac:groups=mesh.avesha.io,resources=slicegateways,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=mesh.avesha.io,resources=slicegateways/finalizers,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=mesh.avesha.io,resources=slicegateways/status,verbs=get;update;patch
@@ -134,15 +138,15 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		}
 	}
 
-	//// client can be deployed only if remoteNodeIp is present
-	//canDeployGw := isServer || sliceGw.Status.Config.SliceGatewayRemoteNodeIP != ""
-	//if !canDeployGw {
-	//	// no need to deploy gateway deployment or service
-	//	log.Info("Unable to deploy slicegateway client, as remoteIP is not available, requeuing")
-	//	return ctrl.Result{
-	//		RequeueAfter: 10 * time.Second,
-	//	}, nil
-	//}
+	// client can be deployed only if remoteNodeIp is present
+	canDeployGw := isServer || readyToDeployGwClient(sliceGw)
+	if !canDeployGw {
+		// no need to deploy gateway deployment or service
+		log.Info("Unable to deploy slicegateway client, remote info not available, requeuing")
+		return ctrl.Result{
+			RequeueAfter: 10 * time.Second,
+		}, nil
+	}
 
 	// Check if the deployment already exists, if not create a new one
 	found := &appsv1.Deployment{}
