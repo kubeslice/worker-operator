@@ -17,9 +17,12 @@ limitations under the License.
 package main
 
 import (
+	"bitbucket.org/realtimeai/kubeslice-operator/internal/cluster"
+	"bitbucket.org/realtimeai/kubeslice-operator/internal/hub/hub-client"
+	"context"
 	"flag"
 	"os"
-
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
@@ -71,6 +74,8 @@ func main() {
 	flag.Parse()
 
 	ctrl.SetLogger(logger.NewLogger())
+	//check if user has provided NODE_IP as env variable, if not fetch the ExternalIP from gateway nodes
+	nodeIP, err := getNodeIp()
 
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Scheme:                 scheme,
@@ -109,6 +114,7 @@ func main() {
 		Client: mgr.GetClient(),
 		Log:    ctrl.Log.WithName("controllers").WithName("SliceGw"),
 		Scheme: mgr.GetScheme(),
+		NodeIP: nodeIP,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "SliceGw")
 		os.Exit(1)
@@ -130,9 +136,30 @@ func main() {
 		manager.Start(mgr.GetClient(), ctx)
 	}()
 
+	//post GeoLocation and other metadata to cluster CR on Hub cluster
+	err = postClusterInfoToHub(ctx, mgr.GetClient(), os.Getenv("CLUSTER_NAME"), nodeIP)
+	if err != nil {
+		setupLog.Error(err, "could not post Cluster Info to Hub")
+	}
 	setupLog.Info("starting manager")
 	if err := mgr.Start(ctx); err != nil {
 		setupLog.Error(err, "problem running manager")
 		os.Exit(1)
 	}
+}
+
+func getNodeIp() (string, error) {
+	nodeIPs, err := cluster.GetNodeExternalIpList()
+	if err != nil {
+		setupLog.Error(err, "Getting NodeIP From kube-api-server")
+		os.Exit(1)
+	}
+	nodeIP := nodeIPs[0]
+	setupLog.Info("nodeIP", "nodeIP selected", nodeIP)
+	return nodeIP, err
+}
+
+func postClusterInfoToHub(ctx context.Context, client client.Client, clusterName, nodeIP string) error {
+	err := hub.UpdateClusterInfoToHub(ctx, client, clusterName, nodeIP)
+	return err
 }

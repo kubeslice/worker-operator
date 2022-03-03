@@ -1,7 +1,6 @@
 package manager
 
 import (
-	"bitbucket.org/realtimeai/kubeslice-operator/internal/hub/hub-client"
 	"context"
 	"os"
 
@@ -83,25 +82,8 @@ func Start(meshClient client.Client, ctx context.Context) {
 		os.Exit(1)
 	}
 
-	//post GeoLocation and other metadata to cluster CR on Hub cluster
-	go func() {
-		err := postClusterInfoToHub(ctx, meshClient, ClusterName)
-		if err != nil {
-			log.Error(err, "could not post Cluster Info to Hub")
-		}
-	}()
-
 	if err := mgr.Start(ctx); err != nil {
 		log.Error(err, "could not start manager")
 		os.Exit(1)
 	}
-}
-
-func postClusterInfoToHub(ctx context.Context, client client.Client, clusterName string) error {
-	err := hub.UpdateClusterInfoToHub(ctx, client, clusterName)
-	if err != nil {
-		return err
-	}
-
-	return nil
 }

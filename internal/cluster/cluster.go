@@ -13,6 +13,14 @@ type Cluster struct {
 	Name   string `json:"clusterName,omitempty"`
 }
 
+//NewCluster returns ClusterInterface
+func NewCluster(client client.Client, clusterName string) ClusterInterface {
+	return &Cluster{
+		Client: client,
+		Name:   clusterName,
+	}
+}
+
 func (c *Cluster) GetClusterInfo(ctx context.Context) (*ClusterInfo, error) {
 	cl := &ClusterInfo{
 		Name: c.Name,

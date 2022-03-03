@@ -58,7 +58,7 @@ func UpdateNodePortForSliceGwServer(ctx context.Context, sliceGwNodePort int32, 
 	return hubClient.Update(ctx, sliceGw)
 }
 
-func UpdateClusterInfoToHub(ctx context.Context, client client.Client, clusterName string) error {
+func UpdateClusterInfoToHub(ctx context.Context, client client.Client, clusterName, nodeIP string) error {
 	hubCluster := &hubv1alpha1.Cluster{}
 	err := hubClient.Get(ctx, types.NamespacedName{
 		Name:      clusterName,
@@ -69,16 +69,16 @@ func UpdateClusterInfoToHub(ctx context.Context, client client.Client, clusterNa
 		return err
 	}
 
-	c := cluster.Cluster{
-		Name:   clusterName,
-		Client: client,
-	}
+	c := cluster.NewCluster(client, clusterName)
+	//get geographical info
 	clusterInfo, err := c.GetClusterInfo(ctx)
 	if err != nil {
 		return err
 	}
+
 	hubCluster.Spec.ClusterProperty.GeoLocation.CloudRegion = clusterInfo.ClusterProperty.GeoLocation.CloudRegion
 	hubCluster.Spec.ClusterProperty.GeoLocation.CloudProvider = clusterInfo.ClusterProperty.GeoLocation.CloudProvider
+	hubCluster.Spec.NodeIP = nodeIP
 
 	return hubClient.Update(ctx, hubCluster)
 }
