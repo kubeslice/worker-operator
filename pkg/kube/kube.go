@@ -37,6 +37,7 @@ func NewClient() (*Client, error) {
 	if kubeClient == nil {
 		once.Do(
 			func() {
+				kubeClient = &Client{}
 				kubeClient.DynamicCli, err = dynamic.NewForConfig(kubeConfig)
 				kubeClient.DiscoveryCli, err = discovery.NewDiscoveryClientForConfig(kubeConfig)
 				kubeClient.KubeCli, err = kubernetes.NewForConfig(kubeConfig)
