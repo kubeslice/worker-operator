@@ -4,6 +4,7 @@ import (
 	"context"
 	"path/filepath"
 	"testing"
+	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -44,6 +45,9 @@ var _ = BeforeSuite(func() {
 	testEnv = &envtest.Environment{
 		CRDDirectoryPaths:     []string{filepath.Join("../..", "config", "crd", "bases")},
 		ErrorIfCRDPathMissing: true,
+		CRDInstallOptions: envtest.CRDInstallOptions{
+			MaxTime: 60 * time.Second,
+		},
 	}
 
 	cfg, err := testEnv.Start()
@@ -75,6 +79,7 @@ var _ = BeforeSuite(func() {
 	err = (&controllers.SliceReconciler{
 		Client: k8sManager.GetClient(),
 		Scheme: k8sManager.GetScheme(),
+		Log:    ctrl.Log.WithName("SliceTest"),
 	}).SetupWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())
 
