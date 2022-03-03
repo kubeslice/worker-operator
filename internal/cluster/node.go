@@ -25,7 +25,7 @@ type NodeInfo struct {
 
 //GetNodeExternalIpList gets the list of External Node IPs of avesha-gateway nodes
 
-func GetNodeExternalIpList() ([]string, error) {
+func GetNodeExternalIpList(client client.Client) ([]string, error) {
 	// If node IP is set as an env variable, we use that as the only
 	// node IP available to us. Early exit from here, and there is no need
 	// spawn the node watcher thread.
@@ -38,6 +38,7 @@ func GetNodeExternalIpList() ([]string, error) {
 	nodeInfo.Lock()
 	defer nodeInfo.Unlock()
 
+	nodeInfo.Client = client
 	if len(nodeInfo.ExternalIP) == 0 {
 		err := nodeInfo.populateNodeIpList()
 		if err != nil {

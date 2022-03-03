@@ -74,8 +74,6 @@ func main() {
 	flag.Parse()
 
 	ctrl.SetLogger(logger.NewLogger())
-	//check if user has provided NODE_IP as env variable, if not fetch the ExternalIP from gateway nodes
-	nodeIP, err := getNodeIp()
 
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Scheme:                 scheme,
@@ -100,6 +98,9 @@ func main() {
 		setupLog.Error(err, "unable to start manager")
 		os.Exit(1)
 	}
+
+	//check if user has provided NODE_IP as env variable, if not fetch the ExternalIP from gateway nodes
+	nodeIP, err := getNodeIp(mgr.GetClient())
 
 	if err = (&controllers.SliceReconciler{
 		Client: mgr.GetClient(),
@@ -148,8 +149,8 @@ func main() {
 	}
 }
 
-func getNodeIp() (string, error) {
-	nodeIPs, err := cluster.GetNodeExternalIpList()
+func getNodeIp(client client.Client) (string, error) {
+	nodeIPs, err := cluster.GetNodeExternalIpList(client)
 	if err != nil {
 		setupLog.Error(err, "Getting NodeIP From kube-api-server")
 		os.Exit(1)
