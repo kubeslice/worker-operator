@@ -84,7 +84,7 @@ func UpdateClusterInfoToHub(ctx context.Context, clusterName, nodeIP string) err
 		return err
 	}
 
-	ipSubnet, err := c.GetNsmExcludedPrefix(ctx, "nsm-config", "kubeslice-system")
+	cniSubnet, err := c.GetNsmExcludedPrefix(ctx, "nsm-config", "kubeslice-system")
 	if err != nil {
 		return err
 	}
@@ -92,7 +92,7 @@ func UpdateClusterInfoToHub(ctx context.Context, clusterName, nodeIP string) err
 	hubCluster.Spec.ClusterProperty.GeoLocation.CloudRegion = clusterInfo.ClusterProperty.GeoLocation.CloudRegion
 	hubCluster.Spec.ClusterProperty.GeoLocation.CloudProvider = clusterInfo.ClusterProperty.GeoLocation.CloudProvider
 	hubCluster.Spec.NodeIP = nodeIP
-	hubCluster.Spec.IpSubnet = strings.Join(ipSubnet, ",")
+	hubCluster.Spec.CniSubnet = strings.Join(cniSubnet, ",")
 
 	return hubClient.Update(ctx, hubCluster)
 }
