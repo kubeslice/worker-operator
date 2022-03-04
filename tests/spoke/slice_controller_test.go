@@ -16,13 +16,15 @@ var log = logger.NewLogger()
 
 var _ = Describe("SliceController", func() {
 
-	Context("With a Slice CR and mesh dns service", func() {
-		It("Should update slice status with DNS IP", func() {
+	Context("With a Slice CR and mesh-dns service - slice.Status.DNSIP reconciliation", func() {
 
-			timeout := time.Second * 10
-			interval := time.Millisecond * 250
+		var slice *meshv1beta1.Slice
+		var svc *corev1.Service
 
-			slice := &meshv1beta1.Slice{
+		BeforeEach(func() {
+
+			// Prepare k8s objects for slice and mesh-dns service
+			slice = &meshv1beta1.Slice{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "test-slice",
 					Namespace: "kubeslice-system",
@@ -30,7 +32,7 @@ var _ = Describe("SliceController", func() {
 				Spec: meshv1beta1.SliceSpec{},
 			}
 
-			svc := &corev1.Service{
+			svc = &corev1.Service{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "mesh-dns",
 					Namespace: "kubeslice-system",
@@ -43,6 +45,16 @@ var _ = Describe("SliceController", func() {
 				},
 			}
 
+			// Cleanup after each test
+			DeferCleanup(func() {
+				Expect(k8sClient.Delete(ctx, slice)).Should(Succeed())
+				Expect(k8sClient.Delete(ctx, svc)).Should(Succeed())
+			})
+		})
+
+		It("Should update slice status with DNS IP", func() {
+
+			// Create slice and mesh-dns service
 			Expect(k8sClient.Create(ctx, slice)).Should(Succeed())
 			Expect(k8sClient.Create(ctx, svc)).Should(Succeed())
 
@@ -56,7 +68,7 @@ var _ = Describe("SliceController", func() {
 					return false
 				}
 				return true
-			}, timeout, interval).Should(BeTrue())
+			}, time.September*10, time.Millisecond*250).Should(BeTrue())
 
 			sliceKey := types.NamespacedName{Name: "test-slice", Namespace: "kubeslice-system"}
 			createdSlice := &meshv1beta1.Slice{}
@@ -68,7 +80,7 @@ var _ = Describe("SliceController", func() {
 					return ""
 				}
 				return createdSlice.Status.DNSIP
-			}, timeout, interval).Should(Equal("10.0.0.20"))
+			}, time.September*10, time.Millisecond*250).Should(Equal("10.0.0.20"))
 
 		})
 
