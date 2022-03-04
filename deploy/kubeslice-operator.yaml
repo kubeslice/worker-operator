@@ -85,25 +85,22 @@ spec:
                     properties:
                       bandwidthCeilingKbps:
                         description: Bandwidth Ceiling eg:5000
-                        type: string
+                        type: integer
                       bandwidthGuaranteedKbps:
                         description: Bandwidth Guaranteed eg:4000
-                        type: string
+                        type: integer
                       dscpClass:
                         description: DSCP code for inter cluster traffic
                         type: string
                       priority:
                         description: Priority 0-3
-                        type: string
+                        type: integer
                       queueType:
                         description: Queue Type
                         type: string
-                    required:
-                    - bandwidthCeilingKbps
-                    - bandwidthGuaranteedKbps
-                    - dscpClass
-                    - priority
-                    - queueType
+                      tcType:
+                        description: TC type
+                        type: string
                     type: object
                   sliceDisplayName:
                     description: display name of the slice.
@@ -400,6 +397,18 @@ rules:
 - apiGroups:
   - ""
   resources:
+  - secrets
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - ""
+  resources:
   - services
   verbs:
   - create
@@ -610,6 +619,14 @@ spec:
         env:
         - name: HUB_HOST_ENDPOINT
           value: https://10.1.80.11:6443
+        - name: HUB_PROJECT_NAMESPACE
+          value: hub-avesha-tenant-cisco
+        - name: ENABLE_WEBHOOKS
+          value: "false"
+        - name: CLUSTER_NAME
+          value: cluster-1
+        - name: NODE_IP
+          value: 1.2.3.4
         image: avesha/kubeslice-operator:1.0.0
         livenessProbe:
           httpGet:
