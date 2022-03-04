@@ -20,19 +20,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
-// NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
-
-// MeshType defines the type of service mesh running in the cluster
-type MeshType string
-
-const (
-	// MeshTypeIstio indicates that service is exported through istio
-	MeshTypeIstio MeshType = "istio"
-	// MeshTypeNone indicates that service is running as normal kubernetes service without any mesh
-	MeshTypeNone MeshType = "none"
-)
-
 // ServiceExportConfigSpec defines the desired state of ServiceExportConfig
 type ServiceExportConfigSpec struct {
 	//ServiceName is the name of the service
@@ -41,8 +28,9 @@ type ServiceExportConfigSpec struct {
 	SourceCluster string `json:"sourceCluster,omitempty"`
 	// The name of the slice.
 	SliceName string `json:"sliceName,omitempty"`
+	//+kubebuilder:validation:Enum:=istio;none
 	// The type of service mesh running in the cluster
-	MeshType MeshType `json:"meshType,omitempty"`
+	MeshType string `json:"meshType,omitempty"`
 	// Proxy enabled or disabled.
 	Proxy bool `json:"proxy,omitempty"`
 	// the service discovery endpoint array
@@ -74,8 +62,6 @@ type ServiceDiscoveryPort struct {
 }
 
 type ServiceExportConfigStatus struct {
-	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
 }
 
 //+kubebuilder:object:root=true

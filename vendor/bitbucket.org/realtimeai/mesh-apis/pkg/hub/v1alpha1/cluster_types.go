@@ -25,14 +25,14 @@ import (
 
 // ClusterSpec defines the desired state of Cluster
 type ClusterSpec struct {
-	// Secret Name  is the name of the secret for the hub account
-	SecretName string `json:"secretName,omitempty"`
 	//NodeIP is the IP address of the Node
 	NodeIP string `json:"nodeIP,omitempty"`
 	// NetworkInterface is the network interface attached with the cluster.
 	NetworkInterface string `json:"networkInterface,omitempty"`
 	//put in an object
 	ClusterProperty ClusterProperty `json:"clusterProperty,omitempty"`
+	//IpSubnet is the podip and service ip subnet of CNI
+	IpSubnet string `json:"ipSubnet,omitempty"`
 }
 
 type ClusterProperty struct {
@@ -80,8 +80,8 @@ type KubernetesDashboard struct {
 
 // ClusterStatus defines the observed state of Cluster
 type ClusterStatus struct {
-	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
+	// SecretName is the name of the secret for the spoke cluster.
+	SecretName string `json:"secretName,omitempty"`
 }
 
 //+kubebuilder:object:root=true

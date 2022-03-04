@@ -4,6 +4,7 @@ import (
 	"bitbucket.org/realtimeai/kubeslice-operator/pkg/kube"
 	"context"
 	"os"
+	"strings"
 
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -83,9 +84,15 @@ func UpdateClusterInfoToHub(ctx context.Context, clusterName, nodeIP string) err
 		return err
 	}
 
+	ipSubnet, err := c.GetNsmExcludedPrefix(ctx, "nsm-config", "kubeslice-system")
+	if err != nil {
+		return err
+	}
+
 	hubCluster.Spec.ClusterProperty.GeoLocation.CloudRegion = clusterInfo.ClusterProperty.GeoLocation.CloudRegion
 	hubCluster.Spec.ClusterProperty.GeoLocation.CloudProvider = clusterInfo.ClusterProperty.GeoLocation.CloudProvider
 	hubCluster.Spec.NodeIP = nodeIP
+	hubCluster.Spec.IpSubnet = strings.Join(ipSubnet, ",")
 
 	return hubClient.Update(ctx, hubCluster)
 }

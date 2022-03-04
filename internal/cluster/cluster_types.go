@@ -6,11 +6,11 @@ import (
 
 type ClusterInterface interface {
 	GetClusterInfo(ctx context.Context) (*ClusterInfo, error)
+	GetNsmExcludedPrefix(ctx context.Context, configmap, namespace string) ([]string, error)
 }
 
 type ClusterInfo struct {
 	Name            string          `json:"clusterName,omitempty"`
-	NodeIP          string          `json:"nodeIP,omitempty"`
 	ClusterProperty ClusterProperty `json:"clusterProperty,omitempty"`
 }
 
