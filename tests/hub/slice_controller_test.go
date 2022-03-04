@@ -8,10 +8,13 @@ import (
 	. "github.com/onsi/gomega"
 
 	meshv1beta1 "bitbucket.org/realtimeai/kubeslice-operator/api/v1beta1"
+	"bitbucket.org/realtimeai/kubeslice-operator/internal/logger"
 	spokev1alpha1 "bitbucket.org/realtimeai/mesh-apis/pkg/spoke/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 )
+
+var log = logger.NewLogger()
 
 var _ = Describe("Hub SliceController", func() {
 
@@ -25,9 +28,10 @@ var _ = Describe("Hub SliceController", func() {
 			hubSlice = &spokev1alpha1.SpokeSliceConfig{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "test-slice",
-					Namespace: "kubeslice-system",
+					Namespace: PROJECT_NS,
 				},
 				Spec: spokev1alpha1.SpokeSliceConfigSpec{
+					SliceName:     "test-slice",
 					SliceType:     "Application",
 					SliceSubnet:   "10.0.0.1/16",
 					SliceIpamType: "Local",
@@ -53,10 +57,11 @@ var _ = Describe("Hub SliceController", func() {
 			Eventually(func() bool {
 				err := k8sClient.Get(ctx, sliceKey, createdSlice)
 				if err != nil {
+					log.Error(err, "error fetching slice")
 					return false
 				}
-				return false
-			}, time.September*10, time.Millisecond*250).Should(BeTrue())
+				return true
+			}, time.Second*10, time.Millisecond*250).Should(BeTrue())
 
 			Expect(createdSlice.Status.SliceConfig.SliceSubnet).To(Equal("10.0.0.1/16"))
 
