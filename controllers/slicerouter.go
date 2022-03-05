@@ -368,7 +368,8 @@ func (r *SliceReconciler) ReconcileSliceRouter(ctx context.Context, slice *meshv
 	err := r.Get(ctx, types.NamespacedName{Name: sliceRouterDeploymentNamePrefix + slice.Name, Namespace: slice.Namespace}, foundSliceRouter)
 	if err != nil {
 		if errors.IsNotFound(err) {
-			if slice.Status.SliceConfig == nil {
+			if slice.Status.SliceConfig == nil || slice.Status.SliceConfig.SliceSubnet == "" {
+				log.Info("Slice subnet config not available yet, cannot deploy slice router. Waiting...")
 				return ctrl.Result{
 					RequeueAfter: 10 * time.Second,
 				}, nil, true

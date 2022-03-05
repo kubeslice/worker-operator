@@ -9,6 +9,11 @@ import (
 	emptypb "google.golang.org/protobuf/types/known/emptypb"
 )
 
+type SliceRouterConnCtx struct {
+	RemoteSliceGwNsmSubnet string
+	LocalNsmGwPeerIP       string
+}
+
 func GetClientConnectionInfo(ctx context.Context, addr string) ([]meshv1beta1.AppPod, error) {
 	conn, err := grpc.Dial(addr, grpc.WithInsecure())
 	if err != nil {
@@ -37,17 +42,21 @@ func GetClientConnectionInfo(ctx context.Context, addr string) ([]meshv1beta1.Ap
 	return appPods, nil
 }
 
-func UpdateConnectionContext(ctx context.Context, addr string) (*sidecar.SidecarResponse, error) {
-	conn, err := grpc.Dial(addr, grpc.WithInsecure())
+func SendConnectionContext(ctx context.Context, serverAddr string, sliceRouterConnCtx *SliceRouterConnCtx) error {
+	conn, err := grpc.Dial(serverAddr, grpc.WithInsecure())
 	if err != nil {
-		return nil, err
+		return err
 	}
 	defer conn.Close()
 
-	// TODO fill
-	conContext := &sidecar.SliceGwConContext{}
+	msg := &sidecar.SliceGwConContext{
+		RemoteSliceGwNsmSubnet: sliceRouterConnCtx.RemoteSliceGwNsmSubnet,
+		LocalNsmGwPeerIP:       sliceRouterConnCtx.LocalNsmGwPeerIP,
+	}
 
 	client := sidecar.NewSliceRouterSidecarServiceClient(conn)
 
-	return client.UpdateSliceGwConnectionContext(ctx, conContext)
+	_, err = client.UpdateSliceGwConnectionContext(ctx, msg)
+
+	return err
 }
