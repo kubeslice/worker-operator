@@ -71,8 +71,8 @@ var _ = Describe("Hub SliceController", func() {
 
 			Expect(createdSlice.Status.SliceConfig.SliceSubnet).To(Equal("10.0.0.1/16"))
 			Expect(createdSlice.Status.SliceConfig.SliceDisplayName).To(Equal("test-slice"))
-			Expect(createdSlice.Status.SliceConfig.SliceIpam.SliceIpamType).To(Equal("Local"))
 			Expect(createdSlice.Status.SliceConfig.SliceType).To(Equal("Application"))
+			Expect(createdSlice.Status.SliceConfig.SliceIpam.SliceIpamType).To(Equal("Local"))
 			Expect(createdSlice.Status.SliceConfig.SliceIpam.IpamClusterOctet).To(Equal(100))
 
 		})
