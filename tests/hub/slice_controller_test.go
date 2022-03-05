@@ -21,6 +21,7 @@ var _ = Describe("Hub SliceController", func() {
 	Context("With Slice CR created in hub", func() {
 
 		var hubSlice *spokev1alpha1.SpokeSliceConfig
+		var createdSlice *meshv1beta1.Slice
 
 		BeforeEach(func() {
 
@@ -29,9 +30,9 @@ var _ = Describe("Hub SliceController", func() {
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "test-slice",
 					Namespace: PROJECT_NS,
-          Labels: map[string]string{
-            "spoke-cluster": CLUSTER_NAME,
-          },
+					Labels: map[string]string{
+						"spoke-cluster": CLUSTER_NAME,
+					},
 				},
 				Spec: spokev1alpha1.SpokeSliceConfigSpec{
 					SliceName:     "test-slice",
@@ -41,10 +42,13 @@ var _ = Describe("Hub SliceController", func() {
 				},
 			}
 
+			createdSlice = &meshv1beta1.Slice{}
+
 			// Cleanup after each test
 			DeferCleanup(func() {
 				ctx := context.Background()
 				Expect(k8sClient.Delete(ctx, hubSlice)).Should(Succeed())
+				Expect(k8sClient.Delete(ctx, createdSlice)).Should(Succeed())
 			})
 		})
 
@@ -54,7 +58,6 @@ var _ = Describe("Hub SliceController", func() {
 			Expect(k8sClient.Create(ctx, hubSlice)).Should(Succeed())
 
 			sliceKey := types.NamespacedName{Name: "test-slice", Namespace: "kubeslice-system"}
-			createdSlice := &meshv1beta1.Slice{}
 
 			// Make sure slice is reconciled in spoke cluster
 			Eventually(func() bool {
@@ -69,6 +72,30 @@ var _ = Describe("Hub SliceController", func() {
 			Expect(createdSlice.Status.SliceConfig.SliceDisplayName).To(Equal("test-slice"))
 			Expect(createdSlice.Status.SliceConfig.SliceIpam.SliceIpamType).To(Equal("Local"))
 			Expect(createdSlice.Status.SliceConfig.SliceType).To(Equal("Application"))
+
+		})
+
+		It("Should have IpamClusterOctet in spoke", func() {
+			ctx := context.Background()
+
+			Expect(k8sClient.Create(ctx, hubSlice)).Should(Succeed())
+
+			// update ipam cluster octet in hub
+			hubSlice.Status.IpamClusterOctet = 100
+			Expect(k8sClient.Status().Update(ctx, hubSlice)).Should(Succeed())
+
+			sliceKey := types.NamespacedName{Name: "test-slice", Namespace: "kubeslice-system"}
+
+			// Make sure slice is reconciled in spoke cluster
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, sliceKey, createdSlice)
+				if err != nil {
+					return false
+				}
+				return createdSlice.Status.SliceConfig != nil
+			}, time.Second*10, time.Millisecond*250).Should(BeTrue())
+
+			Expect(createdSlice.Status.SliceConfig.SliceIpam.IpamClusterOctet).To(Equal(100))
 
 		})
 
