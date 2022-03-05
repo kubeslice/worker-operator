@@ -29,6 +29,9 @@ var _ = Describe("Hub SliceController", func() {
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "test-slice",
 					Namespace: PROJECT_NS,
+          Labels: map[string]string{
+            "spoke-cluster": CLUSTER_NAME,
+          },
 				},
 				Spec: spokev1alpha1.SpokeSliceConfigSpec{
 					SliceName:     "test-slice",
@@ -57,13 +60,15 @@ var _ = Describe("Hub SliceController", func() {
 			Eventually(func() bool {
 				err := k8sClient.Get(ctx, sliceKey, createdSlice)
 				if err != nil {
-					log.Error(err, "error fetching slice")
 					return false
 				}
 				return true
 			}, time.Second*10, time.Millisecond*250).Should(BeTrue())
 
 			Expect(createdSlice.Status.SliceConfig.SliceSubnet).To(Equal("10.0.0.1/16"))
+			Expect(createdSlice.Status.SliceConfig.SliceDisplayName).To(Equal("test-slice"))
+			Expect(createdSlice.Status.SliceConfig.SliceIpam.SliceIpamType).To(Equal("Local"))
+			Expect(createdSlice.Status.SliceConfig.SliceType).To(Equal("Application"))
 
 		})
 
