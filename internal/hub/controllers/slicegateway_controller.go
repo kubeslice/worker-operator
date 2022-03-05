@@ -115,11 +115,14 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req reconcile.Request
 
 	meshSliceGw.Status.Config = meshv1beta1.SliceGatewayConfig{
 		SliceGatewaySubnet:          sliceGw.Spec.LocalGatewayConfig.GatewaySubnet,
+		SliceGatewayRemoteSubnet:    sliceGw.Spec.RemoteGatewayConfig.GatewaySubnet,
 		SliceGatewayHostType:        sliceGw.Spec.GatewayHostType,
 		SliceGatewayRemoteNodeIP:    sliceGw.Spec.RemoteGatewayConfig.NodeIp,
 		SliceGatewayRemoteNodePort:  sliceGw.Spec.RemoteGatewayConfig.NodePort,
 		SliceGatewayRemoteClusterID: sliceGw.Spec.RemoteGatewayConfig.ClusterName,
 		SliceGatewayRemoteGatewayID: sliceGw.Spec.RemoteGatewayConfig.GatewayName,
+		SliceGatewayLocalVpnIP:      sliceGw.Spec.LocalGatewayConfig.VpnIp,
+		SliceGatewayRemoteVpnIP:     sliceGw.Spec.RemoteGatewayConfig.VpnIp,
 	}
 	err = r.MeshClient.Status().Update(ctx, meshSliceGw)
 	if err != nil {

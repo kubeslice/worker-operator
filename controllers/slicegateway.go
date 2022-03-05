@@ -19,6 +19,7 @@ import (
 	meshv1beta1 "bitbucket.org/realtimeai/kubeslice-operator/api/v1beta1"
 	"bitbucket.org/realtimeai/kubeslice-operator/internal/gwsidecar"
 	"bitbucket.org/realtimeai/kubeslice-operator/internal/logger"
+	"bitbucket.org/realtimeai/kubeslice-operator/internal/router"
 )
 
 // labelsForSliceGwDeployment returns the labels for creating slice gw deployment
@@ -504,8 +505,6 @@ func (r *SliceGwReconciler) GetGwPodNameAndIP(ctx context.Context, sliceGw *mesh
 func isGatewayStatusChanged(slicegateway *meshv1beta1.SliceGateway, podName string, podIP string, status *gwsidecar.GwStatus) bool {
 	return slicegateway.Status.PodName != podName ||
 		slicegateway.Status.PodIP != podIP ||
-		slicegateway.Status.LocalIP != status.TunnelStatus.LocalIP ||
-		slicegateway.Status.PeerIP != status.TunnelStatus.RemoteIP ||
 		slicegateway.Status.LocalNsmIP != status.NsmStatus.LocalIP
 }
 
@@ -533,8 +532,6 @@ func (r *SliceGwReconciler) ReconcileGwPodStatus(ctx context.Context, slicegatew
 		log.Info("gw status changed")
 		slicegateway.Status.PodName = podName
 		slicegateway.Status.PodIP = podIP
-		slicegateway.Status.LocalIP = status.TunnelStatus.LocalIP
-		slicegateway.Status.PeerIP = status.TunnelStatus.RemoteIP
 		slicegateway.Status.LocalNsmIP = status.NsmStatus.LocalIP
 		slicegateway.Status.ConnectionContextUpdatedOn = 0
 		err = r.Status().Update(ctx, slicegateway)
@@ -552,10 +549,6 @@ func (r *SliceGwReconciler) ReconcileGwPodStatus(ctx context.Context, slicegatew
 func (r *SliceGwReconciler) SendConnectionContextToGwPod(ctx context.Context, slicegateway *meshv1beta1.SliceGateway) (ctrl.Result, error, bool) {
 	log := logger.FromContext(ctx).WithValues("type", "SliceGw")
 
-	if slicegateway.Status.ConnectionContextUpdatedOn != 0 {
-		return ctrl.Result{}, nil, false
-	}
-
 	_, podIP := r.GetGwPodNameAndIP(ctx, slicegateway)
 	if podIP == "" {
 		log.Info("Gw podIP not available yet, requeuing")
@@ -565,13 +558,55 @@ func (r *SliceGwReconciler) SendConnectionContextToGwPod(ctx context.Context, sl
 	sidecarGrpcAddress := podIP + ":5000"
 
 	connCtx := &gwsidecar.GwConnectionContext{
-		RemoteSliceGwVpnIP:     slicegateway.Status.PeerIP,
+		RemoteSliceGwVpnIP:     slicegateway.Status.Config.SliceGatewayRemoteVpnIP,
 		RemoteSliceGwNsmSubnet: slicegateway.Status.Config.SliceGatewayRemoteSubnet,
 	}
 
 	err := gwsidecar.SendConnectionContext(ctx, sidecarGrpcAddress, connCtx)
 	if err != nil {
 		log.Error(err, "Unable to send conn ctx to gw")
+		return ctrl.Result{RequeueAfter: 10 * time.Second}, nil, true
+	}
+
+	slicegateway.Status.ConnectionContextUpdatedOn = time.Now().Unix()
+	err = r.Status().Update(ctx, slicegateway)
+	if err != nil {
+		log.Error(err, "Failed to update SliceGateway status for conn ctx update")
+		return ctrl.Result{}, err, true
+	}
+
+	return ctrl.Result{}, nil, false
+}
+
+func (r *SliceGwReconciler) SendConnectionContextToSliceRouter(ctx context.Context, slicegateway *meshv1beta1.SliceGateway) (ctrl.Result, error, bool) {
+	log := logger.FromContext(ctx).WithValues("type", "SliceGw")
+
+	_, podIP, err := GetSliceRouterPodNameAndIP(ctx, r.Client, slicegateway.Spec.SliceName)
+	if err != nil {
+		log.Error(err, "Unable to get slice router pod info")
+		return ctrl.Result{}, err, true
+	}
+	if podIP == "" {
+		log.Info("Slice router podIP not available yet, requeuing")
+		return ctrl.Result{RequeueAfter: 5 * time.Second}, nil, true
+	}
+
+	if slicegateway.Status.Config.SliceGatewayRemoteSubnet == "" ||
+		slicegateway.Status.LocalNsmIP == "" {
+		log.Info("Waiting for remote subnet and local nsm IP. Delaying conn ctx update to router")
+		return ctrl.Result{RequeueAfter: 10 * time.Second}, nil, true
+	}
+
+	sidecarGrpcAddress := podIP + ":5000"
+
+	connCtx := &router.SliceRouterConnCtx{
+		RemoteSliceGwNsmSubnet: slicegateway.Status.Config.SliceGatewayRemoteSubnet,
+		LocalNsmGwPeerIP:       slicegateway.Status.LocalNsmIP,
+	}
+
+	err = router.SendConnectionContext(ctx, sidecarGrpcAddress, connCtx)
+	if err != nil {
+		log.Error(err, "Unable to send conn ctx to slice router")
 		return ctrl.Result{RequeueAfter: 10 * time.Second}, nil, true
 	}
 

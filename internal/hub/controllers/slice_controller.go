@@ -95,12 +95,17 @@ func (r *SliceReconciler) updateSliceConfig(ctx context.Context, meshSlice *mesh
 			SliceType: spokeSlice.Spec.SliceType,
 		}
 
-		return r.MeshClient.Status().Update(ctx, meshSlice)
 	}
 
-	// TODO: Update when we bring in more fields later on
+	if meshSlice.Status.SliceConfig.SliceSubnet == "" {
+		meshSlice.Status.SliceConfig.SliceSubnet = spokeSlice.Spec.SliceSubnet
+	}
 
-	return nil
+	if meshSlice.Status.SliceConfig.SliceIpam.IpamClusterOctet == 0 {
+		meshSlice.Status.SliceConfig.SliceIpam.IpamClusterOctet = spokeSlice.Spec.IpamClusterOctet
+	}
+
+	return r.MeshClient.Status().Update(ctx, meshSlice)
 }
 
 func (a *SliceReconciler) InjectClient(c client.Client) error {

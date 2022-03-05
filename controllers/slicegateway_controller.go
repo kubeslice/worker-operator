@@ -186,6 +186,15 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		return res, nil
 	}
 
+	res, err, requeue = r.SendConnectionContextToSliceRouter(ctx, sliceGw)
+	if err != nil {
+		log.Error(err, "Failed to send connection context to slice router pod")
+		return ctrl.Result{}, err
+	}
+	if requeue {
+		return res, nil
+	}
+
 	return ctrl.Result{}, nil
 }
 
