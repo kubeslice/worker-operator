@@ -80,25 +80,22 @@ spec:
                     properties:
                       bandwidthCeilingKbps:
                         description: Bandwidth Ceiling eg:5000
-                        type: string
+                        type: integer
                       bandwidthGuaranteedKbps:
                         description: Bandwidth Guaranteed eg:4000
-                        type: string
+                        type: integer
                       dscpClass:
                         description: DSCP code for inter cluster traffic
                         type: string
                       priority:
                         description: Priority 0-3
-                        type: string
+                        type: integer
                       queueType:
                         description: Queue Type
                         type: string
-                    required:
-                    - bandwidthCeilingKbps
-                    - bandwidthGuaranteedKbps
-                    - dscpClass
-                    - priority
-                    - queueType
+                      tcType:
+                        description: TC type
+                        type: string
                     type: object
                   sliceDisplayName:
                     description: display name of the slice.
