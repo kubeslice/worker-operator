@@ -126,7 +126,9 @@ func main() {
 	}
 	ctx := ctrl.SetupSignalHandler()
 
-	clientForHubMgr, err := client.New(mgr.GetConfig(), client.Options{})
+	clientForHubMgr, err := client.New(ctrl.GetConfigOrDie(), client.Options{
+		Scheme: scheme,
+	})
 	if err != nil {
 		setupLog.Error(err, "unable to create kube client for hub manager")
 		os.Exit(1)

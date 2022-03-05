@@ -32,7 +32,7 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req reconcile.Request) 
 		return reconcile.Result{}, err
 	}
 
-	log.Info("got slice from hub", "slice", slice.Name)
+	log.Info("got slice from hub", "slice", slice)
 
 	sliceName := slice.Spec.SliceName
 	meshSlice := &meshv1beta1.Slice{}
@@ -90,7 +90,7 @@ func (r *SliceReconciler) updateSliceConfig(ctx context.Context, meshSlice *mesh
 			SliceSubnet:      spokeSlice.Spec.SliceSubnet,
 			SliceIpam: meshv1beta1.SliceIpamConfig{
 				SliceIpamType:    spokeSlice.Spec.SliceIpamType,
-				IpamClusterOctet: spokeSlice.Status.IpamClusterOctet,
+				IpamClusterOctet: spokeSlice.Spec.IpamClusterOctet,
 			},
 			SliceType: spokeSlice.Spec.SliceType,
 		}

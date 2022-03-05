@@ -1,11 +1,12 @@
 package controllers
 
 import (
-	//	"context"
+	"context"
 	//	"errors"
 	"os"
 	"strconv"
 	//	"strings"
+	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -13,8 +14,11 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	meshv1beta1 "bitbucket.org/realtimeai/kubeslice-operator/api/v1beta1"
+	"bitbucket.org/realtimeai/kubeslice-operator/internal/gwsidecar"
+	"bitbucket.org/realtimeai/kubeslice-operator/internal/logger"
 )
 
 // labelsForSliceGwDeployment returns the labels for creating slice gw deployment
@@ -474,4 +478,102 @@ func (r *SliceGwReconciler) deploymentForGatewayClient(g *meshv1beta1.SliceGatew
 	// Set SliceGateway instance as the owner and controller
 	ctrl.SetControllerReference(g, dep, r.Scheme)
 	return dep
+}
+
+func (r *SliceGwReconciler) GetGwPodNameAndIP(ctx context.Context, sliceGw *meshv1beta1.SliceGateway) (string, string) {
+	log := logger.FromContext(ctx).WithValues("type", "slicegateway")
+	podList := &corev1.PodList{}
+	listOpts := []client.ListOption{
+		client.InNamespace(sliceGw.Namespace),
+		client.MatchingLabels(labelsForSliceGwDeployment(sliceGw.Name, sliceGw.Spec.SliceName)),
+	}
+	if err := r.List(ctx, podList, listOpts...); err != nil {
+		log.Error(err, "Failed to list pods")
+		return "", ""
+	}
+
+	for _, pod := range podList.Items {
+		if pod.Status.Phase == corev1.PodRunning {
+			return pod.Name, pod.Status.PodIP
+		}
+	}
+
+	return "", ""
+}
+
+func isGatewayStatusChanged(slicegateway *meshv1beta1.SliceGateway, podName string, podIP string, status *gwsidecar.GwStatus) bool {
+	return slicegateway.Status.PodName != podName ||
+		slicegateway.Status.PodIP != podIP ||
+		slicegateway.Status.LocalIP != status.TunnelStatus.LocalIP ||
+		slicegateway.Status.PeerIP != status.TunnelStatus.RemoteIP ||
+		slicegateway.Status.LocalNsmIP != status.NsmStatus.LocalIP
+}
+
+func (r *SliceGwReconciler) ReconcileGwPodStatus(ctx context.Context, slicegateway *meshv1beta1.SliceGateway) (ctrl.Result, error, bool) {
+	log := logger.FromContext(ctx).WithValues("type", "SliceGw")
+	debugLog := log.V(1)
+
+	podName, podIP := r.GetGwPodNameAndIP(ctx, slicegateway)
+	if podName == "" || podIP == "" {
+		log.Info("Gw pod not available yet, requeuing")
+		return ctrl.Result{RequeueAfter: 5 * time.Second}, nil, true
+	}
+
+	sidecarGrpcAddress := podIP + ":5000"
+
+	status, err := gwsidecar.GetStatus(ctx, sidecarGrpcAddress)
+	if err != nil {
+		log.Error(err, "Unable to fetch gw status")
+		return ctrl.Result{RequeueAfter: 10 * time.Second}, nil, true
+	}
+
+	debugLog.Info("Got gw status", "result", status)
+
+	if isGatewayStatusChanged(slicegateway, podName, podIP, status) {
+		log.Info("gw status changed")
+		slicegateway.Status.PodName = podName
+		slicegateway.Status.PodIP = podIP
+		slicegateway.Status.LocalIP = status.TunnelStatus.LocalIP
+		slicegateway.Status.PeerIP = status.TunnelStatus.RemoteIP
+		slicegateway.Status.LocalNsmIP = status.NsmStatus.LocalIP
+		slicegateway.Status.ConnectionContextUpdatedOn = 0
+		err = r.Status().Update(ctx, slicegateway)
+		if err != nil {
+			log.Error(err, "Failed to update SliceGateway status for gateway status")
+			return ctrl.Result{}, err, true
+		}
+
+		log.Info("gw status updated")
+	}
+
+	return ctrl.Result{}, nil, false
+}
+
+func (r *SliceGwReconciler) SendConnectionContextToGwPod(ctx context.Context, slicegateway *meshv1beta1.SliceGateway) (ctrl.Result, error, bool) {
+	log := logger.FromContext(ctx).WithValues("type", "SliceGw")
+
+	if slicegateway.Status.ConnectionContextUpdatedOn != 0 {
+		return ctrl.Result{}, nil, false
+	}
+
+	_, podIP := r.GetGwPodNameAndIP(ctx, slicegateway)
+	if podIP == "" {
+		log.Info("Gw podIP not available yet, requeuing")
+		return ctrl.Result{RequeueAfter: 5 * time.Second}, nil, true
+	}
+
+	sidecarGrpcAddress := podIP + ":5000"
+
+	connCtx := &gwsidecar.GwConnectionContext{
+		RemoteSliceGwVpnIP:     slicegateway.Status.PeerIP,
+		RemoteSliceGwNsmSubnet: slicegateway.Status.Config.SliceGatewayRemoteSubnet,
+	}
+
+	err := gwsidecar.SendConnectionContext(ctx, sidecarGrpcAddress, connCtx)
+	if err != nil {
+		log.Error(err, "Unable to send conn ctx to gw")
+		return ctrl.Result{RequeueAfter: 10 * time.Second}, nil, true
+	}
+
+	return ctrl.Result{}, nil, false
 }
