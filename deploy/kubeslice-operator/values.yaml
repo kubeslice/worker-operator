@@ -13,6 +13,7 @@ hubSecret:
 
 cluster:
   name:
+  nodeIp:
 
 router:
   image: nexus.dev.aveshalabs.io/avesha/vl3_ucnf-nse

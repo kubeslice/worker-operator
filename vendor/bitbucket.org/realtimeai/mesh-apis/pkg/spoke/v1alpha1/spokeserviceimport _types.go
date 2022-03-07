@@ -23,22 +23,14 @@ import (
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
 
-// MeshType defines the type of service mesh running in the cluster
-type MeshType string
-
-const (
-	// MeshTypeIstio indicates that service is exported through istio
-	MeshTypeIstio MeshType = "istio"
-	// MeshTypeNone indicates that service is running as normal kubernetes service without any mesh
-	MeshTypeNone MeshType = "none"
-)
-
 // SpokeServiceImportSpec defines the desired state of SpokeServiceImport
 type SpokeServiceImportSpec struct {
+	//ServiceExportConfigName is the name of the service export
+	ServiceExportConfigName string `json:"serviceExportConfigName,omitempty"`
 	//ServiceName is the name of the service
 	ServiceName string `json:"serviceName,omitempty"`
 	// clusterId is the id of the cluster where the service is available.
-	SourceClusters []string `json:"sourceCluster,omitempty"`
+	SourceClusters []string `json:"sourceClusters,omitempty"`
 	// The name of the slice.
 	SliceName string `json:"sliceName,omitempty"`
 	// The type of service mesh running in the cluster

@@ -34,6 +34,7 @@ type SpokeSliceConfigSpec struct {
 	SliceIpamType             string                    `json:"sliceIpamType,omitempty"`
 	QosProfileDetails         QOSProfile                `json:"qosProfileDetails,omitempty"`
 	NamespaceIsolationProfile NamespaceIsolationProfile `json:"namespaceIsolationProfile,omitempty"`
+	IpamClusterOctet          int                       `json:"ipamClusterOctet,omitempty"`
 }
 
 // SpokeSliceGatewayProvider defines the configuration for slicegateway
@@ -64,7 +65,6 @@ type NamespaceIsolationProfile struct {
 
 // SpokeSliceConfigStatus defines the observed state of Slice
 type SpokeSliceConfigStatus struct {
-	IpamClusterOctet int `json:"ipamClusterOctet,omitempty"`
 }
 
 //+kubebuilder:object:root=true

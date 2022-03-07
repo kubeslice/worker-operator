@@ -30,6 +30,7 @@ import (
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
@@ -133,9 +134,16 @@ func main() {
 	}
 	ctx := ctrl.SetupSignalHandler()
 
+	clientForHubMgr, err := client.New(ctrl.GetConfigOrDie(), client.Options{
+		Scheme: scheme,
+	})
+	if err != nil {
+		setupLog.Error(err, "unable to create kube client for hub manager")
+		os.Exit(1)
+	}
 	go func() {
 		setupLog.Info("starting hub manager")
-		manager.Start(mgr.GetClient(), ctx)
+		manager.Start(clientForHubMgr, ctx)
 	}()
 
 	//post GeoLocation and other metadata to cluster CR on Hub cluster
