@@ -61,13 +61,32 @@ func TestCluster_GetClusterInfo(t *testing.T) {
 	}{
 		{
 			description: "GKE Cluster Node",
-			objs:        []runtime.Object{getNode("gke-rahul-3-rahul-3-main-pool-ace60e8a-ds90")},
+			objs: []runtime.Object{getNode(
+				"gke-rahul-3-rahul-3-main-pool-ace60e8a-ds90", "gce://avesha-dev/us-west1-b/gke-rahul-3-rahul-3-main-pool-ace60e8a-ds90\"", "us-west1",
+			)},
 			expected: &ClusterInfo{
 				Name: "fakeCluster",
 				ClusterProperty: ClusterProperty{
 					GeoLocation: GeoLocation{
 						CloudProvider: "gce",
 						CloudRegion:   "us-west1",
+					},
+				},
+			},
+		},
+		{
+			description: "AWS Cluster Node",
+			objs: []runtime.Object{
+				getNode(
+					"ip-11-2-105-11.ec2.internal", "aws:///us-east-1c/i-0231e116910103311", "us-east-1",
+				),
+			},
+			expected: &ClusterInfo{
+				Name: "fakeCluster",
+				ClusterProperty: ClusterProperty{
+					GeoLocation: GeoLocation{
+						CloudProvider: "aws",
+						CloudRegion:   "us-east-1",
 					},
 				},
 			},
@@ -106,7 +125,7 @@ func configMap(name, namespace, data string) *v1.ConfigMap {
 	}
 	return &configMap
 }
-func getNode(name string) *v1.Node {
+func getNode(name, providerID, region string) *v1.Node {
 	node := v1.Node{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Node",
@@ -115,11 +134,11 @@ func getNode(name string) *v1.Node {
 		ObjectMeta: metav1.ObjectMeta{
 			Name: name,
 			Labels: map[string]string{
-				"topology.kubernetes.io/region": "us-west1",
+				"topology.kubernetes.io/region": region,
 			},
 		},
 		Spec: v1.NodeSpec{
-			ProviderID: "gce://avesha-dev/us-west1-b/gke-rahul-3-rahul-3-main-pool-ace60e8a-ds90",
+			ProviderID: providerID,
 		},
 	}
 	return &node
