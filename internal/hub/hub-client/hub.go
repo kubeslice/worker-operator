@@ -66,7 +66,6 @@ func UpdateClusterInfoToHub(ctx context.Context, clusterName, nodeIP string) err
 		Name:      clusterName,
 		Namespace: ProjectNamespace,
 	}, hubCluster)
-
 	if err != nil {
 		return err
 	}
