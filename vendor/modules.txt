@@ -7,7 +7,7 @@ bitbucket.org/realtimeai/kubeslice-netops/pkg/proto
 # bitbucket.org/realtimeai/kubeslice-router-sidecar v0.0.0-20220221080454-e2276f57c978
 ## explicit
 bitbucket.org/realtimeai/kubeslice-router-sidecar/pkg/proto
-# bitbucket.org/realtimeai/mesh-apis v0.0.0-20220304110552-61ee34c734a7
+# bitbucket.org/realtimeai/mesh-apis v0.0.0-20220304165504-14bf48bdee04
 ## explicit
 bitbucket.org/realtimeai/mesh-apis/pkg/hub/v1alpha1
 bitbucket.org/realtimeai/mesh-apis/pkg/spoke/v1alpha1
@@ -58,6 +58,7 @@ github.com/golang/protobuf/ptypes/duration
 github.com/golang/protobuf/ptypes/empty
 github.com/golang/protobuf/ptypes/timestamp
 # github.com/google/go-cmp v0.5.6
+## explicit
 github.com/google/go-cmp/cmp
 github.com/google/go-cmp/cmp/internal/diff
 github.com/google/go-cmp/cmp/internal/flags

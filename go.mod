@@ -6,14 +6,11 @@ require (
 	bitbucket.org/realtimeai/kubeslice-gw-sidecar v0.0.0-20220214062837-3c7d18a8439e
 	bitbucket.org/realtimeai/kubeslice-netops v0.0.0-20220225091428-05183d983334
 	bitbucket.org/realtimeai/kubeslice-router-sidecar v0.0.0-20220221080454-e2276f57c978
-	bitbucket.org/realtimeai/mesh-apis v0.0.0-20220304110552-61ee34c734a7
-	github.com/go-logr/logr v1.2.0
-	github.com/go-logr/zapr v1.2.0
-	github.com/google/go-cmp v0.5.5
 	bitbucket.org/realtimeai/mesh-apis v0.0.0-20220304165504-14bf48bdee04
 	github.com/go-logr/logr v1.2.0
 	github.com/go-logr/zapr v1.2.0
 	github.com/golang/protobuf v1.5.2
+	github.com/google/go-cmp v0.5.6
 	github.com/networkservicemesh/networkservicemesh/k8s/pkg/apis v0.0.0-20211028170547-e58ac1200f18
 	github.com/onsi/ginkgo/v2 v2.1.3
 	github.com/onsi/gomega v1.17.0
