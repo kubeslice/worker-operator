@@ -105,7 +105,7 @@ func TestCluster_GetClusterInfo(t *testing.T) {
 				ClusterProperty: ClusterProperty{
 					GeoLocation: GeoLocation{
 						CloudProvider: "azure",
-						CloudRegion: "eastus",
+						CloudRegion:   "eastus",
 					},
 				},
 			},
@@ -155,7 +155,7 @@ func getNodeList(name, providerID, region string) *v1.NodeList {
 				ObjectMeta: metav1.ObjectMeta{
 					Name: name,
 					Labels: map[string]string{
-						"topology.kubernetes.io/region":region,
+						"topology.kubernetes.io/region": region,
 					},
 				},
 				Spec: v1.NodeSpec{

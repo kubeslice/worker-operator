@@ -39,7 +39,6 @@ type SliceGwReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
 	Log    logr.Logger
-	NodeIP string
 }
 
 func readyToDeployGwClient(sliceGw *meshv1beta1.SliceGateway) bool {

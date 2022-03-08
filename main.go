@@ -117,7 +117,6 @@ func main() {
 		Client: mgr.GetClient(),
 		Log:    ctrl.Log.WithName("controllers").WithName("SliceGw"),
 		Scheme: mgr.GetScheme(),
-		NodeIP: nodeIP,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "SliceGw")
 		os.Exit(1)
