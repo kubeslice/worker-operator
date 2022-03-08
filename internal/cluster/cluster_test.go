@@ -61,8 +61,8 @@ func TestCluster_GetClusterInfo(t *testing.T) {
 	}{
 		{
 			description: "GKE Cluster Node",
-			objs: []runtime.Object{getNode(
-				"gke-rahul-3-rahul-3-main-pool-ace60e8a-ds90", "gce://avesha-dev/us-west1-b/gke-rahul-3-rahul-3-main-pool-ace60e8a-ds90\"", "us-west1",
+			objs: []runtime.Object{getNodeList(
+				"gke-alice-3-alice-3-main-pool-ace60e8a-ds90", "gce://atomic-dev/us-west1-b/gke-alice-3-alice-3-main-pool-ace60e8a-ds90\"", "us-west1",
 			)},
 			expected: &ClusterInfo{
 				Name: "fakeCluster",
@@ -77,8 +77,8 @@ func TestCluster_GetClusterInfo(t *testing.T) {
 		{
 			description: "AWS Cluster Node",
 			objs: []runtime.Object{
-				getNode(
-					"ip-11-2-105-11.ec2.internal", "aws:///us-east-1c/i-0231e116910103311", "us-east-1",
+				getNodeList(
+					"ip-15-2-115-11.ec2.internal", "aws:///us-east-1c/i-0231e110103311", "us-east-1",
 				),
 			},
 			expected: &ClusterInfo{
@@ -87,6 +87,25 @@ func TestCluster_GetClusterInfo(t *testing.T) {
 					GeoLocation: GeoLocation{
 						CloudProvider: "aws",
 						CloudRegion:   "us-east-1",
+					},
+				},
+			},
+		},
+		{
+			description: "AKS Cluster Node",
+			objs: []runtime.Object{
+				getNodeList(
+					"fakeCluster",
+					"azure:///subscriptions/244691-2f70-44bc-9f7e-114f70ab8843/resourceGroups/mc_demoresource_aks-testing-1_eastus/providers/Microsoft.Compute/virtualMachineScaleSets/aks-alice-38597086-vmss/virtualMachines/0",
+					"eastus",
+				),
+			},
+			expected: &ClusterInfo{
+				Name: "fakeCluster",
+				ClusterProperty: ClusterProperty{
+					GeoLocation: GeoLocation{
+						CloudProvider: "azure",
+						CloudRegion: "eastus",
 					},
 				},
 			},
@@ -125,21 +144,25 @@ func configMap(name, namespace, data string) *v1.ConfigMap {
 	}
 	return &configMap
 }
-func getNode(name, providerID, region string) *v1.Node {
-	node := v1.Node{
+func getNodeList(name, providerID, region string) *v1.NodeList {
+	nodeList := v1.NodeList{
 		TypeMeta: metav1.TypeMeta{
-			Kind:       "Node",
+			Kind:       "NodeList",
 			APIVersion: "v1",
 		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name: name,
-			Labels: map[string]string{
-				"topology.kubernetes.io/region": region,
+		Items: []v1.Node{
+			{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: name,
+					Labels: map[string]string{
+						"topology.kubernetes.io/region":region,
+					},
+				},
+				Spec: v1.NodeSpec{
+					ProviderID: providerID,
+				},
 			},
 		},
-		Spec: v1.NodeSpec{
-			ProviderID: providerID,
-		},
 	}
-	return &node
+	return &nodeList
 }

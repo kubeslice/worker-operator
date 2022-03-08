@@ -171,5 +171,10 @@ func getNodeIp() (string, error) {
 
 func postClusterInfoToHub(ctx context.Context, clusterName, nodeIP string) error {
 	err := hub.UpdateClusterInfoToHub(ctx, clusterName, nodeIP)
-	return err
+	if err != nil {
+		setupLog.Error(err, "Error Posting Cluster info to hub cluster")
+		return err
+	}
+	setupLog.Info("Posted cluster info to hub cluster")
+	return nil
 }
