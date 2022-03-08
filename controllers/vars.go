@@ -2,6 +2,9 @@ package controllers
 
 import (
 	"os"
+	"time"
+
+	"bitbucket.org/realtimeai/kubeslice-operator/internal/utils"
 )
 
 var (
@@ -11,7 +14,11 @@ var (
 	// DNSDeploymentName is the name of coredns deployment running in the cluster
 	DNSDeploymentName = "mesh-dns"
 
-	imagePullSecretName = GetEnvOrDefault("IMAGE_PULL_SECRET_NAME", "avesha-nexus")
+	clusterName = os.Getenv("CLUSTER_NAME")
+
+	nodeIP = os.Getenv("NODE_IP")
+
+	imagePullSecretName = utils.GetEnvOrDefault("IMAGE_PULL_SECRET_NAME", "avesha-nexus")
 
 	gwSidecarImage           = os.Getenv("AVESHA_GW_SIDECAR_IMAGE")
 	gwSidecarImagePullPolicy = os.Getenv("AVESHA_GW_SIDECAR_IMAGE_PULLPOLICY")
@@ -24,14 +31,8 @@ var (
 	vl3RouterImage      = os.Getenv("AVESHA_VL3_ROUTER_IMAGE")
 	vl3RouterPullPolicy = os.Getenv("AVESHA_VL3_ROUTER_PULLPOLICY")
 
-	sliceRouterSidecarImage           = os.Getenv("AVESHA_GW_SIDECAR_IMAGE")
-	sliceRouterSidecarImagePullPolicy = os.Getenv("AVESHA_GW_SIDECAR_IMAGE_PULLPOLICY")
-)
+	sliceRouterSidecarImage           = os.Getenv("AVESHA_VL3_SIDECAR_IMAGE")
+	sliceRouterSidecarImagePullPolicy = os.Getenv("AVESHA_VL3_SIDECAR_IMAGE_PULLPOLICY")
 
-func GetEnvOrDefault(key, def string) string {
-	val, ok := os.LookupEnv(key)
-	if !ok {
-		return def
-	}
-	return val
-}
+	ReconcileInterval = 10 * time.Second
+)

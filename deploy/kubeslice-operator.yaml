@@ -40,76 +40,6 @@ spec:
             type: object
           spec:
             description: SliceSpec defines the desired state of Slice
-            properties:
-              sliceConfig:
-                description: SliceConfig is the spec for slice received from hub cluster
-                properties:
-                  qosProfileDetails:
-                    description: QOS profile details
-                    properties:
-                      bandwidthCeilingKbps:
-                        description: Bandwidth Ceiling eg:5000
-                        type: string
-                      bandwidthGuaranteedKbps:
-                        description: Bandwidth Guaranteed eg:4000
-                        type: string
-                      dscpClass:
-                        description: DSCP code for inter cluster traffic
-                        type: string
-                      priority:
-                        description: Priority 0-3
-                        type: string
-                      queueType:
-                        description: Queue Type
-                        type: string
-                    required:
-                    - bandwidthCeilingKbps
-                    - bandwidthGuaranteedKbps
-                    - dscpClass
-                    - priority
-                    - queueType
-                    type: object
-                  sliceDisplayName:
-                    description: display name of the slice.
-                    type: string
-                  sliceId:
-                    description: UUID of the slice.
-                    type: string
-                  sliceIpam:
-                    description: IPAM configuration for the slice
-                    properties:
-                      ipamClusterOctet:
-                        description: Cluster specific octet for IPAM root subnet
-                        type: integer
-                      sliceIpamType:
-                        description: IPAM Type for slice
-                        type: string
-                    required:
-                    - sliceIpamType
-                    type: object
-                  sliceName:
-                    description: name of the slice.
-                    type: string
-                  sliceSubnet:
-                    description: IP subnet range of the slice.
-                    type: string
-                  sliceType:
-                    description: Type of the slice.
-                    type: string
-                required:
-                - qosProfileDetails
-                - sliceDisplayName
-                - sliceId
-                - sliceIpam
-                - sliceName
-                - sliceSubnet
-                - sliceType
-                type: object
-              sliceDisplayName:
-                description: Display name of the slice.
-                type: string
-            required:
-            - sliceDisplayName
             type: object
           status:
             description: SliceStatus defines the observed state of Slice
@@ -155,25 +85,22 @@ spec:
                     properties:
                       bandwidthCeilingKbps:
                         description: Bandwidth Ceiling eg:5000
-                        type: string
+                        type: integer
                       bandwidthGuaranteedKbps:
                         description: Bandwidth Guaranteed eg:4000
-                        type: string
+                        type: integer
                       dscpClass:
                         description: DSCP code for inter cluster traffic
                         type: string
                       priority:
                         description: Priority 0-3
-                        type: string
+                        type: integer
                       queueType:
                         description: Queue Type
                         type: string
-                    required:
-                    - bandwidthCeilingKbps
-                    - bandwidthGuaranteedKbps
-                    - dscpClass
-                    - priority
-                    - queueType
+                      tcType:
+                        description: TC type
+                        type: string
                     type: object
                   sliceDisplayName:
                     description: display name of the slice.
@@ -193,9 +120,6 @@ spec:
                     required:
                     - sliceIpamType
                     type: object
-                  sliceName:
-                    description: name of the slice.
-                    type: string
                   sliceSubnet:
                     description: IP subnet range of the slice.
                     type: string
@@ -207,10 +131,162 @@ spec:
                 - sliceDisplayName
                 - sliceId
                 - sliceIpam
-                - sliceName
                 - sliceSubnet
                 - sliceType
                 type: object
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.7.0
+  creationTimestamp: null
+  name: slicegateways.mesh.avesha.io
+spec:
+  group: mesh.avesha.io
+  names:
+    kind: SliceGateway
+    listKind: SliceGatewayList
+    plural: slicegateways
+    shortNames:
+    - gw
+    - slicegw
+    singular: slicegateway
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns:
+    - jsonPath: .status.config.sliceGatewaySubnet
+      name: Subnet
+      type: string
+    - jsonPath: .status.config.sliceGatewayRemoteSubnet
+      name: Remote Subnet
+      type: string
+    - jsonPath: .status.config.sliceGatewayRemoteClusterId
+      name: Remote Cluster
+      type: string
+    - jsonPath: .status.config.sliceGatewayStatus
+      name: GW Status
+      type: string
+    name: v1beta1
+    schema:
+      openAPIV3Schema:
+        description: SliceGateway is the Schema for the slicegateways API
+        properties:
+          apiVersion:
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            type: string
+          kind:
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: SliceGatewaySpec defines the desired state of SliceGateway
+            properties:
+              siteName:
+                description: SiteName is site name
+                type: string
+              sliceName:
+                description: SliceName is the Name of the slice this gateway is attached
+                  into
+                type: string
+            type: object
+          status:
+            description: SliceGatewayStatus defines the observed state of SliceGateway
+            properties:
+              config:
+                description: SliceGatewayConfig defines the config received from backend
+                properties:
+                  sliceGatewayHostType:
+                    description: 'Host Type : server or client'
+                    type: string
+                  sliceGatewayId:
+                    description: UUID of the slice gateway.
+                    type: string
+                  sliceGatewayLocalVpnIp:
+                    description: Local VPN IP
+                    type: string
+                  sliceGatewayName:
+                    description: Slice Gateway Name
+                    type: string
+                  sliceGatewayNodePort:
+                    description: Node port
+                    type: integer
+                  sliceGatewayRemoteClusterId:
+                    description: Remote Cluster ID
+                    type: string
+                  sliceGatewayRemoteGatewayId:
+                    description: Remote Gateway ID
+                    type: string
+                  sliceGatewayRemoteNodeIp:
+                    description: Remote Node IP
+                    type: string
+                  sliceGatewayRemoteNodePort:
+                    description: Remote Node Port
+                    type: integer
+                  sliceGatewayRemoteSubnet:
+                    description: Remote Node Subnet
+                    type: string
+                  sliceGatewayRemoteVpnIp:
+                    description: Remote VPN IP
+                    type: string
+                  sliceGatewayStatus:
+                    description: SliceGateway status
+                    type: string
+                  sliceGatewaySubnet:
+                    description: Slice gateway subnet range.
+                    type: string
+                  sliceName:
+                    description: Name of the slice.
+                    type: string
+                  sliceSiteName:
+                    description: Slice gateway subnet range.
+                    type: string
+                type: object
+              configUpdatedOn:
+                description: ConfigUpdatedOn is the time when Config updated from
+                  backend
+                format: int64
+                type: integer
+              connectionContextUpdatedOn:
+                description: ConnectionContextUpdated is the time when context updated
+                  in pod
+                format: int64
+                type: integer
+              localIp:
+                description: LocalIP is the gateway tunnel ip
+                type: string
+              localNsmIp:
+                description: LocalNsmIP is the IP on the nsm interface to Slice Router
+                type: string
+              peerIp:
+                description: PeerIP is the gateway tunnel peer ip
+                type: string
+              podIp:
+                description: PodIP is the Ip of the gateway pod running in cluster
+                type: string
+              podName:
+                description: PodName is the name of the gateway pod running in cluster
+                type: string
+              podStatus:
+                description: PodStatus shows whether gateway pod is healthy
+                type: string
             type: object
         type: object
     served: true
@@ -317,6 +393,18 @@ rules:
   verbs:
   - get
   - list
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - secrets
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
   - watch
 - apiGroups:
   - ""
@@ -479,6 +567,18 @@ spec:
   selector:
     control-plane: controller-manager
 ---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kubeslice-webhook-service
+  namespace: kubeslice-system
+spec:
+  ports:
+  - port: 443
+    targetPort: 9443
+  selector:
+    control-plane: controller-manager
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -519,6 +619,14 @@ spec:
         env:
         - name: HUB_HOST_ENDPOINT
           value: https://10.1.80.11:6443
+        - name: HUB_PROJECT_NAMESPACE
+          value: hub-avesha-tenant-cisco
+        - name: ENABLE_WEBHOOKS
+          value: "false"
+        - name: CLUSTER_NAME
+          value: cluster-1
+        - name: NODE_IP
+          value: 1.2.3.4
         image: avesha/kubeslice-operator:1.0.0
         livenessProbe:
           httpGet:
@@ -546,12 +654,45 @@ spec:
         - mountPath: /var/run/secrets/kubernetes.io/hub-serviceaccount
           name: hub-token
           readOnly: true
+        - mountPath: /etc/webhook/certs
+          name: webhook-certs
+          readOnly: true
       securityContext:
         runAsNonRoot: false
       serviceAccountName: kubeslice-controller-manager
       terminationGracePeriodSeconds: 10
       volumes:
+      - name: webhook-certs
+        secret:
+          secretName: kubeslice-admission-webhook-certs
       - name: hub-token
         secret:
           defaultMode: 420
           secretName: kubeslice-hub-avesha-tenant-token
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: MutatingWebhookConfiguration
+metadata:
+  creationTimestamp: null
+  name: kubeslice-mutating-webhook-configuration
+webhooks:
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
+      path: /mutate-appsv1-deploy
+  failurePolicy: Fail
+  name: mdeploy.avesha.io
+  rules:
+  - apiGroups:
+    - apps
+    apiVersions:
+    - v1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - deployments
+  sideEffects: NoneOnDryRun

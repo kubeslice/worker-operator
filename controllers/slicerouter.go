@@ -9,12 +9,13 @@ import (
 	"time"
 
 	meshv1beta1 "bitbucket.org/realtimeai/kubeslice-operator/api/v1beta1"
+	nsmv1alpha1 "github.com/networkservicemesh/networkservicemesh/k8s/pkg/apis/networkservice/v1alpha1"
 
 	"bitbucket.org/realtimeai/kubeslice-operator/internal/logger"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
-	//"k8s.io/apimachinery/pkg/api/resource"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -39,17 +40,13 @@ func labelsForSliceRouterDeployment(name string) map[string]string {
 }
 
 func getSliceRouterSidecarImageAndPullPolicy() (string, corev1.PullPolicy) {
-	image := "nexus.dev.aveshalabs.io/mesh-netops:1.0.0"
 	pullPolicy := corev1.PullAlways
 
-	if len(sliceRouterSidecarImage) > 0 {
-		image = sliceRouterSidecarImage
-	}
 	if len(sliceRouterSidecarImagePullPolicy) > 0 {
 		pullPolicy = corev1.PullPolicy(sliceRouterSidecarImagePullPolicy)
 	}
 
-	return image, pullPolicy
+	return sliceRouterSidecarImage, pullPolicy
 }
 
 func (r *SliceReconciler) getNsmDataplaneMode(ctx context.Context, slice *meshv1beta1.Slice) (string, error) {
@@ -122,6 +119,11 @@ func (r *SliceReconciler) getContainerSpecForSliceRouter(s *meshv1beta1.Slice, i
 			{
 				Name:  "NSREGISTRY_PORT",
 				Value: "5000",
+			},
+		},
+		Resources: corev1.ResourceRequirements{
+			Limits: corev1.ResourceList{
+				"networkservicemesh.io/socket": *resource.NewQuantity(1, resource.DecimalExponent),
 			},
 		},
 		SecurityContext: &corev1.SecurityContext{
@@ -329,6 +331,36 @@ func (r *SliceReconciler) deploySliceRouter(ctx context.Context, slice *meshv1be
 	return nil
 }
 
+// Deploys the vL3 slice router service
+func (r *SliceReconciler) deploySliceRouterSvc(ctx context.Context, slice *meshv1beta1.Slice) error {
+	log := logger.FromContext(ctx).WithName("slice-router-svc")
+
+	ls := labelsForSliceRouterDeployment(slice.Name)
+
+	svc := &corev1.Service{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      sliceRouterDeploymentNamePrefix + slice.Name,
+			Namespace: ControlPlaneNamespace,
+		},
+		Spec: corev1.ServiceSpec{
+			Selector: ls,
+			Ports: []corev1.ServicePort{{
+				Port: 5000,
+				Name: "grpc",
+			}},
+		},
+	}
+
+	err := r.Create(ctx, svc)
+	if err != nil {
+		log.Error(err, "Failed to create svc for slice router")
+		return err
+	}
+	log.Info("Created svc spec for slice router: ", "Name: ", slice.Name)
+
+	return nil
+}
+
 func (r *SliceReconciler) ReconcileSliceRouter(ctx context.Context, slice *meshv1beta1.Slice) (ctrl.Result, error, bool) {
 	log := logger.FromContext(ctx).WithName("slice-router")
 	// Spawn the slice router for the slice if not done already
@@ -336,7 +368,8 @@ func (r *SliceReconciler) ReconcileSliceRouter(ctx context.Context, slice *meshv
 	err := r.Get(ctx, types.NamespacedName{Name: sliceRouterDeploymentNamePrefix + slice.Name, Namespace: slice.Namespace}, foundSliceRouter)
 	if err != nil {
 		if errors.IsNotFound(err) {
-			if slice.Status.SliceConfig == nil {
+			if slice.Status.SliceConfig == nil || slice.Status.SliceConfig.SliceSubnet == "" {
+				log.Info("Slice subnet config not available yet, cannot deploy slice router. Waiting...")
 				return ctrl.Result{
 					RequeueAfter: 10 * time.Second,
 				}, nil, true
@@ -355,5 +388,53 @@ func (r *SliceReconciler) ReconcileSliceRouter(ctx context.Context, slice *meshv
 		return ctrl.Result{}, err, true
 	}
 
+	foundSvc := &corev1.Service{}
+	err = r.Get(ctx, types.NamespacedName{
+		Name:      sliceRouterDeploymentNamePrefix + slice.Name,
+		Namespace: ControlPlaneNamespace,
+	}, foundSvc)
+
+	if err != nil {
+		if errors.IsNotFound(err) {
+			if slice.Status.SliceConfig == nil {
+				return ctrl.Result{
+					RequeueAfter: 10 * time.Second,
+				}, nil, true
+			}
+			// Define and create a new deployment for the slice router
+			err := r.deploySliceRouterSvc(ctx, slice)
+			if err != nil {
+				log.Error(err, "Failed to deploy slice router service")
+				return ctrl.Result{}, err, true
+			}
+			log.Info("Creating slice router", "Namespace svc", slice.Namespace, "Name", "vl3-nse-"+slice.Name)
+			return ctrl.Result{
+				RequeueAfter: 10 * time.Second,
+			}, nil, true
+		}
+		return ctrl.Result{}, err, true
+	}
+
 	return ctrl.Result{}, nil, false
+}
+
+func FindSliceRouterService(ctx context.Context, c client.Client, sliceName string) (bool, error) {
+	vl3NseEpList := &nsmv1alpha1.NetworkServiceEndpointList{}
+	opts := []client.ListOption{
+		client.InNamespace(ControlPlaneNamespace),
+		client.MatchingLabels{"app": "vl3-nse-" + sliceName,
+			"networkservicename": "vl3-service-" + sliceName},
+	}
+	err := c.List(ctx, vl3NseEpList, opts...)
+	if err != nil {
+		if errors.IsNotFound(err) {
+			return false, nil
+		}
+		return false, err
+	}
+	if len(vl3NseEpList.Items) == 0 {
+		return false, nil
+	}
+
+	return true, nil
 }

@@ -37,6 +37,31 @@ spec:
         - /manager
         image: '{{ .Values.operator.image }}:{{ .Values.operator.tag }}'
         imagePullPolicy: '{{ .Values.operator.pullPolicy }}'
+        env:
+          - name: LOG_LEVEL
+            value: {{ .Values.operator.logLevel }}
+          - name: HUB_HOST_ENDPOINT
+            valueFrom:
+              secretKeyRef:
+                name: kubeslice-hub
+                key: endpoint
+          - name: HUB_PROJECT_NAMESPACE
+            valueFrom:
+              secretKeyRef:
+                name: kubeslice-hub
+                key: namespace
+          - name: CLUSTER_NAME
+            value: {{ .Values.cluster.name }}
+          - name: AVESHA_VL3_ROUTER_IMAGE
+            value: "{{ .Values.router.image }}:{{ .Values.router.tag }}"
+          - name: AVESHA_VL3_ROUTER_PULLPOLICY
+            value: {{ .Values.router.pullPolicy }}
+          - name: AVESHA_VL3_SIDECAR_IMAGE
+            value: "{{ .Values.routerSidecar.image }}:{{ .Values.routerSidecar.tag }}"
+          - name: AVESHA_VL3_SIDECAR_IMAGE_PULLPOLICY
+            value: {{ .Values.routerSidecar.pullPolicy }}
+          - name: NODE_IP
+            value: "{{ .Values.cluster.nodeIp }}"
         livenessProbe:
           httpGet:
             path: /healthz
@@ -59,10 +84,28 @@ spec:
             memory: 64Mi
         securityContext:
           allowPrivilegeEscalation: false
-      securityContext:
-        runAsNonRoot: true
+        volumeMounts:
+          - mountPath: /var/run/secrets/kubernetes.io/hub-serviceaccount
+            name: hub-secret
+            readOnly: true
+          - mountPath: /etc/webhook/certs
+            name: webhook-certs
+            readOnly: true
       serviceAccountName: kubeslice-controller-manager
       terminationGracePeriodSeconds: 10
+      volumes:
+        - name: webhook-certs
+          secret:
+            secretName: kubeslice-admission-webhook-certs
+        - name: hub-secret
+          secret:
+            defaultMode: 420
+            secretName: kubeslice-hub
+            items:
+            - key: "ca.crt"
+              path: "ca.crt"
+            - key: "token"
+              path: "token"
       {{- with .Values.imagePullSecrets }}
       imagePullSecrets:
         {{- toYaml . | nindent 6 }}

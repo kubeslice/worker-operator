@@ -18,8 +18,10 @@ package controllers
 
 import (
 	"context"
+	"time"
 
 	"github.com/go-logr/logr"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -43,8 +45,9 @@ type SliceReconciler struct {
 //+kubebuilder:rbac:groups=mesh.avesha.io,resources=slice/finalizers,verbs=update
 //+kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=core,resources=pods,verbs=get;list;watch
+//+kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=core,resources=services,verbs=get;list;watch;create;update;patch;delete
-
+//+kubebuilder:webhook:path=/mutate-appsv1-deploy,mutating=true,failurePolicy=fail,groups="apps",resources=deployments,verbs=create;update,versions=v1,name=mdeploy.avesha.io,admissionReviewVersions=v1,sideEffects=NoneOnDryRun
 func (r *SliceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := r.Log.WithValues("slice", req.NamespacedName)
 	debugLog := log.V(1)
@@ -100,12 +103,63 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 		return res, err
 	}
 
-	return ctrl.Result{}, nil
+	debugLog.Info("fetching app pods")
+	appPods, err := r.getAppPods(ctx, slice)
+	debugLog.Info("app pods", "pods", appPods, "err", err)
+
+	if isAppPodStatusChanged(appPods, slice.Status.AppPods) {
+		log.Info("App pod status changed")
+		slice.Status.AppPods = appPods
+		slice.Status.AppPodsUpdatedOn = time.Now().Unix()
+
+		err = r.Status().Update(ctx, slice)
+		if err != nil {
+			log.Error(err, "Failed to update Slice status for app pods")
+			return ctrl.Result{}, err
+		}
+		log.Info("App pod status updated in slice")
+		return ctrl.Result{Requeue: true}, nil
+	}
+
+	debugLog.Info("reconciling app pods")
+	res, err, requeue = r.ReconcileAppPod(ctx, slice)
+
+	if requeue {
+		log.Info("app pods reconciled")
+		debugLog.Info("requeuing after app pod list reconcile", "res", res, "er", err)
+		return res, err
+	}
+
+	return ctrl.Result{
+		RequeueAfter: ReconcileInterval,
+	}, nil
+}
+
+func isAppPodStatusChanged(current []meshv1beta1.AppPod, old []meshv1beta1.AppPod) bool {
+	if len(current) != len(old) {
+		return true
+	}
+
+	s := make(map[string]string)
+
+	for _, c := range old {
+		s[c.PodIP] = c.PodName
+	}
+
+	for _, c := range current {
+		if s[c.PodIP] != c.PodName {
+			return true
+		}
+	}
+
+	return false
 }
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *SliceReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&meshv1beta1.Slice{}).
+		Owns(&appsv1.Deployment{}).
+		Owns(&meshv1beta1.SliceGateway{}).
 		Complete(r)
 }

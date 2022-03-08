@@ -1,6 +1,28 @@
 operator:
-  image: nexus.dev.aveshalabs.io/avesha-slice-operator
-  tag: 1.14.0
+  image: nexus.dev.aveshalabs.io/kubeslice-operator
+  tag: 0.0.1
+  pullPolicy: IfNotPresent
+  logLevel: INFO
+
+## Base64 encoded secret values from hub cluster
+hubSecret:
+  namespace:
+  endpoint:
+  ca.crt:
+  token:
+
+cluster:
+  name:
+  nodeIp:
+
+router:
+  image: nexus.dev.aveshalabs.io/avesha/vl3_ucnf-nse
+  tag: 1.0.0
+  pullPolicy: IfNotPresent
+
+routerSidecar:
+  image: nexus.dev.aveshalabs.io/kubeslice-router-sidecar
+  tag: dd636932-213a-4d6a-b88e-164d1108c587-SNAPSHOT
   pullPolicy: IfNotPresent
 
 netop:
@@ -10,7 +32,8 @@ netop:
   pullPolicy: IfNotPresent
 
 # Imagepullsecrets name which are needed if docker images are hosted in private registry
-# This secret has to be already present in the cluster
+# This secret should be already present in the cluster
+# avesha-nexus is provided as part of nsm chart
 imagePullSecrets:
 - name: avesha-nexus
 

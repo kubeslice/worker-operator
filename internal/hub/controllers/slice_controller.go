@@ -5,7 +5,7 @@ import (
 
 	meshv1beta1 "bitbucket.org/realtimeai/kubeslice-operator/api/v1beta1"
 	"bitbucket.org/realtimeai/kubeslice-operator/internal/logger"
-	spokev1alpha1 "bitbucket.org/realtimeai/mesh-apis/pkg/mesh/v1alpha1"
+	spokev1alpha1 "bitbucket.org/realtimeai/mesh-apis/pkg/spoke/v1alpha1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -20,7 +20,7 @@ type SliceReconciler struct {
 func (r *SliceReconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
 	log := logger.FromContext(ctx)
 
-	slice := &spokev1alpha1.Slice{}
+	slice := &spokev1alpha1.SpokeSliceConfig{}
 	err := r.Get(ctx, req.NamespacedName, slice)
 	if err != nil {
 		if errors.IsNotFound(err) {
@@ -32,11 +32,10 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req reconcile.Request) 
 		return reconcile.Result{}, err
 	}
 
-	log.Info("got slice from hub", "slice", slice.Name)
+	log.Info("got slice from hub", "slice", slice)
+
 	sliceName := slice.Spec.SliceName
-
 	meshSlice := &meshv1beta1.Slice{}
-
 	sliceRef := client.ObjectKey{
 		Name:      sliceName,
 		Namespace: ControlPlaneNamespace,
@@ -62,17 +61,7 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req reconcile.Request) 
 			}
 			log.Info("slice created in spoke cluster")
 
-			s.Status.SliceConfig = &meshv1beta1.SliceConfig{
-				SliceDisplayName: sliceName,
-				SliceSubnet:      slice.Spec.SliceSubnet,
-				SliceIpam: meshv1beta1.SliceIpamConfig{
-					SliceIpamType:    slice.Spec.SliceIpamType,
-					IpamClusterOctet: slice.Spec.IpamClusterOctet,
-				},
-				SliceType: slice.Spec.SliceType,
-			}
-
-			err = r.MeshClient.Status().Update(ctx, s)
+			err = r.updateSliceConfig(ctx, s, slice)
 			if err != nil {
 				log.Error(err, "unable to update slice status in spoke cluster", "slice", s)
 				return reconcile.Result{}, err
@@ -85,7 +74,38 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req reconcile.Request) 
 		return reconcile.Result{}, err
 	}
 
+	err = r.updateSliceConfig(ctx, meshSlice, slice)
+	if err != nil {
+		log.Error(err, "unable to update slice status in spoke cluster", "slice", meshSlice)
+		return reconcile.Result{}, err
+	}
+
 	return reconcile.Result{}, nil
+}
+
+func (r *SliceReconciler) updateSliceConfig(ctx context.Context, meshSlice *meshv1beta1.Slice, spokeSlice *spokev1alpha1.SpokeSliceConfig) error {
+	if meshSlice.Status.SliceConfig == nil {
+		meshSlice.Status.SliceConfig = &meshv1beta1.SliceConfig{
+			SliceDisplayName: spokeSlice.Spec.SliceName,
+			SliceSubnet:      spokeSlice.Spec.SliceSubnet,
+			SliceIpam: meshv1beta1.SliceIpamConfig{
+				SliceIpamType:    spokeSlice.Spec.SliceIpamType,
+				IpamClusterOctet: spokeSlice.Spec.IpamClusterOctet,
+			},
+			SliceType: spokeSlice.Spec.SliceType,
+		}
+
+	}
+
+	if meshSlice.Status.SliceConfig.SliceSubnet == "" {
+		meshSlice.Status.SliceConfig.SliceSubnet = spokeSlice.Spec.SliceSubnet
+	}
+
+	if meshSlice.Status.SliceConfig.SliceIpam.IpamClusterOctet == 0 {
+		meshSlice.Status.SliceConfig.SliceIpam.IpamClusterOctet = spokeSlice.Spec.IpamClusterOctet
+	}
+
+	return r.MeshClient.Status().Update(ctx, meshSlice)
 }
 
 func (a *SliceReconciler) InjectClient(c client.Client) error {

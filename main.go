@@ -28,13 +28,19 @@ import (
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+	"sigs.k8s.io/controller-runtime/pkg/webhook"
+
+	nsmv1alpha1 "github.com/networkservicemesh/networkservicemesh/k8s/pkg/apis/networkservice/v1alpha1"
 
 	meshv1beta1 "bitbucket.org/realtimeai/kubeslice-operator/api/v1beta1"
 	"bitbucket.org/realtimeai/kubeslice-operator/controllers"
 	"bitbucket.org/realtimeai/kubeslice-operator/internal/hub/manager"
 	"bitbucket.org/realtimeai/kubeslice-operator/internal/logger"
+	"bitbucket.org/realtimeai/kubeslice-operator/internal/utils"
+	deploywh "bitbucket.org/realtimeai/kubeslice-operator/internal/webhook/deploy"
 	//+kubebuilder:scaffold:imports
 )
 
@@ -45,7 +51,7 @@ var (
 
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
-
+	utilruntime.Must(nsmv1alpha1.AddToScheme(scheme))
 	utilruntime.Must(meshv1beta1.AddToScheme(scheme))
 	//+kubebuilder:scaffold:scheme
 }
@@ -74,7 +80,18 @@ func main() {
 		HealthProbeBindAddress: probeAddr,
 		LeaderElection:         enableLeaderElection,
 		LeaderElectionID:       "f7425d89.avesha.io",
+		CertDir:                utils.GetEnvOrDefault("WEBHOOK_CERTS_DIR", "/etc/webhook/certs"),
 	})
+
+	// Use an environment variable to be able to disable webhooks, so that we can run the operator locally
+	if utils.GetEnvOrDefault("ENABLE_WEBHOOKS", "true") == "true" {
+		mgr.GetWebhookServer().Register("/mutate-appsv1-deploy", &webhook.Admission{
+			Handler: &deploywh.WebhookServer{
+				Client: mgr.GetClient(),
+			},
+		})
+	}
+
 	if err != nil {
 		setupLog.Error(err, "unable to start manager")
 		os.Exit(1)
@@ -86,6 +103,15 @@ func main() {
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Slice")
+		os.Exit(1)
+	}
+
+	if err = (&controllers.SliceGwReconciler{
+		Client: mgr.GetClient(),
+		Log:    ctrl.Log.WithName("controllers").WithName("SliceGw"),
+		Scheme: mgr.GetScheme(),
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "SliceGw")
 		os.Exit(1)
 	}
 	//+kubebuilder:scaffold:builder
@@ -100,9 +126,16 @@ func main() {
 	}
 	ctx := ctrl.SetupSignalHandler()
 
+	clientForHubMgr, err := client.New(ctrl.GetConfigOrDie(), client.Options{
+		Scheme: scheme,
+	})
+	if err != nil {
+		setupLog.Error(err, "unable to create kube client for hub manager")
+		os.Exit(1)
+	}
 	go func() {
 		setupLog.Info("starting hub manager")
-		manager.Start(mgr.GetClient(), ctx)
+		manager.Start(clientForHubMgr, ctx)
 	}()
 
 	setupLog.Info("starting manager")

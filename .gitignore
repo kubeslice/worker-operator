@@ -26,3 +26,4 @@ testbin/*
 
 .env
 secrets/
+.vscode/*

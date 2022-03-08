@@ -3,6 +3,7 @@
 # It should be run by config/default
 resources:
 - bases/mesh.avesha.io_slice.yaml
+- bases/mesh.avesha.io_slicegateways.yaml
 #+kubebuilder:scaffold:crdkustomizeresource
 
 patchesStrategicMerge:
