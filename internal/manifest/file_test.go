@@ -11,7 +11,7 @@ var _ = Describe("Manifest File", func() {
 
 	Context("With k8s deployment manifest", func() {
 
-		f := "../../tests/files/manifests/ingress-deploy.yaml"
+		f := "../../tests/files/manifests/ingress-deploy.json"
 
 		It("Should parse file into k8s deployment", func() {
 
@@ -23,7 +23,7 @@ var _ = Describe("Manifest File", func() {
 			Expect(err).NotTo(HaveOccurred())
 			Expect(d).ToNot(BeNil())
 
-      Expect(d.ObjectMeta.Name).Should(Equal("istio-ingressgateway"))
+			Expect(d.ObjectMeta.Name).Should(Equal("istio-ingressgateway"))
 
 		})
 
