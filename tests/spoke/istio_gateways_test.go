@@ -12,12 +12,12 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 )
 
-var _ = FDescribe("IstioGateways", func() {
+var _ = Describe("IstioGateways", func() {
 
 	Context("With ingress not installed", func() {
 
 		It("Should install istio ingress gateway deployment", func() {
-			err := manifest.InstallIngress(context.Background(), k8sClient)
+			err := manifest.InstallIngress(context.Background(), k8sClient, "green")
 			Expect(err).NotTo(HaveOccurred())
 
 			// Check if deployment is there in the cluster
@@ -34,6 +34,12 @@ var _ = FDescribe("IstioGateways", func() {
 			}, time.September*10, time.Millisecond*250).Should(BeTrue())
 
 			Expect(createdDeploy.ObjectMeta.Name).To(Equal("istio-ingressgateway"))
+
+			labels := createdDeploy.ObjectMeta.Labels
+			Expect(labels["slice"]).To(Equal("green"))
+
+			ann := createdDeploy.ObjectMeta.Annotations
+			Expect(ann["avesha.io/slice"]).To(Equal("green"))
 
 		})
 
