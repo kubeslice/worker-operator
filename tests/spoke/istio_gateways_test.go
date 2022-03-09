@@ -12,7 +12,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 )
 
-var _ = Describe("IstioGateways", func() {
+var _ = FDescribe("IstioGateways", func() {
 
 	Context("With ingress not installed", func() {
 
