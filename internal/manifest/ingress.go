@@ -3,6 +3,7 @@ package manifest
 import (
 	"context"
 
+	appsv1 "k8s.io/api/apps/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -10,7 +11,8 @@ import (
 func InstallIngress(ctx context.Context, c client.Client, slice string) error {
 
 	deployManifest := NewManifest("../../files/ingress/ingress-deploy.json")
-	deploy, err := deployManifest.ParseDeployment()
+	deploy := &appsv1.Deployment{}
+	err := deployManifest.Parse(deploy)
 	if err != nil {
 		return err
 	}

@@ -5,6 +5,7 @@ import (
 	. "github.com/onsi/gomega"
 
 	"bitbucket.org/realtimeai/kubeslice-operator/internal/manifest"
+	appsv1 "k8s.io/api/apps/v1"
 )
 
 var _ = Describe("Manifest File", func() {
@@ -19,11 +20,12 @@ var _ = Describe("Manifest File", func() {
 
 			Expect(m).ToNot(BeNil())
 
-			d, err := m.ParseDeployment()
+			deploy := &appsv1.Deployment{}
+			err := m.Parse(deploy)
 			Expect(err).NotTo(HaveOccurred())
-			Expect(d).ToNot(BeNil())
+			Expect(deploy).ToNot(BeNil())
 
-			Expect(d.ObjectMeta.Name).Should(Equal("istio-ingressgateway"))
+			Expect(deploy.ObjectMeta.Name).Should(Equal("istio-ingressgateway"))
 
 		})
 

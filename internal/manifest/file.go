@@ -6,7 +6,6 @@ import (
 
 	"bitbucket.org/realtimeai/kubeslice-operator/internal/logger"
 	"encoding/json"
-	appsv1 "k8s.io/api/apps/v1"
 )
 
 var log = logger.NewLogger()
@@ -21,21 +20,19 @@ func NewManifest(path string) *Manifest {
 	}
 }
 
-func (m *Manifest) ParseDeployment() (*appsv1.Deployment, error) {
-	d := &appsv1.Deployment{}
-
+func (m *Manifest) Parse(v interface{}) error {
 	jsonFile, err := ioutil.ReadFile(m.Path)
 	if err != nil {
-		log.Error(err, "unable to read yaml file")
-		return nil, err
+		log.Error(err, "unable to read json file")
+		return err
 	}
 
-	err = json.Unmarshal(jsonFile, d)
+	err = json.Unmarshal(jsonFile, v)
 	if err != nil {
-		log.Error(err, "unable to parse yaml file as Deployment")
-		return nil, err
+		log.Error(err, "unable to parse json file as Deployment")
+		return err
 	}
 
-	return d, nil
+	return nil
 
 }
