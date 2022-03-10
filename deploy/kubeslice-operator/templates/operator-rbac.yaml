@@ -105,6 +105,18 @@ rules:
   - update
   - watch
 - apiGroups:
+  - ""
+  resources:
+  - configmaps
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+- apiGroups:
   - mesh.avesha.io
   resources:
   - slice
@@ -159,7 +171,7 @@ rules:
 - apiGroups:
   - mesh.avesha.io
   resources:
-  - serviceexport
+  - serviceexports
   verbs:
   - create
   - delete
@@ -171,7 +183,7 @@ rules:
 - apiGroups:
   - mesh.avesha.io
   resources:
-  - serviceexport/status
+  - serviceexports/status
   verbs:
   - get
   - patch
@@ -179,7 +191,7 @@ rules:
 - apiGroups:
   - mesh.avesha.io
   resources:
-  - serviceimport
+  - serviceimports
   verbs:
   - create
   - delete
@@ -191,7 +203,7 @@ rules:
 - apiGroups:
   - mesh.avesha.io
   resources:
-  - serviceimport/status
+  - serviceimports/status
   verbs:
   - get
   - patch
