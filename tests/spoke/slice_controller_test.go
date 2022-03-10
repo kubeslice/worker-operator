@@ -71,7 +71,7 @@ var _ = Describe("SliceController", func() {
 					return false
 				}
 				return true
-			}, time.September*10, time.Millisecond*250).Should(BeTrue())
+			}, time.Second*10, time.Millisecond*250).Should(BeTrue())
 
 			sliceKey := types.NamespacedName{Name: "test-slice", Namespace: "kubeslice-system"}
 			createdSlice := &meshv1beta1.Slice{}

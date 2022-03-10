@@ -43,7 +43,7 @@ func InstallIngress(ctx context.Context, c client.Client, slice string) error {
 	}
 
 	rb := &rbacv1.RoleBinding{}
-	err = NewManifest("../../files/ingress/ingress-sa.json").Parse(rb)
+	err = NewManifest("../../files/ingress/ingress-rolebinding.json").Parse(rb)
 	if err != nil {
 		return err
 	}

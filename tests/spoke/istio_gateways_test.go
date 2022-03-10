@@ -74,7 +74,7 @@ var _ = FDescribe("IstioGateways", func() {
 					return false
 				}
 				return true
-			}, time.September*10, time.Millisecond*250).Should(BeTrue())
+			}, time.Second*10, time.Millisecond*250).Should(BeTrue())
 
 			Expect(createdDeploy.ObjectMeta.Name).To(Equal("istio-ingressgateway"))
 
@@ -91,19 +91,60 @@ var _ = FDescribe("IstioGateways", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			// Check if service is there in the cluster
-			svcKey := types.NamespacedName{Name: "istio-ingressgateway", Namespace: "kubeslice-system"}
+			key := types.NamespacedName{Name: "istio-ingressgateway", Namespace: "kubeslice-system"}
 			svc := &corev1.Service{}
 
 			// Wait until deployment is created properly
 			Eventually(func() bool {
-				err := k8sClient.Get(ctx, svcKey, svc)
+				err := k8sClient.Get(ctx, key, svc)
 				if err != nil {
 					return false
 				}
 				return true
-			}, time.September*10, time.Millisecond*250).Should(BeTrue())
+			}, time.Second*10, time.Millisecond*250).Should(BeTrue())
 
 			Expect(svc.ObjectMeta.Name).To(Equal("istio-ingressgateway"))
+
+			// Check if role and rolebinding are there in the cluster
+			rkey := types.NamespacedName{Name: "istio-ingressgateway-sds", Namespace: "kubeslice-system"}
+			role := &rbacv1.Role{}
+			rb := &rbacv1.RoleBinding{}
+
+			// Wait until role is created properly
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, rkey, role)
+				if err != nil {
+					return false
+				}
+				return true
+			}, time.Second*10, time.Millisecond*250).Should(BeTrue())
+
+			// Wait until rolebinding is created properly
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, rkey, rb)
+				if err != nil {
+					return false
+				}
+				return true
+			}, time.Second*10, time.Millisecond*250).Should(BeTrue())
+
+			Expect(role.ObjectMeta.Name).To(Equal("istio-ingressgateway-sds"))
+			Expect(rb.ObjectMeta.Name).To(Equal("istio-ingressgateway-sds"))
+
+			// Check if sa there in the cluster
+			skey := types.NamespacedName{Name: "istio-ingressgateway-service-account", Namespace: "kubeslice-system"}
+			sa := &corev1.ServiceAccount{}
+
+			// Wait until sa is created properly
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, skey, sa)
+				if err != nil {
+					return false
+				}
+				return true
+			}, time.Second*10, time.Millisecond*250).Should(BeTrue())
+
+			Expect(sa.ObjectMeta.Name).To(Equal("istio-ingressgateway-service-account"))
 
 		})
 
