@@ -5,6 +5,7 @@ import (
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -29,9 +30,30 @@ func InstallIngress(ctx context.Context, c client.Client, slice string) error {
 		return err
 	}
 
+	role := &rbacv1.Role{}
+	err = NewManifest("../../files/ingress/ingress-role.json").Parse(role)
+	if err != nil {
+		return err
+	}
+
+	sa := &corev1.ServiceAccount{}
+	err = NewManifest("../../files/ingress/ingress-sa.json").Parse(sa)
+	if err != nil {
+		return err
+	}
+
+	rb := &rbacv1.RoleBinding{}
+	err = NewManifest("../../files/ingress/ingress-sa.json").Parse(rb)
+	if err != nil {
+		return err
+	}
+
 	objects := []client.Object{
 		deploy,
 		svc,
+		role,
+		sa,
+		rb,
 	}
 
 	for _, o := range objects {
