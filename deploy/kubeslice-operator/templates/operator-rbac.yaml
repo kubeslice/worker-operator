@@ -145,6 +145,46 @@ rules:
   - patch
   - update
 - apiGroups:
+  - mesh.avesha.io
+  resources:
+  - serviceexport
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - mesh.avesha.io
+  resources:
+  - serviceexport/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - mesh.avesha.io
+  resources:
+  - serviceimport
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - mesh.avesha.io
+  resources:
+  - serviceimport/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
   - networkservicemesh.io
   resources:
   - networkservices

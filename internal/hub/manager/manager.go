@@ -82,6 +82,21 @@ func Start(meshClient client.Client, ctx context.Context) {
 		os.Exit(1)
 	}
 
+	serviceImportReconciler := &controllers.ServiceImportReconciler{
+		MeshClient: meshClient,
+	}
+	err = builder.
+		ControllerManagedBy(mgr).
+		For(&spokev1alpha1.SpokeServiceImport{}).
+		WithEventFilter(predicate.NewPredicateFuncs(func(object client.Object) bool {
+			return object.GetLabels()["spoke-cluster"] == ClusterName
+		})).
+		Complete(serviceImportReconciler)
+	if err != nil {
+		log.Error(err, "could not create controller")
+		os.Exit(1)
+	}
+
 	if err := mgr.Start(ctx); err != nil {
 		log.Error(err, "could not start manager")
 		os.Exit(1)
