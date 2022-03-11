@@ -17,7 +17,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-var _ = FDescribe("IstioGateways", func() {
+var _ = Describe("IstioGateways", func() {
 
 	Context("With ingress not installed", func() {
 
