@@ -1,0 +1,112 @@
+
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.7.0
+  creationTimestamp: null
+  name: spokeserviceimports.spoke.kubeslice.io
+spec:
+  group: spoke.kubeslice.io
+  names:
+    kind: SpokeServiceImport
+    listKind: SpokeServiceImportList
+    plural: spokeserviceimports
+    singular: spokeserviceimport
+  scope: Namespaced
+  versions:
+  - name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: SpokeServiceImport is the Schema for the spokeserviceimport API
+        properties:
+          apiVersion:
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            type: string
+          kind:
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: SpokeServiceImportSpec defines the desired state of SpokeServiceImport
+            properties:
+              meshType:
+                description: The type of service mesh running in the cluster
+                enum:
+                - istio
+                - none
+                type: string
+              proxy:
+                description: Proxy enabled or disabled.
+                type: boolean
+              serviceDiscoveryEndpoints:
+                description: the service discovery endpoint array
+                items:
+                  properties:
+                    cluster:
+                      description: The ID of the cluster.
+                      type: string
+                    dnsName:
+                      description: the dns_name of the service
+                      type: string
+                    nsmIp:
+                      description: The NSM IP address.
+                      type: string
+                    podName:
+                      description: The name of the pod.
+                      type: string
+                    port:
+                      description: port of the service
+                      format: int32
+                      type: integer
+                  type: object
+                type: array
+              serviceDiscoveryPorts:
+                description: The ports for the given service.
+                items:
+                  properties:
+                    name:
+                      description: The name of the port.
+                      type: string
+                    port:
+                      description: The port number.
+                      format: int32
+                      type: integer
+                    protocol:
+                      description: The protocol.
+                      type: string
+                  type: object
+                type: array
+              serviceName:
+                description: ServiceName is the name of the service
+                type: string
+              sliceName:
+                description: The name of the slice.
+                type: string
+              sourceCluster:
+                description: clusterId is the id of the cluster where the service
+                  is available.
+                items:
+                  type: string
+                type: array
+            type: object
+          status:
+            description: SpokeServiceImportStatus defines the observed state of SpokeServiceImport
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []

@@ -1,6 +1,7 @@
 package spoke_test
 
 import (
+	"context"
 	"time"
 
 	meshv1beta1 "bitbucket.org/realtimeai/kubeslice-operator/api/v1beta1"
@@ -47,12 +48,14 @@ var _ = Describe("SliceController", func() {
 
 			// Cleanup after each test
 			DeferCleanup(func() {
+				ctx := context.Background()
 				Expect(k8sClient.Delete(ctx, slice)).Should(Succeed())
 				Expect(k8sClient.Delete(ctx, svc)).Should(Succeed())
 			})
 		})
 
 		It("Should update slice status with DNS IP", func() {
+			ctx := context.Background()
 
 			// Create slice and mesh-dns service
 			Expect(k8sClient.Create(ctx, slice)).Should(Succeed())
@@ -68,7 +71,7 @@ var _ = Describe("SliceController", func() {
 					return false
 				}
 				return true
-			}, time.September*10, time.Millisecond*250).Should(BeTrue())
+			}, time.Second*10, time.Millisecond*250).Should(BeTrue())
 
 			sliceKey := types.NamespacedName{Name: "test-slice", Namespace: "kubeslice-system"}
 			createdSlice := &meshv1beta1.Slice{}
@@ -80,7 +83,7 @@ var _ = Describe("SliceController", func() {
 					return ""
 				}
 				return createdSlice.Status.DNSIP
-			}, time.September*10, time.Millisecond*250).Should(Equal("10.0.0.20"))
+			}, time.Second*10, time.Millisecond*250).Should(Equal("10.0.0.20"))
 
 		})
 
