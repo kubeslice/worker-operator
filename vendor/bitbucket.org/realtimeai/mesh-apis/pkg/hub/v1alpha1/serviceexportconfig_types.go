@@ -20,21 +20,18 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
-// NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
-
-// SpokeServiceImportSpec defines the desired state of SpokeServiceImport
-type SpokeServiceImportSpec struct {
+// ServiceExportConfigSpec defines the desired state of ServiceExportConfig
+type ServiceExportConfigSpec struct {
 	//ServiceName is the name of the service
 	ServiceName string `json:"serviceName,omitempty"`
 	//ServiceNamespace is the namespace of the service
-	ServiceNamespace string `json:"serviceNamespace,omitempty"` // Required
+	ServiceNamespace string `json:"serviceNamespace,omitempty"`
 	// clusterId is the id of the cluster where the service is available.
-	SourceClusters []string `json:"sourceClusters,omitempty"`
+	SourceCluster string `json:"sourceCluster,omitempty"`
 	// The name of the slice.
 	SliceName string `json:"sliceName,omitempty"`
-	// The type of service mesh running in the cluster
 	//+kubebuilder:validation:Enum:=istio;none
+	// The type of service mesh running in the cluster
 	MeshType string `json:"meshType,omitempty"`
 	// Proxy enabled or disabled.
 	Proxy bool `json:"proxy,omitempty"`
@@ -66,33 +63,31 @@ type ServiceDiscoveryPort struct {
 	Protocol string `json:"protocol,omitempty"`
 }
 
-// SpokeServiceImportStatus defines the observed state of SpokeServiceImport
-type SpokeServiceImportStatus struct {
-	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
+type ServiceExportConfigStatus struct {
 }
 
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
+// +kubebuilder:resource:path=serviceexportconfigs,singular=serviceexportconfig,shortName=se
 
-// SpokeServiceImport is the Schema for the spokeserviceimport API
-type SpokeServiceImport struct {
+// ServiceExportConfig is the Schema for the serviceexportconfigs API
+type ServiceExportConfig struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   SpokeServiceImportSpec   `json:"spec,omitempty"`
-	Status SpokeServiceImportStatus `json:"status,omitempty"`
+	Spec   ServiceExportConfigSpec   `json:"spec,omitempty"`
+	Status ServiceExportConfigStatus `json:"status,omitempty"`
 }
 
 //+kubebuilder:object:root=true
 
-// SpokeServiceImportList contains a list of SpokeServiceImport
-type SpokeServiceImportList struct {
+// ServiceExportConfigList contains a list of ServiceExportConfig
+type ServiceExportConfigList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []SpokeServiceImport `json:"items"`
+	Items           []ServiceExportConfig `json:"items"`
 }
 
 func init() {
-	SchemeBuilder.Register(&SpokeServiceImport{}, &SpokeServiceImportList{})
+	SchemeBuilder.Register(&ServiceExportConfig{}, &ServiceExportConfigList{})
 }

@@ -16,4 +16,16 @@ resources:
   kind: Slice
   path: bitbucket.org/realtimeai/kubeslice-operator/api/v1beta1
   version: v1beta1
+- domain: avesha.io
+  group: mesh
+  kind: SliceGateway 
+  version: v1beta1
+- domain: avesha.io
+  group: mesh
+  kind: ServiceExport
+  version: v1beta1
+- domain: avesha.io
+  group: mesh
+  kind: ServiceImport
+  version: v1beta1
 version: "3"
