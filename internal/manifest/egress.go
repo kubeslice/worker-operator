@@ -3,6 +3,7 @@ package manifest
 import (
 	"context"
 
+	istiov1beta1 "istio.io/client-go/pkg/apis/networking/v1beta1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -49,12 +50,19 @@ func InstallEgress(ctx context.Context, c client.Client, slice string) error {
 		return err
 	}
 
+	gw := &istiov1beta1.Gateway{}
+	err = NewManifest("../../files/egress/egress-gw.json", slice).Parse(gw)
+	if err != nil {
+		return err
+	}
+
 	objects := []client.Object{
 		deploy,
 		svc,
 		role,
 		sa,
 		rb,
+		gw,
 	}
 
 	for _, o := range objects {

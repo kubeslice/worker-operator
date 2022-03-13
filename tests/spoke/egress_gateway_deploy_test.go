@@ -7,6 +7,7 @@ import (
 	. "github.com/onsi/gomega"
 
 	"bitbucket.org/realtimeai/kubeslice-operator/internal/manifest"
+	istiov1beta1 "istio.io/client-go/pkg/apis/networking/v1beta1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -49,6 +50,12 @@ var _ = FDescribe("EgressGatewayDeploy", func() {
 					Namespace: "kubeslice-system",
 				},
 			},
+			&istiov1beta1.Gateway{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "green-istio-egressgateway",
+					Namespace: "kubeslice-system",
+				},
+			},
 		}
 
 		AfterEach(func() {
@@ -88,9 +95,10 @@ var _ = FDescribe("EgressGatewayDeploy", func() {
 			err := manifest.InstallEgress(ctx, k8sClient, "green")
 			Expect(err).NotTo(HaveOccurred())
 
-			// Check if service is there in the cluster
+			// Check if service and gateway are there in the cluster
 			key := types.NamespacedName{Name: "green-istio-egressgateway", Namespace: "kubeslice-system"}
 			svc := &corev1.Service{}
+			gw := &istiov1beta1.Gateway{}
 
 			// Wait until service is created properly
 			Eventually(func() bool {
@@ -102,6 +110,17 @@ var _ = FDescribe("EgressGatewayDeploy", func() {
 			}, time.Second*10, time.Millisecond*250).Should(BeTrue())
 
 			Expect(svc.ObjectMeta.Name).To(Equal("green-istio-egressgateway"))
+
+			// Wait until Gateway is created properly
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, key, gw)
+				if err != nil {
+					return false
+				}
+				return true
+			}, time.Second*10, time.Millisecond*250).Should(BeTrue())
+
+			Expect(gw.ObjectMeta.Name).To(Equal("green-istio-egressgateway"))
 
 			// Check if role and rolebinding are there in the cluster
 			rkey := types.NamespacedName{Name: "green-istio-egressgateway-sds", Namespace: "kubeslice-system"}

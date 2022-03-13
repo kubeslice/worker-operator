@@ -45,8 +45,12 @@ github.com/go-logr/logr
 ## explicit
 github.com/go-logr/zapr
 # github.com/gogo/protobuf v1.3.2
+github.com/gogo/protobuf/gogoproto
+github.com/gogo/protobuf/jsonpb
 github.com/gogo/protobuf/proto
+github.com/gogo/protobuf/protoc-gen-gogo/descriptor
 github.com/gogo/protobuf/sortkeys
+github.com/gogo/protobuf/types
 # github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da
 github.com/golang/groupcache/lru
 # github.com/golang/protobuf v1.5.2
@@ -297,6 +301,15 @@ gopkg.in/inf.v0
 gopkg.in/yaml.v2
 # gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b
 gopkg.in/yaml.v3
+# istio.io/api v0.0.0-20210204223132-d90b2f705958
+istio.io/api/analysis/v1alpha1
+istio.io/api/meta/v1alpha1
+istio.io/api/networking/v1beta1
+# istio.io/client-go v1.9.0
+## explicit
+istio.io/client-go/pkg/apis/networking/v1beta1
+# istio.io/gogo-genproto v0.0.0-20190930162913-45029607206a
+istio.io/gogo-genproto/googleapis/google/api
 # k8s.io/api v0.23.0
 ## explicit
 k8s.io/api/admission/v1
