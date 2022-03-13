@@ -13,7 +13,7 @@ import (
 
 // Install istio egress gw resources on the given cluster in a slice
 // Resources:
-//  deployment (adds annotations to add the ingress pod to the slice)
+//  deployment (adds annotations to add the egress pod to the slice)
 //  serviceaccount
 //  role
 //  rolebinding
@@ -25,8 +25,36 @@ func InstallEgress(ctx context.Context, c client.Client, slice string) error {
 		return err
 	}
 
+	svc := &corev1.Service{}
+	err = NewManifest("../../files/egress/egress-svc.json", slice).Parse(svc)
+	if err != nil {
+		return err
+	}
+
+	role := &rbacv1.Role{}
+	err = NewManifest("../../files/egress/egress-role.json", slice).Parse(role)
+	if err != nil {
+		return err
+	}
+
+	sa := &corev1.ServiceAccount{}
+	err = NewManifest("../../files/egress/egress-sa.json", slice).Parse(sa)
+	if err != nil {
+		return err
+	}
+
+	rb := &rbacv1.RoleBinding{}
+	err = NewManifest("../../files/egress/egress-rolebinding.json", slice).Parse(rb)
+	if err != nil {
+		return err
+	}
+
 	objects := []client.Object{
 		deploy,
+		svc,
+		role,
+		sa,
+		rb,
 	}
 
 	for _, o := range objects {
@@ -38,7 +66,7 @@ func InstallEgress(ctx context.Context, c client.Client, slice string) error {
 	return nil
 }
 
-// Uninstall istio ingress (EW) resources fo a slice from a given cluster
+// Uninstall istio egress (EW) resources fo a slice from a given cluster
 // Resources:
 //  deployment
 //  serviceaccount
@@ -48,36 +76,36 @@ func InstallEgress(ctx context.Context, c client.Client, slice string) error {
 func UninstallEgress(ctx context.Context, c client.Client, slice string) error {
 	// TODO objects should be unique to slice
 
-	log.Info("deleting EW ingress gw for the slice", "slice", slice)
+	log.Info("deleting EW egress gw for the slice", "slice", slice)
 
 	objects := []client.Object{
 		&appsv1.Deployment{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      "istio-ingressgateway",
+				Name:      "istio-egressgateway",
 				Namespace: "kubeslice-system",
 			},
 		},
 		&corev1.Service{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      "istio-ingressgateway",
+				Name:      "istio-egressgateway",
 				Namespace: "kubeslice-system",
 			},
 		},
 		&rbacv1.Role{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      "istio-ingressgateway-sds",
+				Name:      "istio-egressgateway-sds",
 				Namespace: "kubeslice-system",
 			},
 		},
 		&corev1.ServiceAccount{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      "istio-ingressgateway-service-account",
+				Name:      "istio-egressgateway-service-account",
 				Namespace: "kubeslice-system",
 			},
 		},
 		&rbacv1.RoleBinding{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      "istio-ingressgateway-sds",
+				Name:      "istio-egressgateway-sds",
 				Namespace: "kubeslice-system",
 			},
 		},

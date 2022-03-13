@@ -8,6 +8,8 @@ import (
 
 	"bitbucket.org/realtimeai/kubeslice-operator/internal/manifest"
 	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -20,6 +22,30 @@ var _ = FDescribe("EgressGatewayDeploy", func() {
 			&appsv1.Deployment{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "green-istio-egressgateway",
+					Namespace: "kubeslice-system",
+				},
+			},
+			&corev1.Service{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "green-istio-egressgateway",
+					Namespace: "kubeslice-system",
+				},
+			},
+			&rbacv1.Role{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "green-istio-egressgateway-sds",
+					Namespace: "kubeslice-system",
+				},
+			},
+			&corev1.ServiceAccount{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "green-istio-egressgateway-service-account",
+					Namespace: "kubeslice-system",
+				},
+			},
+			&rbacv1.RoleBinding{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "green-istio-egressgateway-sds",
 					Namespace: "kubeslice-system",
 				},
 			},
@@ -55,6 +81,68 @@ var _ = FDescribe("EgressGatewayDeploy", func() {
 
 			ann := createdDeploy.ObjectMeta.Annotations
 			Expect(ann["avesha.io/slice"]).To(Equal("green"))
+
+		})
+
+		It("Should install istio egress gateway resources", func() {
+			err := manifest.InstallEgress(ctx, k8sClient, "green")
+			Expect(err).NotTo(HaveOccurred())
+
+			// Check if service is there in the cluster
+			key := types.NamespacedName{Name: "green-istio-egressgateway", Namespace: "kubeslice-system"}
+			svc := &corev1.Service{}
+
+			// Wait until service is created properly
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, key, svc)
+				if err != nil {
+					return false
+				}
+				return true
+			}, time.Second*10, time.Millisecond*250).Should(BeTrue())
+
+			Expect(svc.ObjectMeta.Name).To(Equal("green-istio-egressgateway"))
+
+			// Check if role and rolebinding are there in the cluster
+			rkey := types.NamespacedName{Name: "green-istio-egressgateway-sds", Namespace: "kubeslice-system"}
+			role := &rbacv1.Role{}
+			rb := &rbacv1.RoleBinding{}
+
+			// Wait until role is created properly
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, rkey, role)
+				if err != nil {
+					return false
+				}
+				return true
+			}, time.Second*10, time.Millisecond*250).Should(BeTrue())
+
+			// Wait until rolebinding is created properly
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, rkey, rb)
+				if err != nil {
+					return false
+				}
+				return true
+			}, time.Second*10, time.Millisecond*250).Should(BeTrue())
+
+			Expect(role.ObjectMeta.Name).To(Equal("green-istio-egressgateway-sds"))
+			Expect(rb.ObjectMeta.Name).To(Equal("green-istio-egressgateway-sds"))
+
+			// Check if sa there in the cluster
+			skey := types.NamespacedName{Name: "green-istio-egressgateway-service-account", Namespace: "kubeslice-system"}
+			sa := &corev1.ServiceAccount{}
+
+			// Wait until sa is created properly
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, skey, sa)
+				if err != nil {
+					return false
+				}
+				return true
+			}, time.Second*10, time.Millisecond*250).Should(BeTrue())
+
+			Expect(sa.ObjectMeta.Name).To(Equal("green-istio-egressgateway-service-account"))
 
 		})
 
