@@ -19,6 +19,7 @@ import (
 //  role
 //  rolebinding
 //  service (type clusterip)
+//  gateway
 func InstallEgress(ctx context.Context, c client.Client, slice string) error {
 	deploy := &appsv1.Deployment{}
 	err := NewManifest("../../files/egress/egress-deploy.json", slice).Parse(deploy)
@@ -81,39 +82,39 @@ func InstallEgress(ctx context.Context, c client.Client, slice string) error {
 //  role
 //  rolebinding
 //  service
+//  gateway
 func UninstallEgress(ctx context.Context, c client.Client, slice string) error {
-	// TODO objects should be unique to slice
 
 	log.Info("deleting EW egress gw for the slice", "slice", slice)
 
 	objects := []client.Object{
 		&appsv1.Deployment{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      "istio-egressgateway",
+				Name:      slice + "-istio-egressgateway",
 				Namespace: "kubeslice-system",
 			},
 		},
 		&corev1.Service{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      "istio-egressgateway",
+				Name:      slice + "-istio-egressgateway",
 				Namespace: "kubeslice-system",
 			},
 		},
 		&rbacv1.Role{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      "istio-egressgateway-sds",
+				Name:      slice + "-istio-egressgateway-sds",
 				Namespace: "kubeslice-system",
 			},
 		},
 		&corev1.ServiceAccount{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      "istio-egressgateway-service-account",
+				Name:      slice + "-istio-egressgateway-service-account",
 				Namespace: "kubeslice-system",
 			},
 		},
 		&rbacv1.RoleBinding{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      "istio-egressgateway-sds",
+				Name:      slice + "-istio-egressgateway-sds",
 				Namespace: "kubeslice-system",
 			},
 		},
@@ -122,6 +123,7 @@ func UninstallEgress(ctx context.Context, c client.Client, slice string) error {
 	for _, o := range objects {
 		if err := c.Delete(ctx, o); err != nil {
 			// Ignore the error if the resource is already deleted
+			// return error only if there is some other error
 			if !errors.IsNotFound(err) {
 				return err
 			}
