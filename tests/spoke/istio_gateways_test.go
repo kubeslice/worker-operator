@@ -1,7 +1,6 @@
 package spoke_test
 
 import (
-	"context"
 	"time"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -61,7 +60,7 @@ var _ = Describe("IstioGateways", func() {
 		})
 
 		It("Should install istio ingress gateway deployment", func() {
-			err := manifest.InstallIngress(context.Background(), k8sClient, "green")
+			err := manifest.InstallIngress(ctx, k8sClient, "green")
 			Expect(err).NotTo(HaveOccurred())
 
 			// Check if deployment is there in the cluster
@@ -88,7 +87,7 @@ var _ = Describe("IstioGateways", func() {
 		})
 
 		It("Should install istio ingress gateway resources", func() {
-			err := manifest.InstallIngress(context.Background(), k8sClient, "green")
+			err := manifest.InstallIngress(ctx, k8sClient, "green")
 			Expect(err).NotTo(HaveOccurred())
 
 			// Check if service is there in the cluster

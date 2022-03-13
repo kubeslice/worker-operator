@@ -5,7 +5,7 @@
     "name": "SLICE-istio-egressgateway",
     "namespace": "kubeslice-system",
     "annotations": {
-      "avesha.io/slice": null
+      "avesha.io/slice": "SLICE"
     },
     "labels": {
       "istio": "egressgateway",
@@ -13,7 +13,7 @@
       "istio.io/rev": "default",
       "install.operator.istio.io/owning-resource": "unknown",
       "operator.istio.io/component": "EgressGateways",
-      "slice": null
+      "slice": "SLICE"
     }
   },
   "spec": {
@@ -38,14 +38,14 @@
           "install.operator.istio.io/owning-resource": "unknown",
           "operator.istio.io/component": "EgressGateways",
           "sidecar.istio.io/inject": "false",
-          "slice": null
+          "slice": "SLICE"
         },
         "annotations": {
           "prometheus.io/port": "15020",
           "prometheus.io/scrape": "true",
           "prometheus.io/path": "/stats/prometheus",
           "sidecar.istio.io/inject": "false",
-          "avesha.io/slice": null
+          "avesha.io/slice": "SLICE"
         }
       },
       "spec": {
