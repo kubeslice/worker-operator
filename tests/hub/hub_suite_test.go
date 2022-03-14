@@ -98,10 +98,6 @@ var _ = BeforeSuite(func() {
 		MeshClient: k8sManager.GetClient(),
 	}
 
-	sgwr := &controllers.SliceGwReconciler{
-		MeshClient: k8sManager.GetClient(),
-	}
-
 	err = builder.
 		ControllerManagedBy(k8sManager).
 		For(&spokev1alpha1.SpokeSliceConfig{}).
@@ -109,15 +105,6 @@ var _ = BeforeSuite(func() {
 			return object.GetLabels()["spoke-cluster"] == CLUSTER_NAME
 		})).
 		Complete(sr)
-	Expect(err).ToNot(HaveOccurred())
-
-	err = builder.
-		ControllerManagedBy(k8sManager).
-		For(&spokev1alpha1.SpokeSliceGateway{}).
-		WithEventFilter(predicate.NewPredicateFuncs(func(object client.Object) bool {
-			return object.GetLabels()["spoke-cluster"] == CLUSTER_NAME
-		})).
-		Complete(sgwr)
 	Expect(err).ToNot(HaveOccurred())
 
 	go func() {
