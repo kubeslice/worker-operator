@@ -1,25 +1,25 @@
 package hub_test
 
 import (
-	"time"
-	. "github.com/onsi/ginkgo/v2"
-	. "github.com/onsi/gomega"
 	meshv1beta1 "bitbucket.org/realtimeai/kubeslice-operator/api/v1beta1"
 	spokev1alpha1 "bitbucket.org/realtimeai/mesh-apis/pkg/spoke/v1alpha1"
+	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	corev1 "k8s.io/api/core/v1"
+	"time"
 )
 
 var _ = Describe("Hub SlicegwController", func() {
-	Context("With SpokeSliceGW created in hub",func ()  {
+	Context("With SpokeSliceGW created in hub", func() {
 		var hubSlice *spokev1alpha1.SpokeSliceConfig
 		var createdSlice *meshv1beta1.Slice
 		var hubSliceGw *spokev1alpha1.SpokeSliceGateway
 		var hubSecret *corev1.Secret
-		var createdSliceGwOnSpoke  *meshv1beta1.SliceGateway
+		var createdSliceGwOnSpoke *meshv1beta1.SliceGateway
 
-		BeforeEach(func ()  {
+		BeforeEach(func() {
 			// Prepare k8s objects
 			hubSlice = &spokev1alpha1.SpokeSliceConfig{
 				ObjectMeta: metav1.ObjectMeta{
@@ -39,7 +39,7 @@ var _ = Describe("Hub SlicegwController", func() {
 			}
 			hubSliceGw = &spokev1alpha1.SpokeSliceGateway{
 				ObjectMeta: metav1.ObjectMeta{
-					Name: "test-slicegateway",
+					Name:      "test-slicegateway",
 					Namespace: PROJECT_NS,
 					Labels: map[string]string{
 						"spoke-cluster": CLUSTER_NAME,
@@ -51,19 +51,28 @@ var _ = Describe("Hub SlicegwController", func() {
 			}
 			hubSecret = &corev1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
-					Name: "test-slicegateway",
+					Name:      "test-slicegateway",
 					Namespace: PROJECT_NS,
 				},
 				Data: map[string][]byte{},
 			}
 			createdSlice = &meshv1beta1.Slice{}
 			createdSliceGwOnSpoke = &meshv1beta1.SliceGateway{}
+
+			// Cleanup after each test
+			DeferCleanup(func() {
+				Expect(k8sClient.Delete(ctx, hubSlice)).Should(Succeed())
+				Expect(k8sClient.Delete(ctx, hubSliceGw)).Should(Succeed())
+				Expect(k8sClient.Delete(ctx, hubSecret)).Should(Succeed())
+				Expect(k8sClient.Delete(ctx, createdSlice)).Should(Succeed())
+				Expect(k8sClient.Delete(ctx, createdSliceGwOnSpoke)).Should(Succeed())
+			})
 		})
 
-		It("Should create SliceGw on spoke cluster",func ()  {
+		It("Should create SliceGw on spoke cluster", func() {
 			Expect(k8sClient.Create(ctx, hubSlice)).Should(Succeed())
-			Expect(k8sClient.Create(ctx,hubSliceGw)).Should(Succeed())
-			Expect(k8sClient.Create(ctx,hubSecret)).Should(Succeed())
+			Expect(k8sClient.Create(ctx, hubSliceGw)).Should(Succeed())
+			Expect(k8sClient.Create(ctx, hubSecret)).Should(Succeed())
 			//once hubSlice is created controller will create a slice CR on spoke cluster
 			sliceKey := types.NamespacedName{Name: "test-slice", Namespace: "kubeslice-system"}
 			// Make sure slice is reconciled in spoke cluster
@@ -75,11 +84,11 @@ var _ = Describe("Hub SlicegwController", func() {
 				return true
 			}, time.Second*10, time.Millisecond*250).Should(BeTrue())
 
-			sliceGwKey := types.NamespacedName{Namespace: CONTROL_PLANE_NS,Name: hubSliceGw.Name}
-			Eventually(func () bool {
-				err := k8sClient.Get(ctx,sliceGwKey,createdSliceGwOnSpoke)
-			 	return err == nil
-			 }, time.Second*10, time.Second*1).Should(BeTrue())
+			sliceGwKey := types.NamespacedName{Namespace: CONTROL_PLANE_NS, Name: hubSliceGw.Name}
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, sliceGwKey, createdSliceGwOnSpoke)
+				return err == nil
+			}, time.Second*10, time.Second*1).Should(BeTrue())
 		})
 
 	})
