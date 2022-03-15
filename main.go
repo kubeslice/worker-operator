@@ -39,6 +39,8 @@ import (
 
 	meshv1beta1 "bitbucket.org/realtimeai/kubeslice-operator/api/v1beta1"
 	"bitbucket.org/realtimeai/kubeslice-operator/controllers"
+	"bitbucket.org/realtimeai/kubeslice-operator/controllers/serviceexport"
+	"bitbucket.org/realtimeai/kubeslice-operator/controllers/serviceimport"
 	"bitbucket.org/realtimeai/kubeslice-operator/internal/hub/manager"
 	"bitbucket.org/realtimeai/kubeslice-operator/internal/logger"
 	"bitbucket.org/realtimeai/kubeslice-operator/internal/utils"
@@ -119,6 +121,26 @@ func main() {
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "SliceGw")
+		os.Exit(1)
+	}
+
+	//+kubebuilder:scaffold:builder
+
+	if err = (&serviceexport.Reconciler{
+		Client: mgr.GetClient(),
+		Log:    ctrl.Log.WithName("controllers").WithName("ServiceExport"),
+		Scheme: mgr.GetScheme(),
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "ServiceExport")
+		os.Exit(1)
+	}
+
+	if err = (&serviceimport.Reconciler{
+		Client: mgr.GetClient(),
+		Log:    ctrl.Log.WithName("controllers").WithName("ServiceImport"),
+		Scheme: mgr.GetScheme(),
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "ServiceImport")
 		os.Exit(1)
 	}
 	//+kubebuilder:scaffold:builder

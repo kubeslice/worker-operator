@@ -7,7 +7,7 @@ bitbucket.org/realtimeai/kubeslice-netops/pkg/proto
 # bitbucket.org/realtimeai/kubeslice-router-sidecar v0.0.0-20220221080454-e2276f57c978
 ## explicit
 bitbucket.org/realtimeai/kubeslice-router-sidecar/pkg/proto
-# bitbucket.org/realtimeai/mesh-apis v0.0.0-20220304165504-14bf48bdee04
+# bitbucket.org/realtimeai/mesh-apis v0.0.0-20220309140737-99c037d6d4ad
 ## explicit
 bitbucket.org/realtimeai/mesh-apis/pkg/hub/v1alpha1
 bitbucket.org/realtimeai/mesh-apis/pkg/spoke/v1alpha1

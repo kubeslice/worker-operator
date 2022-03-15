@@ -24,6 +24,8 @@ import (
 type ServiceExportConfigSpec struct {
 	//ServiceName is the name of the service
 	ServiceName string `json:"serviceName,omitempty"`
+	//ServiceNamespace is the namespace of the service
+	ServiceNamespace string `json:"serviceNamespace,omitempty"`
 	// clusterId is the id of the cluster where the service is available.
 	SourceCluster string `json:"sourceCluster,omitempty"`
 	// The name of the slice.

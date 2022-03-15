@@ -1,0 +1,7 @@
+apiVersion: mesh.avesha.io/v1beta1
+kind: ServiceExport
+metadata:
+  name: serviceexport-sample
+spec:
+  # Add fields here
+  foo: bar

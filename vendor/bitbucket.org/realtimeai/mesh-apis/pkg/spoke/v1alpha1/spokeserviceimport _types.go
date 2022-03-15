@@ -25,10 +25,10 @@ import (
 
 // SpokeServiceImportSpec defines the desired state of SpokeServiceImport
 type SpokeServiceImportSpec struct {
-	//ServiceExportConfigName is the name of the service export
-	ServiceExportConfigName string `json:"serviceExportConfigName,omitempty"`
 	//ServiceName is the name of the service
 	ServiceName string `json:"serviceName,omitempty"`
+	//ServiceNamespace is the namespace of the service
+	ServiceNamespace string `json:"serviceNamespace,omitempty"` // Required
 	// clusterId is the id of the cluster where the service is available.
 	SourceClusters []string `json:"sourceClusters,omitempty"`
 	// The name of the slice.

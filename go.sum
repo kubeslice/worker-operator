@@ -4,8 +4,8 @@ bitbucket.org/realtimeai/kubeslice-netops v0.0.0-20220225091428-05183d983334 h1:
 bitbucket.org/realtimeai/kubeslice-netops v0.0.0-20220225091428-05183d983334/go.mod h1:Z/gZ3Y0L/TLV9ooDWOZRfCJAOo94izfUFHSeA4XufTE=
 bitbucket.org/realtimeai/kubeslice-router-sidecar v0.0.0-20220221080454-e2276f57c978 h1:AVc644qjnQoD7sZtHRR1wbnKTlnyNoejvSkGHI31aWU=
 bitbucket.org/realtimeai/kubeslice-router-sidecar v0.0.0-20220221080454-e2276f57c978/go.mod h1:BCoBSv6w/467ehg1QTeH+ruJv0fFa9hKNSModWk9L88=
-bitbucket.org/realtimeai/mesh-apis v0.0.0-20220304165504-14bf48bdee04 h1:ClzTGghuFpO24pvTw0n3rqKpCFURh8DZLmVgkPkWLBY=
-bitbucket.org/realtimeai/mesh-apis v0.0.0-20220304165504-14bf48bdee04/go.mod h1:llaX3dRfOZmd/29TXcMGpw5USVhMZ7u+YrPIrUX734I=
+bitbucket.org/realtimeai/mesh-apis v0.0.0-20220309140737-99c037d6d4ad h1:oTJdfbsnMxQ1J1YlxS8YIwO7Aj7iatmo2XLW+lyrpBA=
+bitbucket.org/realtimeai/mesh-apis v0.0.0-20220309140737-99c037d6d4ad/go.mod h1:llaX3dRfOZmd/29TXcMGpw5USVhMZ7u+YrPIrUX734I=
 cloud.google.com/go v0.26.0/go.mod h1:aQUYkXzVsufM+DwF1aE+0xfcU+56JwCaLick0ClmMTw=
 cloud.google.com/go v0.34.0/go.mod h1:aQUYkXzVsufM+DwF1aE+0xfcU+56JwCaLick0ClmMTw=
 cloud.google.com/go v0.38.0/go.mod h1:990N+gfupTy94rShfmMCWGDn0LpTmnzTp2qbd1dvSRU=
