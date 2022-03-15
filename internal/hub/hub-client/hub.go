@@ -1,10 +1,12 @@
 package hub
 
 import (
-	"bitbucket.org/realtimeai/kubeslice-operator/pkg/kube"
 	"context"
+	"fmt"
 	"os"
 	"strings"
+
+	"bitbucket.org/realtimeai/kubeslice-operator/pkg/kube"
 
 	"k8s.io/apimachinery/pkg/api/errors"
 
@@ -17,8 +19,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	log "sigs.k8s.io/controller-runtime/pkg/log"
 
-	"bitbucket.org/realtimeai/kubeslice-operator/internal/cluster"
 	meshv1beta1 "bitbucket.org/realtimeai/kubeslice-operator/api/v1beta1"
+	"bitbucket.org/realtimeai/kubeslice-operator/internal/cluster"
 	"bitbucket.org/realtimeai/kubeslice-operator/internal/logger"
 	hubv1alpha1 "bitbucket.org/realtimeai/mesh-apis/pkg/hub/v1alpha1"
 	spokev1alpha1 "bitbucket.org/realtimeai/mesh-apis/pkg/spoke/v1alpha1"
@@ -66,6 +68,9 @@ func UpdateNodePortForSliceGwServer(ctx context.Context, sliceGwNodePort int32, 
 }
 
 func UpdateClusterInfoToHub(ctx context.Context, clusterName, nodeIP string) error {
+	if hubClient == nil{
+		return fmt.Errorf("hubClient is nil")
+	}
 	hubCluster := &hubv1alpha1.Cluster{}
 	err := hubClient.Get(ctx, types.NamespacedName{
 		Name:      clusterName,
