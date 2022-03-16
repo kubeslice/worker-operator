@@ -3,6 +3,9 @@ package hub
 import (
 	"context"
 	"os"
+	"strings"
+
+	"bitbucket.org/realtimeai/kubeslice-operator/pkg/kube"
 
 	"k8s.io/apimachinery/pkg/api/errors"
 
@@ -15,6 +18,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	meshv1beta1 "bitbucket.org/realtimeai/kubeslice-operator/api/v1beta1"
+	"bitbucket.org/realtimeai/kubeslice-operator/internal/cluster"
 	hubv1alpha1 "bitbucket.org/realtimeai/mesh-apis/pkg/hub/v1alpha1"
 	spokev1alpha1 "bitbucket.org/realtimeai/mesh-apis/pkg/spoke/v1alpha1"
 )
@@ -72,6 +76,50 @@ func (hubClient *HubClientConfig) UpdateNodePortForSliceGwServer(ctx context.Con
 	sliceGw.Spec.LocalGatewayConfig.NodePort = int(sliceGwNodePort)
 
 	return hubClient.Update(ctx, sliceGw)
+}
+
+func UpdateClusterInfoToHub(ctx context.Context, clusterName, nodeIP string) error {
+	hubClientCfg, err := NewHubClientConfig()
+	if err != nil {
+		return err
+	}
+
+	hubClient := hubClientCfg.Client
+
+	hubCluster := &hubv1alpha1.Cluster{}
+	err = hubClient.Get(ctx, types.NamespacedName{
+		Name:      clusterName,
+		Namespace: ProjectNamespace,
+	}, hubCluster)
+	if err != nil {
+		return err
+	}
+
+	clientset, err := kube.NewClient()
+	if err != nil {
+		return err
+	}
+
+	kubeClient := clientset.KubeCli
+	c := cluster.NewCluster(kubeClient, clusterName)
+	//get geographical info
+	clusterInfo, err := c.GetClusterInfo(ctx)
+	if err != nil {
+		return err
+	}
+	cniSubnet, err := c.GetNsmExcludedPrefix(ctx, "nsm-config", "kubeslice-system")
+	if err != nil {
+		return err
+	}
+	hubCluster.Spec.ClusterProperty.GeoLocation.CloudRegion = clusterInfo.ClusterProperty.GeoLocation.CloudRegion
+
+	hubCluster.Spec.ClusterProperty.GeoLocation.CloudProvider = clusterInfo.ClusterProperty.GeoLocation.CloudProvider
+
+	hubCluster.Spec.NodeIP = nodeIP
+
+	hubCluster.Spec.CniSubnet = strings.Join(cniSubnet, ",")
+
+	return hubClient.Update(ctx, hubCluster)
 }
 
 func getHubServiceDiscoveryEps(serviceexport *meshv1beta1.ServiceExport) []hubv1alpha1.ServiceDiscoveryEndpoint {
