@@ -133,8 +133,6 @@ spec:
                 description: Used to match if the service is updated from backend
                 format: int64
                 type: integer
-            required:
-            - endpoints
             type: object
         type: object
     served: true
