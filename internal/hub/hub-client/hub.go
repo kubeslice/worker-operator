@@ -104,7 +104,6 @@ func UpdateClusterInfoToHub(ctx context.Context, clusterName, nodeIP string) err
 
 	hubCluster.Spec.CniSubnet = strings.Join(cniSubnet, ",")
 
-
 	return hubClient.Update(ctx, hubCluster)
 }
 

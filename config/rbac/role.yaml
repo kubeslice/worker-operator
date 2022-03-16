@@ -21,6 +21,14 @@ rules:
 - apiGroups:
   - ""
   resources:
+  - nodes
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - ""
+  resources:
   - pods
   verbs:
   - get
@@ -53,6 +61,52 @@ rules:
 - apiGroups:
   - mesh.avesha.io
   resources:
+  - serviceexports
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - mesh.avesha.io
+  resources:
+  - serviceexports/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - mesh.avesha.io
+  resources:
+  - serviceexports/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - mesh.avesha.io
+  resources:
+  - serviceimports
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - mesh.avesha.io
+  resources:
+  - serviceimports/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - mesh.avesha.io
+  resources:
   - slice
   verbs:
   - create
@@ -76,11 +130,3 @@ rules:
   - get
   - patch
   - update
-- apiGroups:
-  - ""
-  resources:
-  - nodes
-  verbs:
-  - watch
-  - list
-  - get
