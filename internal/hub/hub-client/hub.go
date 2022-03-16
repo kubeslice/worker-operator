@@ -68,7 +68,7 @@ func UpdateNodePortForSliceGwServer(ctx context.Context, sliceGwNodePort int32, 
 }
 
 func UpdateClusterInfoToHub(ctx context.Context, clusterName, nodeIP string) error {
-	if hubClient == nil{
+	if hubClient == nil {
 		return fmt.Errorf("hubClient is nil")
 	}
 	hubCluster := &hubv1alpha1.Cluster{}
@@ -107,7 +107,6 @@ func UpdateClusterInfoToHub(ctx context.Context, clusterName, nodeIP string) err
 	return hubClient.Update(ctx, hubCluster)
 }
 
-	
 func getHubServiceDiscoveryEps(serviceexport *meshv1beta1.ServiceExport) []hubv1alpha1.ServiceDiscoveryEndpoint {
 	epList := []hubv1alpha1.ServiceDiscoveryEndpoint{}
 	for _, pod := range serviceexport.Status.Pods {
