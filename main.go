@@ -39,6 +39,7 @@ import (
 	"bitbucket.org/realtimeai/kubeslice-operator/controllers"
 	"bitbucket.org/realtimeai/kubeslice-operator/controllers/serviceexport"
 	"bitbucket.org/realtimeai/kubeslice-operator/controllers/serviceimport"
+	hub "bitbucket.org/realtimeai/kubeslice-operator/internal/hub/hub-client"
 	"bitbucket.org/realtimeai/kubeslice-operator/internal/hub/manager"
 	"bitbucket.org/realtimeai/kubeslice-operator/internal/logger"
 	"bitbucket.org/realtimeai/kubeslice-operator/internal/utils"
@@ -108,21 +109,34 @@ func main() {
 		os.Exit(1)
 	}
 
+	hubClient, err := hub.NewHubClientConfig()
+	if err != nil {
+		setupLog.Error(err, "could not create hub client for slice gateway reconciler")
+		os.Exit(1)
+	}
+
 	if err = (&controllers.SliceGwReconciler{
-		Client: mgr.GetClient(),
-		Log:    ctrl.Log.WithName("controllers").WithName("SliceGw"),
-		Scheme: mgr.GetScheme(),
+		Client:    mgr.GetClient(),
+		Log:       ctrl.Log.WithName("controllers").WithName("SliceGw"),
+		Scheme:    mgr.GetScheme(),
+		HubClient: hubClient,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "SliceGw")
 		os.Exit(1)
 	}
 
 	//+kubebuilder:scaffold:builder
+	hubClient, err = hub.NewHubClientConfig()
+	if err != nil {
+		setupLog.Error(err, "could not create hub client for serviceexport reconciler")
+		os.Exit(1)
+	}
 
 	if err = (&serviceexport.Reconciler{
-		Client: mgr.GetClient(),
-		Log:    ctrl.Log.WithName("controllers").WithName("ServiceExport"),
-		Scheme: mgr.GetScheme(),
+		Client:    mgr.GetClient(),
+		Log:       ctrl.Log.WithName("controllers").WithName("ServiceExport"),
+		Scheme:    mgr.GetScheme(),
+		HubClient: hubClient,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "ServiceExport")
 		os.Exit(1)

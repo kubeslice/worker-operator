@@ -12,7 +12,8 @@ require (
 	github.com/golang/protobuf v1.5.2
 	github.com/networkservicemesh/networkservicemesh/k8s/pkg/apis v0.0.0-20211028170547-e58ac1200f18
 	github.com/onsi/ginkgo/v2 v2.1.3
-	github.com/onsi/gomega v1.17.0
+	github.com/onsi/gomega v1.18.1
+	github.com/stretchr/testify v1.7.0
 	go.uber.org/zap v1.21.0
 	golang.org/x/net v0.0.0-20220225172249-27dd8689420f // indirect
 	golang.org/x/sys v0.0.0-20220227234510-4e6760a101f9 // indirect

@@ -30,15 +30,19 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	meshv1beta1 "bitbucket.org/realtimeai/kubeslice-operator/api/v1beta1"
-	hub "bitbucket.org/realtimeai/kubeslice-operator/internal/hub/hub-client"
 	"bitbucket.org/realtimeai/kubeslice-operator/internal/logger"
 )
 
 // SliceReconciler reconciles a Slice object
 type SliceGwReconciler struct {
 	client.Client
-	Scheme *runtime.Scheme
-	Log    logr.Logger
+	Scheme    *runtime.Scheme
+	Log       logr.Logger
+	HubClient HubClientProvider
+}
+
+type HubClientProvider interface {
+	UpdateNodePortForSliceGwServer(ctx context.Context, sliceGwNodePort int32, sliceGwName string) error
 }
 
 func readyToDeployGwClient(sliceGw *meshv1beta1.SliceGateway) bool {
@@ -131,7 +135,7 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		}
 
 		sliceGwNodePort := foundsvc.Spec.Ports[0].NodePort
-		err = hub.UpdateNodePortForSliceGwServer(ctx, sliceGwNodePort, sliceGwName)
+		err = r.HubClient.UpdateNodePortForSliceGwServer(ctx, sliceGwNodePort, sliceGwName)
 		if err != nil {
 			log.Error(err, "Failed to update NodePort for sliceGw in the hub")
 			return ctrl.Result{}, err
