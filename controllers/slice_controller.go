@@ -48,6 +48,8 @@ type SliceReconciler struct {
 //+kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=core,resources=services,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:webhook:path=/mutate-appsv1-deploy,mutating=true,failurePolicy=fail,groups="apps",resources=deployments,verbs=create;update,versions=v1,name=mdeploy.avesha.io,admissionReviewVersions=v1,sideEffects=NoneOnDryRun
+//+kubebuilder:rbac:groups=core,resources=nodes,verbs=get;list;watch
+
 func (r *SliceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := r.Log.WithValues("slice", req.NamespacedName)
 	debugLog := log.V(1)
