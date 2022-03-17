@@ -2,7 +2,6 @@ package hub
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"strings"
 
@@ -17,25 +16,33 @@ import (
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	log "sigs.k8s.io/controller-runtime/pkg/log"
 
 	meshv1beta1 "bitbucket.org/realtimeai/kubeslice-operator/api/v1beta1"
 	"bitbucket.org/realtimeai/kubeslice-operator/internal/cluster"
-	"bitbucket.org/realtimeai/kubeslice-operator/internal/logger"
 	hubv1alpha1 "bitbucket.org/realtimeai/mesh-apis/pkg/hub/v1alpha1"
 	spokev1alpha1 "bitbucket.org/realtimeai/mesh-apis/pkg/spoke/v1alpha1"
 )
 
 var scheme = runtime.NewScheme()
-var hubClient client.Client
 
 func init() {
-	log.SetLogger(logger.NewLogger())
 	clientgoscheme.AddToScheme(scheme)
 	utilruntime.Must(spokev1alpha1.AddToScheme(scheme))
 	utilruntime.Must(hubv1alpha1.AddToScheme(scheme))
 	utilruntime.Must(meshv1beta1.AddToScheme(scheme))
-	hubClient, _ = client.New(&rest.Config{
+}
+
+type HubClientConfig struct {
+	client.Client
+}
+
+type HubClientRpc interface {
+	UpdateNodePortForSliceGwServer(ctx context.Context, sliceGwNodePort int32, sliceGwName string) error
+	UpdateServiceExport(ctx context.Context, serviceexport *meshv1beta1.ServiceExport) error
+}
+
+func NewHubClientConfig() (*HubClientConfig, error) {
+	hubClient, err := client.New(&rest.Config{
 		Host:            os.Getenv("HUB_HOST_ENDPOINT"),
 		BearerTokenFile: HubTokenFile,
 		TLSClientConfig: rest.TLSClientConfig{
@@ -45,9 +52,13 @@ func init() {
 			Scheme: scheme,
 		},
 	)
+
+	return &HubClientConfig{
+		Client: hubClient,
+	}, err
 }
 
-func UpdateNodePortForSliceGwServer(ctx context.Context, sliceGwNodePort int32, sliceGwName string) error {
+func (hubClient *HubClientConfig) UpdateNodePortForSliceGwServer(ctx context.Context, sliceGwNodePort int32, sliceGwName string) error {
 	sliceGw := &spokev1alpha1.SpokeSliceGateway{}
 	err := hubClient.Get(ctx, types.NamespacedName{
 		Name:      sliceGwName,
@@ -68,11 +79,15 @@ func UpdateNodePortForSliceGwServer(ctx context.Context, sliceGwNodePort int32, 
 }
 
 func UpdateClusterInfoToHub(ctx context.Context, clusterName, nodeIP string) error {
-	if hubClient == nil {
-		return fmt.Errorf("hubClient is nil")
+	hubClientCfg, err := NewHubClientConfig()
+	if err != nil {
+		return err
 	}
+
+	hubClient := hubClientCfg.Client
+
 	hubCluster := &hubv1alpha1.Cluster{}
-	err := hubClient.Get(ctx, types.NamespacedName{
+	err = hubClient.Get(ctx, types.NamespacedName{
 		Name:      clusterName,
 		Namespace: ProjectNamespace,
 	}, hubCluster)
@@ -153,7 +168,7 @@ func getHubServiceExportObj(serviceexport *meshv1beta1.ServiceExport) *hubv1alph
 	}
 }
 
-func UpdateServiceExport(ctx context.Context, serviceexport *meshv1beta1.ServiceExport) error {
+func (hubClient *HubClientConfig) UpdateServiceExport(ctx context.Context, serviceexport *meshv1beta1.ServiceExport) error {
 	hubSvcEx := &hubv1alpha1.ServiceExportConfig{}
 	err := hubClient.Get(ctx, types.NamespacedName{
 		Name:      serviceexport.Name,
@@ -173,6 +188,27 @@ func UpdateServiceExport(ctx context.Context, serviceexport *meshv1beta1.Service
 	hubSvcEx.Spec = getHubServiceExportObj(serviceexport).Spec
 
 	err = hubClient.Update(ctx, hubSvcEx)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (hubClient *HubClientConfig) DeleteServiceExport(ctx context.Context, serviceexport *meshv1beta1.ServiceExport) error {
+	hubSvcEx := &hubv1alpha1.ServiceExportConfig{}
+	err := hubClient.Get(ctx, types.NamespacedName{
+		Name:      serviceexport.Name,
+		Namespace: ProjectNamespace,
+	}, hubSvcEx)
+	if err != nil {
+		if errors.IsNotFound(err) {
+			return nil
+		}
+		return err
+	}
+
+	err = hubClient.Delete(ctx, hubSvcEx)
 	if err != nil {
 		return err
 	}
