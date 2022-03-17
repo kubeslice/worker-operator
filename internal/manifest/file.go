@@ -3,20 +3,24 @@ package manifest
 import (
 	// corev1 "k8s.io/api/core/v1"
 	"io/ioutil"
+	"strings"
+
+	"encoding/json"
 
 	"bitbucket.org/realtimeai/kubeslice-operator/internal/logger"
-	"encoding/json"
 )
 
 var log = logger.NewLogger()
 
 type Manifest struct {
-	Path string
+	Slice string
+	Path  string
 }
 
-func NewManifest(path string) *Manifest {
+func NewManifest(path string, slice string) *Manifest {
 	return &Manifest{
-		Path: path,
+		Path:  path,
+		Slice: slice,
 	}
 }
 
@@ -27,7 +31,9 @@ func (m *Manifest) Parse(v interface{}) error {
 		return err
 	}
 
-	err = json.Unmarshal(jsonFile, v)
+	f := strings.ReplaceAll(string(jsonFile), "SLICE", m.Slice)
+
+	err = json.Unmarshal([]byte(f), v)
 	if err != nil {
 		log.Error(err, "unable to parse json file as Deployment")
 		return err

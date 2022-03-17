@@ -3,6 +3,7 @@ package manifest
 import (
 	"context"
 
+	istiov1beta1 "istio.io/client-go/pkg/apis/networking/v1beta1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -11,48 +12,47 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-// Install istio ingress gw resources on the given cluster in a slice
+// Install istio egress gw resources on the given cluster in a slice
 // Resources:
-//  deployment (adds annotations to add the ingress pod to the slice)
+//  deployment (adds annotations to add the egress pod to the slice)
 //  serviceaccount
 //  role
 //  rolebinding
 //  service (type clusterip)
-func InstallIngress(ctx context.Context, c client.Client, slice string) error {
-	// TODO make the objects unique per slice by adding slice name
-
+//  gateway
+func InstallEgress(ctx context.Context, c client.Client, slice string) error {
 	deploy := &appsv1.Deployment{}
-	err := NewManifest("../../files/ingress/ingress-deploy.json", slice).Parse(deploy)
+	err := NewManifest("../../files/egress/egress-deploy.json", slice).Parse(deploy)
 	if err != nil {
 		return err
 	}
 
-	// Add the deployment to slice
-	deploy.Labels["slice"] = slice
-	deploy.Annotations = map[string]string{
-		"avesha.io/slice": slice,
-	}
-
 	svc := &corev1.Service{}
-	err = NewManifest("../../files/ingress/ingress-svc.json", slice).Parse(svc)
+	err = NewManifest("../../files/egress/egress-svc.json", slice).Parse(svc)
 	if err != nil {
 		return err
 	}
 
 	role := &rbacv1.Role{}
-	err = NewManifest("../../files/ingress/ingress-role.json", slice).Parse(role)
+	err = NewManifest("../../files/egress/egress-role.json", slice).Parse(role)
 	if err != nil {
 		return err
 	}
 
 	sa := &corev1.ServiceAccount{}
-	err = NewManifest("../../files/ingress/ingress-sa.json", slice).Parse(sa)
+	err = NewManifest("../../files/egress/egress-sa.json", slice).Parse(sa)
 	if err != nil {
 		return err
 	}
 
 	rb := &rbacv1.RoleBinding{}
-	err = NewManifest("../../files/ingress/ingress-rolebinding.json", slice).Parse(rb)
+	err = NewManifest("../../files/egress/egress-rolebinding.json", slice).Parse(rb)
+	if err != nil {
+		return err
+	}
+
+	gw := &istiov1beta1.Gateway{}
+	err = NewManifest("../../files/egress/egress-gw.json", slice).Parse(gw)
 	if err != nil {
 		return err
 	}
@@ -63,6 +63,7 @@ func InstallIngress(ctx context.Context, c client.Client, slice string) error {
 		role,
 		sa,
 		rb,
+		gw,
 	}
 
 	for _, o := range objects {
@@ -74,46 +75,46 @@ func InstallIngress(ctx context.Context, c client.Client, slice string) error {
 	return nil
 }
 
-// Uninstall istio ingress (EW) resources fo a slice from a given cluster
+// Uninstall istio egress (EW) resources fo a slice from a given cluster
 // Resources:
 //  deployment
 //  serviceaccount
 //  role
 //  rolebinding
 //  service
-func UninstallIngress(ctx context.Context, c client.Client, slice string) error {
-	// TODO objects should be unique to slice
+//  gateway
+func UninstallEgress(ctx context.Context, c client.Client, slice string) error {
 
-	log.Info("deleting EW ingress gw for the slice", "slice", slice)
+	log.Info("deleting EW egress gw for the slice", "slice", slice)
 
 	objects := []client.Object{
 		&appsv1.Deployment{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      "istio-ingressgateway",
+				Name:      slice + "-istio-egressgateway",
 				Namespace: "kubeslice-system",
 			},
 		},
 		&corev1.Service{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      "istio-ingressgateway",
+				Name:      slice + "-istio-egressgateway",
 				Namespace: "kubeslice-system",
 			},
 		},
 		&rbacv1.Role{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      "istio-ingressgateway-sds",
+				Name:      slice + "-istio-egressgateway-sds",
 				Namespace: "kubeslice-system",
 			},
 		},
 		&corev1.ServiceAccount{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      "istio-ingressgateway-service-account",
+				Name:      slice + "-istio-egressgateway-service-account",
 				Namespace: "kubeslice-system",
 			},
 		},
 		&rbacv1.RoleBinding{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      "istio-ingressgateway-sds",
+				Name:      slice + "-istio-egressgateway-sds",
 				Namespace: "kubeslice-system",
 			},
 		},
@@ -122,6 +123,7 @@ func UninstallIngress(ctx context.Context, c client.Client, slice string) error 
 	for _, o := range objects {
 		if err := c.Delete(ctx, o); err != nil {
 			// Ignore the error if the resource is already deleted
+			// return error only if there is some other error
 			if !errors.IsNotFound(err) {
 				return err
 			}
