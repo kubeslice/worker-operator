@@ -11,19 +11,24 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	meshv1beta1 "bitbucket.org/realtimeai/kubeslice-operator/api/v1beta1"
-	//	"bitbucket.org/realtimeai/avesha-slice-operator/controllers"
-	//	"bitbucket.org/realtimeai/avesha-slice-operator/internal/metrics"
-	hub "bitbucket.org/realtimeai/kubeslice-operator/internal/hub/hub-client"
 	"bitbucket.org/realtimeai/kubeslice-operator/internal/logger"
-	//	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
 // Reconciler reconciles serviceexport resource
 type Reconciler struct {
 	client.Client
-	Log    logr.Logger
-	Scheme *runtime.Scheme
+	Log       logr.Logger
+	Scheme    *runtime.Scheme
+	HubClient HubClientProvider
 }
+
+type HubClientProvider interface {
+	UpdateServiceExport(ctx context.Context, serviceexport *meshv1beta1.ServiceExport) error
+	DeleteServiceExport(ctx context.Context, serviceexport *meshv1beta1.ServiceExport) error
+}
+
+var finalizerName = "mesh.avesha.io/serviceexport-finalizer"
 
 // +kubebuilder:rbac:groups=mesh.avesha.io,resources=serviceexports,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=mesh.avesha.io,resources=serviceexports/status,verbs=get;update;patch
@@ -54,6 +59,35 @@ func (r Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resul
 
 	log.Info("reconciling", "serviceexport", serviceexport.Name)
 
+	// examine DeletionTimestamp to determine if object is under deletion
+	if serviceexport.ObjectMeta.DeletionTimestamp.IsZero() {
+		// register our finalizer
+		if !containsString(serviceexport.GetFinalizers(), finalizerName) {
+			log.Info("adding finalizer")
+			controllerutil.AddFinalizer(serviceexport, finalizerName)
+			if err := r.Update(ctx, serviceexport); err != nil {
+				return ctrl.Result{}, err
+			}
+		}
+	} else {
+		// The object is being deleted
+		if containsString(serviceexport.GetFinalizers(), finalizerName) {
+			log.Info("deleting serviceexport")
+			if err := r.HubClient.DeleteServiceExport(ctx, serviceexport); err != nil {
+				log.Error(err, "unable to delete service export on the hub")
+				return ctrl.Result{}, err
+			}
+
+			log.Info("removing finalizer")
+			controllerutil.RemoveFinalizer(serviceexport, finalizerName)
+			if err := r.Update(ctx, serviceexport); err != nil {
+				return ctrl.Result{}, err
+			}
+		}
+
+		return ctrl.Result{}, nil
+	}
+
 	// Reconciler running for the first time. Set the initial status here
 	if serviceexport.Status.ExportStatus == meshv1beta1.ExportStatusInitial {
 		serviceexport.Status.DNSName = serviceexport.Name + "." + serviceexport.Namespace + ".svc.slice.local"
@@ -64,7 +98,9 @@ func (r Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resul
 			log.Error(err, "Failed to update serviceexport initial status")
 			return ctrl.Result{}, err
 		}
+
 		log.Info("serviceexport updated with initial status")
+
 		return ctrl.Result{}, nil
 	}
 
@@ -78,9 +114,7 @@ func (r Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resul
 
 		log.Info("serviceexport updated with ports")
 
-		return ctrl.Result{
-			RequeueAfter: 30 * time.Second,
-		}, nil
+		return ctrl.Result{}, nil
 	}
 
 	res, err, requeue := r.ReconcileAppPod(ctx, serviceexport)
@@ -102,7 +136,7 @@ func (r Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resul
 	}
 
 	if serviceexport.Status.LastSync == 0 {
-		err = hub.UpdateServiceExport(ctx, serviceexport)
+		err = r.HubClient.UpdateServiceExport(ctx, serviceexport)
 		if err != nil {
 			log.Error(err, "Failed to post serviceexport")
 			serviceexport.Status.ExportStatus = meshv1beta1.ExportStatusError

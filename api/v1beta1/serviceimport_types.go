@@ -56,7 +56,7 @@ type ServiceImportStatus struct {
 	// AvailableEndpoints shows the number of available endpoints
 	AvailableEndpoints int `json:"availableEndpoints,omitempty"`
 	// Endpoints which provide the service
-	Endpoints []ServiceEndpoint `json:"endpoints"`
+	Endpoints []ServiceEndpoint `json:"endpoints,omitempty"`
 }
 
 // +kubebuilder:object:root=true

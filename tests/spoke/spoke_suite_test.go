@@ -20,6 +20,9 @@ import (
 
 	meshv1beta1 "bitbucket.org/realtimeai/kubeslice-operator/api/v1beta1"
 	"bitbucket.org/realtimeai/kubeslice-operator/controllers"
+	"bitbucket.org/realtimeai/kubeslice-operator/controllers/serviceexport"
+	"bitbucket.org/realtimeai/kubeslice-operator/controllers/serviceimport"
+	hce "bitbucket.org/realtimeai/kubeslice-operator/tests/emulator/hubclient"
 	istiov1beta1 "istio.io/client-go/pkg/apis/networking/v1beta1"
 	//+kubebuilder:scaffold:imports
 )
@@ -87,6 +90,23 @@ var _ = BeforeSuite(func() {
 		Client: k8sManager.GetClient(),
 		Scheme: k8sManager.GetScheme(),
 		Log:    ctrl.Log.WithName("SliceTest"),
+	}).SetupWithManager(k8sManager)
+	Expect(err).ToNot(HaveOccurred())
+
+	hubClientEmulator, err := hce.NewHubClientEmulator()
+	Expect(err).ToNot(HaveOccurred())
+	err = (&serviceexport.Reconciler{
+		Client:    k8sManager.GetClient(),
+		Scheme:    k8sManager.GetScheme(),
+		Log:       ctrl.Log.WithName("SvcExTest"),
+		HubClient: hubClientEmulator,
+	}).SetupWithManager(k8sManager)
+	Expect(err).ToNot(HaveOccurred())
+
+	err = (&serviceimport.Reconciler{
+		Client: k8sManager.GetClient(),
+		Scheme: k8sManager.GetScheme(),
+		Log:    ctrl.Log.WithName("SvcImTest"),
 	}).SetupWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())
 
