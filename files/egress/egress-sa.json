@@ -1,0 +1,15 @@
+{
+  "apiVersion": "v1",
+  "kind": "ServiceAccount",
+  "metadata": {
+    "name": "SLICE-istio-egressgateway-service-account",
+    "namespace": "kubeslice-system",
+    "labels": {
+      "istio": "egressgateway",
+      "release": "release-name",
+      "istio.io/rev": "default",
+      "install.operator.istio.io/owning-resource": "unknown",
+      "operator.istio.io/component": "EgressGateways"
+    }
+  }
+}

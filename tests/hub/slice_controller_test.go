@@ -47,7 +47,6 @@ var _ = Describe("Hub SliceController", func() {
 
 			// Cleanup after each test
 			DeferCleanup(func() {
-				ctx := context.Background()
 				Expect(k8sClient.Delete(ctx, hubSlice)).Should(Succeed())
 				Expect(k8sClient.Delete(ctx, createdSlice)).Should(Succeed())
 			})
