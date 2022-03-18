@@ -5,6 +5,6 @@ dockerImagePipeline1(
   dockerfile: 'Dockerfile',
   buildContext: '.',
   buildArguments: [PLATFORM:"amd64"],
-  trigger_remote: 'yes'
+  trigger_remote: 'yes',
   remote_job: 'realtimeai/kubeslice-mesh/master'
 )
