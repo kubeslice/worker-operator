@@ -114,7 +114,7 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req reconcile.Request
 	}
 
 	meshSliceGw.Status.Config = meshv1beta1.SliceGatewayConfig{
-		SliceGatewayID:              sliceGw.Spec.LocalGatewayConfig.ClusterName,
+		SliceGatewayID:              sliceGw.Spec.LocalGatewayConfig.GatewayName,
 		SliceGatewaySubnet:          sliceGw.Spec.LocalGatewayConfig.GatewaySubnet,
 		SliceGatewayRemoteSubnet:    sliceGw.Spec.RemoteGatewayConfig.GatewaySubnet,
 		SliceGatewayHostType:        sliceGw.Spec.GatewayHostType,
