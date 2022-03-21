@@ -12,11 +12,11 @@ var _ = Describe("Manifest File", func() {
 
 	Context("With k8s deployment manifest", func() {
 
-		f := "../../tests/files/manifests/ingress-deploy.json"
+		f := "../../tests/files/manifests/egress-deploy.json"
 
-		It("Should parse file into k8s deployment", func() {
+		It("Should parse file into k8s deployment in the slice", func() {
 
-			m := manifest.NewManifest(f)
+			m := manifest.NewManifest(f, "green")
 
 			Expect(m).ToNot(BeNil())
 
@@ -25,7 +25,7 @@ var _ = Describe("Manifest File", func() {
 			Expect(err).NotTo(HaveOccurred())
 			Expect(deploy).ToNot(BeNil())
 
-			Expect(deploy.ObjectMeta.Name).Should(Equal("istio-ingressgateway"))
+			Expect(deploy.ObjectMeta.Name).Should(Equal("green-istio-egressgateway"))
 
 		})
 
