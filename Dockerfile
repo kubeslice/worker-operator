@@ -27,7 +27,6 @@ COPY main.go main.go
 COPY api/ api/
 COPY controllers/ controllers/
 COPY internal/ internal/
-COPY pkg/ pkg/
 
 # Build
 RUN go env -w GOPRIVATE=bitbucket.org/realtimeai && \

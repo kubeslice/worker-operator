@@ -3,22 +3,23 @@ package cluster
 import (
 	"context"
 	"fmt"
-	"gopkg.in/yaml.v2"
-	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/wait"
-	"k8s.io/client-go/kubernetes"
 	"strings"
 	"time"
+
+	"gopkg.in/yaml.v2"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/wait"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 type Cluster struct {
-	Client kubernetes.Interface
+	Client client.Client
 	Name   string `json:"clusterName,omitempty"`
 }
 
 //NewCluster returns ClusterInterface
-func NewCluster(client kubernetes.Interface, clusterName string) ClusterInterface {
+func NewCluster(client client.Client, clusterName string) ClusterInterface {
 	return &Cluster{
 		Client: client,
 		Name:   clusterName,
@@ -31,6 +32,7 @@ func (c *Cluster) GetClusterInfo(ctx context.Context) (*ClusterInfo, error) {
 	}
 	location, err := c.getClusterLocation(ctx)
 	if err != nil {
+		log.Error(err, "Error Getting Cluster Location")
 		return nil, err
 	}
 	cl.ClusterProperty = ClusterProperty{
@@ -42,8 +44,10 @@ func (c *Cluster) GetClusterInfo(ctx context.Context) (*ClusterInfo, error) {
 func (c *Cluster) getClusterLocation(ctx context.Context) (GeoLocation, error) {
 	var g GeoLocation
 
-	nodeList, err := c.Client.CoreV1().Nodes().List(ctx, metav1.ListOptions{})
+	nodeList := corev1.NodeList{}
+	err := c.Client.List(ctx, &nodeList)
 	if err != nil {
+		log.Error(err, "Can't fetch node List")
 		return g, fmt.Errorf("can't fetch node list: %+v ", err)
 	}
 
@@ -56,24 +60,22 @@ func (c *Cluster) getClusterLocation(ctx context.Context) (GeoLocation, error) {
 	if nodeList.Items[0].Spec.ProviderID != "" {
 		g.CloudProvider = strings.Split(nodeList.Items[0].Spec.ProviderID, ":")[0]
 	}
-
 	return g, nil
 }
 
 func (c *Cluster) GetNsmExcludedPrefix(ctx context.Context, configmap, namespace string) ([]string, error) {
-	var nsmconfig *corev1.ConfigMap
+	var nsmconfig corev1.ConfigMap
 	var err error
-
-	// wait for 5 minuites and poll for every 1 second
+	// wait for 5 minuites and poll for every 10 second
 	wait.Poll(10*time.Second, 5*time.Minute, func() (bool, error) {
-		nsmconfig, err = c.Client.CoreV1().ConfigMaps(namespace).Get(ctx, configmap, metav1.GetOptions{})
+		err = c.Client.Get(ctx, types.NamespacedName{Namespace: namespace, Name: configmap}, &nsmconfig)
 		if err != nil {
 			return false, fmt.Errorf("can't get configmap %s from namespace %s: %+v ", configmap, namespace, err)
 		}
 		return true, nil
 	})
-	if err != nil {
-		return nil, fmt.Errorf("unkown error occured: %+v ", err)
+	if len(nsmconfig.Data) == 0 {
+		return nil, fmt.Errorf("CNI Subnet not present..")
 	}
 
 	var cmData map[string]interface{}

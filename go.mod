@@ -6,7 +6,7 @@ require (
 	bitbucket.org/realtimeai/kubeslice-gw-sidecar v0.0.0-20220214062837-3c7d18a8439e
 	bitbucket.org/realtimeai/kubeslice-netops v0.0.0-20220225091428-05183d983334
 	bitbucket.org/realtimeai/kubeslice-router-sidecar v0.0.0-20220221080454-e2276f57c978
-	bitbucket.org/realtimeai/mesh-apis v0.0.0-20220313235558-bf8118ef291e
+	bitbucket.org/realtimeai/mesh-apis v0.0.0-20220319191656-79173bf91044
 	github.com/go-logr/logr v1.2.0
 	github.com/go-logr/zapr v1.2.0
 	github.com/golang/protobuf v1.5.2
@@ -26,5 +26,5 @@ require (
 	k8s.io/api v0.23.4
 	k8s.io/apimachinery v0.23.4
 	k8s.io/client-go v0.23.4
-	sigs.k8s.io/controller-runtime v0.11.0
+	sigs.k8s.io/controller-runtime v0.11.1
 )

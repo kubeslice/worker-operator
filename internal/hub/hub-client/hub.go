@@ -2,12 +2,8 @@ package hub
 
 import (
 	"context"
-	"os"
-	"strings"
-
-	"bitbucket.org/realtimeai/kubeslice-operator/pkg/kube"
-
 	"k8s.io/apimachinery/pkg/api/errors"
+	"os"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -19,11 +15,13 @@ import (
 
 	meshv1beta1 "bitbucket.org/realtimeai/kubeslice-operator/api/v1beta1"
 	"bitbucket.org/realtimeai/kubeslice-operator/internal/cluster"
+	"bitbucket.org/realtimeai/kubeslice-operator/internal/logger"
 	hubv1alpha1 "bitbucket.org/realtimeai/mesh-apis/pkg/hub/v1alpha1"
 	spokev1alpha1 "bitbucket.org/realtimeai/mesh-apis/pkg/spoke/v1alpha1"
 )
 
 var scheme = runtime.NewScheme()
+var log = logger.NewLogger().WithValues("type", "hub")
 
 func init() {
 	clientgoscheme.AddToScheme(scheme)
@@ -78,48 +76,53 @@ func (hubClient *HubClientConfig) UpdateNodePortForSliceGwServer(ctx context.Con
 	return hubClient.Update(ctx, sliceGw)
 }
 
-func UpdateClusterInfoToHub(ctx context.Context, clusterName, nodeIP string) error {
-	hubClientCfg, err := NewHubClientConfig()
+func PostClusterInfoToHub(ctx context.Context, spokeclient client.Client, hubClient client.Client, clusterName, nodeIP string, namespace string) error {
+	err := updateClusterInfoToHub(ctx, spokeclient, hubClient, clusterName, nodeIP, namespace)
 	if err != nil {
+		log.Error(err, "Error Posting Cluster info to hub cluster")
 		return err
 	}
+	log.Info("Posted cluster info to hub cluster")
+	return nil
+}
 
-	hubClient := hubClientCfg.Client
-
+func updateClusterInfoToHub(ctx context.Context, spokeclient client.Client, hubClient client.Client, clusterName, nodeIP string, namespace string) error {
 	hubCluster := &hubv1alpha1.Cluster{}
-	err = hubClient.Get(ctx, types.NamespacedName{
+	err := hubClient.Get(ctx, types.NamespacedName{
 		Name:      clusterName,
-		Namespace: ProjectNamespace,
+		Namespace: namespace,
 	}, hubCluster)
 	if err != nil {
 		return err
 	}
 
-	clientset, err := kube.NewClient()
-	if err != nil {
-		return err
-	}
-
-	kubeClient := clientset.KubeCli
-	c := cluster.NewCluster(kubeClient, clusterName)
+	c := cluster.NewCluster(spokeclient, clusterName)
 	//get geographical info
 	clusterInfo, err := c.GetClusterInfo(ctx)
 	if err != nil {
+		log.Error(err, "Error getting clusterInfo")
 		return err
 	}
 	cniSubnet, err := c.GetNsmExcludedPrefix(ctx, "nsm-config", "kubeslice-system")
 	if err != nil {
+		log.Error(err, "Error getting cni Subnet")
 		return err
 	}
+	log.Info("cniSubnet", "cniSubnet", cniSubnet)
 	hubCluster.Spec.ClusterProperty.GeoLocation.CloudRegion = clusterInfo.ClusterProperty.GeoLocation.CloudRegion
-
 	hubCluster.Spec.ClusterProperty.GeoLocation.CloudProvider = clusterInfo.ClusterProperty.GeoLocation.CloudProvider
-
 	hubCluster.Spec.NodeIP = nodeIP
-
-	hubCluster.Spec.CniSubnet = strings.Join(cniSubnet, ",")
-
-	return hubClient.Update(ctx, hubCluster)
+	hubCluster.Status.CniSubnet = cniSubnet
+	if err := hubClient.Update(ctx, hubCluster); err != nil {
+		log.Error(err, "Error updating to cluster spec on hub cluster")
+		return err
+	}
+	hubCluster.Status.CniSubnet = cniSubnet
+	if err := hubClient.Status().Update(ctx, hubCluster); err != nil {
+		log.Error(err, "Error updating cniSubnet to cluster status on hub cluster")
+		return err
+	}
+	return nil
 }
 
 func getHubServiceDiscoveryEps(serviceexport *meshv1beta1.ServiceExport) []hubv1alpha1.ServiceDiscoveryEndpoint {
