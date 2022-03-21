@@ -23,6 +23,7 @@ import (
 	"bitbucket.org/realtimeai/kubeslice-operator/controllers/serviceexport"
 	"bitbucket.org/realtimeai/kubeslice-operator/controllers/serviceimport"
 	hce "bitbucket.org/realtimeai/kubeslice-operator/tests/emulator/hubclient"
+	hubv1alpha1 "bitbucket.org/realtimeai/mesh-apis/pkg/hub/v1alpha1"
 	istiov1beta1 "istio.io/client-go/pkg/apis/networking/v1beta1"
 	//+kubebuilder:scaffold:imports
 )
@@ -40,6 +41,7 @@ var ctx context.Context
 var cancel context.CancelFunc
 
 const CONTROL_PLANE_NS = "kubeslice-system"
+const PROJECT_NS = "kubeslice-cisco"
 
 var _ = BeforeSuite(func() {
 	logf.SetLogger(zap.New(zap.WriteTo(GinkgoWriter), zap.UseDevMode(true)))
@@ -64,6 +66,7 @@ var _ = BeforeSuite(func() {
 	err = meshv1beta1.AddToScheme(scheme.Scheme)
 	Expect(err).NotTo(HaveOccurred())
 
+	err = hubv1alpha1.AddToScheme(scheme.Scheme)
 	err = istiov1beta1.AddToScheme(scheme.Scheme)
 	Expect(err).NotTo(HaveOccurred())
 

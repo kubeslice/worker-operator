@@ -64,6 +64,10 @@ spec:
                           enabled:
                             description: Enabled is the enable status of the KubernetesDashboard
                             type: boolean
+                          endpoint:
+                            description: Endpoint is the base endpoint to access the
+                              kubernetes dashboard
+                            type: string
                           ingressPrefix:
                             description: IngressPrefix is the prefix of ingress gateway
                               for KubernetesDashboard
@@ -84,9 +88,6 @@ spec:
                         type: string
                     type: object
                 type: object
-              cniSubnet:
-                description: CniSubnet is the podip and service ip subnet of CNI
-                type: string
               networkInterface:
                 description: NetworkInterface is the network interface attached with
                   the cluster.
@@ -98,6 +99,11 @@ spec:
           status:
             description: ClusterStatus defines the observed state of Cluster
             properties:
+              cniSubnet:
+                description: CniSubnet is the podip and service ip subnet of CNI
+                items:
+                  type: string
+                type: array
               secretName:
                 description: SecretName is the name of the secret for the spoke cluster.
                 type: string

@@ -78,4 +78,70 @@ var _ = Describe("Hub SliceController", func() {
 
 	})
 
+	Context("With ExternalGatewayConfig", func() {
+
+		var hubSlice *spokev1alpha1.SpokeSliceConfig
+		var createdSlice *meshv1beta1.Slice
+
+		BeforeEach(func() {
+
+			// Prepare k8s objects
+			hubSlice = &spokev1alpha1.SpokeSliceConfig{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-slice",
+					Namespace: PROJECT_NS,
+					Labels: map[string]string{
+						"spoke-cluster": CLUSTER_NAME,
+					},
+				},
+				Spec: spokev1alpha1.SpokeSliceConfigSpec{
+					SliceName: "test-slice",
+					ExternalGatewayConfig: spokev1alpha1.ExternalGatewayConfig{
+						Ingress: spokev1alpha1.ExternalGatewayConfigOptions{
+							Enabled: true,
+						},
+						Egress: spokev1alpha1.ExternalGatewayConfigOptions{
+							Enabled: true,
+						},
+						NsIngress: spokev1alpha1.ExternalGatewayConfigOptions{
+							Enabled: true,
+						},
+					},
+				},
+			}
+
+			createdSlice = &meshv1beta1.Slice{}
+
+			// Cleanup after each test
+			DeferCleanup(func() {
+				Expect(k8sClient.Delete(ctx, hubSlice)).Should(Succeed())
+				Expect(k8sClient.Delete(ctx, createdSlice)).Should(Succeed())
+			})
+		})
+
+		It("Should create Slice CR in spoke", func() {
+			ctx := context.Background()
+
+			Expect(k8sClient.Create(ctx, hubSlice)).Should(Succeed())
+
+			sliceKey := types.NamespacedName{Name: "test-slice", Namespace: "kubeslice-system"}
+
+			// Make sure slice is reconciled in spoke cluster
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, sliceKey, createdSlice)
+				if err != nil {
+					return false
+				}
+				return true
+			}, time.Second*10, time.Millisecond*250).Should(BeTrue())
+
+			Expect(createdSlice.Status.SliceConfig.ExternalGatewayConfig).ToNot(BeNil())
+			Expect(createdSlice.Status.SliceConfig.ExternalGatewayConfig.Ingress.Enabled).To(BeTrue())
+			Expect(createdSlice.Status.SliceConfig.ExternalGatewayConfig.Egress.Enabled).To(BeTrue())
+			Expect(createdSlice.Status.SliceConfig.ExternalGatewayConfig.NsIngress.Enabled).To(BeTrue())
+
+		})
+
+	})
+
 })

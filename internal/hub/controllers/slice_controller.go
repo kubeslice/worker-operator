@@ -6,6 +6,7 @@ import (
 	meshv1beta1 "bitbucket.org/realtimeai/kubeslice-operator/api/v1beta1"
 	"bitbucket.org/realtimeai/kubeslice-operator/internal/logger"
 	spokev1alpha1 "bitbucket.org/realtimeai/mesh-apis/pkg/spoke/v1alpha1"
+	"github.com/go-logr/logr"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -14,11 +15,13 @@ import (
 
 type SliceReconciler struct {
 	client.Client
+	Log        logr.Logger
 	MeshClient client.Client
 }
 
 func (r *SliceReconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
-	log := logger.FromContext(ctx)
+	log := r.Log.WithValues("sliceconfig", req.NamespacedName)
+	ctx = logger.WithLogger(ctx, log)
 
 	slice := &spokev1alpha1.SpokeSliceConfig{}
 	err := r.Get(ctx, req.NamespacedName, slice)
@@ -103,6 +106,22 @@ func (r *SliceReconciler) updateSliceConfig(ctx context.Context, meshSlice *mesh
 
 	if meshSlice.Status.SliceConfig.SliceIpam.IpamClusterOctet == 0 {
 		meshSlice.Status.SliceConfig.SliceIpam.IpamClusterOctet = spokeSlice.Spec.IpamClusterOctet
+	}
+
+	if meshSlice.Status.SliceConfig.ExternalGatewayConfig == nil {
+		cfg := spokeSlice.Spec.ExternalGatewayConfig
+		meshSlice.Status.SliceConfig.ExternalGatewayConfig = &meshv1beta1.ExternalGatewayConfig{
+			GatewayType: cfg.GatewayType,
+			Egress: &meshv1beta1.ExternalGatewayConfigOptions{
+				Enabled: cfg.Egress.Enabled,
+			},
+			Ingress: &meshv1beta1.ExternalGatewayConfigOptions{
+				Enabled: cfg.Ingress.Enabled,
+			},
+			NsIngress: &meshv1beta1.ExternalGatewayConfigOptions{
+				Enabled: cfg.NsIngress.Enabled,
+			},
+		}
 	}
 
 	return r.MeshClient.Status().Update(ctx, meshSlice)

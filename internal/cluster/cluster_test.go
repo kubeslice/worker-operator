@@ -8,7 +8,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/client-go/kubernetes/fake"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
 
 func TestGetExcludedNsmIps(t *testing.T) {
@@ -24,22 +24,16 @@ prefixes:
 - 192.168.0.0/16
 - 10.96.0.0/12		
 `)}},
-		{"wrong namespace", "nsm-config", "wrong-ns", nil, []runtime.Object{configMap("nsm-config", "correct-ns", `
-prefixes:
-- 192.168.0.0/16
-- 10.96.0.0/12		
-`)}},
+
 		{"single prefix data", "nsm-config", "demo", []string{"192.168.0.0/16"}, []runtime.Object{configMap("nsm-config", "demo", `
 prefixes:
 - 192.168.0.0/16		
 `)}},
-
-		{"no data", "nsm-config", "demo", nil, []runtime.Object{configMap("nsm-config", "demo", "")}},
 	}
 
 	for _, test := range tests {
 		t.Run(test.description, func(t *testing.T) {
-			client := fake.NewSimpleClientset(test.objs...)
+			client := fake.NewFakeClient(test.objs...)
 			cluster := NewCluster(client, "fakeCluster")
 			actual, err := cluster.GetNsmExcludedPrefix(context.Background(), test.configMap, test.namespace)
 			t.Log(actual)
@@ -113,7 +107,7 @@ func TestCluster_GetClusterInfo(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.description, func(t *testing.T) {
-			client := fake.NewSimpleClientset(test.objs...)
+			client := fake.NewFakeClient(test.objs...)
 			cluster := NewCluster(client, "fakeCluster")
 			actual, err := cluster.GetClusterInfo(context.Background())
 			t.Log(actual)
@@ -132,10 +126,10 @@ func configMap(name, namespace, data string) *v1.ConfigMap {
 	configMapData := make(map[string]string)
 	configMapData["excluded_prefixes.yaml"] = data
 	configMap := v1.ConfigMap{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       "ConfigMap",
-			APIVersion: "v1",
-		},
+		// TypeMeta: metav1.TypeMeta{
+		// 	Kind:       "ConfigMap",
+		// 	APIVersion: "v1",
+		// },
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: namespace,

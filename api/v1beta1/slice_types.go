@@ -61,6 +61,20 @@ type SliceConfig struct {
 	QosProfileDetails QosProfileDetails `json:"qosProfileDetails"`
 	// IPAM configuration for the slice
 	SliceIpam SliceIpamConfig `json:"sliceIpam"`
+	// ExternalGatewayConfig determines istio ingress/egress configuration
+	ExternalGatewayConfig *ExternalGatewayConfig `json:"externalGatewayConfig,omitempty"`
+}
+
+// ExternalGatewayConfig determines istio ingress/egress configuration
+type ExternalGatewayConfig struct {
+	Ingress     *ExternalGatewayConfigOptions `json:"ingress,omitempty"`
+	Egress      *ExternalGatewayConfigOptions `json:"egress,omitempty"`
+	NsIngress   *ExternalGatewayConfigOptions `json:"nsIngress,omitempty"`
+	GatewayType string                        `json:"gatewayType,omitempty"`
+}
+
+type ExternalGatewayConfigOptions struct {
+	Enabled bool `json:"enabled,omitempty"`
 }
 
 // AppPod defines the app pods connected to slice

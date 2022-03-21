@@ -18,7 +18,6 @@ package main
 
 import (
 	"bitbucket.org/realtimeai/kubeslice-operator/internal/cluster"
-	"context"
 	"flag"
 	"os"
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
@@ -45,6 +44,7 @@ import (
 	"bitbucket.org/realtimeai/kubeslice-operator/internal/logger"
 	"bitbucket.org/realtimeai/kubeslice-operator/internal/utils"
 	deploywh "bitbucket.org/realtimeai/kubeslice-operator/internal/webhook/deploy"
+	istiov1beta1 "istio.io/client-go/pkg/apis/networking/v1beta1"
 	//+kubebuilder:scaffold:imports
 )
 
@@ -57,6 +57,7 @@ func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 	utilruntime.Must(nsmv1alpha1.AddToScheme(scheme))
 	utilruntime.Must(meshv1beta1.AddToScheme(scheme))
+	utilruntime.Must(istiov1beta1.AddToScheme(scheme))
 	//+kubebuilder:scaffold:scheme
 }
 
@@ -176,13 +177,13 @@ func main() {
 	}()
 
 	//check if user has provided NODE_IP as env variable, if not fetch the ExternalIP from gateway nodes
-	nodeIP, err := getNodeIp()
+	nodeIP, err := cluster.GetNodeIP(clientForHubMgr)
 	if err != nil {
 		setupLog.Error(err, "Error Getting nodeIP")
 	}
 
 	//post GeoLocation and other metadata to cluster CR on Hub cluster
-	err = postClusterInfoToHub(ctx, os.Getenv("CLUSTER_NAME"), nodeIP)
+	err = hub.PostClusterInfoToHub(ctx, clientForHubMgr, hubClient, os.Getenv("CLUSTER_NAME"), nodeIP, os.Getenv("HUB_PROJECT_NAMESPACE"))
 	if err != nil {
 		setupLog.Error(err, "could not post Cluster Info to Hub")
 	}
@@ -191,25 +192,4 @@ func main() {
 		setupLog.Error(err, "problem running manager")
 		os.Exit(1)
 	}
-}
-
-func getNodeIp() (string, error) {
-	nodeIPs, err := cluster.GetNodeExternalIpList()
-	if err != nil {
-		setupLog.Error(err, "Getting NodeIP From kube-api-server")
-		os.Exit(1)
-	}
-	nodeIP := nodeIPs[0]
-	setupLog.Info("nodeIP", "nodeIP selected", nodeIP)
-	return nodeIP, err
-}
-
-func postClusterInfoToHub(ctx context.Context, clusterName, nodeIP string) error {
-	err := hub.UpdateClusterInfoToHub(ctx, clusterName, nodeIP)
-	if err != nil {
-		setupLog.Error(err, "Error Posting Cluster info to hub cluster")
-		return err
-	}
-	setupLog.Info("Posted cluster info to hub cluster")
-	return nil
 }

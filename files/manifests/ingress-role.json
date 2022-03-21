@@ -1,0 +1,29 @@
+{
+  "apiVersion": "rbac.authorization.k8s.io/v1",
+  "kind": "Role",
+  "metadata": {
+    "name": "SLICE-istio-ingressgateway-sds",
+    "namespace": "kubeslice-system",
+    "labels": {
+      "release": "release-name",
+      "istio.io/rev": "default",
+      "install.operator.istio.io/owning-resource": "unknown",
+      "operator.istio.io/component": "IngressGateways"
+    }
+  },
+  "rules": [
+    {
+      "apiGroups": [
+        ""
+      ],
+      "resources": [
+        "secrets"
+      ],
+      "verbs": [
+        "get",
+        "watch",
+        "list"
+      ]
+    }
+  ]
+}

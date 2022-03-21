@@ -31,8 +31,6 @@ type ClusterSpec struct {
 	NetworkInterface string `json:"networkInterface,omitempty"`
 	//put in an object
 	ClusterProperty ClusterProperty `json:"clusterProperty,omitempty"`
-	//CniSubnet is the podip and service ip subnet of CNI
-	CniSubnet string `json:"cniSubnet,omitempty"`
 }
 
 type ClusterProperty struct {
@@ -76,12 +74,16 @@ type KubernetesDashboard struct {
 	AccessToken string `json:"accessToken,omitempty"`
 	//IngressPrefix is the prefix of ingress gateway for KubernetesDashboard
 	IngressPrefix string `json:"ingressPrefix,omitempty"`
+	//Endpoint is the base endpoint to access the kubernetes dashboard
+	Endpoint string `json:"endpoint,omitempty"`
 }
 
 // ClusterStatus defines the observed state of Cluster
 type ClusterStatus struct {
 	// SecretName is the name of the secret for the spoke cluster.
 	SecretName string `json:"secretName,omitempty"`
+	//CniSubnet is the podip and service ip subnet of CNI
+	CniSubnet []string `json:"cniSubnet,omitempty"`
 }
 
 //+kubebuilder:object:root=true
