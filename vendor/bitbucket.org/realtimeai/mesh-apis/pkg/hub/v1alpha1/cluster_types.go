@@ -76,6 +76,8 @@ type KubernetesDashboard struct {
 	AccessToken string `json:"accessToken,omitempty"`
 	//IngressPrefix is the prefix of ingress gateway for KubernetesDashboard
 	IngressPrefix string `json:"ingressPrefix,omitempty"`
+	//Endpoint is the base endpoint to access the kubernetes dashboard
+	Endpoint string `json:"endpoint,omitempty"`
 }
 
 // ClusterStatus defines the observed state of Cluster

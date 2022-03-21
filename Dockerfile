@@ -39,6 +39,11 @@ FROM gcr.io/distroless/static:nonroot
 LABEL maintainer="Avesha Systems LLC"
 WORKDIR /
 COPY --from=builder /workspace/manager .
+
+# Copy manifest files for istio gateways deployment
+COPY files files
+ENV MANIFEST_PATH="/files/manifests"
+
 USER nonroot:nonroot
 
 ENTRYPOINT ["/manager"]

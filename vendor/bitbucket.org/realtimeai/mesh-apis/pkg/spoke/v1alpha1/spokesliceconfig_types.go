@@ -20,9 +20,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
-// NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
-
 // SpokeSliceConfigSpec defines the desired state of Slice
 type SpokeSliceConfigSpec struct {
 	SliceName   string `json:"sliceName,omitempty"`
@@ -35,6 +32,7 @@ type SpokeSliceConfigSpec struct {
 	QosProfileDetails         QOSProfile                `json:"qosProfileDetails,omitempty"`
 	NamespaceIsolationProfile NamespaceIsolationProfile `json:"namespaceIsolationProfile,omitempty"`
 	IpamClusterOctet          int                       `json:"ipamClusterOctet,omitempty"`
+	ExternalGatewayConfig     ExternalGatewayConfig     `json:"externalGatewayConfig,omitempty"`
 }
 
 // SpokeSliceGatewayProvider defines the configuration for slicegateway
@@ -61,6 +59,18 @@ type NamespaceIsolationProfile struct {
 	IsolationEnabled      bool     `json:"isolationEnabled,omitempty"`
 	ApplicationNamespaces []string `json:"applicationNamespaces,omitempty"`
 	AllowedNamespaces     []string `json:"allowedNamespaces,omitempty"`
+}
+
+type ExternalGatewayConfig struct {
+	Ingress   ExternalGatewayConfigOptions `json:"ingress,omitempty"`
+	Egress    ExternalGatewayConfigOptions `json:"egress,omitempty"`
+	NsIngress ExternalGatewayConfigOptions `json:"nsIngress,omitempty"`
+	//+kubebuilder:validation:Enum:=none,istio
+	GatewayType string `json:"gatewayType,omitempty"`
+}
+
+type ExternalGatewayConfigOptions struct {
+	Enabled bool `json:"enabled,omitempty"`
 }
 
 // SpokeSliceConfigStatus defines the observed state of Slice

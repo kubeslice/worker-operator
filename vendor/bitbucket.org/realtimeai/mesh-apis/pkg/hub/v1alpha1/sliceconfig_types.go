@@ -35,7 +35,21 @@ type SliceConfigSpec struct {
 	StandardQosProfileName    string                    `json:"standardQosProfileName,omitempty"` // FIXME: Add OneOf StandardQosProfileName vs QosProfileDetails
 	QosProfileDetails         QOSProfile                `json:"qosProfileDetails,omitempty"`      // FIXME: Add OneOf StandardQosProfileName vs QosProfileDetails
 	NamespaceIsolationProfile NamespaceIsolationProfile `json:"namespaceIsolationProfile,omitempty"`
-	NetworkPolicyVersion      int                       `json:"networkPolicyVersion,omitempty"` //FIXME:: Not Required. Confirm with UI
+	ExternalGatewayConfig     []ExternalGatewayConfig   `json:"externalGatewayConfig,omitempty"`
+}
+
+// ExternalGatewayConfig is the configuration for external gateways like 'istio', etc/
+type ExternalGatewayConfig struct {
+	Ingress   ExternalGatewayConfigOptions `json:"ingress,omitempty"`
+	Egress    ExternalGatewayConfigOptions `json:"egress,omitempty"`
+	NsIngress ExternalGatewayConfigOptions `json:"nsIngress,omitempty"`
+	//+kubebuilder:validation:Enum:=none,istio
+	GatewayType string   `json:"gatewayType,omitempty"`
+	Clusters    []string `json:"clusters,omitempty"`
+}
+
+type ExternalGatewayConfigOptions struct {
+	Enabled bool `json:"enabled,omitempty"`
 }
 
 // SpokeSliceGatewayProvider defines the configuration for slicegateway

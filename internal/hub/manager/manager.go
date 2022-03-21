@@ -17,6 +17,7 @@ import (
 	"bitbucket.org/realtimeai/kubeslice-operator/internal/hub/controllers"
 	"bitbucket.org/realtimeai/kubeslice-operator/internal/logger"
 	spokev1alpha1 "bitbucket.org/realtimeai/mesh-apis/pkg/spoke/v1alpha1"
+	ctrl "sigs.k8s.io/controller-runtime"
 )
 
 var scheme = runtime.NewScheme()
@@ -54,6 +55,7 @@ func Start(meshClient client.Client, ctx context.Context) {
 
 	sliceReconciler := &controllers.SliceReconciler{
 		MeshClient: meshClient,
+		Log:        ctrl.Log.WithName("hub").WithName("controllers").WithName("SliceConfig"),
 	}
 	err = builder.
 		ControllerManagedBy(mgr).

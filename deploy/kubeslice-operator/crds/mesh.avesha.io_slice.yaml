@@ -75,6 +75,28 @@ spec:
               sliceConfig:
                 description: SliceConfig is the spec for slice received from hub cluster
                 properties:
+                  externalGatewayConfig:
+                    description: ExternalGatewayConfig determines istio ingress/egress
+                      configuration
+                    properties:
+                      egress:
+                        properties:
+                          enabled:
+                            type: boolean
+                        type: object
+                      gatewayType:
+                        type: string
+                      ingress:
+                        properties:
+                          enabled:
+                            type: boolean
+                        type: object
+                      nsIngress:
+                        properties:
+                          enabled:
+                            type: boolean
+                        type: object
+                    type: object
                   qosProfileDetails:
                     description: QOS profile details
                     properties:

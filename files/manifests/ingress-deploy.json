@@ -2,15 +2,19 @@
   "apiVersion": "apps/v1",
   "kind": "Deployment",
   "metadata": {
-    "name": "istio-ingressgateway",
+    "name": "SLICE-istio-ingressgateway",
     "namespace": "kubeslice-system",
+    "annotations": {
+      "avesha.io/slice": "SLICE"
+    },
     "labels": {
       "app": "istio-ingressgateway",
       "istio": "ingressgateway",
       "release": "release-name",
       "istio.io/rev": "default",
       "install.operator.istio.io/owning-resource": "unknown",
-      "operator.istio.io/component": "IngressGateways"
+      "operator.istio.io/component": "IngressGateways",
+      "slice": "SLICE"
     }
   },
   "spec": {
@@ -31,28 +35,24 @@
         "labels": {
           "app": "istio-ingressgateway",
           "istio": "ingressgateway",
-          "service.istio.io/canonical-name": "istio-ingressgateway",
+          "service.istio.io/canonical-name": "SLICE-istio-ingressgateway",
           "service.istio.io/canonical-revision": "latest",
           "istio.io/rev": "default",
           "install.operator.istio.io/owning-resource": "unknown",
           "operator.istio.io/component": "IngressGateways",
-          "sidecar.istio.io/inject": "false"
+          "sidecar.istio.io/inject": "false",
+          "slice": "SLICE"
         },
         "annotations": {
           "prometheus.io/port": "15020",
           "prometheus.io/scrape": "true",
           "prometheus.io/path": "/stats/prometheus",
-          "sidecar.istio.io/inject": "false"
+          "sidecar.istio.io/inject": "false",
+          "avesha.io/slice": "SLICE"
         }
       },
       "spec": {
-        "securityContext": {
-          "runAsUser": 1337,
-          "runAsGroup": 1337,
-          "runAsNonRoot": true,
-          "fsGroup": 1337
-        },
-        "serviceAccountName": "istio-ingressgateway-service-account",
+        "serviceAccountName": "SLICE-istio-ingressgateway-service-account",
         "containers": [
           {
             "name": "istio-proxy",
@@ -93,18 +93,8 @@
               "--proxyComponentLogLevel=misc:error",
               "--log_output_level=default:info",
               "--serviceCluster",
-              "istio-ingressgateway"
+              "SLICE-istio-ingressgateway"
             ],
-            "securityContext": {
-              "allowPrivilegeEscalation": false,
-              "capabilities": {
-                "drop": [
-                  "ALL"
-                ]
-              },
-              "privileged": false,
-              "readOnlyRootFilesystem": true
-            },
             "readinessProbe": {
               "failureThreshold": 30,
               "httpGet": {
@@ -211,15 +201,11 @@
               },
               {
                 "name": "ISTIO_META_WORKLOAD_NAME",
-                "value": "istio-ingressgateway"
+                "value": "SLICE-istio-ingressgateway"
               },
               {
                 "name": "ISTIO_META_OWNER",
-                "value": "kubernetes://apis/apps/v1/namespaces/kubeslice-system/deployments/istio-ingressgateway"
-              },
-              {
-                "name": "ISTIO_META_UNPRIVILEGED_POD",
-                "value": "true"
+                "value": "kubernetes://apis/apps/v1/namespaces/kubeslice-system/deployments/SLICE-istio-ingressgateway"
               },
               {
                 "name": "ISTIO_META_ROUTER_MODE",

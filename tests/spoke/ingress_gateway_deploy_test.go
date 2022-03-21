@@ -16,38 +16,38 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-var _ = Describe("IstioGateways", func() {
+var _ = Describe("IngressGateway", func() {
 
 	Context("With ingress not installed", func() {
 
 		objects := []client.Object{
 			&appsv1.Deployment{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "istio-ingressgateway",
+					Name:      "green-istio-ingressgateway",
 					Namespace: "kubeslice-system",
 				},
 			},
 			&corev1.Service{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "istio-ingressgateway",
+					Name:      "green-istio-ingressgateway",
 					Namespace: "kubeslice-system",
 				},
 			},
 			&rbacv1.Role{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "istio-ingressgateway-sds",
+					Name:      "green-istio-ingressgateway-sds",
 					Namespace: "kubeslice-system",
 				},
 			},
 			&corev1.ServiceAccount{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "istio-ingressgateway-service-account",
+					Name:      "green-istio-ingressgateway-service-account",
 					Namespace: "kubeslice-system",
 				},
 			},
 			&rbacv1.RoleBinding{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "istio-ingressgateway-sds",
+					Name:      "green-istio-ingressgateway-sds",
 					Namespace: "kubeslice-system",
 				},
 			},
@@ -64,7 +64,7 @@ var _ = Describe("IstioGateways", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			// Check if deployment is there in the cluster
-			deployKey := types.NamespacedName{Name: "istio-ingressgateway", Namespace: "kubeslice-system"}
+			deployKey := types.NamespacedName{Name: "green-istio-ingressgateway", Namespace: "kubeslice-system"}
 			createdDeploy := &appsv1.Deployment{}
 
 			// Wait until deployment is created properly
@@ -76,7 +76,7 @@ var _ = Describe("IstioGateways", func() {
 				return true
 			}, time.Second*10, time.Millisecond*250).Should(BeTrue())
 
-			Expect(createdDeploy.ObjectMeta.Name).To(Equal("istio-ingressgateway"))
+			Expect(createdDeploy.ObjectMeta.Name).To(Equal("green-istio-ingressgateway"))
 
 			labels := createdDeploy.ObjectMeta.Labels
 			Expect(labels["slice"]).To(Equal("green"))
@@ -91,7 +91,7 @@ var _ = Describe("IstioGateways", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			// Check if service is there in the cluster
-			key := types.NamespacedName{Name: "istio-ingressgateway", Namespace: "kubeslice-system"}
+			key := types.NamespacedName{Name: "green-istio-ingressgateway", Namespace: "kubeslice-system"}
 			svc := &corev1.Service{}
 
 			// Wait until deployment is created properly
@@ -103,10 +103,10 @@ var _ = Describe("IstioGateways", func() {
 				return true
 			}, time.Second*10, time.Millisecond*250).Should(BeTrue())
 
-			Expect(svc.ObjectMeta.Name).To(Equal("istio-ingressgateway"))
+			Expect(svc.ObjectMeta.Name).To(Equal("green-istio-ingressgateway"))
 
 			// Check if role and rolebinding are there in the cluster
-			rkey := types.NamespacedName{Name: "istio-ingressgateway-sds", Namespace: "kubeslice-system"}
+			rkey := types.NamespacedName{Name: "green-istio-ingressgateway-sds", Namespace: "kubeslice-system"}
 			role := &rbacv1.Role{}
 			rb := &rbacv1.RoleBinding{}
 
@@ -128,11 +128,11 @@ var _ = Describe("IstioGateways", func() {
 				return true
 			}, time.Second*10, time.Millisecond*250).Should(BeTrue())
 
-			Expect(role.ObjectMeta.Name).To(Equal("istio-ingressgateway-sds"))
-			Expect(rb.ObjectMeta.Name).To(Equal("istio-ingressgateway-sds"))
+			Expect(role.ObjectMeta.Name).To(Equal("green-istio-ingressgateway-sds"))
+			Expect(rb.ObjectMeta.Name).To(Equal("green-istio-ingressgateway-sds"))
 
 			// Check if sa there in the cluster
-			skey := types.NamespacedName{Name: "istio-ingressgateway-service-account", Namespace: "kubeslice-system"}
+			skey := types.NamespacedName{Name: "green-istio-ingressgateway-service-account", Namespace: "kubeslice-system"}
 			sa := &corev1.ServiceAccount{}
 
 			// Wait until sa is created properly
@@ -144,7 +144,7 @@ var _ = Describe("IstioGateways", func() {
 				return true
 			}, time.Second*10, time.Millisecond*250).Should(BeTrue())
 
-			Expect(sa.ObjectMeta.Name).To(Equal("istio-ingressgateway-service-account"))
+			Expect(sa.ObjectMeta.Name).To(Equal("green-istio-ingressgateway-service-account"))
 
 		})
 
@@ -158,7 +158,7 @@ var _ = Describe("IstioGateways", func() {
 
 			deploy = &appsv1.Deployment{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "istio-ingressgateway",
+					Name:      "green-istio-ingressgateway",
 					Namespace: "kubeslice-system",
 				},
 				Spec: appsv1.DeploymentSpec{
@@ -187,7 +187,7 @@ var _ = Describe("IstioGateways", func() {
 			Expect(err).ToNot(HaveOccurred())
 
 			// Check if deployment is created
-			deployKey := types.NamespacedName{Name: "istio-ingressgateway", Namespace: "kubeslice-system"}
+			deployKey := types.NamespacedName{Name: "green-istio-ingressgateway", Namespace: "kubeslice-system"}
 			deploy := &appsv1.Deployment{}
 
 			// Wait until deployment is deleted properly

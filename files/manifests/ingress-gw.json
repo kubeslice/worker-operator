@@ -1,0 +1,26 @@
+{
+  "apiVersion": "networking.istio.io/v1alpha3",
+  "kind": "Gateway",
+  "metadata": {
+    "name": "SLICE-istio-ingressgateway",
+    "namespace": "kubeslice-system"
+  },
+  "spec": {
+    "selector": {
+      "istio": "ingressgateway",
+      "slice": "SLICE"
+    },
+    "servers": [
+      {
+        "port": {
+          "number": 80,
+          "name": "http",
+          "protocol": "HTTP"
+        },
+        "hosts": [
+          "*"
+        ]
+      }
+    ]
+  }
+}

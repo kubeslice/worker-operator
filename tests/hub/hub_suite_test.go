@@ -96,6 +96,7 @@ var _ = BeforeSuite(func() {
 
 	sr := &controllers.SliceReconciler{
 		MeshClient: k8sManager.GetClient(),
+		Log:        ctrl.Log.WithName("hub").WithName("controllers").WithName("SliceConfig"),
 	}
 
 	sgwr := &controllers.SliceGwReconciler{
