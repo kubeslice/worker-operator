@@ -34,8 +34,7 @@ webhooks:
       name: kubeslice-webhook-service
       namespace: {{ .Release.Namespace }}
       path: /mutate-appsv1-deploy
-  failurePolicy: Ignore
-  matchPolicy: Equivalent
+  failurePolicy: Fail
   name: mdeploy.avesha.io
   rules:
   - apiGroups:

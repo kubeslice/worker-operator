@@ -79,7 +79,7 @@ spec:
   selector:
     app: nsm-admission-webhook
 ---
-apiVersion: admissionregistration.k8s.io/v1
+apiVersion: admissionregistration.k8s.io/v1beta1
 kind: MutatingWebhookConfiguration
 metadata:
   name: nsm-admission-webhook-cfg
@@ -88,10 +88,6 @@ metadata:
     app: nsm-admission-webhook
 webhooks:
   - name: admission-webhook.networkservicemesh.io
-    sideEffects: None
-    admissionReviewVersions: ["v1"]
-    failurePolicy: Ignore
-    matchPolicy: Equivalent
     clientConfig:
       service:
         name: nsm-admission-webhook-svc
@@ -101,5 +97,5 @@ webhooks:
     rules:
       - operations: ["CREATE"]
         apiGroups: ["apps", "extensions", ""]
-        apiVersions: ["v1"]
+        apiVersions: ["v1", "v1beta1"]
         resources: ["deployments", "services", "pods"]
