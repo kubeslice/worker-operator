@@ -36,37 +36,44 @@ spec:
           spec:
             description: SpokeSliceConfigSpec defines the desired state of Slice
             properties:
+              externalGatewayConfig:
+                properties:
+                  egress:
+                    properties:
+                      enabled:
+                        type: boolean
+                    type: object
+                  gatewayType:
+                    enum:
+                    - none
+                    - istio
+                    type: string
+                  ingress:
+                    properties:
+                      enabled:
+                        type: boolean
+                    type: object
+                  nsIngress:
+                    properties:
+                      enabled:
+                        type: boolean
+                    type: object
+                type: object
               ipamClusterOctet:
                 type: integer
               namespaceIsolationProfile:
                 properties:
                   allowedNamespaces:
                     items:
-                      properties:
-                        clusters:
-                          items:
-                            type: string
-                          type: array
-                        namespace:
-                          type: string
-                      type: object
+                      type: string
                     type: array
                   applicationNamespaces:
                     items:
-                      properties:
-                        clusters:
-                          items:
-                            type: string
-                          type: array
-                        namespace:
-                          type: string
-                      type: object
+                      type: string
                     type: array
                   isolationEnabled:
                     type: boolean
                 type: object
-              networkPolicyVersion:
-                type: integer
               qosProfileDetails:
                 description: QOSProfile is the QOS Profile configuration from backend
                 properties:
@@ -124,8 +131,6 @@ spec:
               sliceType:
                 enum:
                 - Application
-                type: string
-              standardQosProfileName:
                 type: string
             type: object
           status:

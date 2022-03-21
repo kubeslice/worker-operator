@@ -12,7 +12,7 @@ var _ = Describe("Manifest File", func() {
 
 	Context("With k8s deployment manifest", func() {
 
-		f := "../../tests/files/manifests/egress-deploy.json"
+		f := "egress-deploy"
 
 		It("Should parse file into k8s deployment in the slice", func() {
 

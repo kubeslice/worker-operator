@@ -3,6 +3,7 @@ package manifest
 import (
 	"context"
 
+	istiov1beta1 "istio.io/client-go/pkg/apis/networking/v1beta1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -22,37 +23,37 @@ func InstallIngress(ctx context.Context, c client.Client, slice string) error {
 	// TODO make the objects unique per slice by adding slice name
 
 	deploy := &appsv1.Deployment{}
-	err := NewManifest("../../files/ingress/ingress-deploy.json", slice).Parse(deploy)
+	err := NewManifest("ingress-deploy", slice).Parse(deploy)
 	if err != nil {
 		return err
 	}
 
-	// Add the deployment to slice
-	deploy.Labels["slice"] = slice
-	deploy.Annotations = map[string]string{
-		"avesha.io/slice": slice,
-	}
-
 	svc := &corev1.Service{}
-	err = NewManifest("../../files/ingress/ingress-svc.json", slice).Parse(svc)
+	err = NewManifest("ingress-svc", slice).Parse(svc)
 	if err != nil {
 		return err
 	}
 
 	role := &rbacv1.Role{}
-	err = NewManifest("../../files/ingress/ingress-role.json", slice).Parse(role)
+	err = NewManifest("ingress-role", slice).Parse(role)
 	if err != nil {
 		return err
 	}
 
 	sa := &corev1.ServiceAccount{}
-	err = NewManifest("../../files/ingress/ingress-sa.json", slice).Parse(sa)
+	err = NewManifest("ingress-sa", slice).Parse(sa)
 	if err != nil {
 		return err
 	}
 
 	rb := &rbacv1.RoleBinding{}
-	err = NewManifest("../../files/ingress/ingress-rolebinding.json", slice).Parse(rb)
+	err = NewManifest("ingress-rolebinding", slice).Parse(rb)
+	if err != nil {
+		return err
+	}
+
+	gw := &istiov1beta1.Gateway{}
+	err = NewManifest("ingress-gw", slice).Parse(gw)
 	if err != nil {
 		return err
 	}
@@ -63,10 +64,15 @@ func InstallIngress(ctx context.Context, c client.Client, slice string) error {
 		role,
 		sa,
 		rb,
+		gw,
 	}
 
 	for _, o := range objects {
 		if err := c.Create(ctx, o); err != nil {
+			// Ignore if already exists
+			if errors.IsAlreadyExists(err) {
+				continue
+			}
 			return err
 		}
 	}
@@ -89,31 +95,37 @@ func UninstallIngress(ctx context.Context, c client.Client, slice string) error 
 	objects := []client.Object{
 		&appsv1.Deployment{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      "istio-ingressgateway",
+				Name:      slice + "-istio-ingressgateway",
 				Namespace: "kubeslice-system",
 			},
 		},
 		&corev1.Service{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      "istio-ingressgateway",
+				Name:      slice + "-istio-ingressgateway",
 				Namespace: "kubeslice-system",
 			},
 		},
 		&rbacv1.Role{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      "istio-ingressgateway-sds",
+				Name:      slice + "-istio-ingressgateway-sds",
 				Namespace: "kubeslice-system",
 			},
 		},
 		&corev1.ServiceAccount{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      "istio-ingressgateway-service-account",
+				Name:      slice + "-istio-ingressgateway-service-account",
 				Namespace: "kubeslice-system",
 			},
 		},
 		&rbacv1.RoleBinding{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      "istio-ingressgateway-sds",
+				Name:      slice + "-istio-ingressgateway-sds",
+				Namespace: "kubeslice-system",
+			},
+		},
+		&istiov1beta1.Gateway{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      slice + "-istio-ingressgateway",
 				Namespace: "kubeslice-system",
 			},
 		},

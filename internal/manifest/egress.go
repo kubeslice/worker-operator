@@ -22,37 +22,37 @@ import (
 //  gateway
 func InstallEgress(ctx context.Context, c client.Client, slice string) error {
 	deploy := &appsv1.Deployment{}
-	err := NewManifest("../../files/egress/egress-deploy.json", slice).Parse(deploy)
+	err := NewManifest("egress-deploy", slice).Parse(deploy)
 	if err != nil {
 		return err
 	}
 
 	svc := &corev1.Service{}
-	err = NewManifest("../../files/egress/egress-svc.json", slice).Parse(svc)
+	err = NewManifest("egress-svc", slice).Parse(svc)
 	if err != nil {
 		return err
 	}
 
 	role := &rbacv1.Role{}
-	err = NewManifest("../../files/egress/egress-role.json", slice).Parse(role)
+	err = NewManifest("egress-role", slice).Parse(role)
 	if err != nil {
 		return err
 	}
 
 	sa := &corev1.ServiceAccount{}
-	err = NewManifest("../../files/egress/egress-sa.json", slice).Parse(sa)
+	err = NewManifest("egress-sa", slice).Parse(sa)
 	if err != nil {
 		return err
 	}
 
 	rb := &rbacv1.RoleBinding{}
-	err = NewManifest("../../files/egress/egress-rolebinding.json", slice).Parse(rb)
+	err = NewManifest("egress-rolebinding", slice).Parse(rb)
 	if err != nil {
 		return err
 	}
 
 	gw := &istiov1beta1.Gateway{}
-	err = NewManifest("../../files/egress/egress-gw.json", slice).Parse(gw)
+	err = NewManifest("egress-gw", slice).Parse(gw)
 	if err != nil {
 		return err
 	}
@@ -68,6 +68,10 @@ func InstallEgress(ctx context.Context, c client.Client, slice string) error {
 
 	for _, o := range objects {
 		if err := c.Create(ctx, o); err != nil {
+			// Ignore if already exists
+			if errors.IsAlreadyExists(err) {
+				continue
+			}
 			return err
 		}
 	}
@@ -115,6 +119,12 @@ func UninstallEgress(ctx context.Context, c client.Client, slice string) error {
 		&rbacv1.RoleBinding{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      slice + "-istio-egressgateway-sds",
+				Namespace: "kubeslice-system",
+			},
+		},
+		&istiov1beta1.Gateway{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      slice + "-istio-egressgateway",
 				Namespace: "kubeslice-system",
 			},
 		},

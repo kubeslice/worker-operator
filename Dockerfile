@@ -27,7 +27,6 @@ COPY main.go main.go
 COPY api/ api/
 COPY controllers/ controllers/
 COPY internal/ internal/
-COPY pkg/ pkg/
 
 # Build
 RUN go env -w GOPRIVATE=bitbucket.org/realtimeai && \
@@ -39,6 +38,11 @@ FROM gcr.io/distroless/static:nonroot
 LABEL maintainer="Avesha Systems LLC"
 WORKDIR /
 COPY --from=builder /workspace/manager .
+
+# Copy manifest files for istio gateways deployment
+COPY files files
+ENV MANIFEST_PATH="/files/manifests"
+
 USER nonroot:nonroot
 
 ENTRYPOINT ["/manager"]

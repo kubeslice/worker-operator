@@ -18,6 +18,7 @@ package controllers
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -31,6 +32,7 @@ import (
 
 	meshv1beta1 "bitbucket.org/realtimeai/kubeslice-operator/api/v1beta1"
 	"bitbucket.org/realtimeai/kubeslice-operator/internal/logger"
+	"bitbucket.org/realtimeai/kubeslice-operator/internal/manifest"
 )
 
 // SliceReconciler reconciles a Slice object
@@ -47,6 +49,10 @@ type SliceReconciler struct {
 //+kubebuilder:rbac:groups=core,resources=pods,verbs=get;list;watch
 //+kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=core,resources=services,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=roles,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=rolebindings,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=core,resources=serviceaccounts,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=networking.istio.io,resources=gateways,verbs=get;list;create;update;watch;delete
 //+kubebuilder:webhook:path=/mutate-appsv1-deploy,mutating=true,failurePolicy=fail,groups="apps",resources=deployments,verbs=create;update,versions=v1,name=mdeploy.avesha.io,admissionReviewVersions=v1,sideEffects=NoneOnDryRun
 //+kubebuilder:rbac:groups=core,resources=nodes,verbs=get;list;watch
 
@@ -96,6 +102,32 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 				log.Error(err, "Failed to update Slice status for dns")
 				return ctrl.Result{}, err
 			}
+			return ctrl.Result{}, nil
+		}
+	}
+
+	if slice.Status.SliceConfig == nil {
+		err := fmt.Errorf("Slice not reconciled from hub")
+		log.Error(err, "Slice is not reconciled from hub yet, skipping reconciliation")
+		return ctrl.Result{}, err
+	}
+
+	log.Info("ExternalGatewayConfig", "egw", slice.Status.SliceConfig)
+
+	if slice.Status.SliceConfig.ExternalGatewayConfig != nil && slice.Status.SliceConfig.ExternalGatewayConfig.Egress.Enabled {
+		debugLog.Info("Installing egress")
+		err = manifest.InstallEgress(ctx, r.Client, slice.Name)
+		if err != nil {
+			log.Error(err, "unable to install egress")
+			return ctrl.Result{}, nil
+		}
+	}
+
+	if slice.Status.SliceConfig.ExternalGatewayConfig != nil && slice.Status.SliceConfig.ExternalGatewayConfig.Ingress.Enabled {
+		debugLog.Info("Installing ingress")
+		err = manifest.InstallIngress(ctx, r.Client, slice.Name)
+		if err != nil {
+			log.Error(err, "unable to install ingress")
 			return ctrl.Result{}, nil
 		}
 	}
