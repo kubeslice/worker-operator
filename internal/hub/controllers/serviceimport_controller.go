@@ -65,6 +65,9 @@ func getMeshServiceImportObj(svcim *spokev1alpha1.SpokeServiceImport) *meshv1bet
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      svcim.Spec.ServiceName,
 			Namespace: svcim.Spec.ServiceNamespace,
+			Labels: map[string]string{
+				"kubeslice.io/slice": svcim.Spec.SliceName,
+			},
 		},
 		Spec: meshv1beta1.ServiceImportSpec{
 			Slice:   svcim.Spec.SliceName,

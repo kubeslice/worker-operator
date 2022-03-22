@@ -14,6 +14,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
+	meshv1beta1 "bitbucket.org/realtimeai/kubeslice-operator/api/v1beta1"
 	"bitbucket.org/realtimeai/kubeslice-operator/internal/hub/controllers"
 	"bitbucket.org/realtimeai/kubeslice-operator/internal/logger"
 	spokev1alpha1 "bitbucket.org/realtimeai/mesh-apis/pkg/spoke/v1alpha1"
@@ -26,6 +27,7 @@ func init() {
 	log.SetLogger(logger.NewLogger())
 	clientgoscheme.AddToScheme(scheme)
 	utilruntime.Must(spokev1alpha1.AddToScheme(scheme))
+	utilruntime.Must(meshv1beta1.AddToScheme(scheme))
 }
 
 func Start(meshClient client.Client, ctx context.Context) {

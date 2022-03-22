@@ -12,6 +12,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
@@ -100,7 +101,18 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req reconcile.Request
 					SliceName: sliceName,
 				},
 			}
-
+			//get the slice object and set it as ownerReference
+			sliceKey := types.NamespacedName{Namespace: ControlPlaneNamespace, Name: sliceGw.Spec.SliceName}
+			sliceOnSpoke := &meshv1beta1.Slice{}
+			if err := r.MeshClient.Get(ctx, sliceKey, sliceOnSpoke); err != nil {
+				log.Error(err, "Failed to get Slice CR")
+				return reconcile.Result{}, err
+			}
+			if err := controllerutil.SetControllerReference(sliceOnSpoke, meshSliceGw, r.MeshClient.Scheme()); err != nil {
+				log.Error(err, "Failed to set slice as owner of slicegw")
+				return reconcile.Result{}, err
+			}
+			//finally create the meshSliceGw object
 			err = r.MeshClient.Create(ctx, meshSliceGw)
 			if err != nil {
 				log.Error(err, "unable to create sliceGw in spoke cluster", "sliceGw", sliceGwName)

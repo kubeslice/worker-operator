@@ -103,6 +103,13 @@ spec:
                     enum:
                     - BANDWIDTH_CONTROL
                     type: string
+                required:
+                - bandwidthCeilingKbps
+                - bandwidthGuaranteedKbps
+                - dscpClass
+                - priority
+                - queueType
+                - tcType
                 type: object
               sliceGatewayProvider:
                 description: SpokeSliceGatewayProvider defines the configuration for
@@ -116,6 +123,9 @@ spec:
                     enum:
                     - OpenVPN
                     type: string
+                required:
+                - sliceCaType
+                - sliceGatewayType
                 type: object
               sliceIpamType:
                 enum:
@@ -129,6 +139,9 @@ spec:
                 type: string
               standardQosProfileName:
                 type: string
+            required:
+            - qosProfileDetails
+            - sliceGatewayProvider
             type: object
           status:
             description: SliceConfigStatus defines the observed state of SliceConfig

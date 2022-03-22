@@ -94,13 +94,16 @@ var _ = BeforeSuite(func() {
 	})
 	Expect(err).ToNot(HaveOccurred())
 
+	//k8sMeshClient, err := client.New(cfg, client.Options{Scheme: scheme.Scheme})
+	//Expect(err).NotTo(HaveOccurred())
+	//Expect(k8sMeshClient).NotTo(BeNil())
 	sr := &controllers.SliceReconciler{
-		MeshClient: k8sManager.GetClient(),
+		MeshClient: k8sClient,
 		Log:        ctrl.Log.WithName("hub").WithName("controllers").WithName("SliceConfig"),
 	}
 
 	sgwr := &controllers.SliceGwReconciler{
-		MeshClient: k8sManager.GetClient(),
+		MeshClient: k8sClient,
 	}
 
 	err = builder.

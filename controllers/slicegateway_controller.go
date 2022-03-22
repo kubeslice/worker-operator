@@ -28,10 +28,13 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	meshv1beta1 "bitbucket.org/realtimeai/kubeslice-operator/api/v1beta1"
 	"bitbucket.org/realtimeai/kubeslice-operator/internal/logger"
 )
+
+var sliceGwFinalizer = "mesh.kubeslice.io/slicegw-finalizer"
 
 // SliceReconciler reconciles a Slice object
 type SliceGwReconciler struct {
@@ -75,6 +78,31 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		log.Error(err, "Failed to get SliceGateway")
 		return ctrl.Result{}, err
 	}
+	// Examine DeletionTimestamp to determine if object is under deletion
+	if sliceGw.ObjectMeta.DeletionTimestamp.IsZero() {
+		// The object is not being deleted, so if it does not have our finalizer,
+		// then lets add the finalizer and update the object. This is equivalent
+		// registering our finalizer.
+		if !controllerutil.ContainsFinalizer(sliceGw, sliceGwFinalizer) {
+			controllerutil.AddFinalizer(sliceGw, sliceGwFinalizer)
+			if err := r.Update(ctx, sliceGw); err != nil {
+				return ctrl.Result{}, err
+			}
+		}
+	} else {
+		// The object is being deleted
+		if controllerutil.ContainsFinalizer(sliceGw, sliceGwFinalizer) {
+			log.Info("Deleting sliceGW", "sliceGw", sliceGw.Name)
+			//cheanup Gateway related resources
+			r.cleanupSliceGwResources(ctx, sliceGw)
+			controllerutil.RemoveFinalizer(sliceGw, sliceGwFinalizer)
+			if err := r.Update(ctx, sliceGw); err != nil {
+				return ctrl.Result{}, err
+			}
+		}
+		// Stop reconciliation as the item is being deleted
+		return ctrl.Result{}, nil
+	}
 
 	sliceName := sliceGw.Spec.SliceName
 	sliceGwName := sliceGw.Name
@@ -89,7 +117,7 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	slice, err := GetSlice(ctx, r.Client, sliceName)
 	if err != nil {
 		log.Error(err, "Failed to get Slice", "slice", sliceName)
-		return ctrl.Result{}, nil
+		return ctrl.Result{}, err
 	}
 	if slice == nil {
 		log.Info("Slice object not created yet. Waiting...")

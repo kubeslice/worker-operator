@@ -87,6 +87,21 @@ func (r Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resul
 
 		return ctrl.Result{}, nil
 	}
+	// update service export with slice Label if not present
+	labels := serviceexport.GetLabels()
+	if value, exists := labels["kubeslice.io/slice"]; !exists || value != serviceexport.Spec.Slice {
+		// the label does not exists or the sliceName is incorrect
+		if labels == nil {
+			labels = make(map[string]string)
+		}
+		labels["kubeslice.io/slice"] = serviceexport.Spec.Slice
+		serviceexport.SetLabels(labels)
+
+		if err := r.Update(ctx, serviceexport); err != nil {
+			return ctrl.Result{}, err
+		}
+		debugLog.Info("Added Label for serviceexport", "serviceexport", serviceexport.Name)
+	}
 
 	// Reconciler running for the first time. Set the initial status here
 	if serviceexport.Status.ExportStatus == meshv1beta1.ExportStatusInitial {
