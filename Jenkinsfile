@@ -5,4 +5,4 @@ dockerImagePipeline(
   dockerfile: 'Dockerfile',
   buildContext: '.',
   buildArguments: [PLATFORM:"amd64"]
-)
+) 
