@@ -6,4 +6,4 @@ dockerImagePipeline1(
   buildContext: '.',
   buildArguments: [PLATFORM:"amd64"],
   trigger_remote: 'yes'
-) 
+)
