@@ -33,7 +33,10 @@ import (
 	meshv1beta1 "bitbucket.org/realtimeai/kubeslice-operator/api/v1beta1"
 	"bitbucket.org/realtimeai/kubeslice-operator/internal/logger"
 	"bitbucket.org/realtimeai/kubeslice-operator/internal/manifest"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
+
+var sliceFinalizer = "mesh.kubeslice.io/slice-finalizer"
 
 // SliceReconciler reconciles a Slice object
 type SliceReconciler struct {
@@ -78,6 +81,31 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 
 	log.Info("reconciling", "slice", slice.Name)
 
+	// Examine DeletionTimestamp to determine if object is under deletion
+	if slice.ObjectMeta.DeletionTimestamp.IsZero() {
+		// The object is not being deleted, so if it does not have our finalizer,
+		// then lets add the finalizer and update the object. This is equivalent
+		// registering our finalizer.
+		if !controllerutil.ContainsFinalizer(slice, sliceFinalizer) {
+			controllerutil.AddFinalizer(slice, sliceFinalizer)
+			if err := r.Update(ctx, slice); err != nil {
+				return ctrl.Result{}, err
+			}
+		}
+	} else {
+		// The object is being deleted
+		if controllerutil.ContainsFinalizer(slice, sliceFinalizer) {
+			log.Info("Deleting slice", "slice", slice.Name)
+			r.cleanupSliceResources(ctx, slice)
+			controllerutil.RemoveFinalizer(slice, sliceFinalizer)
+			if err := r.Update(ctx, slice); err != nil {
+				return ctrl.Result{}, err
+			}
+		}
+		// Stop reconciliation as the item is being deleted
+		return ctrl.Result{}, nil
+	}
+
 	if slice.Status.DNSIP == "" {
 		log.Info("Finding DNS IP")
 		svc := &corev1.Service{}
@@ -116,7 +144,7 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 
 	if slice.Status.SliceConfig.ExternalGatewayConfig != nil && slice.Status.SliceConfig.ExternalGatewayConfig.Egress.Enabled {
 		debugLog.Info("Installing egress")
-		err = manifest.InstallEgress(ctx, r.Client, slice.Name)
+		err = manifest.InstallEgress(ctx, r.Client, slice)
 		if err != nil {
 			log.Error(err, "unable to install egress")
 			return ctrl.Result{}, nil
@@ -125,7 +153,7 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 
 	if slice.Status.SliceConfig.ExternalGatewayConfig != nil && slice.Status.SliceConfig.ExternalGatewayConfig.Ingress.Enabled {
 		debugLog.Info("Installing ingress")
-		err = manifest.InstallIngress(ctx, r.Client, slice.Name)
+		err = manifest.InstallIngress(ctx, r.Client, slice)
 		if err != nil {
 			log.Error(err, "unable to install ingress")
 			return ctrl.Result{}, nil

@@ -22,7 +22,7 @@ router:
 
 routerSidecar:
   image: nexus.dev.aveshalabs.io/kubeslice-router-sidecar
-  tag: dd636932-213a-4d6a-b88e-164d1108c587-SNAPSHOT
+  tag: 1.0.0-SNAPSHOT
   pullPolicy: IfNotPresent
 
 netop:

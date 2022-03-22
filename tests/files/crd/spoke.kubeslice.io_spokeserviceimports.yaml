@@ -86,10 +86,13 @@ spec:
               serviceName:
                 description: ServiceName is the name of the service
                 type: string
+              serviceNamespace:
+                description: ServiceNamespace is the namespace of the service
+                type: string
               sliceName:
                 description: The name of the slice.
                 type: string
-              sourceCluster:
+              sourceClusters:
                 description: clusterId is the id of the cluster where the service
                   is available.
                 items:

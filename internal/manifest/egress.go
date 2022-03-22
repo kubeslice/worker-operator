@@ -3,12 +3,14 @@ package manifest
 import (
 	"context"
 
+	meshv1beta1 "bitbucket.org/realtimeai/kubeslice-operator/api/v1beta1"
 	istiov1beta1 "istio.io/client-go/pkg/apis/networking/v1beta1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -20,39 +22,41 @@ import (
 //  rolebinding
 //  service (type clusterip)
 //  gateway
-func InstallEgress(ctx context.Context, c client.Client, slice string) error {
+func InstallEgress(ctx context.Context, c client.Client, slice *meshv1beta1.Slice) error {
+	sliceName := slice.Name
+
 	deploy := &appsv1.Deployment{}
-	err := NewManifest("egress-deploy", slice).Parse(deploy)
+	err := NewManifest("egress-deploy", sliceName).Parse(deploy)
 	if err != nil {
 		return err
 	}
 
 	svc := &corev1.Service{}
-	err = NewManifest("egress-svc", slice).Parse(svc)
+	err = NewManifest("egress-svc", sliceName).Parse(svc)
 	if err != nil {
 		return err
 	}
 
 	role := &rbacv1.Role{}
-	err = NewManifest("egress-role", slice).Parse(role)
+	err = NewManifest("egress-role", sliceName).Parse(role)
 	if err != nil {
 		return err
 	}
 
 	sa := &corev1.ServiceAccount{}
-	err = NewManifest("egress-sa", slice).Parse(sa)
+	err = NewManifest("egress-sa", sliceName).Parse(sa)
 	if err != nil {
 		return err
 	}
 
 	rb := &rbacv1.RoleBinding{}
-	err = NewManifest("egress-rolebinding", slice).Parse(rb)
+	err = NewManifest("egress-rolebinding", sliceName).Parse(rb)
 	if err != nil {
 		return err
 	}
 
 	gw := &istiov1beta1.Gateway{}
-	err = NewManifest("egress-gw", slice).Parse(gw)
+	err = NewManifest("egress-gw", sliceName).Parse(gw)
 	if err != nil {
 		return err
 	}
@@ -67,6 +71,10 @@ func InstallEgress(ctx context.Context, c client.Client, slice string) error {
 	}
 
 	for _, o := range objects {
+
+		// Set slice as the owner for the object
+		ctrl.SetControllerReference(slice, o, c.Scheme())
+
 		if err := c.Create(ctx, o); err != nil {
 			// Ignore if already exists
 			if errors.IsAlreadyExists(err) {
@@ -87,44 +95,44 @@ func InstallEgress(ctx context.Context, c client.Client, slice string) error {
 //  rolebinding
 //  service
 //  gateway
-func UninstallEgress(ctx context.Context, c client.Client, slice string) error {
+func UninstallEgress(ctx context.Context, c client.Client, sliceName string) error {
 
-	log.Info("deleting EW egress gw for the slice", "slice", slice)
+	log.Info("deleting EW egress gw for the slice", "slice", sliceName)
 
 	objects := []client.Object{
 		&appsv1.Deployment{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      slice + "-istio-egressgateway",
+				Name:      sliceName + "-istio-egressgateway",
 				Namespace: "kubeslice-system",
 			},
 		},
 		&corev1.Service{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      slice + "-istio-egressgateway",
+				Name:      sliceName + "-istio-egressgateway",
 				Namespace: "kubeslice-system",
 			},
 		},
 		&rbacv1.Role{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      slice + "-istio-egressgateway-sds",
+				Name:      sliceName + "-istio-egressgateway-sds",
 				Namespace: "kubeslice-system",
 			},
 		},
 		&corev1.ServiceAccount{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      slice + "-istio-egressgateway-service-account",
+				Name:      sliceName + "-istio-egressgateway-service-account",
 				Namespace: "kubeslice-system",
 			},
 		},
 		&rbacv1.RoleBinding{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      slice + "-istio-egressgateway-sds",
+				Name:      sliceName + "-istio-egressgateway-sds",
 				Namespace: "kubeslice-system",
 			},
 		},
 		&istiov1beta1.Gateway{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      slice + "-istio-egressgateway",
+				Name:      sliceName + "-istio-egressgateway",
 				Namespace: "kubeslice-system",
 			},
 		},
