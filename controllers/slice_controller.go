@@ -144,7 +144,7 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 
 	if slice.Status.SliceConfig.ExternalGatewayConfig != nil && slice.Status.SliceConfig.ExternalGatewayConfig.Egress.Enabled {
 		debugLog.Info("Installing egress")
-		err = manifest.InstallEgress(ctx, r.Client, slice.Name)
+		err = manifest.InstallEgress(ctx, r.Client, slice)
 		if err != nil {
 			log.Error(err, "unable to install egress")
 			return ctrl.Result{}, nil
@@ -153,7 +153,7 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 
 	if slice.Status.SliceConfig.ExternalGatewayConfig != nil && slice.Status.SliceConfig.ExternalGatewayConfig.Ingress.Enabled {
 		debugLog.Info("Installing ingress")
-		err = manifest.InstallIngress(ctx, r.Client, slice.Name)
+		err = manifest.InstallIngress(ctx, r.Client, slice)
 		if err != nil {
 			log.Error(err, "unable to install ingress")
 			return ctrl.Result{}, nil

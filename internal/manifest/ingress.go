@@ -3,12 +3,14 @@ package manifest
 import (
 	"context"
 
+	meshv1beta1 "bitbucket.org/realtimeai/kubeslice-operator/api/v1beta1"
 	istiov1beta1 "istio.io/client-go/pkg/apis/networking/v1beta1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -19,41 +21,41 @@ import (
 //  role
 //  rolebinding
 //  service (type clusterip)
-func InstallIngress(ctx context.Context, c client.Client, slice string) error {
-	// TODO make the objects unique per slice by adding slice name
+func InstallIngress(ctx context.Context, c client.Client, slice *meshv1beta1.Slice) error {
+	sliceName := slice.Name
 
 	deploy := &appsv1.Deployment{}
-	err := NewManifest("ingress-deploy", slice).Parse(deploy)
+	err := NewManifest("ingress-deploy", sliceName).Parse(deploy)
 	if err != nil {
 		return err
 	}
 
 	svc := &corev1.Service{}
-	err = NewManifest("ingress-svc", slice).Parse(svc)
+	err = NewManifest("ingress-svc", sliceName).Parse(svc)
 	if err != nil {
 		return err
 	}
 
 	role := &rbacv1.Role{}
-	err = NewManifest("ingress-role", slice).Parse(role)
+	err = NewManifest("ingress-role", sliceName).Parse(role)
 	if err != nil {
 		return err
 	}
 
 	sa := &corev1.ServiceAccount{}
-	err = NewManifest("ingress-sa", slice).Parse(sa)
+	err = NewManifest("ingress-sa", sliceName).Parse(sa)
 	if err != nil {
 		return err
 	}
 
 	rb := &rbacv1.RoleBinding{}
-	err = NewManifest("ingress-rolebinding", slice).Parse(rb)
+	err = NewManifest("ingress-rolebinding", sliceName).Parse(rb)
 	if err != nil {
 		return err
 	}
 
 	gw := &istiov1beta1.Gateway{}
-	err = NewManifest("ingress-gw", slice).Parse(gw)
+	err = NewManifest("ingress-gw", sliceName).Parse(gw)
 	if err != nil {
 		return err
 	}
@@ -68,6 +70,9 @@ func InstallIngress(ctx context.Context, c client.Client, slice string) error {
 	}
 
 	for _, o := range objects {
+		// Set slice as the owner for the object
+		ctrl.SetControllerReference(slice, o, c.Scheme())
+
 		if err := c.Create(ctx, o); err != nil {
 			// Ignore if already exists
 			if errors.IsAlreadyExists(err) {

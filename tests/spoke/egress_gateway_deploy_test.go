@@ -6,6 +6,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
+	meshv1beta1 "bitbucket.org/realtimeai/kubeslice-operator/api/v1beta1"
 	"bitbucket.org/realtimeai/kubeslice-operator/internal/manifest"
 	istiov1beta1 "istio.io/client-go/pkg/apis/networking/v1beta1"
 	appsv1 "k8s.io/api/apps/v1"
@@ -59,6 +60,19 @@ var _ = Describe("EgressGatewayDeploy", func() {
 			},
 		}
 
+		slice := &meshv1beta1.Slice{
+			TypeMeta: metav1.TypeMeta{
+				Kind:       "Slice",
+				APIVersion: "mesh.avesha.io/v1beta1",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "green",
+				Namespace: "kubeslice-system",
+				UID:       "test-uid",
+			},
+			Spec: meshv1beta1.SliceSpec{},
+		}
+
 		AfterEach(func() {
 			for _, o := range objects {
 				Expect(k8sClient.Delete(ctx, o)).Should(Succeed())
@@ -66,7 +80,7 @@ var _ = Describe("EgressGatewayDeploy", func() {
 		})
 
 		It("Should install istio egress gateway deployment in the slice", func() {
-			err := manifest.InstallEgress(ctx, k8sClient, "green")
+			err := manifest.InstallEgress(ctx, k8sClient, slice)
 			Expect(err).NotTo(HaveOccurred())
 
 			// Check if deployment is there in the cluster
@@ -93,7 +107,7 @@ var _ = Describe("EgressGatewayDeploy", func() {
 		})
 
 		It("Should install istio egress gateway resources", func() {
-			err := manifest.InstallEgress(ctx, k8sClient, "green")
+			err := manifest.InstallEgress(ctx, k8sClient, slice)
 			Expect(err).NotTo(HaveOccurred())
 
 			// Check if service and gateway are there in the cluster
@@ -163,6 +177,34 @@ var _ = Describe("EgressGatewayDeploy", func() {
 			}, time.Second*10, time.Millisecond*250).Should(BeTrue())
 
 			Expect(sa.ObjectMeta.Name).To(Equal("green-istio-egressgateway-service-account"))
+
+		})
+
+		It("Should add slice ownerrefernce to the objects", func() {
+			err := manifest.InstallEgress(ctx, k8sClient, slice)
+			Expect(err).NotTo(HaveOccurred())
+
+			// Check if deployment is there in the cluster
+			deployKey := types.NamespacedName{Name: "green-istio-egressgateway", Namespace: "kubeslice-system"}
+			createdDeploy := &appsv1.Deployment{}
+
+			// Wait until deployment is created properly
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, deployKey, createdDeploy)
+				if err != nil {
+					return false
+				}
+				return true
+			}, time.Second*10, time.Millisecond*250).Should(BeTrue())
+
+			Expect(createdDeploy.ObjectMeta.Name).To(Equal("green-istio-egressgateway"))
+
+			own := createdDeploy.ObjectMeta.OwnerReferences
+			Expect(len(own)).To(Equal(1))
+			Expect(own[0].APIVersion).To(Equal("mesh.avesha.io/v1beta1"))
+			Expect(string(own[0].UID)).To(Equal("test-uid"))
+			Expect(own[0].Kind).To(Equal("Slice"))
+			Expect(own[0].Name).To(Equal("green"))
 
 		})
 
