@@ -102,18 +102,19 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err = (&controllers.SliceReconciler{
-		Client: mgr.GetClient(),
-		Log:    ctrl.Log.WithName("controllers").WithName("Slice"),
-		Scheme: mgr.GetScheme(),
-	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "Slice")
-		os.Exit(1)
-	}
-
 	hubClient, err := hub.NewHubClientConfig()
 	if err != nil {
 		setupLog.Error(err, "could not create hub client for slice gateway reconciler")
+		os.Exit(1)
+	}
+
+	if err = (&controllers.SliceReconciler{
+		Client:    mgr.GetClient(),
+		Log:       ctrl.Log.WithName("controllers").WithName("Slice"),
+		Scheme:    mgr.GetScheme(),
+		HubClient: hubClient,
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "Slice")
 		os.Exit(1)
 	}
 

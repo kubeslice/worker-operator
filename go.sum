@@ -8,6 +8,8 @@ bitbucket.org/realtimeai/mesh-apis v0.0.0-20220309140737-99c037d6d4ad h1:oTJdfbs
 bitbucket.org/realtimeai/mesh-apis v0.0.0-20220309140737-99c037d6d4ad/go.mod h1:llaX3dRfOZmd/29TXcMGpw5USVhMZ7u+YrPIrUX734I=
 bitbucket.org/realtimeai/mesh-apis v0.0.0-20220319191656-79173bf91044 h1:rLszbDxiwFxVJ5iYbkQ7yTTXy5jFYlvscnoz1xst96k=
 bitbucket.org/realtimeai/mesh-apis v0.0.0-20220319191656-79173bf91044/go.mod h1:llaX3dRfOZmd/29TXcMGpw5USVhMZ7u+YrPIrUX734I=
+bitbucket.org/realtimeai/mesh-apis v0.0.0-20220323063542-809bd7e1cdfb h1:JkZFC08Wr9HOs5x5fthIsvWz5g8X+1ZsXAC5pC7HzPs=
+bitbucket.org/realtimeai/mesh-apis v0.0.0-20220323063542-809bd7e1cdfb/go.mod h1:llaX3dRfOZmd/29TXcMGpw5USVhMZ7u+YrPIrUX734I=
 cloud.google.com/go v0.26.0/go.mod h1:aQUYkXzVsufM+DwF1aE+0xfcU+56JwCaLick0ClmMTw=
 cloud.google.com/go v0.34.0/go.mod h1:aQUYkXzVsufM+DwF1aE+0xfcU+56JwCaLick0ClmMTw=
 cloud.google.com/go v0.38.0/go.mod h1:990N+gfupTy94rShfmMCWGDn0LpTmnzTp2qbd1dvSRU=

@@ -41,8 +41,9 @@ var sliceFinalizer = "mesh.kubeslice.io/slice-finalizer"
 // SliceReconciler reconciles a Slice object
 type SliceReconciler struct {
 	client.Client
-	Scheme *runtime.Scheme
-	Log    logr.Logger
+	Scheme    *runtime.Scheme
+	Log       logr.Logger
+	HubClient HubClientProvider
 }
 
 //+kubebuilder:rbac:groups=mesh.avesha.io,resources=slice,verbs=get;list;watch;create;update;patch;delete
@@ -171,6 +172,7 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 
 	if isAppPodStatusChanged(appPods, slice.Status.AppPods) {
 		log.Info("App pod status changed")
+
 		slice.Status.AppPods = appPods
 		slice.Status.AppPodsUpdatedOn = time.Now().Unix()
 
@@ -180,6 +182,7 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 			return ctrl.Result{}, err
 		}
 		log.Info("App pod status updated in slice")
+
 		return ctrl.Result{Requeue: true}, nil
 	}
 
@@ -187,6 +190,14 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 	res, err, requeue = r.ReconcileAppPod(ctx, slice)
 
 	if requeue {
+		log.Info("updating app pod list in hub spokesliceconfig status")
+		sliceConfigName := slice.Name + "-" + clusterName
+		err = r.HubClient.UpdateAppPodsList(ctx, sliceConfigName, slice.Status.AppPods)
+		if err != nil {
+			log.Error(err, "Failed to update app pod list in hub")
+			return ctrl.Result{}, err
+		}
+
 		log.Info("app pods reconciled")
 		debugLog.Info("requeuing after app pod list reconcile", "res", res, "er", err)
 		return res, err
