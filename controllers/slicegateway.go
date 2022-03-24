@@ -77,8 +77,6 @@ func (r *SliceGwReconciler) deploymentForGatewayServer(g *meshv1beta1.SliceGatew
 			Namespace: g.Namespace,
 			Annotations: map[string]string{
 				"ns.networkservicemesh.io": "vl3-service-" + g.Spec.SliceName,
-				"prometheus.io/port":       "18080",
-				"prometheus.io/scrape":     "true",
 			},
 		},
 		Spec: appsv1.DeploymentSpec{
@@ -89,6 +87,10 @@ func (r *SliceGwReconciler) deploymentForGatewayServer(g *meshv1beta1.SliceGatew
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: ls,
+					Annotations: map[string]string{
+						"prometheus.io/port":   "18080",
+						"prometheus.io/scrape": "true",
+					},
 				},
 				Spec: corev1.PodSpec{
 					ServiceAccountName: "nsmgr-acc",
@@ -332,8 +334,6 @@ func (r *SliceGwReconciler) deploymentForGatewayClient(g *meshv1beta1.SliceGatew
 			Namespace: g.Namespace,
 			Annotations: map[string]string{
 				"ns.networkservicemesh.io": "vl3-service-" + g.Spec.SliceName,
-				"prometheus.io/port":       "18080",
-				"prometheus.io/scrape":     "true",
 			},
 		},
 		Spec: appsv1.DeploymentSpec{
@@ -344,6 +344,10 @@ func (r *SliceGwReconciler) deploymentForGatewayClient(g *meshv1beta1.SliceGatew
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: ls,
+					Annotations: map[string]string{
+						"prometheus.io/port":   "18080",
+						"prometheus.io/scrape": "true",
+					},
 				},
 				Spec: corev1.PodSpec{
 					ServiceAccountName: "nsmgr-acc",
