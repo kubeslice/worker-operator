@@ -24,7 +24,12 @@ import (
 
 // labelsForSliceGwDeployment returns the labels for creating slice gw deployment
 func labelsForSliceGwDeployment(name string, slice string) map[string]string {
-	return map[string]string{"networkservicemesh.io/app": name, "kubeslice.io/pod-type": "slicegateway", "kubeslice.io/slice": slice}
+	return map[string]string{
+		"networkservicemesh.io/app": name,
+		"kubeslice.io/pod-type":     "slicegateway",
+		"kubeslice.io/slice":        slice,
+		"prometheus.io/port":        "18080",
+		"prometheus.io/scrape":      "true"}
 }
 
 // deploymentForGateway returns a gateway Deployment object
