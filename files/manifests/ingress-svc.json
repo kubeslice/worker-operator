@@ -15,7 +15,7 @@
     }
   },
   "spec": {
-    "type": "LoadBalancer",
+    "type": "ClusterIP",
     "selector": {
       "app": "istio-ingressgateway",
       "istio": "ingressgateway"
