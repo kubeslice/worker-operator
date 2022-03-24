@@ -1,6 +1,6 @@
 operator:
   image: nexus.dev.aveshalabs.io/kubeslice/operator
-  tag: latest-feature-cluster-info
+  tag: latest-feature-labels
   pullPolicy: Always
   logLevel: INFO
 

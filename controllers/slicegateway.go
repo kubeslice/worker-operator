@@ -27,9 +27,7 @@ func labelsForSliceGwDeployment(name string, slice string) map[string]string {
 	return map[string]string{
 		"networkservicemesh.io/app": name,
 		"kubeslice.io/pod-type":     "slicegateway",
-		"kubeslice.io/slice":        slice,
-		"prometheus.io/port":        "18080",
-		"prometheus.io/scrape":      "true"}
+		"kubeslice.io/slice":        slice}
 }
 
 // deploymentForGateway returns a gateway Deployment object
@@ -75,9 +73,13 @@ func (r *SliceGwReconciler) deploymentForGatewayServer(g *meshv1beta1.SliceGatew
 
 	dep := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:        g.Name,
-			Namespace:   g.Namespace,
-			Annotations: map[string]string{"ns.networkservicemesh.io": "vl3-service-" + g.Spec.SliceName},
+			Name:      g.Name,
+			Namespace: g.Namespace,
+			Annotations: map[string]string{
+				"ns.networkservicemesh.io": "vl3-service-" + g.Spec.SliceName,
+				"prometheus.io/port":       "18080",
+				"prometheus.io/scrape":     "true",
+			},
 		},
 		Spec: appsv1.DeploymentSpec{
 			Replicas: &replicas,
@@ -326,9 +328,13 @@ func (r *SliceGwReconciler) deploymentForGatewayClient(g *meshv1beta1.SliceGatew
 
 	dep := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:        g.Name,
-			Namespace:   g.Namespace,
-			Annotations: map[string]string{"ns.networkservicemesh.io": "vl3-service-" + g.Spec.SliceName},
+			Name:      g.Name,
+			Namespace: g.Namespace,
+			Annotations: map[string]string{
+				"ns.networkservicemesh.io": "vl3-service-" + g.Spec.SliceName,
+				"prometheus.io/port":       "18080",
+				"prometheus.io/scrape":     "true",
+			},
 		},
 		Spec: appsv1.DeploymentSpec{
 			Replicas: &replicas,
