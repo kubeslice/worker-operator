@@ -26,10 +26,11 @@ routerSidecar:
   pullPolicy: IfNotPresent
 
 netop:
-  networkInterface: ens160
-  image: nexus.dev.aveshalabs.io/mesh-netops
+  networkInterface: eth0
+  image: nexus.dev.aveshalabs.io/kubeslice/netops
   tag: 1.0.0
   pullPolicy: IfNotPresent
+  logLevel: INFO
 
 # Imagepullsecrets name which are needed if docker images are hosted in private registry
 # This secret should be already present in the cluster
