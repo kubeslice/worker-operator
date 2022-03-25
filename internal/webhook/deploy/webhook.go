@@ -57,18 +57,19 @@ func (wh *WebhookServer) InjectDecoder(d *admission.Decoder) error {
 }
 
 func Mutate(deploy *appsv1.Deployment, sliceName string) *appsv1.Deployment {
+  // Add injection status to deployment annotations
+	deploy.Annotations[admissionWebhookAnnotationInjectKey] = "injected"
 
 	if deploy.Spec.Template.ObjectMeta.Annotations == nil {
 		deploy.Spec.Template.ObjectMeta.Annotations = map[string]string{}
 	}
 
+  // Add vl3 annotation to pod template
 	annotations := deploy.Spec.Template.ObjectMeta.Annotations
-
-	annotations[admissionWebhookAnnotationInjectKey] = "injected"
 	annotations["ns.networkservicemesh.io"] = "vl3-service-" + sliceName
 
+  // Add slice identifier labels to pod template
 	labels := deploy.Spec.Template.ObjectMeta.Labels
-
 	labels["avesha.io/pod-type"] = "app"
 	labels["avesha.io/slice"] = sliceName
 

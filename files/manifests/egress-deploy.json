@@ -48,8 +48,6 @@
           "prometheus.io/scrape": "true",
           "prometheus.io/path": "/stats/prometheus",
           "sidecar.istio.io/inject": "false",
-          "avesha.io/slice": "SLICE",
-          "avesha.io/status": "injected",
           "ns.networkservicemesh.io": "vl3-service-SLICE"
         }
       },
