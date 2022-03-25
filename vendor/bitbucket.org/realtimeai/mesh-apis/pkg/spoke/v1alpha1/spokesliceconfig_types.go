@@ -47,7 +47,7 @@ type SpokeSliceGatewayProvider struct {
 type QOSProfile struct {
 	//+kubebuilder:validation:Enum:=HTB
 	QueueType               string `json:"queueType,omitempty"`
-	Priority                string `json:"priority,omitempty"`
+	Priority                int    `json:"priority,omitempty"`
 	TcType                  string `json:"tcType,omitempty"`
 	BandwidthCeilingKbps    int    `json:"bandwidthCeilingKbps,omitempty"`
 	BandwidthGuaranteedKbps int    `json:"bandwidthGuaranteedKbps,omitempty"`
@@ -73,8 +73,25 @@ type ExternalGatewayConfigOptions struct {
 	Enabled bool `json:"enabled,omitempty"`
 }
 
+// AppPod defines the app pods connected to slice
+type AppPod struct {
+	// PodName is App Pod Name
+	PodName string `json:"podName,omitempty"`
+	// PodNamespace is App Pod Namespace
+	PodNamespace string `json:"podNamespace,omitempty"`
+	// PodIP is App Pod IP
+	PodIP string `json:"podIp,omitempty"`
+	// NsmIP is the nsm ip of App
+	NsmIP string `json:"nsmIp,omitempty"`
+	// NsmInterface is the nsm interface of App
+	NsmInterface string `json:"nsmInterface,omitempty"`
+	// PeerIp is the nsm peer ip of gateway
+	NsmPeerIP string `json:"nsmPeerIp,omitempty"`
+}
+
 // SpokeSliceConfigStatus defines the observed state of Slice
 type SpokeSliceConfigStatus struct {
+	ConnectedAppPods []AppPod `json:"connectedAppPods,omitempty"`
 }
 
 //+kubebuilder:object:root=true

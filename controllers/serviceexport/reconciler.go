@@ -2,6 +2,7 @@ package serviceexport
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -11,6 +12,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	meshv1beta1 "bitbucket.org/realtimeai/kubeslice-operator/api/v1beta1"
+	"bitbucket.org/realtimeai/kubeslice-operator/controllers"
 	"bitbucket.org/realtimeai/kubeslice-operator/internal/logger"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
@@ -25,6 +27,7 @@ type Reconciler struct {
 
 type HubClientProvider interface {
 	UpdateServiceExport(ctx context.Context, serviceexport *meshv1beta1.ServiceExport) error
+	UpdateServiceExportEndpointForIngressGw(ctx context.Context, serviceexport *meshv1beta1.ServiceExport, ep *meshv1beta1.ServicePod) error
 	DeleteServiceExport(ctx context.Context, serviceexport *meshv1beta1.ServiceExport) error
 }
 
@@ -87,6 +90,21 @@ func (r Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resul
 
 		return ctrl.Result{}, nil
 	}
+	// update service export with slice Label if not present
+	labels := serviceexport.GetLabels()
+	if value, exists := labels["kubeslice.io/slice"]; !exists || value != serviceexport.Spec.Slice {
+		// the label does not exists or the sliceName is incorrect
+		if labels == nil {
+			labels = make(map[string]string)
+		}
+		labels["kubeslice.io/slice"] = serviceexport.Spec.Slice
+		serviceexport.SetLabels(labels)
+
+		if err := r.Update(ctx, serviceexport); err != nil {
+			return ctrl.Result{}, err
+		}
+		debugLog.Info("Added Label for serviceexport", "serviceexport", serviceexport.Name)
+	}
 
 	// Reconciler running for the first time. Set the initial status here
 	if serviceexport.Status.ExportStatus == meshv1beta1.ExportStatusInitial {
@@ -106,6 +124,7 @@ func (r Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resul
 
 	if serviceexport.Status.ExposedPorts != portListToDisplayString(serviceexport.Spec.Ports) {
 		serviceexport.Status.ExposedPorts = portListToDisplayString(serviceexport.Spec.Ports)
+		serviceexport.Status.LastSync = 0
 		err = r.Status().Update(ctx, serviceexport)
 		if err != nil {
 			log.Error(err, "Failed to update serviceexport ports")
@@ -124,19 +143,24 @@ func (r Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resul
 		return res, err
 	}
 
-	if serviceexport.Status.AvailableEndpoints != len(serviceexport.Status.Pods) {
-		serviceexport.Status.AvailableEndpoints = len(serviceexport.Status.Pods)
-		err = r.Status().Update(ctx, serviceexport)
+	if serviceexport.Status.LastSync == 0 {
+		ingressGwPod, err := controllers.GetSliceIngressGwPod(ctx, r.Client, serviceexport.Spec.Slice)
 		if err != nil {
-			log.Error(err, "Failed to update serviceexport availableendpoints")
+			log.Error(err, "Failed to get ingress gw pod info")
 			return ctrl.Result{}, err
 		}
-		log.Info("serviceexport updated with availableendpoints")
-		return ctrl.Result{Requeue: true}, nil
-	}
 
-	if serviceexport.Status.LastSync == 0 {
-		err = r.HubClient.UpdateServiceExport(ctx, serviceexport)
+		if ingressGwPod != nil {
+			ep := &meshv1beta1.ServicePod{
+				Name:  fmt.Sprintf("%s-ingress", serviceexport.Name),
+				NsmIP: ingressGwPod.NsmIP,
+				DNSName: fmt.Sprintf("%s-ingress.%s.%s.svc.slice.local",
+					serviceexport.Name, controllers.ClusterName, serviceexport.Namespace),
+			}
+			err = r.HubClient.UpdateServiceExportEndpointForIngressGw(ctx, serviceexport, ep)
+		} else {
+			err = r.HubClient.UpdateServiceExport(ctx, serviceexport)
+		}
 		if err != nil {
 			log.Error(err, "Failed to post serviceexport")
 			serviceexport.Status.ExportStatus = meshv1beta1.ExportStatusError
@@ -152,6 +176,13 @@ func (r Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resul
 			return ctrl.Result{}, err
 		}
 		return ctrl.Result{Requeue: true}, nil
+	}
+
+	res, err, requeue = r.ReconcileIstio(ctx, serviceexport)
+	if requeue {
+		log.Info("istio reconciled")
+		debugLog.Info("requeuing after Istio reconcile", "res", res, "er", err)
+		return res, err
 	}
 
 	// Set export status to ready when reconciliation is complete

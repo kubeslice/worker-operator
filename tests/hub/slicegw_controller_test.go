@@ -1,14 +1,16 @@
 package hub_test
 
 import (
+	"time"
+
 	meshv1beta1 "bitbucket.org/realtimeai/kubeslice-operator/api/v1beta1"
 	spokev1alpha1 "bitbucket.org/realtimeai/mesh-apis/pkg/spoke/v1alpha1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"time"
 )
 
 var _ = Describe("Hub SlicegwController", func() {
@@ -64,7 +66,10 @@ var _ = Describe("Hub SlicegwController", func() {
 				Expect(k8sClient.Delete(ctx, hubSlice)).Should(Succeed())
 				Expect(k8sClient.Delete(ctx, hubSliceGw)).Should(Succeed())
 				Expect(k8sClient.Delete(ctx, hubSecret)).Should(Succeed())
-				Expect(k8sClient.Delete(ctx, createdSlice)).Should(Succeed())
+				Eventually(func() bool {
+					err := k8sClient.Get(ctx, types.NamespacedName{Namespace: "kubeslice-system", Name: createdSlice.Name}, createdSlice)
+					return errors.IsNotFound(err)
+				}, time.Second*10, time.Millisecond*250).Should(BeTrue())
 				Expect(k8sClient.Delete(ctx, createdSliceGwOnSpoke)).Should(Succeed())
 			})
 		})
@@ -89,6 +94,30 @@ var _ = Describe("Hub SlicegwController", func() {
 				err := k8sClient.Get(ctx, sliceGwKey, createdSliceGwOnSpoke)
 				return err == nil
 			}, time.Second*10, time.Second*1).Should(BeTrue())
+		})
+
+		It("Should set slice as owner of slicegw", func() {
+			Expect(k8sClient.Create(ctx, hubSlice)).Should(Succeed())
+			Expect(k8sClient.Create(ctx, hubSliceGw)).Should(Succeed())
+			Expect(k8sClient.Create(ctx, hubSecret)).Should(Succeed())
+			//once hubSlice is created controller will create a slice CR on spoke cluster
+			sliceKey := types.NamespacedName{Name: "test-slice", Namespace: "kubeslice-system"}
+			// Make sure slice is reconciled in spoke cluster
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, sliceKey, createdSlice)
+				if err != nil {
+					return false
+				}
+				return true
+			}, time.Second*10, time.Millisecond*250).Should(BeTrue())
+
+			sliceGwKey := types.NamespacedName{Namespace: CONTROL_PLANE_NS, Name: hubSliceGw.Name}
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, sliceGwKey, createdSliceGwOnSpoke)
+				return err == nil
+			}, time.Second*10, time.Second*1).Should(BeTrue())
+
+			Expect(createdSliceGwOnSpoke.ObjectMeta.OwnerReferences[0].Name).Should(Equal("test-slice"))
 		})
 
 	})

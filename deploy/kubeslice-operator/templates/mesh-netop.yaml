@@ -33,6 +33,8 @@ spec:
           value: NETOP_POD
         - name: NETWORK_INTERFACE
           value: {{ .Values.netop.networkInterface }}
+        - name: LOG_LEVEL
+          value: {{ .Values.netop.logLevel }}
         image: {{ .Values.netop.image }}:{{ .Values.netop.tag }}
         imagePullPolicy: {{ .Values.netop.pullPolicy }}
         name: avesha-sidecar

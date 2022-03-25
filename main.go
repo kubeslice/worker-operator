@@ -34,17 +34,17 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
 	nsmv1alpha1 "github.com/networkservicemesh/networkservicemesh/k8s/pkg/apis/networkservice/v1alpha1"
+	istiov1beta1 "istio.io/client-go/pkg/apis/networking/v1beta1"
 
 	meshv1beta1 "bitbucket.org/realtimeai/kubeslice-operator/api/v1beta1"
 	"bitbucket.org/realtimeai/kubeslice-operator/controllers"
 	"bitbucket.org/realtimeai/kubeslice-operator/controllers/serviceexport"
 	"bitbucket.org/realtimeai/kubeslice-operator/controllers/serviceimport"
-	hub "bitbucket.org/realtimeai/kubeslice-operator/internal/hub/hub-client"
+	hub "bitbucket.org/realtimeai/kubeslice-operator/internal/hub/hubclient"
 	"bitbucket.org/realtimeai/kubeslice-operator/internal/hub/manager"
 	"bitbucket.org/realtimeai/kubeslice-operator/internal/logger"
 	"bitbucket.org/realtimeai/kubeslice-operator/internal/utils"
 	deploywh "bitbucket.org/realtimeai/kubeslice-operator/internal/webhook/deploy"
-	istiov1beta1 "istio.io/client-go/pkg/apis/networking/v1beta1"
 	//+kubebuilder:scaffold:imports
 )
 
@@ -56,6 +56,7 @@ var (
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 	utilruntime.Must(nsmv1alpha1.AddToScheme(scheme))
+	utilruntime.Must(istiov1beta1.AddToScheme(scheme))
 	utilruntime.Must(meshv1beta1.AddToScheme(scheme))
 	utilruntime.Must(istiov1beta1.AddToScheme(scheme))
 	//+kubebuilder:scaffold:scheme
@@ -102,18 +103,19 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err = (&controllers.SliceReconciler{
-		Client: mgr.GetClient(),
-		Log:    ctrl.Log.WithName("controllers").WithName("Slice"),
-		Scheme: mgr.GetScheme(),
-	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "Slice")
-		os.Exit(1)
-	}
-
 	hubClient, err := hub.NewHubClientConfig()
 	if err != nil {
 		setupLog.Error(err, "could not create hub client for slice gateway reconciler")
+		os.Exit(1)
+	}
+
+	if err = (&controllers.SliceReconciler{
+		Client:    mgr.GetClient(),
+		Log:       ctrl.Log.WithName("controllers").WithName("Slice"),
+		Scheme:    mgr.GetScheme(),
+		HubClient: hubClient,
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "Slice")
 		os.Exit(1)
 	}
 

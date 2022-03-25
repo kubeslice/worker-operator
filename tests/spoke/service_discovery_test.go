@@ -2,6 +2,7 @@ package spoke_test
 
 import (
 	"context"
+	"reflect"
 	"strings"
 	"time"
 
@@ -9,6 +10,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 )
@@ -34,12 +36,11 @@ var _ = Describe("ServiceExportController", func() {
 			// Prepare k8s objects for slice and mesh-dns service
 			slice = &meshv1beta1.Slice{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "test-slice",
+					Name:      "test-slice-1",
 					Namespace: "kubeslice-system",
 				},
 				Spec: meshv1beta1.SliceSpec{},
 			}
-			Expect(k8sClient.Create(ctx, slice)).Should(Succeed())
 
 			dnssvc = &corev1.Service{
 				ObjectMeta: metav1.ObjectMeta{
@@ -53,7 +54,6 @@ var _ = Describe("ServiceExportController", func() {
 					}},
 				},
 			}
-			Expect(k8sClient.Create(ctx, dnssvc)).Should(Succeed())
 
 			// Prepare k8s objects for slice and mesh-dns service
 			svcex = &meshv1beta1.ServiceExport{
@@ -62,27 +62,32 @@ var _ = Describe("ServiceExportController", func() {
 					Namespace: "default",
 				},
 				Spec: meshv1beta1.ServiceExportSpec{
-					Slice: "test-slice",
+					Slice: "test-slice-1",
 					Selector: &metav1.LabelSelector{
 						MatchLabels: map[string]string{"app": "iperf"},
 					},
 					Ports: getTestServiceExportPorts(),
 				},
 			}
-			Expect(k8sClient.Create(ctx, svcex)).Should(Succeed())
 
 			// Cleanup after each test
 			DeferCleanup(func() {
 				ctx := context.Background()
-				Expect(k8sClient.Delete(ctx, svcex)).Should(Succeed())
-				Expect(k8sClient.Delete(ctx, dnssvc)).Should(Succeed())
 				Expect(k8sClient.Delete(ctx, slice)).Should(Succeed())
+				Eventually(func() bool {
+					err := k8sClient.Get(ctx, types.NamespacedName{Name: slice.Name, Namespace: slice.Namespace}, slice)
+					return errors.IsNotFound(err)
+				}, time.Second*30, time.Millisecond*250).Should(BeTrue())
+				Expect(k8sClient.Delete(ctx, dnssvc)).Should(Succeed())
+
 			})
 		})
 
 		It("Should update service export status", func() {
 			ctx := context.Background()
-
+			Expect(k8sClient.Create(ctx, slice)).Should(Succeed())
+			Expect(k8sClient.Create(ctx, dnssvc)).Should(Succeed())
+			Expect(k8sClient.Create(ctx, svcex)).Should(Succeed())
 			svcKey := types.NamespacedName{Name: "iperf-server", Namespace: "default"}
 			createdSvcEx := &meshv1beta1.ServiceExport{}
 
@@ -103,7 +108,9 @@ var _ = Describe("ServiceExportController", func() {
 
 		It("Should update service export ports", func() {
 			ctx := context.Background()
-
+			Expect(k8sClient.Create(ctx, slice)).Should(Succeed())
+			Expect(k8sClient.Create(ctx, dnssvc)).Should(Succeed())
+			Expect(k8sClient.Create(ctx, svcex)).Should(Succeed())
 			svcKey := types.NamespacedName{Name: "iperf-server", Namespace: "default"}
 			createdSvcEx := &meshv1beta1.ServiceExport{}
 
@@ -141,6 +148,24 @@ var _ = Describe("ServiceExportController", func() {
 			}, time.Second*30, time.Millisecond*250).Should(BeTrue())
 
 		})
+		It("Should Add a slice label to service export", func() {
+			ctx := context.Background()
+			Expect(k8sClient.Create(ctx, slice)).Should(Succeed())
+			Expect(k8sClient.Create(ctx, dnssvc)).Should(Succeed())
+			Expect(k8sClient.Create(ctx, svcex)).Should(Succeed())
+			expectedLabel := map[string]string{
+				"kubeslice.io/slice": svcex.Spec.Slice,
+			}
+			svcKey := types.NamespacedName{Name: "iperf-server", Namespace: "default"}
+			createdSvcEx := &meshv1beta1.ServiceExport{}
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, svcKey, createdSvcEx)
+				if err != nil {
+					return false
+				}
+				return reflect.DeepEqual(createdSvcEx.GetLabels(), expectedLabel)
+			}, time.Second*30, time.Millisecond*250).Should(BeTrue())
+		})
 	})
 })
 
@@ -156,12 +181,11 @@ var _ = Describe("ServiceImportController", func() {
 			// Prepare k8s objects for slice and mesh-dns service
 			slice = &meshv1beta1.Slice{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "test-slice",
+					Name:      "test-slice-2",
 					Namespace: "kubeslice-system",
 				},
 				Spec: meshv1beta1.SliceSpec{},
 			}
-			Expect(k8sClient.Create(ctx, slice)).Should(Succeed())
 
 			dnssvc = &corev1.Service{
 				ObjectMeta: metav1.ObjectMeta{
@@ -175,7 +199,6 @@ var _ = Describe("ServiceImportController", func() {
 					}},
 				},
 			}
-			Expect(k8sClient.Create(ctx, dnssvc)).Should(Succeed())
 
 			dnscm = &corev1.ConfigMap{
 				ObjectMeta: metav1.ObjectMeta{
@@ -184,7 +207,6 @@ var _ = Describe("ServiceImportController", func() {
 				},
 				Data: map[string]string{"slice.db": ""},
 			}
-			Expect(k8sClient.Create(ctx, dnscm)).Should(Succeed())
 
 			// Prepare k8s objects for slice and mesh-dns service
 			svcim = &meshv1beta1.ServiceImport{
@@ -193,12 +215,11 @@ var _ = Describe("ServiceImportController", func() {
 					Namespace: "default",
 				},
 				Spec: meshv1beta1.ServiceImportSpec{
-					Slice:   "test-slice",
+					Slice:   "test-slice-2",
 					DNSName: "iperf-server.iperf.svc.slice.local",
 					Ports:   getTestServiceExportPorts(),
 				},
 			}
-			Expect(k8sClient.Create(ctx, svcim)).Should(Succeed())
 
 			// Cleanup after each test
 			DeferCleanup(func() {
@@ -212,7 +233,10 @@ var _ = Describe("ServiceImportController", func() {
 
 		It("Should update service import status", func() {
 			ctx := context.Background()
-
+			Expect(k8sClient.Create(ctx, slice)).Should(Succeed())
+			Expect(k8sClient.Create(ctx, dnssvc)).Should(Succeed())
+			Expect(k8sClient.Create(ctx, dnscm)).Should(Succeed())
+			Expect(k8sClient.Create(ctx, svcim)).Should(Succeed())
 			svcKey := types.NamespacedName{Name: "iperf-server", Namespace: "default"}
 			createdSvcIm := &meshv1beta1.ServiceImport{}
 

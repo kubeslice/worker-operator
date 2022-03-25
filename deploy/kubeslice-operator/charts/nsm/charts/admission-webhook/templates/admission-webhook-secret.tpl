@@ -25,9 +25,11 @@ spec:
       labels:
         app: nsm-admission-webhook
     spec:
+      imagePullSecrets:
+        - name: avesha-nexus
       containers:
         - name: nsm-admission-webhook
-          image: {{ .Values.registry }}/{{ .Values.org }}/admission-webhook:{{ .Values.tag }}
+          image: nexus.dev.aveshalabs.io/kubeslice/nsm-admission-webhook:1.0.0
           imagePullPolicy: {{ .Values.pullPolicy }}
           env:
             - name: REPO
@@ -79,7 +81,7 @@ spec:
   selector:
     app: nsm-admission-webhook
 ---
-apiVersion: admissionregistration.k8s.io/v1beta1
+apiVersion: admissionregistration.k8s.io/v1
 kind: MutatingWebhookConfiguration
 metadata:
   name: nsm-admission-webhook-cfg
@@ -88,6 +90,10 @@ metadata:
     app: nsm-admission-webhook
 webhooks:
   - name: admission-webhook.networkservicemesh.io
+    sideEffects: None
+    admissionReviewVersions: ["v1", "v1beta1"]
+    failurePolicy: Ignore
+    matchPolicy: Equivalent
     clientConfig:
       service:
         name: nsm-admission-webhook-svc

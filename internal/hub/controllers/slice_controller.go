@@ -10,6 +10,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
@@ -19,10 +20,12 @@ type SliceReconciler struct {
 	MeshClient client.Client
 }
 
+var sliceFinalizer = "hub.kubeslice.io/hubSpokeSlice-finalizer"
+
 func (r *SliceReconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
 	log := r.Log.WithValues("sliceconfig", req.NamespacedName)
 	ctx = logger.WithLogger(ctx, log)
-
+	debuglog := log.V(1)
 	slice := &spokev1alpha1.SpokeSliceConfig{}
 	err := r.Get(ctx, req.NamespacedName, slice)
 	if err != nil {
@@ -35,7 +38,37 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req reconcile.Request) 
 		return reconcile.Result{}, err
 	}
 
-	log.Info("got slice from hub", "slice", slice)
+	log.Info("got slice from hub", "slice", slice.Name)
+	debuglog.Info("got slice from hub", "slice", slice)
+	// examine DeletionTimestamp to determine if object is under deletion
+	if slice.ObjectMeta.DeletionTimestamp.IsZero() {
+		// The object is not being deleted, so if it does not have our finalizer,
+		// then lets add the finalizer and update the object. This is equivalent
+		// registering our finalizer.
+		if !controllerutil.ContainsFinalizer(slice, sliceFinalizer) {
+			controllerutil.AddFinalizer(slice, sliceFinalizer)
+			if err := r.Update(ctx, slice); err != nil {
+				return reconcile.Result{}, err
+			}
+		}
+	} else {
+		// The object is being deleted
+		if controllerutil.ContainsFinalizer(slice, sliceFinalizer) {
+			// our finalizer is present, so lets handle any external dependency
+			if err := r.deleteSliceResourceOnSpoke(ctx, slice); err != nil {
+				// if fail to delete the external dependency here, return with error
+				// so that it can be retried
+				return reconcile.Result{}, err
+			}
+			// remove our finalizer from the list and update it.
+			controllerutil.RemoveFinalizer(slice, sliceFinalizer)
+			if err := r.Update(ctx, slice); err != nil {
+				return reconcile.Result{}, err
+			}
+		}
+		// Stop reconciliation as the item is being deleted
+		return reconcile.Result{}, nil
+	}
 
 	sliceName := slice.Spec.SliceName
 	meshSlice := &meshv1beta1.Slice{}
@@ -97,7 +130,6 @@ func (r *SliceReconciler) updateSliceConfig(ctx context.Context, meshSlice *mesh
 			},
 			SliceType: spokeSlice.Spec.SliceType,
 		}
-
 	}
 
 	if meshSlice.Status.SliceConfig.SliceSubnet == "" {
@@ -108,20 +140,27 @@ func (r *SliceReconciler) updateSliceConfig(ctx context.Context, meshSlice *mesh
 		meshSlice.Status.SliceConfig.SliceIpam.IpamClusterOctet = spokeSlice.Spec.IpamClusterOctet
 	}
 
-	if meshSlice.Status.SliceConfig.ExternalGatewayConfig == nil {
-		cfg := spokeSlice.Spec.ExternalGatewayConfig
-		meshSlice.Status.SliceConfig.ExternalGatewayConfig = &meshv1beta1.ExternalGatewayConfig{
-			GatewayType: cfg.GatewayType,
-			Egress: &meshv1beta1.ExternalGatewayConfigOptions{
-				Enabled: cfg.Egress.Enabled,
-			},
-			Ingress: &meshv1beta1.ExternalGatewayConfigOptions{
-				Enabled: cfg.Ingress.Enabled,
-			},
-			NsIngress: &meshv1beta1.ExternalGatewayConfigOptions{
-				Enabled: cfg.NsIngress.Enabled,
-			},
-		}
+	meshSlice.Status.SliceConfig.QosProfileDetails = meshv1beta1.QosProfileDetails{
+		QueueType:               spokeSlice.Spec.QosProfileDetails.QueueType,
+		BandwidthCeilingKbps:    spokeSlice.Spec.QosProfileDetails.BandwidthCeilingKbps,
+		BandwidthGuaranteedKbps: spokeSlice.Spec.QosProfileDetails.BandwidthGuaranteedKbps,
+		DscpClass:               spokeSlice.Spec.QosProfileDetails.DscpClass,
+		TcType:                  spokeSlice.Spec.QosProfileDetails.TcType,
+		Priority:                spokeSlice.Spec.QosProfileDetails.Priority,
+	}
+
+	extGwCfg := spokeSlice.Spec.ExternalGatewayConfig
+	meshSlice.Status.SliceConfig.ExternalGatewayConfig = &meshv1beta1.ExternalGatewayConfig{
+		GatewayType: extGwCfg.GatewayType,
+		Egress: &meshv1beta1.ExternalGatewayConfigOptions{
+			Enabled: extGwCfg.Egress.Enabled,
+		},
+		Ingress: &meshv1beta1.ExternalGatewayConfigOptions{
+			Enabled: extGwCfg.Ingress.Enabled,
+		},
+		NsIngress: &meshv1beta1.ExternalGatewayConfigOptions{
+			Enabled: extGwCfg.NsIngress.Enabled,
+		},
 	}
 
 	return r.MeshClient.Status().Update(ctx, meshSlice)
@@ -129,5 +168,20 @@ func (r *SliceReconciler) updateSliceConfig(ctx context.Context, meshSlice *mesh
 
 func (a *SliceReconciler) InjectClient(c client.Client) error {
 	a.Client = c
+	return nil
+}
+
+func (r *SliceReconciler) deleteSliceResourceOnSpoke(ctx context.Context, slice *spokev1alpha1.SpokeSliceConfig) error {
+	log := logger.FromContext(ctx)
+	sliceOnSpoke := &meshv1beta1.Slice{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      slice.Spec.SliceName,
+			Namespace: ControlPlaneNamespace,
+		},
+	}
+	if err := r.MeshClient.Delete(ctx, sliceOnSpoke); err != nil {
+		return err
+	}
+	log.Info("Deleted Slice CR on spoke cluster", "slice", sliceOnSpoke.Name)
 	return nil
 }

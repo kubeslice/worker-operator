@@ -92,6 +92,13 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		return res, err
 	}
 
+	res, err, requeue = r.reconcileIstio(ctx, serviceimport)
+	if requeue {
+		log.Info("reconciled istio resources")
+		debugLog.Info("requeuing after Istio reconcile", "res", res, "er", err)
+		return res, err
+	}
+
 	// Set import status to ready when reconciliation is complete
 	if serviceimport.Status.ImportStatus != meshv1beta1.ImportStatusReady {
 		serviceimport.Status.ImportStatus = meshv1beta1.ImportStatusReady

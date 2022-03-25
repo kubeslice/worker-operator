@@ -6,6 +6,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
+	meshv1beta1 "bitbucket.org/realtimeai/kubeslice-operator/api/v1beta1"
 	"bitbucket.org/realtimeai/kubeslice-operator/internal/manifest"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -53,6 +54,19 @@ var _ = Describe("IngressGateway", func() {
 			},
 		}
 
+		slice := &meshv1beta1.Slice{
+			TypeMeta: metav1.TypeMeta{
+				Kind:       "Slice",
+				APIVersion: "mesh.avesha.io/v1beta1",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "green",
+				Namespace: "kubeslice-system",
+				UID:       "test-uid",
+			},
+			Spec: meshv1beta1.SliceSpec{},
+		}
+
 		AfterEach(func() {
 			for _, o := range objects {
 				Expect(k8sClient.Delete(ctx, o)).Should(Succeed())
@@ -60,7 +74,7 @@ var _ = Describe("IngressGateway", func() {
 		})
 
 		It("Should install istio ingress gateway deployment", func() {
-			err := manifest.InstallIngress(ctx, k8sClient, "green")
+			err := manifest.InstallIngress(ctx, k8sClient, slice)
 			Expect(err).NotTo(HaveOccurred())
 
 			// Check if deployment is there in the cluster
@@ -83,11 +97,11 @@ var _ = Describe("IngressGateway", func() {
 
 			ann := createdDeploy.ObjectMeta.Annotations
 			Expect(ann["avesha.io/slice"]).To(Equal("green"))
-
+			Expect(ann["avesha.io/status"]).To(Equal("injected"))
 		})
 
 		It("Should install istio ingress gateway resources", func() {
-			err := manifest.InstallIngress(ctx, k8sClient, "green")
+			err := manifest.InstallIngress(ctx, k8sClient, slice)
 			Expect(err).NotTo(HaveOccurred())
 
 			// Check if service is there in the cluster
@@ -145,6 +159,34 @@ var _ = Describe("IngressGateway", func() {
 			}, time.Second*10, time.Millisecond*250).Should(BeTrue())
 
 			Expect(sa.ObjectMeta.Name).To(Equal("green-istio-ingressgateway-service-account"))
+
+		})
+
+		It("Should add slice ownerrefernce to the objects", func() {
+			err := manifest.InstallIngress(ctx, k8sClient, slice)
+			Expect(err).NotTo(HaveOccurred())
+
+			// Check if deployment is there in the cluster
+			deployKey := types.NamespacedName{Name: "green-istio-ingressgateway", Namespace: "kubeslice-system"}
+			createdDeploy := &appsv1.Deployment{}
+
+			// Wait until deployment is created properly
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, deployKey, createdDeploy)
+				if err != nil {
+					return false
+				}
+				return true
+			}, time.Second*10, time.Millisecond*250).Should(BeTrue())
+
+			Expect(createdDeploy.ObjectMeta.Name).To(Equal("green-istio-ingressgateway"))
+
+			own := createdDeploy.ObjectMeta.OwnerReferences
+			Expect(len(own)).To(Equal(1))
+			Expect(own[0].APIVersion).To(Equal("mesh.avesha.io/v1beta1"))
+			Expect(string(own[0].UID)).To(Equal("test-uid"))
+			Expect(own[0].Kind).To(Equal("Slice"))
+			Expect(own[0].Name).To(Equal("green"))
 
 		})
 

@@ -29,6 +29,8 @@ func (r *Reconciler) ReconcileAppPod(
 	serviceexport.Status.Pods = appPods
 	serviceexport.Status.LastSync = 0                                   // Force sync to hub in next loop
 	serviceexport.Status.ExportStatus = meshv1beta1.ExportStatusPending // Set status to pending
+	serviceexport.Status.AvailableEndpoints = len(appPods)
+
 	log.Info("updating service app pods")
 	debugLog.Info("updating service app pods", "app pods", appPods)
 	err = r.Status().Update(ctx, serviceexport)

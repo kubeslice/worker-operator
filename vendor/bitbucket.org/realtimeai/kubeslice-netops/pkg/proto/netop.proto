@@ -55,9 +55,47 @@ message SliceLifeCycleEvent {
     EventType event = 2;
 }
 
+// slice gateway-host-type
+enum SliceGwHostType {
+    SLICE_GW_SERVER = 0;
+    SLICE_GW_CLIENT = 1;
+}
+
+// NetOpConnectionContext - NetOp Connection Context.
+message NetOpConnectionContext {
+    // Slice-Id
+    string sliceId = 1;
+    // Local slice gateway ID
+    string localSliceGwId = 2;
+    // Local slice gateway VPN IP
+    string localSliceGwVpnIP = 3;
+    // Local slice gateway-host-type  -  client/server
+    SliceGwHostType localSliceGwHostType = 4;
+    // Local slice gateway NSM Subnet
+    string localSliceGwNsmSubnet = 5;
+    // Local slice gateway Node IP
+    string localSliceGwNodeIP = 6;
+    // Local slice gateway Node Port
+    string localSliceGwNodePort = 7;
+    // Remote slice gateway ID
+    string remoteSliceGwId = 8;
+    // Remote slice gateway VPN IP
+    string remoteSliceGwVpnIP = 9;
+    // Remote-slice gateway-host-type client or server
+    SliceGwHostType remoteSliceGwHostType = 10;
+    // Remote slice gateway NSM subnet
+    string remoteSliceGwNsmSubnet = 11;
+    // Remote slice gateway Node IP
+    string remoteSliceGwNodeIP = 12;
+    // Remote slice gateway Node Port
+    string remoteSliceGwNodePort = 13;
+}
+
 service NetOpsService {
     // Update Slice QoS Profile
     rpc UpdateSliceQosProfile(SliceQosProfile) returns (Response) {}
     // Message to communicate slice create/delete events to netop pods
     rpc UpdateSliceLifeCycleEvent(SliceLifeCycleEvent) returns (Response) {}
+    // The Interface to update the slicegw context to global handle
+    rpc UpdateConnectionContext(NetOpConnectionContext) returns (Response) {}
 }
