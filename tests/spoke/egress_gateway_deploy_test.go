@@ -103,7 +103,7 @@ var _ = Describe("EgressGatewayDeploy", func() {
 
 			ann := createdDeploy.ObjectMeta.Annotations
 			Expect(ann["avesha.io/slice"]).To(Equal("green"))
-
+			Expect(ann["avesha.io/status"]).To(Equal("injected"))
 		})
 
 		It("Should install istio egress gateway resources", func() {

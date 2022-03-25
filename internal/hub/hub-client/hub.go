@@ -218,3 +218,28 @@ func (hubClient *HubClientConfig) DeleteServiceExport(ctx context.Context, servi
 
 	return nil
 }
+
+func (hubClient *HubClientConfig) UpdateAppPodsList(ctx context.Context, sliceConfigName string, appPods []meshv1beta1.AppPod) error {
+	sliceConfig := &spokev1alpha1.SpokeSliceConfig{}
+	err := hubClient.Get(ctx, types.NamespacedName{
+		Name:      sliceConfigName,
+		Namespace: ProjectNamespace,
+	}, sliceConfig)
+	if err != nil {
+		return err
+	}
+
+	sliceConfig.Status.ConnectedAppPods = []spokev1alpha1.AppPod{}
+	for _, pod := range appPods {
+		sliceConfig.Status.ConnectedAppPods = append(sliceConfig.Status.ConnectedAppPods, spokev1alpha1.AppPod{
+			PodName:      pod.PodName,
+			PodNamespace: pod.PodNamespace,
+			PodIP:        pod.PodIP,
+			NsmIP:        pod.NsmIP,
+			NsmInterface: pod.NsmInterface,
+			NsmPeerIP:    pod.NsmPeerIP,
+		})
+	}
+
+	return hubClient.Status().Update(ctx, sliceConfig)
+}

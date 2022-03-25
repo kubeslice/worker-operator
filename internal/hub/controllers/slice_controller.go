@@ -129,6 +129,14 @@ func (r *SliceReconciler) updateSliceConfig(ctx context.Context, meshSlice *mesh
 				IpamClusterOctet: spokeSlice.Spec.IpamClusterOctet,
 			},
 			SliceType: spokeSlice.Spec.SliceType,
+			QosProfileDetails: meshv1beta1.QosProfileDetails{
+				QueueType:               spokeSlice.Spec.QosProfileDetails.QueueType,
+				BandwidthCeilingKbps:    spokeSlice.Spec.QosProfileDetails.BandwidthCeilingKbps,
+				BandwidthGuaranteedKbps: spokeSlice.Spec.QosProfileDetails.BandwidthGuaranteedKbps,
+				DscpClass:               spokeSlice.Spec.QosProfileDetails.DscpClass,
+				TcType:                  spokeSlice.Spec.QosProfileDetails.TcType,
+				Priority:                spokeSlice.Spec.QosProfileDetails.Priority,
+			},
 		}
 	}
 

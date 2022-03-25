@@ -42,10 +42,7 @@ type SliceGwReconciler struct {
 	Scheme    *runtime.Scheme
 	Log       logr.Logger
 	HubClient HubClientProvider
-}
-
-type HubClientProvider interface {
-	UpdateNodePortForSliceGwServer(ctx context.Context, sliceGwNodePort int32, sliceGwName string) error
+	NetOpPods []NetOpPod
 }
 
 func readyToDeployGwClient(sliceGw *meshv1beta1.SliceGateway) bool {
@@ -63,6 +60,7 @@ func readyToDeployGwClient(sliceGw *meshv1beta1.SliceGateway) bool {
 //+kubebuilder:rbac:groups=core,resources=endpoints,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=core,resources=nodes,verbs=get;list;watch;
 func (r *SliceGwReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+	var sliceGwNodePort int32
 	log := r.Log.WithValues("slicegateway", req.NamespacedName)
 
 	sliceGw := &meshv1beta1.SliceGateway{}
@@ -163,7 +161,7 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 			return ctrl.Result{}, err
 		}
 
-		sliceGwNodePort := foundsvc.Spec.Ports[0].NodePort
+		sliceGwNodePort = foundsvc.Spec.Ports[0].NodePort
 		err = r.HubClient.UpdateNodePortForSliceGwServer(ctx, sliceGwNodePort, sliceGwName)
 		if err != nil {
 			log.Error(err, "Failed to update NodePort for sliceGw in the hub")
@@ -200,6 +198,12 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 			return ctrl.Result{}, err
 		}
 	}
+	//fetch netop pods
+	err = r.getNetOpPods(ctx, sliceGw)
+	if err != nil {
+		log.Error(err, "Unable to fetch netop pods")
+		return ctrl.Result{}, err
+	}
 
 	res, err, requeue := r.ReconcileGwPodStatus(ctx, sliceGw)
 	if err != nil {
@@ -226,6 +230,12 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	}
 	if requeue {
 		return res, nil
+	}
+	log.Info("sync QoS with netop pods from slicegw")
+	err = r.SyncNetOpConnectionContextAndQos(ctx, slice, sliceGw, sliceGwNodePort)
+	if err != nil {
+		log.Error(err, "Error sending QOS Profile to netop pod")
+		return ctrl.Result{}, err
 	}
 
 	return ctrl.Result{}, nil
