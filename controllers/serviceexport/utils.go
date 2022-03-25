@@ -86,3 +86,19 @@ func containsString(slice []string, s string) bool {
 	}
 	return false
 }
+
+func getServiceProtocol(se *meshv1beta1.ServiceExport) meshv1beta1.ServiceProtocol {
+	// currently we only support single port to be exposed
+	if len(se.Spec.Ports) != 1 {
+		return meshv1beta1.ServiceProtocolTCP
+	}
+
+	p := se.Spec.Ports[0].Name
+
+	if strings.HasPrefix(p, "http") {
+		return meshv1beta1.ServiceProtocolHTTP
+	}
+
+	return meshv1beta1.ServiceProtocolTCP
+
+}

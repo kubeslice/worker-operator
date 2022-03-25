@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"bitbucket.org/realtimeai/kubeslice-operator/controllers"
+	//	"bitbucket.org/realtimeai/kubeslice-operator/controllers"
 	"bitbucket.org/realtimeai/kubeslice-operator/internal/logger"
 	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -95,12 +95,6 @@ func MutationRequired(metadata metav1.ObjectMeta) bool {
 	}
 
 	// TODO namespace isolation policy
-
-	// Do not auto onboard control plane namespace. Ideally, we should not have any deployment/pod in the control plane ns
-	// connect to a slice. But for exceptional cases, return from here before updating the app ns list in the slice config.
-	if metadata.Namespace == controllers.ControlPlaneNamespace {
-		return false
-	}
 
 	// The annotation avesha.io/slice:SLICENAME is present, enable mutation
 	return annotations[admissionWebhookAnnotationInjectKey] != ""

@@ -204,7 +204,7 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 
 	if requeue {
 		log.Info("updating app pod list in hub spokesliceconfig status")
-		sliceConfigName := slice.Name + "-" + clusterName
+		sliceConfigName := slice.Name + "-" + ClusterName
 		err = r.HubClient.UpdateAppPodsList(ctx, sliceConfigName, slice.Status.AppPods)
 		if err != nil {
 			log.Error(err, "Failed to update app pod list in hub")

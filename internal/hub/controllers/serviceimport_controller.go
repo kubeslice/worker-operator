@@ -49,9 +49,9 @@ func getMeshServiceImportEpList(svcim *spokev1alpha1.SpokeServiceImport) []meshv
 	epList := []meshv1beta1.ServiceEndpoint{}
 	for _, ep := range svcim.Spec.ServiceDiscoveryEndpoints {
 		epList = append(epList, meshv1beta1.ServiceEndpoint{
-			Name:      ep.PodName,
-			IP:        ep.NsmIp,
-			Port:      ep.Port,
+			Name: ep.PodName,
+			IP:   ep.NsmIp,
+			//Port:      ep.Port,
 			ClusterID: ep.Cluster,
 			DNSName:   ep.DnsName,
 		})
@@ -134,6 +134,13 @@ func (r *ServiceImportReconciler) Reconcile(ctx context.Context, req reconcile.R
 
 		}
 
+		return reconcile.Result{}, err
+	}
+
+	meshSvcIm.Spec.Ports = getMeshServiceImportPortList(svcim)
+	err = r.MeshClient.Update(ctx, meshSvcIm)
+	if err != nil {
+		log.Error(err, "unable to update service import in spoke cluster", "serviceimport", svcim.Name)
 		return reconcile.Result{}, err
 	}
 

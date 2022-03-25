@@ -24,6 +24,11 @@ func (hubClientEmulator *HubClientEmulator) UpdateServiceExport(
 	return nil
 }
 
+func (hubClientEmulator *HubClientEmulator) UpdateServiceExportEndpointForIngressGw(ctx context.Context,
+	serviceexport *meshv1beta1.ServiceExport, ep *meshv1beta1.ServicePod) error {
+	return nil
+}
+
 func (hubClientEmulator *HubClientEmulator) DeleteServiceExport(
 	ctx context.Context, serviceexport *meshv1beta1.ServiceExport) error {
 	return nil

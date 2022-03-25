@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"context"
+	"strings"
 
 	meshv1beta1 "bitbucket.org/realtimeai/kubeslice-operator/api/v1beta1"
 	corev1 "k8s.io/api/core/v1"
@@ -22,6 +23,28 @@ func GetSlice(ctx context.Context, c client.Client, slice string) (*meshv1beta1.
 	}
 
 	return s, nil
+}
+
+func GetSliceIngressGwPod(ctx context.Context, c client.Client, sliceName string) (*meshv1beta1.AppPod, error) {
+	slice, err := GetSlice(ctx, c, sliceName)
+	if err != nil {
+		return nil, err
+	}
+
+	if slice.Status.SliceConfig.ExternalGatewayConfig == nil ||
+		slice.Status.SliceConfig.ExternalGatewayConfig.Ingress == nil ||
+		slice.Status.SliceConfig.ExternalGatewayConfig.Ingress.Enabled == false {
+		return nil, nil
+	}
+
+	for i := range slice.Status.AppPods {
+		pod := &slice.Status.AppPods[i]
+		if strings.Contains(pod.PodName, "ingressgateway") && pod.PodNamespace == ControlPlaneNamespace && pod.NsmIP != "" {
+			return pod, nil
+		}
+	}
+
+	return nil, nil
 }
 
 func GetSliceRouterPodNameAndIP(ctx context.Context, c client.Client, sliceName string) (string, string, error) {
