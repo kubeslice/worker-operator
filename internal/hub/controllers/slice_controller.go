@@ -148,20 +148,18 @@ func (r *SliceReconciler) updateSliceConfig(ctx context.Context, meshSlice *mesh
 		meshSlice.Status.SliceConfig.SliceIpam.IpamClusterOctet = spokeSlice.Spec.IpamClusterOctet
 	}
 
-	if meshSlice.Status.SliceConfig.ExternalGatewayConfig == nil {
-		cfg := spokeSlice.Spec.ExternalGatewayConfig
-		meshSlice.Status.SliceConfig.ExternalGatewayConfig = &meshv1beta1.ExternalGatewayConfig{
-			GatewayType: cfg.GatewayType,
-			Egress: &meshv1beta1.ExternalGatewayConfigOptions{
-				Enabled: cfg.Egress.Enabled,
-			},
-			Ingress: &meshv1beta1.ExternalGatewayConfigOptions{
-				Enabled: cfg.Ingress.Enabled,
-			},
-			NsIngress: &meshv1beta1.ExternalGatewayConfigOptions{
-				Enabled: cfg.NsIngress.Enabled,
-			},
-		}
+	extGwCfg := spokeSlice.Spec.ExternalGatewayConfig
+	meshSlice.Status.SliceConfig.ExternalGatewayConfig = &meshv1beta1.ExternalGatewayConfig{
+		GatewayType: extGwCfg.GatewayType,
+		Egress: &meshv1beta1.ExternalGatewayConfigOptions{
+			Enabled: extGwCfg.Egress.Enabled,
+		},
+		Ingress: &meshv1beta1.ExternalGatewayConfigOptions{
+			Enabled: extGwCfg.Ingress.Enabled,
+		},
+		NsIngress: &meshv1beta1.ExternalGatewayConfigOptions{
+			Enabled: extGwCfg.NsIngress.Enabled,
+		},
 	}
 
 	return r.MeshClient.Status().Update(ctx, meshSlice)

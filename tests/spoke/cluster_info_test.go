@@ -4,7 +4,7 @@ import (
 	"time"
 
 	clusterpkg "bitbucket.org/realtimeai/kubeslice-operator/internal/cluster"
-	hub "bitbucket.org/realtimeai/kubeslice-operator/internal/hub/hub-client"
+	hub "bitbucket.org/realtimeai/kubeslice-operator/internal/hub/hubclient"
 	hubv1alpha1 "bitbucket.org/realtimeai/mesh-apis/pkg/hub/v1alpha1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"

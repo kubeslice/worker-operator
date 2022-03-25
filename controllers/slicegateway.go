@@ -119,7 +119,7 @@ func (r *SliceGwReconciler) deploymentForGatewayServer(g *meshv1beta1.SliceGatew
 							},
 							{
 								Name:  "CLUSTER_ID",
-								Value: clusterName,
+								Value: ClusterName,
 							},
 							{
 								Name:  "REMOTE_CLUSTER_ID",

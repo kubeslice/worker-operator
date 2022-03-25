@@ -3,13 +3,17 @@ package serviceimport
 import (
 	"context"
 	"errors"
+	"strconv"
 
 	meshv1beta1 "bitbucket.org/realtimeai/kubeslice-operator/api/v1beta1"
 	"bitbucket.org/realtimeai/kubeslice-operator/controllers"
 	"bitbucket.org/realtimeai/kubeslice-operator/internal/dns"
 	"bitbucket.org/realtimeai/kubeslice-operator/internal/logger"
 	corev1 "k8s.io/api/core/v1"
+
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	ctrl "sigs.k8s.io/controller-runtime"
 )
 
@@ -52,4 +56,35 @@ func (r *Reconciler) reconcileDNSEntries(ctx context.Context, serviceimport *mes
 	}
 
 	return ctrl.Result{}, err, false
+}
+
+func (r *Reconciler) serviceForServiceImport(serviceImport *meshv1beta1.ServiceImport) *corev1.Service {
+
+	ports := []corev1.ServicePort{}
+
+	for _, p := range serviceImport.Spec.Ports {
+		pName := p.Name
+		if pName == "" {
+			pName = string(p.Protocol) + strconv.Itoa(int(p.ContainerPort))
+		}
+		ports = append(ports, corev1.ServicePort{
+			Port:       p.ContainerPort,
+			Protocol:   p.Protocol,
+			Name:       pName,
+			TargetPort: intstr.FromInt(int(p.ContainerPort)),
+		})
+	}
+
+	svc := &corev1.Service{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      serviceImport.Name,
+			Namespace: serviceImport.Namespace,
+		},
+		Spec: corev1.ServiceSpec{
+			Ports: ports,
+		},
+	}
+
+	ctrl.SetControllerReference(serviceImport, svc, r.Scheme)
+	return svc
 }

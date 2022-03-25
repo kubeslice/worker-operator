@@ -22,6 +22,7 @@ require (
 	google.golang.org/grpc v1.44.0
 	google.golang.org/protobuf v1.27.1
 	gopkg.in/yaml.v2 v2.4.0
+	istio.io/api v0.0.0-20210204223132-d90b2f705958
 	istio.io/client-go v1.9.0
 	k8s.io/api v0.23.4
 	k8s.io/apimachinery v0.23.4
