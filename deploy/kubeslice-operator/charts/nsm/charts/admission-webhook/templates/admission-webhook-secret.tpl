@@ -25,9 +25,11 @@ spec:
       labels:
         app: nsm-admission-webhook
     spec:
+      imagePullSecrets:
+        - name: avesha-nexus
       containers:
         - name: nsm-admission-webhook
-          image: {{ .Values.registry }}/{{ .Values.org }}/admission-webhook:{{ .Values.tag }}
+          image: nexus.dev.aveshalabs.io/kubeslice/nsm-admission-webhook:1.0.0
           imagePullPolicy: {{ .Values.pullPolicy }}
           env:
             - name: REPO
@@ -89,7 +91,7 @@ metadata:
 webhooks:
   - name: admission-webhook.networkservicemesh.io
     sideEffects: None
-    admissionReviewVersions: ["v1"]
+    admissionReviewVersions: ["v1", "v1beta1"]
     failurePolicy: Ignore
     matchPolicy: Equivalent
     clientConfig:
@@ -101,5 +103,5 @@ webhooks:
     rules:
       - operations: ["CREATE"]
         apiGroups: ["apps", "extensions", ""]
-        apiVersions: ["v1"]
+        apiVersions: ["v1", "v1beta1"]
         resources: ["deployments", "services", "pods"]
