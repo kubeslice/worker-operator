@@ -50,7 +50,7 @@ func (r *SliceGwReconciler) deploymentForGatewayServer(g *meshv1beta1.SliceGatew
 
 	var privileged = true
 
-	sidecarImg := "nexus.dev.aveshalabs.io/kubeslice-gw-sidecar:latest-stable"
+	sidecarImg := "nexus.dev.aveshalabs.io/kubeslice/gw-sidecar:1.0.0"
 	sidecarPullPolicy := corev1.PullAlways
 	vpnImg := "nexus.dev.aveshalabs.io/avesha/openvpn-server.ubuntu.18.04:1.0.0"
 	vpnPullPolicy := corev1.PullAlways
