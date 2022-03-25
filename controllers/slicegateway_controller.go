@@ -44,10 +44,6 @@ type SliceGwReconciler struct {
 	HubClient HubClientProvider
 }
 
-type HubClientProvider interface {
-	UpdateNodePortForSliceGwServer(ctx context.Context, sliceGwNodePort int32, sliceGwName string) error
-}
-
 func readyToDeployGwClient(sliceGw *meshv1beta1.SliceGateway) bool {
 	return sliceGw.Status.Config.SliceGatewayRemoteNodeIP != "" && sliceGw.Status.Config.SliceGatewayRemoteNodePort != 0
 }
