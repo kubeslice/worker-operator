@@ -43,6 +43,7 @@ type SliceReconciler struct {
 	client.Client
 	Scheme    *runtime.Scheme
 	Log       logr.Logger
+	NetOpPods []NetOpPod
 	HubClient HubClientProvider
 }
 
@@ -97,6 +98,12 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 		// The object is being deleted
 		if controllerutil.ContainsFinalizer(slice, sliceFinalizer) {
 			log.Info("Deleting slice", "slice", slice.Name)
+			// send slice deletion event to netops
+			err = r.SendSliceDeletionEventToNetOp(ctx, req.NamespacedName.Name, req.NamespacedName.Namespace)
+			if err != nil {
+				log.Error(err, "Failed to send slice deletetion event to netop")
+			}
+			//cleanup slice resources
 			r.cleanupSliceResources(ctx, slice)
 			controllerutil.RemoveFinalizer(slice, sliceFinalizer)
 			if err := r.Update(ctx, slice); err != nil {
@@ -139,6 +146,12 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 		err := fmt.Errorf("Slice not reconciled from hub")
 		log.Error(err, "Slice is not reconciled from hub yet, skipping reconciliation")
 		return ctrl.Result{}, err
+	}
+
+	debugLog.Info("Syncing slice QoS config with NetOp pods")
+	err = r.SyncSliceQosProfileWithNetOp(ctx, slice)
+	if err != nil {
+		log.Error(err, "Failed to sync QoS profile with netop pods")
 	}
 
 	log.Info("ExternalGatewayConfig", "egw", slice.Status.SliceConfig)
@@ -202,7 +215,6 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 		debugLog.Info("requeuing after app pod list reconcile", "res", res, "er", err)
 		return res, err
 	}
-
 	return ctrl.Result{
 		RequeueAfter: ReconcileInterval,
 	}, nil

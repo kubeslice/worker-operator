@@ -4,9 +4,9 @@ go 1.16
 
 require (
 	bitbucket.org/realtimeai/kubeslice-gw-sidecar v0.0.0-20220214062837-3c7d18a8439e
-	bitbucket.org/realtimeai/kubeslice-netops v0.0.0-20220225091428-05183d983334
+	bitbucket.org/realtimeai/kubeslice-netops v0.0.0-20220323113922-61ae902d49f7
 	bitbucket.org/realtimeai/kubeslice-router-sidecar v0.0.0-20220221080454-e2276f57c978
-	bitbucket.org/realtimeai/mesh-apis v0.0.0-20220323063542-809bd7e1cdfb
+	bitbucket.org/realtimeai/mesh-apis v0.0.0-20220324085140-e01c311eb69c
 	github.com/go-logr/logr v1.2.0
 	github.com/go-logr/zapr v1.2.0
 	github.com/golang/protobuf v1.5.2

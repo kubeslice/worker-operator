@@ -47,7 +47,7 @@ type SpokeSliceGatewayProvider struct {
 type QOSProfile struct {
 	//+kubebuilder:validation:Enum:=HTB
 	QueueType               string `json:"queueType,omitempty"`
-	Priority                string `json:"priority,omitempty"`
+	Priority                int    `json:"priority,omitempty"`
 	TcType                  string `json:"tcType,omitempty"`
 	BandwidthCeilingKbps    int    `json:"bandwidthCeilingKbps,omitempty"`
 	BandwidthGuaranteedKbps int    `json:"bandwidthGuaranteedKbps,omitempty"`

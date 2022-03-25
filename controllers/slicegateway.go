@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"bitbucket.org/realtimeai/kubeslice-operator/internal/netop"
 	"context"
 	//	"errors"
 	"os"
@@ -47,7 +48,7 @@ func (r *SliceGwReconciler) deploymentForGatewayServer(g *meshv1beta1.SliceGatew
 	var vpnSecretDefaultMode int32 = 420
 	var vpnFilesRestrictedMode int32 = 0644
 
-	var privileged bool = true
+	var privileged = true
 
 	sidecarImg := "nexus.dev.aveshalabs.io/kubeslice-gw-sidecar:latest-stable"
 	sidecarPullPolicy := corev1.PullAlways
@@ -299,7 +300,7 @@ func (r *SliceGwReconciler) serviceForGateway(g *meshv1beta1.SliceGateway) *core
 
 func (r *SliceGwReconciler) deploymentForGatewayClient(g *meshv1beta1.SliceGateway) *appsv1.Deployment {
 	var replicas int32 = 1
-	var privileged bool = true
+	var privileged = true
 
 	var vpnSecretDefaultMode int32 = 0644
 
@@ -626,4 +627,28 @@ func (r *SliceGwReconciler) SendConnectionContextToSliceRouter(ctx context.Conte
 	}
 
 	return ctrl.Result{}, nil, false
+}
+
+func (r *SliceGwReconciler) SyncNetOpConnectionContextAndQos(ctx context.Context, slice *meshv1beta1.Slice, slicegw *meshv1beta1.SliceGateway, sliceGwNodePort int32) error {
+	log := logger.FromContext(ctx).WithValues("type", "SliceGw")
+	debugLog := log.V(1)
+
+	for i := range r.NetOpPods {
+		n := &r.NetOpPods[i]
+		debugLog.Info("syncing netop pod", "podName", n.PodName)
+		sidecarGrpcAddress := n.PodIP + ":5000"
+
+		err := netop.SendConnectionContext(ctx, sidecarGrpcAddress, slicegw, sliceGwNodePort)
+		if err != nil {
+			log.Error(err, "Failed to send conn ctx to netop. PodIp: %v, PodName: %v", n.PodIP, n.PodName)
+			return err
+		}
+		err = netop.UpdateSliceQosProfile(ctx, sidecarGrpcAddress, slice)
+		if err != nil {
+			log.Error(err, "Failed to send qos to netop. PodIp: %v, PodName: %v", n.PodIP, n.PodName)
+			return err
+		}
+	}
+	debugLog.Info("netop pods sync complete", "pods", r.NetOpPods)
+	return nil
 }

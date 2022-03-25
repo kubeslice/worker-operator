@@ -64,7 +64,7 @@ type SpokeSliceGatewayProvider struct {
 type QOSProfile struct {
 	//+kubebuilder:validation:Enum:=HTB
 	QueueType string `json:"queueType,omitempty"`
-	Priority  string `json:"priority,omitempty"`
+	Priority  int    `json:"priority,omitempty"`
 	//+kubebuilder:validation:Enum:=BANDWIDTH_CONTROL
 	TcType                  string `json:"tcType,omitempty"`
 	BandwidthCeilingKbps    int    `json:"bandwidthCeilingKbps,omitempty"` //FIXME: Need research for unlimited
