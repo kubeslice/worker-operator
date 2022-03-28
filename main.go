@@ -17,8 +17,8 @@ limitations under the License.
 package main
 
 import (
-	"bitbucket.org/realtimeai/kubeslice-operator/pkg/events"
 	"bitbucket.org/realtimeai/kubeslice-operator/internal/cluster"
+	"bitbucket.org/realtimeai/kubeslice-operator/pkg/events"
 	"flag"
 	"os"
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
@@ -110,6 +110,10 @@ func main() {
 		Log:           ctrl.Log.WithName("controllers").WithName("Slice"),
 		Scheme:        mgr.GetScheme(),
 		EventRecorder: sliceEventRecorder,
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "Slice")
+		os.Exit(1)
+	}
 
 	hubClient, err := hub.NewHubClientConfig()
 	if err != nil {

@@ -61,7 +61,7 @@ func Start(meshClient client.Client, ctx context.Context) {
 	sliceReconciler := &controllers.SliceReconciler{
 		MeshClient:    meshClient,
 		EventRecorder: spokeSliceEventRecorder,
-		Log:        ctrl.Log.WithName("hub").WithName("controllers").WithName("SliceConfig"),
+		Log:           ctrl.Log.WithName("hub").WithName("controllers").WithName("SliceConfig"),
 	}
 	err = builder.
 		ControllerManagedBy(mgr).

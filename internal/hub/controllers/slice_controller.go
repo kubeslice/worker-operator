@@ -17,8 +17,8 @@ import (
 type SliceReconciler struct {
 	client.Client
 	EventRecorder *events.EventRecorder
-	Log        logr.Logger
-	MeshClient client.Client
+	Log           logr.Logger
+	MeshClient    client.Client
 }
 
 var sliceFinalizer = "hub.kubeslice.io/hubSpokeSlice-finalizer"

@@ -32,8 +32,8 @@ import (
 
 	meshv1beta1 "bitbucket.org/realtimeai/kubeslice-operator/api/v1beta1"
 	"bitbucket.org/realtimeai/kubeslice-operator/internal/logger"
-	"bitbucket.org/realtimeai/kubeslice-operator/pkg/events"
 	"bitbucket.org/realtimeai/kubeslice-operator/internal/manifest"
+	"bitbucket.org/realtimeai/kubeslice-operator/pkg/events"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
@@ -43,10 +43,10 @@ var sliceFinalizer = "mesh.kubeslice.io/slice-finalizer"
 type SliceReconciler struct {
 	client.Client
 	EventRecorder *events.EventRecorder
-	Scheme    *runtime.Scheme
-	Log       logr.Logger
-	NetOpPods []NetOpPod
-	HubClient HubClientProvider
+	Scheme        *runtime.Scheme
+	Log           logr.Logger
+	NetOpPods     []NetOpPod
+	HubClient     HubClientProvider
 }
 
 //+kubebuilder:rbac:groups=mesh.avesha.io,resources=slice,verbs=get;list;watch;create;update;patch;delete
