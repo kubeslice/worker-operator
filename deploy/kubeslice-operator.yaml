@@ -869,12 +869,6 @@ rules:
 - apiGroups:
   - mesh.avesha.io
   resources:
-  - serviceimports/finalizers
-  verbs:
-  - update
-- apiGroups:
-  - mesh.avesha.io
-  resources:
   - slice
   verbs:
   - create
@@ -902,6 +896,28 @@ rules:
   - networking.istio.io
   resources:
   - gateways
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - update
+  - watch
+- apiGroups:
+  - networking.istio.io
+  resources:
+  - serviceentries
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - update
+  - watch
+- apiGroups:
+  - networking.istio.io
+  resources:
+  - virtualservices
   verbs:
   - create
   - delete
