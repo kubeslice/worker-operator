@@ -103,29 +103,23 @@ func main() {
 		setupLog.Error(err, "unable to start manager")
 		os.Exit(1)
 	}
-	// create slice-controller recorder
-	sliceEventRecorder := events.NewEventRecorder(mgr.GetEventRecorderFor("slice-controller"))
-	if err = (&controllers.SliceReconciler{
-		Client:        mgr.GetClient(),
-		Log:           ctrl.Log.WithName("controllers").WithName("Slice"),
-		Scheme:        mgr.GetScheme(),
-		EventRecorder: sliceEventRecorder,
-	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "Slice")
-		os.Exit(1)
-	}
-
+	
+	
 	hubClient, err := hub.NewHubClientConfig()
 	if err != nil {
 		setupLog.Error(err, "could not create hub client for slice gateway reconciler")
 		os.Exit(1)
 	}
 
+	// create slice-controller recorder
+	sliceEventRecorder := events.NewEventRecorder(mgr.GetEventRecorderFor("slice-controller"))
+
 	if err = (&controllers.SliceReconciler{
 		Client:    mgr.GetClient(),
 		Log:       ctrl.Log.WithName("controllers").WithName("Slice"),
 		Scheme:    mgr.GetScheme(),
 		HubClient: hubClient,
+		EventRecorder: sliceEventRecorder,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Slice")
 		os.Exit(1)
