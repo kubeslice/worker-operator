@@ -1,4 +1,4 @@
-package controllers
+package slice
 
 import (
 	"context"

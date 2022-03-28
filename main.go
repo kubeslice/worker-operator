@@ -40,6 +40,7 @@ import (
 	"bitbucket.org/realtimeai/kubeslice-operator/controllers"
 	"bitbucket.org/realtimeai/kubeslice-operator/controllers/serviceexport"
 	"bitbucket.org/realtimeai/kubeslice-operator/controllers/serviceimport"
+	"bitbucket.org/realtimeai/kubeslice-operator/controllers/slice"
 	hub "bitbucket.org/realtimeai/kubeslice-operator/internal/hub/hubclient"
 	"bitbucket.org/realtimeai/kubeslice-operator/internal/hub/manager"
 	"bitbucket.org/realtimeai/kubeslice-operator/internal/logger"
@@ -109,7 +110,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err = (&controllers.SliceReconciler{
+	if err = (&slice.SliceReconciler{
 		Client:    mgr.GetClient(),
 		Log:       ctrl.Log.WithName("controllers").WithName("Slice"),
 		Scheme:    mgr.GetScheme(),

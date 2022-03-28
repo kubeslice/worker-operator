@@ -31,7 +31,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	meshv1beta1 "bitbucket.org/realtimeai/kubeslice-operator/api/v1beta1"
+	"bitbucket.org/realtimeai/kubeslice-operator/internal/hub/controllers"
 	"bitbucket.org/realtimeai/kubeslice-operator/internal/logger"
+	nsmv1alpha1 "github.com/networkservicemesh/networkservicemesh/k8s/pkg/apis/networkservice/v1alpha1"
 )
 
 var sliceGwFinalizer = "mesh.kubeslice.io/slicegw-finalizer"
@@ -248,4 +250,25 @@ func (r *SliceGwReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Owns(&appsv1.Deployment{}).
 		Owns(&corev1.Service{}).
 		Complete(r)
+}
+
+func FindSliceRouterService(ctx context.Context, c client.Client, sliceName string) (bool, error) {
+	vl3NseEpList := &nsmv1alpha1.NetworkServiceEndpointList{}
+	opts := []client.ListOption{
+		client.InNamespace(controllers.ControlPlaneNamespace),
+		client.MatchingLabels{"app": "vl3-nse-" + sliceName,
+			"networkservicename": "vl3-service-" + sliceName},
+	}
+	err := c.List(ctx, vl3NseEpList, opts...)
+	if err != nil {
+		if errors.IsNotFound(err) {
+			return false, nil
+		}
+		return false, err
+	}
+	if len(vl3NseEpList.Items) == 0 {
+		return false, nil
+	}
+
+	return true, nil
 }

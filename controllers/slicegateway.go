@@ -264,9 +264,9 @@ func (r *SliceGwReconciler) deploymentForGatewayServer(g *meshv1beta1.SliceGatew
 		},
 	}
 
-	if len(imagePullSecretName) != 0 {
+	if len(ImagePullSecretName) != 0 {
 		dep.Spec.Template.Spec.ImagePullSecrets = []corev1.LocalObjectReference{{
-			Name: imagePullSecretName,
+			Name: ImagePullSecretName,
 		}}
 	}
 
@@ -486,9 +486,9 @@ func (r *SliceGwReconciler) deploymentForGatewayClient(g *meshv1beta1.SliceGatew
 			},
 		},
 	}
-	if len(imagePullSecretName) != 0 {
+	if len(ImagePullSecretName) != 0 {
 		dep.Spec.Template.Spec.ImagePullSecrets = []corev1.LocalObjectReference{{
-			Name: imagePullSecretName,
+			Name: ImagePullSecretName,
 		}}
 	}
 

@@ -18,7 +18,7 @@ var (
 
 	nodeIP = os.Getenv("NODE_IP")
 
-	imagePullSecretName = utils.GetEnvOrDefault("IMAGE_PULL_SECRET_NAME", "avesha-nexus")
+	ImagePullSecretName = utils.GetEnvOrDefault("IMAGE_PULL_SECRET_NAME", "avesha-nexus")
 
 	gwSidecarImage           = os.Getenv("AVESHA_GW_SIDECAR_IMAGE")
 	gwSidecarImagePullPolicy = os.Getenv("AVESHA_GW_SIDECAR_IMAGE_PULLPOLICY")
@@ -27,12 +27,6 @@ var (
 	openVpnClientImage      = os.Getenv("AVESHA_OPENVPN_CLIENT_IMAGE")
 	openVpnServerPullPolicy = os.Getenv("AVESHA_OPENVPN_SERVER_PULLPOLICY")
 	openVpnClientPullPolicy = os.Getenv("AVESHA_OPENVPN_CLIENT_PULLPOLICY")
-
-	vl3RouterImage      = os.Getenv("AVESHA_VL3_ROUTER_IMAGE")
-	vl3RouterPullPolicy = os.Getenv("AVESHA_VL3_ROUTER_PULLPOLICY")
-
-	sliceRouterSidecarImage           = os.Getenv("AVESHA_VL3_SIDECAR_IMAGE")
-	sliceRouterSidecarImagePullPolicy = os.Getenv("AVESHA_VL3_SIDECAR_IMAGE_PULLPOLICY")
 
 	ReconcileInterval = 10 * time.Second
 )

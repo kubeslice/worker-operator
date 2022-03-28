@@ -1,9 +1,10 @@
-package controllers
+package slice
 
 import (
 	"context"
 	goerrors "errors"
 	"fmt"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -11,6 +12,7 @@ import (
 	meshv1beta1 "bitbucket.org/realtimeai/kubeslice-operator/api/v1beta1"
 	nsmv1alpha1 "github.com/networkservicemesh/networkservicemesh/k8s/pkg/apis/networkservice/v1alpha1"
 
+	"bitbucket.org/realtimeai/kubeslice-operator/controllers"
 	"bitbucket.org/realtimeai/kubeslice-operator/internal/logger"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -28,6 +30,13 @@ const (
 	nsmVppDataplaneCfgStr           string = "nsm-vpp-plane"
 	nsmKernelDataplaneCfgStr        string = "nsm-kernel-plane"
 	sliceRouterDeploymentNamePrefix string = "vl3-slice-router-"
+)
+
+var (
+	sliceRouterSidecarImage           = os.Getenv("AVESHA_VL3_SIDECAR_IMAGE")
+	sliceRouterSidecarImagePullPolicy = os.Getenv("AVESHA_VL3_SIDECAR_IMAGE_PULLPOLICY")
+	vl3RouterImage                    = os.Getenv("AVESHA_VL3_ROUTER_IMAGE")
+	vl3RouterPullPolicy               = os.Getenv("AVESHA_VL3_ROUTER_PULLPOLICY")
 )
 
 func labelsForSliceRouterDeployment(name string) map[string]string {
@@ -114,7 +123,7 @@ func (r *SliceReconciler) getContainerSpecForSliceRouter(s *meshv1beta1.Slice, i
 			},
 			{
 				Name:  "NSREGISTRY_ADDR",
-				Value: "nsmgr." + ControlPlaneNamespace,
+				Value: "nsmgr." + controllers.ControlPlaneNamespace,
 			},
 			{
 				Name:  "NSREGISTRY_PORT",
@@ -294,9 +303,9 @@ func (r *SliceReconciler) deploymentForSliceRouter(s *meshv1beta1.Slice, ipamOct
 		},
 	}
 
-	if len(imagePullSecretName) != 0 {
+	if len(controllers.ImagePullSecretName) != 0 {
 		dep.Spec.Template.Spec.ImagePullSecrets = []corev1.LocalObjectReference{{
-			Name: imagePullSecretName,
+			Name: controllers.ImagePullSecretName,
 		}}
 	}
 
@@ -340,7 +349,7 @@ func (r *SliceReconciler) deploySliceRouterSvc(ctx context.Context, slice *meshv
 	svc := &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      sliceRouterDeploymentNamePrefix + slice.Name,
-			Namespace: ControlPlaneNamespace,
+			Namespace: controllers.ControlPlaneNamespace,
 		},
 		Spec: corev1.ServiceSpec{
 			Selector: ls,
@@ -394,7 +403,7 @@ func (r *SliceReconciler) ReconcileSliceRouter(ctx context.Context, slice *meshv
 	foundSvc := &corev1.Service{}
 	err = r.Get(ctx, types.NamespacedName{
 		Name:      sliceRouterDeploymentNamePrefix + slice.Name,
-		Namespace: ControlPlaneNamespace,
+		Namespace: controllers.ControlPlaneNamespace,
 	}, foundSvc)
 
 	if err != nil {
@@ -424,7 +433,7 @@ func (r *SliceReconciler) cleanupSliceRouter(ctx context.Context, sliceName stri
 	log := logger.FromContext(ctx)
 
 	vl3Nse := &nsmv1alpha1.NetworkService{}
-	err := r.Get(ctx, types.NamespacedName{Name: "vl3-service-" + sliceName, Namespace: ControlPlaneNamespace}, vl3Nse)
+	err := r.Get(ctx, types.NamespacedName{Name: "vl3-service-" + sliceName, Namespace: controllers.ControlPlaneNamespace}, vl3Nse)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			return nil
@@ -444,7 +453,7 @@ func (r *SliceReconciler) cleanupSliceRouter(ctx context.Context, sliceName stri
 func FindSliceRouterService(ctx context.Context, c client.Client, sliceName string) (bool, error) {
 	vl3NseEpList := &nsmv1alpha1.NetworkServiceEndpointList{}
 	opts := []client.ListOption{
-		client.InNamespace(ControlPlaneNamespace),
+		client.InNamespace(controllers.ControlPlaneNamespace),
 		client.MatchingLabels{"app": "vl3-nse-" + sliceName,
 			"networkservicename": "vl3-service-" + sliceName},
 	}
