@@ -329,7 +329,7 @@ func (r *SliceReconciler) deploySliceRouter(ctx context.Context, slice *meshv1be
 			&events.Event{
 				Object:    slice,
 				EventType: events.EventTypeWarning,
-				Reason:    "Error Creating slice router",
+				Reason:    "Error",
 				Message:   "Error Creating slice router",
 			},
 		)
@@ -340,8 +340,8 @@ func (r *SliceReconciler) deploySliceRouter(ctx context.Context, slice *meshv1be
 		&events.Event{
 			Object:    slice,
 			EventType: events.EventTypeNormal,
-			Reason:    "Created slice router",
-			Message:   "Created slice router",
+			Reason:    "Created",
+			Message:   "Created slice router deployment" + dep.Name,
 		},
 	)
 	return nil
@@ -373,9 +373,25 @@ func (r *SliceReconciler) deploySliceRouterSvc(ctx context.Context, slice *meshv
 	err := r.Create(ctx, svc)
 	if err != nil {
 		log.Error(err, "Failed to create svc for slice router")
+		r.EventRecorder.Record(
+			&events.Event{
+				Object:    slice,
+				EventType: events.EventTypeWarning,
+				Reason:    "Error",
+				Message:   "Error creating service for slice router",
+			},
+		)
 		return err
 	}
 	log.Info("Created svc spec for slice router: ", "Name: ", slice.Name)
+	r.EventRecorder.Record(
+		&events.Event{
+			Object:    slice,
+			EventType: events.EventTypeWarning,
+			Reason:    "Created",
+			Message:   "Created service for slice router" + svc.Name,
+		},
+	)
 
 	return nil
 }
@@ -420,7 +436,7 @@ func (r *SliceReconciler) ReconcileSliceRouter(ctx context.Context, slice *meshv
 					RequeueAfter: 10 * time.Second,
 				}, nil, true
 			}
-			// Define and create a new deployment for the slice router
+			// Define and create a new service for the slice router
 			err := r.deploySliceRouterSvc(ctx, slice)
 			if err != nil {
 				log.Error(err, "Failed to deploy slice router service")

@@ -17,6 +17,7 @@ import (
 	meshv1beta1 "bitbucket.org/realtimeai/kubeslice-operator/api/v1beta1"
 	"bitbucket.org/realtimeai/kubeslice-operator/internal/hub/controllers"
 	"bitbucket.org/realtimeai/kubeslice-operator/internal/logger"
+	"bitbucket.org/realtimeai/kubeslice-operator/pkg/events"
 	spokev1alpha1 "bitbucket.org/realtimeai/mesh-apis/pkg/spoke/v1alpha1"
 	ctrl "sigs.k8s.io/controller-runtime"
 )
@@ -55,9 +56,13 @@ func Start(meshClient client.Client, ctx context.Context) {
 		os.Exit(1)
 	}
 
+	// create slice-controller recorder
+	spokeSliceEventRecorder := events.NewEventRecorder(mgr.GetEventRecorderFor("spokeSlice-controller"))
+
 	sliceReconciler := &controllers.SliceReconciler{
 		MeshClient:    meshClient,
 		Log:           ctrl.Log.WithName("hub").WithName("controllers").WithName("SliceConfig"),
+		EventRecorder: spokeSliceEventRecorder,
 	}
 	err = builder.
 		ControllerManagedBy(mgr).
