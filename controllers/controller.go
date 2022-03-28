@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"context"
+	"fmt"
 	"strings"
 
 	meshv1beta1 "bitbucket.org/realtimeai/kubeslice-operator/api/v1beta1"
@@ -28,6 +29,11 @@ func GetSlice(ctx context.Context, c client.Client, slice string) (*meshv1beta1.
 func GetSliceIngressGwPod(ctx context.Context, c client.Client, sliceName string) (*meshv1beta1.AppPod, error) {
 	slice, err := GetSlice(ctx, c, sliceName)
 	if err != nil {
+		return nil, err
+	}
+
+	if slice.Status.SliceConfig == nil {
+		err := fmt.Errorf("sliceconfig is not reconciled from hub")
 		return nil, err
 	}
 

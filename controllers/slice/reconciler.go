@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package controllers
+package slice
 
 import (
 	"context"
@@ -31,6 +31,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	meshv1beta1 "bitbucket.org/realtimeai/kubeslice-operator/api/v1beta1"
+	"bitbucket.org/realtimeai/kubeslice-operator/controllers"
 	"bitbucket.org/realtimeai/kubeslice-operator/internal/logger"
 	"bitbucket.org/realtimeai/kubeslice-operator/internal/manifest"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -58,6 +59,8 @@ type SliceReconciler struct {
 //+kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=rolebindings,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=core,resources=serviceaccounts,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=networking.istio.io,resources=gateways,verbs=get;list;create;update;watch;delete
+//+kubebuilder:rbac:groups=networking.istio.io,resources=serviceentries,verbs=get;list;create;update;watch;delete
+//+kubebuilder:rbac:groups=networking.istio.io,resources=virtualservices,verbs=get;list;create;update;watch;delete
 //+kubebuilder:webhook:path=/mutate-appsv1-deploy,mutating=true,failurePolicy=fail,groups="apps",resources=deployments,verbs=create;update,versions=v1,name=mdeploy.avesha.io,admissionReviewVersions=v1,sideEffects=NoneOnDryRun
 //+kubebuilder:rbac:groups=core,resources=nodes,verbs=get;list;watch
 
@@ -118,8 +121,8 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 		log.Info("Finding DNS IP")
 		svc := &corev1.Service{}
 		err = r.Get(ctx, types.NamespacedName{
-			Namespace: ControlPlaneNamespace,
-			Name:      DNSDeploymentName,
+			Namespace: controllers.ControlPlaneNamespace,
+			Name:      controllers.DNSDeploymentName,
 		}, svc)
 
 		if err != nil {
@@ -204,7 +207,7 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 
 	if requeue {
 		log.Info("updating app pod list in hub spokesliceconfig status")
-		sliceConfigName := slice.Name + "-" + ClusterName
+		sliceConfigName := slice.Name + "-" + controllers.ClusterName
 		err = r.HubClient.UpdateAppPodsList(ctx, sliceConfigName, slice.Status.AppPods)
 		if err != nil {
 			log.Error(err, "Failed to update app pod list in hub")
@@ -216,7 +219,7 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 		return res, err
 	}
 	return ctrl.Result{
-		RequeueAfter: ReconcileInterval,
+		RequeueAfter: controllers.ReconcileInterval,
 	}, nil
 }
 

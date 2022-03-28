@@ -19,9 +19,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	meshv1beta1 "bitbucket.org/realtimeai/kubeslice-operator/api/v1beta1"
-	"bitbucket.org/realtimeai/kubeslice-operator/controllers"
 	"bitbucket.org/realtimeai/kubeslice-operator/controllers/serviceexport"
 	"bitbucket.org/realtimeai/kubeslice-operator/controllers/serviceimport"
+	"bitbucket.org/realtimeai/kubeslice-operator/controllers/slice"
 	hce "bitbucket.org/realtimeai/kubeslice-operator/tests/emulator/hubclient"
 	hubv1alpha1 "bitbucket.org/realtimeai/mesh-apis/pkg/hub/v1alpha1"
 	istiov1beta1 "istio.io/client-go/pkg/apis/networking/v1beta1"
@@ -89,7 +89,7 @@ var _ = BeforeSuite(func() {
 	})
 	Expect(err).ToNot(HaveOccurred())
 
-	err = (&controllers.SliceReconciler{
+	err = (&slice.SliceReconciler{
 		Client: k8sManager.GetClient(),
 		Scheme: k8sManager.GetScheme(),
 		Log:    ctrl.Log.WithName("SliceTest"),
