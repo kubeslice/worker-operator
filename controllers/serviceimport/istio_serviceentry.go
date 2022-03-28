@@ -67,7 +67,7 @@ func (r *Reconciler) serviceEntryForEndpoint(serviceImport *meshv1beta1.ServiceI
 
 	// TODO: This is a hack. Need a better way to set targetPort for ingress gw.
 	targetPort := p.ContainerPort
-	if endpoint.Name == serviceImport.Name+"-ingress" {
+	if endpoint.Name == serviceImport.Name+"-"+serviceImport.ObjectMeta.Namespace+"-ingress" {
 		targetPort = 8080
 	}
 
