@@ -3,7 +3,6 @@ package events
 import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/record"
-	"strings"
 )
 
 type EventType string
@@ -30,16 +29,6 @@ type Event struct {
 	Message   string
 }
 
-func (event *Event) NewEvent(eventRecorder *EventRecorder) {
-	eventRecorder.Recorder.Event(event.Object, string(event.EventType), event.Reason, event.Message)
-}
-
-func getSeverity(eventType EventType) string {
-	switch strings.ToLower(string(eventType)) {
-	case "normal":
-		return "SEVERITY_NORMAL"
-	case "warning":
-		return "SEVERITY_WARNING"
-	}
-	return "SEVERITY_NORMAL"
+func (recorder *EventRecorder) Record(event *Event) {
+	recorder.Recorder.Event(event.Object, string(event.EventType), event.Reason, event.Message)
 }

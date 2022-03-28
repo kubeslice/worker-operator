@@ -3,7 +3,6 @@ package controllers
 import (
 	meshv1beta1 "bitbucket.org/realtimeai/kubeslice-operator/api/v1beta1"
 	"bitbucket.org/realtimeai/kubeslice-operator/internal/logger"
-	"bitbucket.org/realtimeai/kubeslice-operator/pkg/events"
 	spokev1alpha1 "bitbucket.org/realtimeai/mesh-apis/pkg/spoke/v1alpha1"
 	"context"
 	"github.com/go-logr/logr"
@@ -16,7 +15,6 @@ import (
 
 type SliceReconciler struct {
 	client.Client
-	EventRecorder *events.EventRecorder
 	Log           logr.Logger
 	MeshClient    client.Client
 }
@@ -97,14 +95,6 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req reconcile.Request) 
 				return reconcile.Result{}, err
 			}
 			log.Info("slice created in spoke cluster")
-			event := events.Event{
-				Object:    slice,
-				EventType: events.EventTypeNormal,
-				Reason:    "Created",
-				Message:   "Created slice in spoke cluster " + clusterName,
-			}
-			event.NewEvent(r.EventRecorder)
-
 			err = r.updateSliceConfig(ctx, s, slice)
 			if err != nil {
 				log.Error(err, "unable to update slice status in spoke cluster", "slice", s)

@@ -1,7 +1,6 @@
 package manager
 
 import (
-	"bitbucket.org/realtimeai/kubeslice-operator/pkg/events"
 	"context"
 	"os"
 
@@ -56,11 +55,8 @@ func Start(meshClient client.Client, ctx context.Context) {
 		os.Exit(1)
 	}
 
-	spokeSliceEventRecorder := events.NewEventRecorder(mgr.GetEventRecorderFor("spoke-slice-controller"))
-
 	sliceReconciler := &controllers.SliceReconciler{
 		MeshClient:    meshClient,
-		EventRecorder: spokeSliceEventRecorder,
 		Log:           ctrl.Log.WithName("hub").WithName("controllers").WithName("SliceConfig"),
 	}
 	err = builder.

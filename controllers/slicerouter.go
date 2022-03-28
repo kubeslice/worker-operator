@@ -325,24 +325,25 @@ func (r *SliceReconciler) deploySliceRouter(ctx context.Context, slice *meshv1be
 	err = r.Create(ctx, dep)
 	if err != nil {
 		log.Error(err, "Failed to create deployment for slice router")
-		event := events.Event{
-			Object:    slice,
-			EventType: events.EventTypeWarning,
-			Reason:    "Error Creating slice router",
-			Message:   "Error Creating slice router",
-		}
-		event.NewEvent(r.EventRecorder)
+		r.EventRecorder.Record(
+			&events.Event{
+				Object:    slice,
+				EventType: events.EventTypeWarning,
+				Reason:    "Error Creating slice router",
+				Message:   "Error Creating slice router",
+			},
+		)
 		return err
 	}
 	log.Info("Created deployment spec for slice router: ", "Name: ", slice.Name, "ipamOctet: ", ipamOctet)
-	event := events.Event{
-		Object:    slice,
-		EventType: events.EventTypeNormal,
-		Reason:    "Created slice router",
-		Message:   "Created slice router",
-	}
-	event.NewEvent(r.EventRecorder)
-
+	r.EventRecorder.Record(
+		&events.Event{
+			Object:    slice,
+			EventType: events.EventTypeNormal,
+			Reason:    "Created slice router",
+			Message:   "Created slice router",
+		},
+	)
 	return nil
 }
 
