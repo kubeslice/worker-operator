@@ -108,7 +108,7 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req reconcile.Request) 
 			r.EventRecorder.Record(
 				&events.Event{
 					Object:    slice,
-					EventType: events.EventTypeWarning,
+					EventType: events.EventTypeNormal,
 					Reason:    "Created",
 					Message:   "Created slice on spoke cluster " + clusterName,
 				},

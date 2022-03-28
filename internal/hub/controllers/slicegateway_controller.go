@@ -6,6 +6,7 @@ import (
 
 	meshv1beta1 "bitbucket.org/realtimeai/kubeslice-operator/api/v1beta1"
 	"bitbucket.org/realtimeai/kubeslice-operator/internal/logger"
+	"bitbucket.org/realtimeai/kubeslice-operator/pkg/events"
 	spokev1alpha1 "bitbucket.org/realtimeai/mesh-apis/pkg/spoke/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -18,7 +19,8 @@ import (
 
 type SliceGwReconciler struct {
 	client.Client
-	MeshClient client.Client
+	MeshClient    client.Client
+	EventRecorder *events.EventRecorder
 }
 
 func (r *SliceGwReconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
@@ -68,9 +70,25 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req reconcile.Request
 			err = r.MeshClient.Create(ctx, meshSliceGwCerts)
 			if err != nil {
 				log.Error(err, "unable to create secret to store slicegw certs in spoke cluster", "sliceGw", sliceGw.Name)
+				r.EventRecorder.Record(
+					&events.Event{
+						Object:    sliceGw,
+						EventType: events.EventTypeWarning,
+						Reason:    "Error",
+						Message:   "Error creating secret for storing gateway certs on spoke cluster " + clusterName,
+					},
+				)
 				return reconcile.Result{}, err
 			}
 			log.Info("sliceGw secret created in spoke cluster")
+			r.EventRecorder.Record(
+				&events.Event{
+					Object:    sliceGw,
+					EventType: events.EventTypeNormal,
+					Reason:    "Created",
+					Message:   "Successfully Created secret for storing gateway certs on spoke cluster " + clusterName,
+				},
+			)
 		} else {
 			log.Error(err, "unable to fetch slicegw certs from the spoke", "sliceGw", sliceGw.Name)
 			return reconcile.Result{}, err
@@ -116,9 +134,25 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req reconcile.Request
 			err = r.MeshClient.Create(ctx, meshSliceGw)
 			if err != nil {
 				log.Error(err, "unable to create sliceGw in spoke cluster", "sliceGw", sliceGwName)
+				r.EventRecorder.Record(
+					&events.Event{
+						Object:    sliceGw,
+						EventType: events.EventTypeWarning,
+						Reason:    "Error",
+						Message:   "Error creating slicegw on spoke cluster " + clusterName,
+					},
+				)
 				return reconcile.Result{}, err
 			}
 			log.Info("sliceGw created in spoke cluster", "sliceGw", sliceGwName)
+			r.EventRecorder.Record(
+				&events.Event{
+					Object:    sliceGw,
+					EventType: events.EventTypeNormal,
+					Reason:    "Created",
+					Message:   "Created slicegw on spoke cluster " + clusterName,
+				},
+			)
 		} else {
 			log.Error(err, "unable to fetch sliceGw in spoke cluster", "sliceGw", sliceGwName)
 			return reconcile.Result{}, err

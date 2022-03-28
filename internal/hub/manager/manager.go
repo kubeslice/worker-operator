@@ -76,8 +76,12 @@ func Start(meshClient client.Client, ctx context.Context) {
 		os.Exit(1)
 	}
 
+	// create slice-controller recorder
+	spokeSliceGatewayEventRecorder := events.NewEventRecorder(mgr.GetEventRecorderFor("spokeSliceGateway-controller"))
+
 	sliceGwReconciler := &controllers.SliceGwReconciler{
-		MeshClient: meshClient,
+		MeshClient:    meshClient,
+		EventRecorder: spokeSliceGatewayEventRecorder,
 	}
 	err = builder.
 		ControllerManagedBy(mgr).

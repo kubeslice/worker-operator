@@ -396,7 +396,7 @@ func (r *SliceReconciler) deploySliceRouterSvc(ctx context.Context, slice *meshv
 	r.EventRecorder.Record(
 		&events.Event{
 			Object:    slice,
-			EventType: events.EventTypeWarning,
+			EventType: events.EventTypeNormal,
 			Reason:    "Created",
 			Message:   "Created service for slice router" + svc.Name,
 		},
