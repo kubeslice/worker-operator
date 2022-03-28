@@ -33,6 +33,7 @@ import (
 	meshv1beta1 "bitbucket.org/realtimeai/kubeslice-operator/api/v1beta1"
 	"bitbucket.org/realtimeai/kubeslice-operator/controllers"
 	"bitbucket.org/realtimeai/kubeslice-operator/internal/logger"
+	"bitbucket.org/realtimeai/kubeslice-operator/pkg/events"
 	nsmv1alpha1 "github.com/networkservicemesh/networkservicemesh/k8s/pkg/apis/networkservice/v1alpha1"
 )
 
@@ -45,6 +46,7 @@ type SliceGwReconciler struct {
 	Log       logr.Logger
 	HubClient HubClientProvider
 	NetOpPods []NetOpPod
+	EventRecorder *events.EventRecorder
 }
 
 func readyToDeployGwClient(sliceGw *meshv1beta1.SliceGateway) bool {
