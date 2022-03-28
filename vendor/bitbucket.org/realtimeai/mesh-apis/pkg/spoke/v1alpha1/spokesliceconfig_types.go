@@ -20,9 +20,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
-// NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
-
 // SpokeSliceConfigSpec defines the desired state of Slice
 type SpokeSliceConfigSpec struct {
 	SliceName   string `json:"sliceName,omitempty"`
@@ -34,6 +31,8 @@ type SpokeSliceConfigSpec struct {
 	SliceIpamType             string                    `json:"sliceIpamType,omitempty"`
 	QosProfileDetails         QOSProfile                `json:"qosProfileDetails,omitempty"`
 	NamespaceIsolationProfile NamespaceIsolationProfile `json:"namespaceIsolationProfile,omitempty"`
+	IpamClusterOctet          int                       `json:"ipamClusterOctet,omitempty"`
+	ExternalGatewayConfig     ExternalGatewayConfig     `json:"externalGatewayConfig,omitempty"`
 }
 
 // SpokeSliceGatewayProvider defines the configuration for slicegateway
@@ -48,7 +47,7 @@ type SpokeSliceGatewayProvider struct {
 type QOSProfile struct {
 	//+kubebuilder:validation:Enum:=HTB
 	QueueType               string `json:"queueType,omitempty"`
-	Priority                string `json:"priority,omitempty"`
+	Priority                int    `json:"priority,omitempty"`
 	TcType                  string `json:"tcType,omitempty"`
 	BandwidthCeilingKbps    int    `json:"bandwidthCeilingKbps,omitempty"`
 	BandwidthGuaranteedKbps int    `json:"bandwidthGuaranteedKbps,omitempty"`
@@ -62,9 +61,37 @@ type NamespaceIsolationProfile struct {
 	AllowedNamespaces     []string `json:"allowedNamespaces,omitempty"`
 }
 
+type ExternalGatewayConfig struct {
+	Ingress   ExternalGatewayConfigOptions `json:"ingress,omitempty"`
+	Egress    ExternalGatewayConfigOptions `json:"egress,omitempty"`
+	NsIngress ExternalGatewayConfigOptions `json:"nsIngress,omitempty"`
+	//+kubebuilder:validation:Enum:=none,istio
+	GatewayType string `json:"gatewayType,omitempty"`
+}
+
+type ExternalGatewayConfigOptions struct {
+	Enabled bool `json:"enabled,omitempty"`
+}
+
+// AppPod defines the app pods connected to slice
+type AppPod struct {
+	// PodName is App Pod Name
+	PodName string `json:"podName,omitempty"`
+	// PodNamespace is App Pod Namespace
+	PodNamespace string `json:"podNamespace,omitempty"`
+	// PodIP is App Pod IP
+	PodIP string `json:"podIp,omitempty"`
+	// NsmIP is the nsm ip of App
+	NsmIP string `json:"nsmIp,omitempty"`
+	// NsmInterface is the nsm interface of App
+	NsmInterface string `json:"nsmInterface,omitempty"`
+	// PeerIp is the nsm peer ip of gateway
+	NsmPeerIP string `json:"nsmPeerIp,omitempty"`
+}
+
 // SpokeSliceConfigStatus defines the observed state of Slice
 type SpokeSliceConfigStatus struct {
-	IpamClusterOctet int `json:"ipamClusterOctet,omitempty"`
+	ConnectedAppPods []AppPod `json:"connectedAppPods,omitempty"`
 }
 
 //+kubebuilder:object:root=true

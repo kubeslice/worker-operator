@@ -59,7 +59,9 @@ spec:
           - name: AVESHA_VL3_SIDECAR_IMAGE
             value: "{{ .Values.routerSidecar.image }}:{{ .Values.routerSidecar.tag }}"
           - name: AVESHA_VL3_SIDECAR_IMAGE_PULLPOLICY
-            value: { { .Values.routerSidecar.pullPolicy } }
+            value: {{ .Values.routerSidecar.pullPolicy }}
+          - name: NODE_IP
+            value: "{{ .Values.cluster.nodeIp }}"
         livenessProbe:
           httpGet:
             path: /healthz

@@ -367,6 +367,9 @@ func (r *SliceReconciler) deploySliceRouterSvc(ctx context.Context, slice *meshv
 			}},
 		},
 	}
+	if err := ctrl.SetControllerReference(slice, svc, r.Scheme); err != nil {
+		return err
+	}
 
 	err := r.Create(ctx, svc)
 	if err != nil {
@@ -385,7 +388,8 @@ func (r *SliceReconciler) ReconcileSliceRouter(ctx context.Context, slice *meshv
 	err := r.Get(ctx, types.NamespacedName{Name: sliceRouterDeploymentNamePrefix + slice.Name, Namespace: slice.Namespace}, foundSliceRouter)
 	if err != nil {
 		if errors.IsNotFound(err) {
-			if slice.Status.SliceConfig == nil {
+			if slice.Status.SliceConfig == nil || slice.Status.SliceConfig.SliceSubnet == "" {
+				log.Info("Slice subnet config not available yet, cannot deploy slice router. Waiting...")
 				return ctrl.Result{
 					RequeueAfter: 10 * time.Second,
 				}, nil, true
@@ -432,6 +436,26 @@ func (r *SliceReconciler) ReconcileSliceRouter(ctx context.Context, slice *meshv
 	}
 
 	return ctrl.Result{}, nil, false
+}
+func (r *SliceReconciler) cleanupSliceRouter(ctx context.Context, sliceName string) error {
+	log := logger.FromContext(ctx)
+
+	vl3Nse := &nsmv1alpha1.NetworkService{}
+	err := r.Get(ctx, types.NamespacedName{Name: "vl3-service-" + sliceName, Namespace: ControlPlaneNamespace}, vl3Nse)
+	if err != nil {
+		if errors.IsNotFound(err) {
+			return nil
+		}
+		log.Error(err, "Slice router cleanup: Failed to get vl3 nse")
+		return err
+	}
+
+	err = r.Delete(ctx, vl3Nse)
+	if err != nil {
+		log.Error(err, "Slice router cleanup: Failed to delete vl3 nse")
+		return err
+	}
+	return nil
 }
 
 func FindSliceRouterService(ctx context.Context, c client.Client, sliceName string) (bool, error) {

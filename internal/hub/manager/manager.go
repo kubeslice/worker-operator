@@ -15,9 +15,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
+	meshv1beta1 "bitbucket.org/realtimeai/kubeslice-operator/api/v1beta1"
 	"bitbucket.org/realtimeai/kubeslice-operator/internal/hub/controllers"
 	"bitbucket.org/realtimeai/kubeslice-operator/internal/logger"
 	spokev1alpha1 "bitbucket.org/realtimeai/mesh-apis/pkg/spoke/v1alpha1"
+	ctrl "sigs.k8s.io/controller-runtime"
 )
 
 var scheme = runtime.NewScheme()
@@ -26,6 +28,7 @@ func init() {
 	log.SetLogger(logger.NewLogger())
 	clientgoscheme.AddToScheme(scheme)
 	utilruntime.Must(spokev1alpha1.AddToScheme(scheme))
+	utilruntime.Must(meshv1beta1.AddToScheme(scheme))
 }
 
 func Start(meshClient client.Client, ctx context.Context) {
@@ -58,6 +61,7 @@ func Start(meshClient client.Client, ctx context.Context) {
 	sliceReconciler := &controllers.SliceReconciler{
 		MeshClient:    meshClient,
 		EventRecorder: spokeSliceEventRecorder,
+		Log:        ctrl.Log.WithName("hub").WithName("controllers").WithName("SliceConfig"),
 	}
 	err = builder.
 		ControllerManagedBy(mgr).
@@ -81,6 +85,21 @@ func Start(meshClient client.Client, ctx context.Context) {
 			return object.GetLabels()["spoke-cluster"] == ClusterName
 		})).
 		Complete(sliceGwReconciler)
+	if err != nil {
+		log.Error(err, "could not create controller")
+		os.Exit(1)
+	}
+
+	serviceImportReconciler := &controllers.ServiceImportReconciler{
+		MeshClient: meshClient,
+	}
+	err = builder.
+		ControllerManagedBy(mgr).
+		For(&spokev1alpha1.SpokeServiceImport{}).
+		WithEventFilter(predicate.NewPredicateFuncs(func(object client.Object) bool {
+			return object.GetLabels()["spoke-cluster"] == ClusterName
+		})).
+		Complete(serviceImportReconciler)
 	if err != nil {
 		log.Error(err, "could not create controller")
 		os.Exit(1)

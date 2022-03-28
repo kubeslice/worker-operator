@@ -14,7 +14,7 @@ var (
 	// DNSDeploymentName is the name of coredns deployment running in the cluster
 	DNSDeploymentName = "mesh-dns"
 
-	clusterName = os.Getenv("CLUSTER_NAME")
+	ClusterName = os.Getenv("CLUSTER_NAME")
 
 	nodeIP = os.Getenv("NODE_IP")
 

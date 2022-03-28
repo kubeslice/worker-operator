@@ -18,9 +18,9 @@ package main
 
 import (
 	"bitbucket.org/realtimeai/kubeslice-operator/pkg/events"
+	"bitbucket.org/realtimeai/kubeslice-operator/internal/cluster"
 	"flag"
 	"os"
-
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
@@ -29,14 +29,19 @@ import (
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
 	nsmv1alpha1 "github.com/networkservicemesh/networkservicemesh/k8s/pkg/apis/networkservice/v1alpha1"
+	istiov1beta1 "istio.io/client-go/pkg/apis/networking/v1beta1"
 
 	meshv1beta1 "bitbucket.org/realtimeai/kubeslice-operator/api/v1beta1"
 	"bitbucket.org/realtimeai/kubeslice-operator/controllers"
+	"bitbucket.org/realtimeai/kubeslice-operator/controllers/serviceexport"
+	"bitbucket.org/realtimeai/kubeslice-operator/controllers/serviceimport"
+	hub "bitbucket.org/realtimeai/kubeslice-operator/internal/hub/hubclient"
 	"bitbucket.org/realtimeai/kubeslice-operator/internal/hub/manager"
 	"bitbucket.org/realtimeai/kubeslice-operator/internal/logger"
 	"bitbucket.org/realtimeai/kubeslice-operator/internal/utils"
@@ -52,7 +57,9 @@ var (
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 	utilruntime.Must(nsmv1alpha1.AddToScheme(scheme))
+	utilruntime.Must(istiov1beta1.AddToScheme(scheme))
 	utilruntime.Must(meshv1beta1.AddToScheme(scheme))
+	utilruntime.Must(istiov1beta1.AddToScheme(scheme))
 	//+kubebuilder:scaffold:scheme
 }
 
@@ -103,17 +110,56 @@ func main() {
 		Log:           ctrl.Log.WithName("controllers").WithName("Slice"),
 		Scheme:        mgr.GetScheme(),
 		EventRecorder: sliceEventRecorder,
+
+	hubClient, err := hub.NewHubClientConfig()
+	if err != nil {
+		setupLog.Error(err, "could not create hub client for slice gateway reconciler")
+		os.Exit(1)
+	}
+
+	if err = (&controllers.SliceReconciler{
+		Client:    mgr.GetClient(),
+		Log:       ctrl.Log.WithName("controllers").WithName("Slice"),
+		Scheme:    mgr.GetScheme(),
+		HubClient: hubClient,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Slice")
 		os.Exit(1)
 	}
 
 	if err = (&controllers.SliceGwReconciler{
-		Client: mgr.GetClient(),
-		Log:    ctrl.Log.WithName("controllers").WithName("SliceGw"),
-		Scheme: mgr.GetScheme(),
+		Client:    mgr.GetClient(),
+		Log:       ctrl.Log.WithName("controllers").WithName("SliceGw"),
+		Scheme:    mgr.GetScheme(),
+		HubClient: hubClient,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "SliceGw")
+		os.Exit(1)
+	}
+
+	//+kubebuilder:scaffold:builder
+	hubClient, err = hub.NewHubClientConfig()
+	if err != nil {
+		setupLog.Error(err, "could not create hub client for serviceexport reconciler")
+		os.Exit(1)
+	}
+
+	if err = (&serviceexport.Reconciler{
+		Client:    mgr.GetClient(),
+		Log:       ctrl.Log.WithName("controllers").WithName("ServiceExport"),
+		Scheme:    mgr.GetScheme(),
+		HubClient: hubClient,
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "ServiceExport")
+		os.Exit(1)
+	}
+
+	if err = (&serviceimport.Reconciler{
+		Client: mgr.GetClient(),
+		Log:    ctrl.Log.WithName("controllers").WithName("ServiceImport"),
+		Scheme: mgr.GetScheme(),
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "ServiceImport")
 		os.Exit(1)
 	}
 	//+kubebuilder:scaffold:builder
@@ -128,11 +174,29 @@ func main() {
 	}
 	ctx := ctrl.SetupSignalHandler()
 
+	clientForHubMgr, err := client.New(ctrl.GetConfigOrDie(), client.Options{
+		Scheme: scheme,
+	})
+	if err != nil {
+		setupLog.Error(err, "unable to create kube client for hub manager")
+		os.Exit(1)
+	}
 	go func() {
 		setupLog.Info("starting hub manager")
-		manager.Start(mgr.GetClient(), ctx)
+		manager.Start(clientForHubMgr, ctx)
 	}()
 
+	//check if user has provided NODE_IP as env variable, if not fetch the ExternalIP from gateway nodes
+	nodeIP, err := cluster.GetNodeIP(clientForHubMgr)
+	if err != nil {
+		setupLog.Error(err, "Error Getting nodeIP")
+	}
+
+	//post GeoLocation and other metadata to cluster CR on Hub cluster
+	err = hub.PostClusterInfoToHub(ctx, clientForHubMgr, hubClient, os.Getenv("CLUSTER_NAME"), nodeIP, os.Getenv("HUB_PROJECT_NAMESPACE"))
+	if err != nil {
+		setupLog.Error(err, "could not post Cluster Info to Hub")
+	}
 	setupLog.Info("starting manager")
 	if err := mgr.Start(ctx); err != nil {
 		setupLog.Error(err, "problem running manager")

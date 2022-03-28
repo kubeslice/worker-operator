@@ -12,6 +12,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
@@ -44,7 +45,7 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req reconcile.Request
 
 	meshSliceGwCerts := &corev1.Secret{}
 	err = r.MeshClient.Get(ctx, types.NamespacedName{
-		Name:      sliceGw.Spec.GatewayCredentials.SecretName,
+		Name:      sliceGw.Name,
 		Namespace: ControlPlaneNamespace,
 	}, meshSliceGwCerts)
 	if err != nil {
@@ -59,7 +60,7 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req reconcile.Request
 			}
 			meshSliceGwCerts := &corev1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      sliceGwCerts.ObjectMeta.Name,
+					Name:      sliceGw.Name,
 					Namespace: ControlPlaneNamespace,
 				},
 				Data: sliceGwCerts.Data,
@@ -100,7 +101,18 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req reconcile.Request
 					SliceName: sliceName,
 				},
 			}
-
+			//get the slice object and set it as ownerReference
+			sliceKey := types.NamespacedName{Namespace: ControlPlaneNamespace, Name: sliceGw.Spec.SliceName}
+			sliceOnSpoke := &meshv1beta1.Slice{}
+			if err := r.MeshClient.Get(ctx, sliceKey, sliceOnSpoke); err != nil {
+				log.Error(err, "Failed to get Slice CR")
+				return reconcile.Result{}, err
+			}
+			if err := controllerutil.SetControllerReference(sliceOnSpoke, meshSliceGw, r.MeshClient.Scheme()); err != nil {
+				log.Error(err, "Failed to set slice as owner of slicegw")
+				return reconcile.Result{}, err
+			}
+			//finally create the meshSliceGw object
 			err = r.MeshClient.Create(ctx, meshSliceGw)
 			if err != nil {
 				log.Error(err, "unable to create sliceGw in spoke cluster", "sliceGw", sliceGwName)
@@ -114,9 +126,17 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req reconcile.Request
 	}
 
 	meshSliceGw.Status.Config = meshv1beta1.SliceGatewayConfig{
+		SliceName:                   sliceGw.Spec.SliceName,
+		SliceGatewayID:              sliceGw.Spec.LocalGatewayConfig.GatewayName,
 		SliceGatewaySubnet:          sliceGw.Spec.LocalGatewayConfig.GatewaySubnet,
+		SliceGatewayRemoteSubnet:    sliceGw.Spec.RemoteGatewayConfig.GatewaySubnet,
 		SliceGatewayHostType:        sliceGw.Spec.GatewayHostType,
+		SliceGatewayRemoteNodeIP:    sliceGw.Spec.RemoteGatewayConfig.NodeIp,
+		SliceGatewayRemoteNodePort:  sliceGw.Spec.RemoteGatewayConfig.NodePort,
+		SliceGatewayRemoteClusterID: sliceGw.Spec.RemoteGatewayConfig.ClusterName,
 		SliceGatewayRemoteGatewayID: sliceGw.Spec.RemoteGatewayConfig.GatewayName,
+		SliceGatewayLocalVpnIP:      sliceGw.Spec.LocalGatewayConfig.VpnIp,
+		SliceGatewayRemoteVpnIP:     sliceGw.Spec.RemoteGatewayConfig.VpnIp,
 	}
 	err = r.MeshClient.Status().Update(ctx, meshSliceGw)
 	if err != nil {

@@ -2,8 +2,10 @@ package controllers
 
 import (
 	"context"
+	"strings"
 
 	meshv1beta1 "bitbucket.org/realtimeai/kubeslice-operator/api/v1beta1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -21,4 +23,48 @@ func GetSlice(ctx context.Context, c client.Client, slice string) (*meshv1beta1.
 	}
 
 	return s, nil
+}
+
+func GetSliceIngressGwPod(ctx context.Context, c client.Client, sliceName string) (*meshv1beta1.AppPod, error) {
+	slice, err := GetSlice(ctx, c, sliceName)
+	if err != nil {
+		return nil, err
+	}
+
+	if slice.Status.SliceConfig.ExternalGatewayConfig == nil ||
+		slice.Status.SliceConfig.ExternalGatewayConfig.Ingress == nil ||
+		slice.Status.SliceConfig.ExternalGatewayConfig.Ingress.Enabled == false {
+		return nil, nil
+	}
+
+	for i := range slice.Status.AppPods {
+		pod := &slice.Status.AppPods[i]
+		if strings.Contains(pod.PodName, "ingressgateway") && pod.PodNamespace == ControlPlaneNamespace && pod.NsmIP != "" {
+			return pod, nil
+		}
+	}
+
+	return nil, nil
+}
+
+func GetSliceRouterPodNameAndIP(ctx context.Context, c client.Client, sliceName string) (string, string, error) {
+	labels := map[string]string{"networkservicemesh.io/impl": "vl3-service-" + sliceName}
+
+	podList := &corev1.PodList{}
+	listOpts := []client.ListOption{
+		client.MatchingLabels(labels),
+	}
+	if err := c.List(ctx, podList, listOpts...); err != nil {
+		return "", "", err
+	}
+
+	for _, pod := range podList.Items {
+		if pod.Status.Phase != corev1.PodRunning {
+			continue
+		}
+
+		return pod.Name, pod.Status.PodIP, nil
+	}
+
+	return "", "", nil
 }
