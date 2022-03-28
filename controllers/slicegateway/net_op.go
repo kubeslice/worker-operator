@@ -1,4 +1,4 @@
-package controllers
+package slicegateway
 
 import (
 	"context"
@@ -8,13 +8,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
-
-// NetOpPod contains details of NetOp Pod running in the cluster
-type NetOpPod struct {
-	PodIP   string
-	PodName string
-	Node    string
-}
 
 func (r *SliceGwReconciler) getNetOpPods(ctx context.Context, slicegateway *meshv1beta1.SliceGateway) error {
 	log := logger.FromContext(ctx).WithValues("type", "net_op")

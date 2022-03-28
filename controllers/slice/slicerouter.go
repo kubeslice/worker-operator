@@ -429,6 +429,7 @@ func (r *SliceReconciler) ReconcileSliceRouter(ctx context.Context, slice *meshv
 
 	return ctrl.Result{}, nil, false
 }
+
 func (r *SliceReconciler) cleanupSliceRouter(ctx context.Context, sliceName string) error {
 	log := logger.FromContext(ctx)
 
@@ -448,25 +449,4 @@ func (r *SliceReconciler) cleanupSliceRouter(ctx context.Context, sliceName stri
 		return err
 	}
 	return nil
-}
-
-func FindSliceRouterService(ctx context.Context, c client.Client, sliceName string) (bool, error) {
-	vl3NseEpList := &nsmv1alpha1.NetworkServiceEndpointList{}
-	opts := []client.ListOption{
-		client.InNamespace(controllers.ControlPlaneNamespace),
-		client.MatchingLabels{"app": "vl3-nse-" + sliceName,
-			"networkservicename": "vl3-service-" + sliceName},
-	}
-	err := c.List(ctx, vl3NseEpList, opts...)
-	if err != nil {
-		if errors.IsNotFound(err) {
-			return false, nil
-		}
-		return false, err
-	}
-	if len(vl3NseEpList.Items) == 0 {
-		return false, nil
-	}
-
-	return true, nil
 }

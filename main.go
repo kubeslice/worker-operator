@@ -37,10 +37,10 @@ import (
 	istiov1beta1 "istio.io/client-go/pkg/apis/networking/v1beta1"
 
 	meshv1beta1 "bitbucket.org/realtimeai/kubeslice-operator/api/v1beta1"
-	"bitbucket.org/realtimeai/kubeslice-operator/controllers"
 	"bitbucket.org/realtimeai/kubeslice-operator/controllers/serviceexport"
 	"bitbucket.org/realtimeai/kubeslice-operator/controllers/serviceimport"
 	"bitbucket.org/realtimeai/kubeslice-operator/controllers/slice"
+	"bitbucket.org/realtimeai/kubeslice-operator/controllers/slicegateway"
 	hub "bitbucket.org/realtimeai/kubeslice-operator/internal/hub/hubclient"
 	"bitbucket.org/realtimeai/kubeslice-operator/internal/hub/manager"
 	"bitbucket.org/realtimeai/kubeslice-operator/internal/logger"
@@ -120,7 +120,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err = (&controllers.SliceGwReconciler{
+	if err = (&slicegateway.SliceGwReconciler{
 		Client:    mgr.GetClient(),
 		Log:       ctrl.Log.WithName("controllers").WithName("SliceGw"),
 		Scheme:    mgr.GetScheme(),

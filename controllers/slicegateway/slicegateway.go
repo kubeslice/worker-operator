@@ -1,11 +1,15 @@
-package controllers
+package slicegateway
 
 import (
-	"bitbucket.org/realtimeai/kubeslice-operator/internal/netop"
 	"context"
+
+	"bitbucket.org/realtimeai/kubeslice-operator/controllers"
+	"bitbucket.org/realtimeai/kubeslice-operator/internal/netop"
+
 	//	"errors"
 	"os"
 	"strconv"
+
 	//	"strings"
 	"time"
 
@@ -21,6 +25,16 @@ import (
 	"bitbucket.org/realtimeai/kubeslice-operator/internal/gwsidecar"
 	"bitbucket.org/realtimeai/kubeslice-operator/internal/logger"
 	"bitbucket.org/realtimeai/kubeslice-operator/internal/router"
+)
+
+var (
+	gwSidecarImage           = os.Getenv("AVESHA_GW_SIDECAR_IMAGE")
+	gwSidecarImagePullPolicy = os.Getenv("AVESHA_GW_SIDECAR_IMAGE_PULLPOLICY")
+
+	openVpnServerImage      = os.Getenv("AVESHA_OPENVPN_SERVER_IMAGE")
+	openVpnClientImage      = os.Getenv("AVESHA_OPENVPN_CLIENT_IMAGE")
+	openVpnServerPullPolicy = os.Getenv("AVESHA_OPENVPN_SERVER_PULLPOLICY")
+	openVpnClientPullPolicy = os.Getenv("AVESHA_OPENVPN_CLIENT_PULLPOLICY")
 )
 
 // labelsForSliceGwDeployment returns the labels for creating slice gw deployment
@@ -119,7 +133,7 @@ func (r *SliceGwReconciler) deploymentForGatewayServer(g *meshv1beta1.SliceGatew
 							},
 							{
 								Name:  "CLUSTER_ID",
-								Value: ClusterName,
+								Value: controllers.ClusterName,
 							},
 							{
 								Name:  "REMOTE_CLUSTER_ID",
@@ -139,7 +153,7 @@ func (r *SliceGwReconciler) deploymentForGatewayServer(g *meshv1beta1.SliceGatew
 							},
 							{
 								Name:  "NODE_IP",
-								Value: nodeIP,
+								Value: controllers.NodeIP,
 							},
 							{
 								Name:  "OPEN_VPN_MODE",
@@ -264,9 +278,9 @@ func (r *SliceGwReconciler) deploymentForGatewayServer(g *meshv1beta1.SliceGatew
 		},
 	}
 
-	if len(ImagePullSecretName) != 0 {
+	if len(controllers.ImagePullSecretName) != 0 {
 		dep.Spec.Template.Spec.ImagePullSecrets = []corev1.LocalObjectReference{{
-			Name: ImagePullSecretName,
+			Name: controllers.ImagePullSecretName,
 		}}
 	}
 
@@ -486,9 +500,9 @@ func (r *SliceGwReconciler) deploymentForGatewayClient(g *meshv1beta1.SliceGatew
 			},
 		},
 	}
-	if len(ImagePullSecretName) != 0 {
+	if len(controllers.ImagePullSecretName) != 0 {
 		dep.Spec.Template.Spec.ImagePullSecrets = []corev1.LocalObjectReference{{
-			Name: ImagePullSecretName,
+			Name: controllers.ImagePullSecretName,
 		}}
 	}
 
@@ -597,7 +611,7 @@ func (r *SliceGwReconciler) SendConnectionContextToGwPod(ctx context.Context, sl
 func (r *SliceGwReconciler) SendConnectionContextToSliceRouter(ctx context.Context, slicegateway *meshv1beta1.SliceGateway) (ctrl.Result, error, bool) {
 	log := logger.FromContext(ctx).WithValues("type", "SliceGw")
 
-	_, podIP, err := GetSliceRouterPodNameAndIP(ctx, r.Client, slicegateway.Spec.SliceName)
+	_, podIP, err := controllers.GetSliceRouterPodNameAndIP(ctx, r.Client, slicegateway.Spec.SliceName)
 	if err != nil {
 		log.Error(err, "Unable to get slice router pod info")
 		return ctrl.Result{}, err, true

@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package controllers
+package slicegateway
 
 import (
 	"context"
@@ -31,7 +31,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	meshv1beta1 "bitbucket.org/realtimeai/kubeslice-operator/api/v1beta1"
-	"bitbucket.org/realtimeai/kubeslice-operator/internal/hub/controllers"
+	"bitbucket.org/realtimeai/kubeslice-operator/controllers"
 	"bitbucket.org/realtimeai/kubeslice-operator/internal/logger"
 	nsmv1alpha1 "github.com/networkservicemesh/networkservicemesh/k8s/pkg/apis/networkservice/v1alpha1"
 )
@@ -114,7 +114,7 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	log.Info("reconciling", "slicegateway", sliceGw.Name)
 
 	// Check if the slice to which this gateway belongs is created
-	slice, err := GetSlice(ctx, r.Client, sliceName)
+	slice, err := controllers.GetSlice(ctx, r.Client, sliceName)
 	if err != nil {
 		log.Error(err, "Failed to get Slice", "slice", sliceName)
 		return ctrl.Result{}, err
@@ -146,7 +146,7 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	// Check if the Gw service already exists, if not create a new one if it is a server
 	if isServer {
 		foundsvc := &corev1.Service{}
-		err = r.Get(ctx, types.NamespacedName{Name: "svc-" + sliceGwName, Namespace: ControlPlaneNamespace}, foundsvc)
+		err = r.Get(ctx, types.NamespacedName{Name: "svc-" + sliceGwName, Namespace: controllers.ControlPlaneNamespace}, foundsvc)
 		if err != nil {
 			if errors.IsNotFound(err) {
 				// Define a new service
@@ -183,7 +183,7 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 
 	// Check if the deployment already exists, if not create a new one
 	found := &appsv1.Deployment{}
-	err = r.Get(ctx, types.NamespacedName{Name: sliceGwName, Namespace: ControlPlaneNamespace}, found)
+	err = r.Get(ctx, types.NamespacedName{Name: sliceGwName, Namespace: controllers.ControlPlaneNamespace}, found)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			// Define a new deployment

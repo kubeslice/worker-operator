@@ -1,8 +1,10 @@
-package controllers
+package slicegateway
 
 import (
-	meshv1beta1 "bitbucket.org/realtimeai/kubeslice-operator/api/v1beta1"
 	"context"
+
+	meshv1beta1 "bitbucket.org/realtimeai/kubeslice-operator/api/v1beta1"
+	"bitbucket.org/realtimeai/kubeslice-operator/internal/hub/controllers"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -12,7 +14,7 @@ func (r *SliceGwReconciler) cleanupSliceGwResources(ctx context.Context, slicegw
 	meshSliceGwCerts := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      slicegw.Name,
-			Namespace: ControlPlaneNamespace,
+			Namespace: controllers.ControlPlaneNamespace,
 		},
 	}
 	if err := r.Delete(ctx, meshSliceGwCerts); err != nil {
