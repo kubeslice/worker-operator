@@ -14,15 +14,17 @@ import (
 	meshv1beta1 "bitbucket.org/realtimeai/kubeslice-operator/api/v1beta1"
 	"bitbucket.org/realtimeai/kubeslice-operator/controllers"
 	"bitbucket.org/realtimeai/kubeslice-operator/internal/logger"
+	"bitbucket.org/realtimeai/kubeslice-operator/pkg/events"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
 // Reconciler reconciles serviceexport resource
 type Reconciler struct {
 	client.Client
-	Log       logr.Logger
-	Scheme    *runtime.Scheme
-	HubClient HubClientProvider
+	Log           logr.Logger
+	Scheme        *runtime.Scheme
+	HubClient     HubClientProvider
+	EventRecorder *events.EventRecorder
 }
 
 type HubClientProvider interface {
@@ -128,6 +130,15 @@ func (r Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resul
 		err = r.Status().Update(ctx, serviceexport)
 		if err != nil {
 			log.Error(err, "Failed to update serviceexport ports")
+			//post event to service export
+			r.EventRecorder.Record(
+				&events.Event{
+					Object:    serviceexport,
+					EventType: events.EventTypeWarning,
+					Reason:    "Error",
+					Message:   "Failed to update serviceexport ports",
+				},
+			)
 			return ctrl.Result{}, err
 		}
 
@@ -165,9 +176,25 @@ func (r Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resul
 			log.Error(err, "Failed to post serviceexport")
 			serviceexport.Status.ExportStatus = meshv1beta1.ExportStatusError
 			r.Status().Update(ctx, serviceexport)
+			//post event to service export
+			r.EventRecorder.Record(
+				&events.Event{
+					Object:    serviceexport,
+					EventType: events.EventTypeWarning,
+					Reason:    "Error",
+					Message:   "Failed to post serviceexport to hub cluster",
+				})
 			return ctrl.Result{}, err
 		}
 		log.Info("serviceexport sync success")
+		//post event to service export
+		r.EventRecorder.Record(
+			&events.Event{
+				Object:    serviceexport,
+				EventType: events.EventTypeNormal,
+				Reason:    "Success",
+				Message:   "Successfully posted serviceexport to hub cluster",
+			})
 		currentTime := time.Now().Unix()
 		serviceexport.Status.LastSync = currentTime
 		err = r.Status().Update(ctx, serviceexport)

@@ -142,20 +142,24 @@ func main() {
 		os.Exit(1)
 	}
 
+	serviceExportEventRecorder := events.NewEventRecorder(mgr.GetEventRecorderFor("serviceExport-controller"))
 	if err = (&serviceexport.Reconciler{
-		Client:    mgr.GetClient(),
-		Log:       ctrl.Log.WithName("controllers").WithName("ServiceExport"),
-		Scheme:    mgr.GetScheme(),
-		HubClient: hubClient,
+		Client:        mgr.GetClient(),
+		Log:           ctrl.Log.WithName("controllers").WithName("ServiceExport"),
+		Scheme:        mgr.GetScheme(),
+		HubClient:     hubClient,
+		EventRecorder: serviceExportEventRecorder,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "ServiceExport")
 		os.Exit(1)
 	}
 
+	serviceImportEventRecorder := events.NewEventRecorder(mgr.GetEventRecorderFor("serviceImport-controller"))
 	if err = (&serviceimport.Reconciler{
-		Client: mgr.GetClient(),
-		Log:    ctrl.Log.WithName("controllers").WithName("ServiceImport"),
-		Scheme: mgr.GetScheme(),
+		Client:        mgr.GetClient(),
+		Log:           ctrl.Log.WithName("controllers").WithName("ServiceImport"),
+		Scheme:        mgr.GetScheme(),
+		EventRecorder: serviceImportEventRecorder,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "ServiceImport")
 		os.Exit(1)

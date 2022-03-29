@@ -108,6 +108,9 @@ var _ = BeforeSuite(func() {
 		Scheme:    k8sManager.GetScheme(),
 		Log:       ctrl.Log.WithName("SvcExTest"),
 		HubClient: hubClientEmulator,
+		EventRecorder: &events.EventRecorder{
+			Recorder: &record.FakeRecorder{},
+		},
 	}).SetupWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())
 
@@ -115,6 +118,9 @@ var _ = BeforeSuite(func() {
 		Client: k8sManager.GetClient(),
 		Scheme: k8sManager.GetScheme(),
 		Log:    ctrl.Log.WithName("SvcImTest"),
+		EventRecorder: &events.EventRecorder{
+			Recorder: &record.FakeRecorder{},
+		},
 	}).SetupWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())
 

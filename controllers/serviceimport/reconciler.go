@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"bitbucket.org/realtimeai/kubeslice-operator/internal/logger"
+	"bitbucket.org/realtimeai/kubeslice-operator/pkg/events"
 	"github.com/go-logr/logr"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -17,9 +18,10 @@ import (
 // Reconciler reconciles a ServiceImport object
 type Reconciler struct {
 	client.Client
-	Log       logr.Logger
-	Scheme    *runtime.Scheme
-	ClusterID string
+	Log           logr.Logger
+	Scheme        *runtime.Scheme
+	ClusterID     string
+	EventRecorder *events.EventRecorder
 }
 
 // NewReconciler creates a new reconciler for serviceimport
@@ -69,6 +71,15 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		err = r.Status().Update(ctx, serviceimport)
 		if err != nil {
 			log.Error(err, "Failed to update serviceimport ports")
+			//post event to service import
+			r.EventRecorder.Record(
+				&events.Event{
+					Object:    serviceimport,
+					EventType: events.EventTypeWarning,
+					Reason:    "Error",
+					Message:   "Failed to update serviceimport ports",
+				},
+			)
 			return ctrl.Result{}, err
 		}
 		log.Info("serviceimport updated with ports")
@@ -80,6 +91,15 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		err = r.Status().Update(ctx, serviceimport)
 		if err != nil {
 			log.Error(err, "Failed to update availableendpoints")
+			//post event to service import
+			r.EventRecorder.Record(
+				&events.Event{
+					Object:    serviceimport,
+					EventType: events.EventTypeWarning,
+					Reason:    "Error",
+					Message:   "Failed to update available endpoints in service import",
+				},
+			)
 			return ctrl.Result{}, err
 		}
 		log.Info("serviceimport updated with availableendpoints")
