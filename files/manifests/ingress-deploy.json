@@ -22,7 +22,8 @@
     "selector": {
       "matchLabels": {
         "app": "istio-ingressgateway",
-        "istio": "ingressgateway"
+        "istio": "ingressgateway",
+        "slice": "SLICE"
       }
     },
     "strategy": {
