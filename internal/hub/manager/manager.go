@@ -95,8 +95,11 @@ func Start(meshClient client.Client, ctx context.Context) {
 		os.Exit(1)
 	}
 
+	spokeServiceImportEventRecorder := events.NewEventRecorder(mgr.GetEventRecorderFor("spokeServiceImport-controller"))
+
 	serviceImportReconciler := &controllers.ServiceImportReconciler{
-		MeshClient: meshClient,
+		MeshClient:    meshClient,
+		EventRecorder: spokeServiceImportEventRecorder,
 	}
 	err = builder.
 		ControllerManagedBy(mgr).

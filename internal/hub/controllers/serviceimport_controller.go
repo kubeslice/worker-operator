@@ -6,6 +6,7 @@ import (
 
 	meshv1beta1 "bitbucket.org/realtimeai/kubeslice-operator/api/v1beta1"
 	"bitbucket.org/realtimeai/kubeslice-operator/internal/logger"
+	"bitbucket.org/realtimeai/kubeslice-operator/pkg/events"
 	spokev1alpha1 "bitbucket.org/realtimeai/mesh-apis/pkg/spoke/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -16,7 +17,8 @@ import (
 
 type ServiceImportReconciler struct {
 	client.Client
-	MeshClient client.Client
+	MeshClient    client.Client
+	EventRecorder *events.EventRecorder
 }
 
 func getProtocol(protocol string) corev1.Protocol {
@@ -120,8 +122,27 @@ func (r *ServiceImportReconciler) Reconcile(ctx context.Context, req reconcile.R
 			err = r.MeshClient.Create(ctx, meshSvcIm)
 			if err != nil {
 				log.Error(err, "unable to create service import in spoke cluster", "serviceimport", svcim.Name)
+				//post event to spokeserviceimport
+				r.EventRecorder.Record(
+					&events.Event{
+						Object:    svcim,
+						EventType: events.EventTypeWarning,
+						Reason:    "Error",
+						Message:   "Error creating service import on spoke cluster , svc import " + svcim.Spec.ServiceName + " cluster " + clusterName,
+					},
+				)
 				return reconcile.Result{}, err
 			}
+
+			//post event to spokeserviceimport
+			r.EventRecorder.Record(
+				&events.Event{
+					Object:    svcim,
+					EventType: events.EventTypeNormal,
+					Reason:    "Created",
+					Message:   "Successfully created service import on spoke cluster , svc import " + svcim.Spec.ServiceName + " cluster " + clusterName,
+				},
+			)
 
 			meshSvcIm.Status.Endpoints = getMeshServiceImportEpList(svcim)
 			err = r.MeshClient.Status().Update(ctx, meshSvcIm)
@@ -129,11 +150,8 @@ func (r *ServiceImportReconciler) Reconcile(ctx context.Context, req reconcile.R
 				log.Error(err, "unable to update service import in spoke cluster", "serviceimport", svcim.Name)
 				return reconcile.Result{}, err
 			}
-
 			return reconcile.Result{}, nil
-
 		}
-
 		return reconcile.Result{}, err
 	}
 
@@ -141,6 +159,15 @@ func (r *ServiceImportReconciler) Reconcile(ctx context.Context, req reconcile.R
 	err = r.MeshClient.Update(ctx, meshSvcIm)
 	if err != nil {
 		log.Error(err, "unable to update service import in spoke cluster", "serviceimport", svcim.Name)
+		//post event to service import created on spoke
+		r.EventRecorder.Record(
+			&events.Event{
+				Object:    meshSvcIm,
+				EventType: events.EventTypeWarning,
+				Reason:    "Error",
+				Message:   "unable to update ports on service import",
+			},
+		)
 		return reconcile.Result{}, err
 	}
 
@@ -148,6 +175,14 @@ func (r *ServiceImportReconciler) Reconcile(ctx context.Context, req reconcile.R
 	err = r.MeshClient.Status().Update(ctx, meshSvcIm)
 	if err != nil {
 		log.Error(err, "unable to update service import in spoke cluster", "serviceimport", svcim.Name)
+		r.EventRecorder.Record(
+			&events.Event{
+				Object:    meshSvcIm,
+				EventType: events.EventTypeWarning,
+				Reason:    "Error",
+				Message:   "unable to update endpoints on service import",
+			},
+		)
 		return reconcile.Result{}, err
 	}
 
