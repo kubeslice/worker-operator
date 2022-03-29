@@ -157,6 +157,15 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 	err = r.SyncSliceQosProfileWithNetOp(ctx, slice)
 	if err != nil {
 		log.Error(err, "Failed to sync QoS profile with netop pods")
+		//post event to slice
+		r.EventRecorder.Record(
+			&events.Event{
+				Object:    slice,
+				EventType: events.EventTypeWarning,
+				Reason:    "Error",
+				Message:   "Failed to sync QoS profile with netop pods ",
+			},
+		)
 	}
 
 	log.Info("ExternalGatewayConfig", "egw", slice.Status.SliceConfig)
@@ -166,6 +175,15 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 		err = manifest.InstallEgress(ctx, r.Client, slice)
 		if err != nil {
 			log.Error(err, "unable to install egress")
+			//post event to slice
+			r.EventRecorder.Record(
+				&events.Event{
+					Object:    slice,
+					EventType: events.EventTypeWarning,
+					Reason:    "Error",
+					Message:   "Failed to install egress ",
+				},
+			)
 			return ctrl.Result{}, nil
 		}
 	}
@@ -175,6 +193,15 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 		err = manifest.InstallIngress(ctx, r.Client, slice)
 		if err != nil {
 			log.Error(err, "unable to install ingress")
+			//post event to slice
+			r.EventRecorder.Record(
+				&events.Event{
+					Object:    slice,
+					EventType: events.EventTypeWarning,
+					Reason:    "Error",
+					Message:   "Failed to install ingress ",
+				},
+			)
 			return ctrl.Result{}, nil
 		}
 	}
@@ -213,6 +240,15 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 		err = r.HubClient.UpdateAppPodsList(ctx, sliceConfigName, slice.Status.AppPods)
 		if err != nil {
 			log.Error(err, "Failed to update app pod list in hub")
+			//post event to slice
+			r.EventRecorder.Record(
+				&events.Event{
+					Object:    slice,
+					EventType: events.EventTypeWarning,
+					Reason:    "Error",
+					Message:   "Failed to update app pod list in hub ",
+				},
+			)
 			return ctrl.Result{}, err
 		}
 
