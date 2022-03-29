@@ -42,10 +42,10 @@ var sliceGwFinalizer = "mesh.kubeslice.io/slicegw-finalizer"
 // SliceReconciler reconciles a Slice object
 type SliceGwReconciler struct {
 	client.Client
-	Scheme    *runtime.Scheme
-	Log       logr.Logger
-	HubClient HubClientProvider
-	NetOpPods []NetOpPod
+	Scheme        *runtime.Scheme
+	Log           logr.Logger
+	HubClient     HubClientProvider
+	NetOpPods     []NetOpPod
 	EventRecorder *events.EventRecorder
 }
 

@@ -345,14 +345,6 @@ func (r *SliceReconciler) deploySliceRouter(ctx context.Context, slice *meshv1be
 		return err
 	}
 	log.Info("Created deployment spec for slice router: ", "Name: ", slice.Name, "ipamOctet: ", ipamOctet)
-	r.EventRecorder.Record(
-		&events.Event{
-			Object:    slice,
-			EventType: events.EventTypeNormal,
-			Reason:    "Created",
-			Message:   "Created slice router deployment" + dep.Name,
-		},
-	)
 	return nil
 }
 
@@ -393,15 +385,6 @@ func (r *SliceReconciler) deploySliceRouterSvc(ctx context.Context, slice *meshv
 		return err
 	}
 	log.Info("Created svc spec for slice router: ", "Name: ", slice.Name)
-	r.EventRecorder.Record(
-		&events.Event{
-			Object:    slice,
-			EventType: events.EventTypeNormal,
-			Reason:    "Created",
-			Message:   "Created service for slice router" + svc.Name,
-		},
-	)
-
 	return nil
 }
 

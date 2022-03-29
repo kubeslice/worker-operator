@@ -75,20 +75,12 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req reconcile.Request
 						Object:    sliceGw,
 						EventType: events.EventTypeWarning,
 						Reason:    "Error",
-						Message:   "Error creating secret for storing gateway certs on spoke cluster " + clusterName,
+						Message:   "Error creating secret for storing gateway certs on spoke cluster , slicegateway " + sliceGw.Name + " cluster " + clusterName,
 					},
 				)
 				return reconcile.Result{}, err
 			}
 			log.Info("sliceGw secret created in spoke cluster")
-			r.EventRecorder.Record(
-				&events.Event{
-					Object:    sliceGw,
-					EventType: events.EventTypeNormal,
-					Reason:    "Created",
-					Message:   "Successfully Created secret for storing gateway certs on spoke cluster " + clusterName,
-				},
-			)
 		} else {
 			log.Error(err, "unable to fetch slicegw certs from the spoke", "sliceGw", sliceGw.Name)
 			return reconcile.Result{}, err
@@ -139,20 +131,31 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req reconcile.Request
 						Object:    sliceGw,
 						EventType: events.EventTypeWarning,
 						Reason:    "Error",
-						Message:   "Error creating slicegw on spoke cluster " + clusterName,
+						Message:   "Error creating slicegw on spoke cluster , slicegateway " + sliceGw.Name + " cluster " + clusterName,
 					},
 				)
 				return reconcile.Result{}, err
 			}
 			log.Info("sliceGw created in spoke cluster", "sliceGw", sliceGwName)
+			//post event to the spokeslicegateway
 			r.EventRecorder.Record(
 				&events.Event{
 					Object:    sliceGw,
 					EventType: events.EventTypeNormal,
 					Reason:    "Created",
-					Message:   "Created slicegw on spoke cluster " + clusterName,
+					Message:   "Created slicegw on spoke cluster , slicegateway " + sliceGw.Name + " cluster " + clusterName,
 				},
 			)
+			//post event to the slice created on spoke cluster
+			r.EventRecorder.Record(
+				&events.Event{
+					Object:    sliceOnSpoke,
+					EventType: events.EventTypeNormal,
+					Reason:    "Created",
+					Message:   "Created slicegw on spoke cluster , slicegateway " + sliceGw.Name,
+				},
+			)
+
 		} else {
 			log.Error(err, "unable to fetch sliceGw in spoke cluster", "sliceGw", sliceGwName)
 			return reconcile.Result{}, err

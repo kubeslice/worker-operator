@@ -125,10 +125,10 @@ func main() {
 
 	sliceGwEventRecorder := events.NewEventRecorder(mgr.GetEventRecorderFor("sliceGw-controller"))
 	if err = (&slicegateway.SliceGwReconciler{
-		Client:    mgr.GetClient(),
-		Log:       ctrl.Log.WithName("controllers").WithName("SliceGw"),
-		Scheme:    mgr.GetScheme(),
-		HubClient: hubClient,
+		Client:        mgr.GetClient(),
+		Log:           ctrl.Log.WithName("controllers").WithName("SliceGw"),
+		Scheme:        mgr.GetScheme(),
+		HubClient:     hubClient,
 		EventRecorder: sliceGwEventRecorder,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "SliceGw")

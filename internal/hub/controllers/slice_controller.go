@@ -99,7 +99,7 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req reconcile.Request) 
 						Object:    slice,
 						EventType: events.EventTypeWarning,
 						Reason:    "Error",
-						Message:   "Error creating slice on spoke cluster " + clusterName,
+						Message:   "Error creating slice on spoke cluster , slice " + sliceName + " cluster " + clusterName,
 					},
 				)
 				return reconcile.Result{}, err
@@ -110,7 +110,7 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req reconcile.Request) 
 					Object:    slice,
 					EventType: events.EventTypeNormal,
 					Reason:    "Created",
-					Message:   "Created slice on spoke cluster " + clusterName,
+					Message:   "Created slice on spoke cluster , slice " + sliceName + " cluster " + clusterName,
 				},
 			)
 			err = r.updateSliceConfig(ctx, s, slice)

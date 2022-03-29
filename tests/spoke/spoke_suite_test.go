@@ -12,6 +12,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
@@ -22,6 +23,7 @@ import (
 	"bitbucket.org/realtimeai/kubeslice-operator/controllers/serviceexport"
 	"bitbucket.org/realtimeai/kubeslice-operator/controllers/serviceimport"
 	"bitbucket.org/realtimeai/kubeslice-operator/controllers/slice"
+	"bitbucket.org/realtimeai/kubeslice-operator/pkg/events"
 	hce "bitbucket.org/realtimeai/kubeslice-operator/tests/emulator/hubclient"
 	hubv1alpha1 "bitbucket.org/realtimeai/mesh-apis/pkg/hub/v1alpha1"
 	istiov1beta1 "istio.io/client-go/pkg/apis/networking/v1beta1"
@@ -93,6 +95,9 @@ var _ = BeforeSuite(func() {
 		Client: k8sManager.GetClient(),
 		Scheme: k8sManager.GetScheme(),
 		Log:    ctrl.Log.WithName("SliceTest"),
+		EventRecorder: &events.EventRecorder{
+			Recorder: &record.FakeRecorder{},
+		},
 	}).SetupWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())
 

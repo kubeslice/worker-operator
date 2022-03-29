@@ -12,6 +12,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -21,6 +22,7 @@ import (
 
 	meshv1beta1 "bitbucket.org/realtimeai/kubeslice-operator/api/v1beta1"
 	"bitbucket.org/realtimeai/kubeslice-operator/internal/hub/controllers"
+	"bitbucket.org/realtimeai/kubeslice-operator/pkg/events"
 	spokev1alpha1 "bitbucket.org/realtimeai/mesh-apis/pkg/spoke/v1alpha1"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 )
@@ -100,10 +102,16 @@ var _ = BeforeSuite(func() {
 	sr := &controllers.SliceReconciler{
 		MeshClient: k8sClient,
 		Log:        ctrl.Log.WithName("hub").WithName("controllers").WithName("SliceConfig"),
+		EventRecorder: &events.EventRecorder{
+			Recorder: &record.FakeRecorder{},
+		},
 	}
 
 	sgwr := &controllers.SliceGwReconciler{
 		MeshClient: k8sClient,
+		EventRecorder: &events.EventRecorder{
+			Recorder: &record.FakeRecorder{},
+		},
 	}
 
 	err = builder.
