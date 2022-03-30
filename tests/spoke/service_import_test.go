@@ -10,16 +10,17 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/util/retry"
 )
 
-var _ = Describe("ServiceImportController", func() {
+var _ = FDescribe("ServiceImportController", func() {
 
 	Context("With a service import CR object installed, verify service import CR is reconciled", func() {
 		var slice *meshv1beta1.Slice
 		var dnssvc *corev1.Service
 		var dnscm *corev1.ConfigMap
 		var svcim *meshv1beta1.ServiceImport
-
+		var createdSlice *meshv1beta1.Slice
 		BeforeEach(func() {
 			// Prepare k8s objects for slice and mesh-dns service
 			slice = &meshv1beta1.Slice{
@@ -63,6 +64,7 @@ var _ = Describe("ServiceImportController", func() {
 					Ports:   getTestServiceExportPorts(),
 				},
 			}
+			createdSlice = &meshv1beta1.Slice{}
 
 			// Cleanup after each test
 			DeferCleanup(func() {
@@ -80,6 +82,20 @@ var _ = Describe("ServiceImportController", func() {
 			Expect(k8sClient.Create(ctx, dnssvc)).Should(Succeed())
 			Expect(k8sClient.Create(ctx, dnscm)).Should(Succeed())
 			Expect(k8sClient.Create(ctx, svcim)).Should(Succeed())
+
+			err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+				err := k8sClient.Get(ctx, types.NamespacedName{
+					Name:      slice.Name,
+					Namespace: slice.Namespace,
+				}, createdSlice)
+				if err != nil {
+					return err
+				}
+				createdSlice.Status.SliceConfig = &meshv1beta1.SliceConfig{}
+				return k8sClient.Status().Update(ctx, createdSlice)
+			})
+			Expect(err).To(BeNil())
+
 			svcKey := types.NamespacedName{Name: "iperf-server", Namespace: "default"}
 			createdSvcIm := &meshv1beta1.ServiceImport{}
 
