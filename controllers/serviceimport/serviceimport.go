@@ -90,6 +90,27 @@ func (r *Reconciler) serviceForServiceImport(serviceImport *meshv1beta1.ServiceI
 	return svc
 }
 
+func (r *Reconciler) DeleteDnsRecordsForServiceImport(ctx context.Context, serviceimport *meshv1beta1.ServiceImport) error {
+	log := logger.FromContext(ctx)
+	cm := &corev1.ConfigMap{}
+	err := r.Get(ctx, types.NamespacedName{
+		Namespace: controllers.ControlPlaneNamespace,
+		Name:      controllers.DNSDeploymentName,
+	}, cm)
+	if err != nil {
+		log.Error(err, "Unable to fetch DNS ConfigMap, cannnot delete ServiceImport DNS entries")
+		return err
+	}
+
+	err = dns.DeleteRecordsAndReconcileDNSFile(ctx, cm.Data["slice.db"], serviceimport)
+	if err != nil {
+		log.Error(err, "unable to delete dns records")
+		return err
+	}
+
+	return nil
+}
+
 func (r *Reconciler) DeleteServiceImportResources(ctx context.Context, serviceimport *meshv1beta1.ServiceImport) error {
 	log := logger.FromContext(ctx)
 	slice, err := controllers.GetSlice(ctx, r.Client, serviceimport.Spec.Slice)
@@ -105,5 +126,16 @@ func (r *Reconciler) DeleteServiceImportResources(ctx context.Context, serviceim
 		return nil
 	}
 
-	return r.DeleteIstioResources(ctx, serviceimport, slice)
+	// Invalidate endpoints and reconcile DNS records to remove entries specific to the service import
+	err = r.DeleteDnsRecordsForServiceImport(ctx, serviceimport)
+	if err != nil {
+		return err
+	}
+
+	err = r.DeleteIstioResources(ctx, serviceimport, slice)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
