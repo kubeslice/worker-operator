@@ -20,7 +20,7 @@ COPY hack/ hack/
 COPY config/ config
 
 # Copy manifest files for istio gateways deployment
-COPY files files
+COPY files /files
 ENV MANIFEST_PATH="/files/manifests"
 
 CMD ["make", "test"]
