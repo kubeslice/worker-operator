@@ -97,7 +97,7 @@ func (r *SliceReconciler) ReconcileAppPod(ctx context.Context, slice *meshv1beta
 			continue
 		}
 
-		if pod.NsmIP == "" || pod.NsmPeerIP == "" {
+		if pod.NsmIP != appPodConnectedToSlice.NsmIP {
 			pod.NsmIP, pod.NsmPeerIP, pod.NsmInterface =
 				appPodConnectedToSlice.NsmIP, appPodConnectedToSlice.NsmPeerIP, appPodConnectedToSlice.NsmInterface
 			slice.Status.AppPodsUpdatedOn = time.Now().Unix()
