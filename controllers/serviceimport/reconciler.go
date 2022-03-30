@@ -78,7 +78,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	} else {
 		// The object is being deleted
 		if containsString(serviceimport.GetFinalizers(), finalizerName) {
-			log.Info("deleting serviceexport")
+			log.Info("deleting serviceimport")
 			if err := r.DeleteServiceImportResources(ctx, serviceimport); err != nil {
 				log.Error(err, "unable to delete service import resources")
 				return ctrl.Result{}, err
