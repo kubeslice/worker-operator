@@ -52,7 +52,7 @@ type SliceReconciler struct {
 //+kubebuilder:rbac:groups=mesh.avesha.io,resources=slice/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=mesh.avesha.io,resources=slice/finalizers,verbs=update
 //+kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=core,resources=pods,verbs=get;list;watch
+//+kubebuilder:rbac:groups=core,resources=pods,verbs=get;list;watch;update
 //+kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=core,resources=services,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=roles,verbs=get;list;watch;create;update;patch;delete
