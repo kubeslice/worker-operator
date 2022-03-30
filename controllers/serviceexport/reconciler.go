@@ -77,7 +77,12 @@ func (r Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resul
 		if containsString(serviceexport.GetFinalizers(), finalizerName) {
 			log.Info("deleting serviceexport")
 			if err := r.HubClient.DeleteServiceExport(ctx, serviceexport); err != nil {
-				log.Error(err, "unable to delete service export on the hub")
+				log.Error(err, "unable to delete service export on the hub from the spoke")
+				return ctrl.Result{}, err
+			}
+
+			if err := r.DeleteServiceExportResources(ctx, serviceexport); err != nil {
+				log.Error(err, "unable to delete service export resources")
 				return ctrl.Result{}, err
 			}
 

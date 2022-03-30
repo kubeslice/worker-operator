@@ -11,6 +11,7 @@ import (
 	"bitbucket.org/realtimeai/kubeslice-operator/internal/logger"
 	corev1 "k8s.io/api/core/v1"
 
+	k8sapierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -87,4 +88,22 @@ func (r *Reconciler) serviceForServiceImport(serviceImport *meshv1beta1.ServiceI
 
 	ctrl.SetControllerReference(serviceImport, svc, r.Scheme)
 	return svc
+}
+
+func (r *Reconciler) DeleteServiceImportResources(ctx context.Context, serviceimport *meshv1beta1.ServiceImport) error {
+	log := logger.FromContext(ctx)
+	slice, err := controllers.GetSlice(ctx, r.Client, serviceimport.Spec.Slice)
+	if err != nil {
+		if k8sapierrors.IsNotFound(err) {
+			return nil
+		}
+		log.Error(err, "Unable to fetch slice for serviceimport cleanup")
+		return err
+	}
+
+	if slice.Status.SliceConfig == nil {
+		return nil
+	}
+
+	return r.DeleteIstioResources(ctx, serviceimport, slice)
 }

@@ -4,8 +4,10 @@ import (
 	"context"
 
 	meshv1beta1 "bitbucket.org/realtimeai/kubeslice-operator/api/v1beta1"
+	"bitbucket.org/realtimeai/kubeslice-operator/controllers"
 	"bitbucket.org/realtimeai/kubeslice-operator/internal/logger"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -81,4 +83,22 @@ func (r *Reconciler) getAppPods(ctx context.Context, serviceexport *meshv1beta1.
 	}
 	debugLog.Info("valid app pods in slice", "pods", appPods)
 	return appPods, nil
+}
+
+func (r *Reconciler) DeleteServiceExportResources(ctx context.Context, serviceexport *meshv1beta1.ServiceExport) error {
+	log := logger.FromContext(ctx)
+	slice, err := controllers.GetSlice(ctx, r.Client, serviceexport.Spec.Slice)
+	if err != nil {
+		if errors.IsNotFound(err) {
+			return nil
+		}
+		log.Error(err, "Unable to fetch slice for serviceexport cleanup")
+		return err
+	}
+
+	if slice.Status.SliceConfig == nil {
+		return nil
+	}
+
+	return r.DeleteIstioResources(ctx, serviceexport, slice)
 }
