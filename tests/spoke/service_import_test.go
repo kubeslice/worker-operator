@@ -13,7 +13,7 @@ import (
 	"k8s.io/client-go/util/retry"
 )
 
-var _ = FDescribe("ServiceImportController", func() {
+var _ = Describe("ServiceImportController", func() {
 
 	Context("With a service import CR object installed, verify service import CR is reconciled", func() {
 		var slice *meshv1beta1.Slice
