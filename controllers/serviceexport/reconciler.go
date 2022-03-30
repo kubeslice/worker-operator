@@ -104,6 +104,7 @@ func (r Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resul
 			return ctrl.Result{}, err
 		}
 		debugLog.Info("Added Label for serviceexport", "serviceexport", serviceexport.Name)
+		return ctrl.Result{Requeue: true}, nil
 	}
 
 	// Reconciler running for the first time. Set the initial status here
@@ -119,7 +120,7 @@ func (r Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resul
 
 		log.Info("serviceexport updated with initial status")
 
-		return ctrl.Result{}, nil
+		return ctrl.Result{Requeue: true}, nil
 	}
 
 	if serviceexport.Status.ExposedPorts != portListToDisplayString(serviceexport.Spec.Ports) {
@@ -133,7 +134,7 @@ func (r Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resul
 
 		log.Info("serviceexport updated with ports")
 
-		return ctrl.Result{}, nil
+		return ctrl.Result{Requeue: true}, nil
 	}
 
 	res, err, requeue := r.ReconcileAppPod(ctx, serviceexport)
