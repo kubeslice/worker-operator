@@ -71,6 +71,7 @@ func (r Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resul
 			if err := r.Update(ctx, serviceexport); err != nil {
 				return ctrl.Result{}, err
 			}
+			return ctrl.Result{Requeue: true}, nil
 		}
 	} else {
 		// The object is being deleted
@@ -86,6 +87,7 @@ func (r Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resul
 			if err := r.Update(ctx, serviceexport); err != nil {
 				return ctrl.Result{}, err
 			}
+			return ctrl.Result{Requeue: true}, nil
 		}
 
 		return ctrl.Result{}, nil
