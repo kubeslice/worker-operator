@@ -2,6 +2,7 @@ package serviceexport
 
 import (
 	"context"
+	"fmt"
 
 	meshv1beta1 "bitbucket.org/realtimeai/kubeslice-operator/api/v1beta1"
 	"bitbucket.org/realtimeai/kubeslice-operator/controllers"
@@ -16,6 +17,11 @@ func (r *Reconciler) ReconcileIstio(ctx context.Context, serviceexport *meshv1be
 	slice, err := controllers.GetSlice(ctx, r.Client, serviceexport.Spec.Slice)
 	if err != nil {
 		log.Error(err, "Unable to fetch slice for serviceexport")
+		return ctrl.Result{}, err, true
+	}
+
+	if slice.Status.SliceConfig == nil {
+		err := fmt.Errorf("sliceconfig not reconciled from hub")
 		return ctrl.Result{}, err, true
 	}
 

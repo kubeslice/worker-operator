@@ -18,7 +18,8 @@ import (
 
 type SliceGwReconciler struct {
 	client.Client
-	MeshClient client.Client
+	ClusterName string
+	MeshClient  client.Client
 }
 
 func (r *SliceGwReconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
@@ -39,7 +40,8 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req reconcile.Request
 	log.Info("got sliceGw from hub", "sliceGw", sliceGw.Name)
 
 	// Return if the slice gw resource does not belong to our cluster
-	if sliceGw.Spec.LocalGatewayConfig.ClusterName != clusterName {
+	if sliceGw.Spec.LocalGatewayConfig.ClusterName != r.ClusterName {
+		log.Info("sliceGw doesn't belong to this cluster", "sliceGw", sliceGw.Name, "cluster", clusterName, "slicegw cluster", sliceGw.Spec.LocalGatewayConfig.ClusterName)
 		return reconcile.Result{}, nil
 	}
 
