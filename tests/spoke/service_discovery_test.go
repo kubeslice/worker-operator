@@ -2,6 +2,7 @@ package spoke_test
 
 import (
 	"context"
+
 	"reflect"
 	"strings"
 	"time"
@@ -13,6 +14,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/util/retry"
 )
 
 func getTestServiceExportPorts() []meshv1beta1.ServicePort {
@@ -31,6 +33,7 @@ var _ = Describe("ServiceExportController", func() {
 		var slice *meshv1beta1.Slice
 		var dnssvc *corev1.Service
 		var svcex *meshv1beta1.ServiceExport
+		var createdSlice *meshv1beta1.Slice
 
 		BeforeEach(func() {
 			// Prepare k8s objects for slice and mesh-dns service
@@ -68,6 +71,7 @@ var _ = Describe("ServiceExportController", func() {
 					Ports: getTestServiceExportPorts(),
 				},
 			}
+			createdSlice = &meshv1beta1.Slice{}
 
 			// Cleanup after each test
 			DeferCleanup(func() {
@@ -77,11 +81,13 @@ var _ = Describe("ServiceExportController", func() {
 					err := k8sClient.Get(ctx, types.NamespacedName{Name: svcex.Name, Namespace: svcex.Namespace}, svcex)
 					return errors.IsNotFound(err)
 				}, time.Second*30, time.Millisecond*250).Should(BeTrue())
-				Expect(k8sClient.Delete(ctx, slice)).Should(Succeed())
+
+				Expect(k8sClient.Delete(ctx, createdSlice)).Should(Succeed())
 				Eventually(func() bool {
-					err := k8sClient.Get(ctx, types.NamespacedName{Name: slice.Name, Namespace: slice.Namespace}, slice)
+					err := k8sClient.Get(ctx, types.NamespacedName{Name: slice.Name, Namespace: slice.Namespace}, createdSlice)
 					return errors.IsNotFound(err)
 				}, time.Second*30, time.Millisecond*250).Should(BeTrue())
+
 				Expect(k8sClient.Delete(ctx, dnssvc)).Should(Succeed())
 				Eventually(func() bool {
 					err := k8sClient.Get(ctx, types.NamespacedName{Name: dnssvc.Name, Namespace: dnssvc.Namespace}, dnssvc)
@@ -94,8 +100,20 @@ var _ = Describe("ServiceExportController", func() {
 		It("Should update service export status", func() {
 			Expect(k8sClient.Create(ctx, dnssvc)).Should(Succeed())
 			Expect(k8sClient.Create(ctx, slice)).Should(Succeed())
-			slice.Status.SliceConfig = &meshv1beta1.SliceConfig{}
-			Expect(k8sClient.Status().Update(ctx, slice)).Should(Succeed())
+
+			err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+				err := k8sClient.Get(ctx, types.NamespacedName{
+					Name:      slice.Name,
+					Namespace: slice.Namespace,
+				}, createdSlice)
+				if err != nil {
+					return err
+				}
+				createdSlice.Status.SliceConfig = &meshv1beta1.SliceConfig{}
+				return k8sClient.Status().Update(ctx, createdSlice)
+			})
+			Expect(err).To(BeNil())
+
 			Expect(k8sClient.Create(ctx, svcex)).Should(Succeed())
 			svcKey := types.NamespacedName{Name: "iperf-server", Namespace: "default"}
 			createdSvcEx := &meshv1beta1.ServiceExport{}
@@ -119,8 +137,20 @@ var _ = Describe("ServiceExportController", func() {
 			log.Info("Creating slice", "slice", slice)
 			Expect(k8sClient.Create(ctx, dnssvc)).Should(Succeed())
 			Expect(k8sClient.Create(ctx, slice)).Should(Succeed())
-			slice.Status.SliceConfig = &meshv1beta1.SliceConfig{}
-			Expect(k8sClient.Status().Update(ctx, slice)).Should(Succeed())
+
+			err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+				err := k8sClient.Get(ctx, types.NamespacedName{
+					Name:      slice.Name,
+					Namespace: slice.Namespace,
+				}, createdSlice)
+				if err != nil {
+					return err
+				}
+				createdSlice.Status.SliceConfig = &meshv1beta1.SliceConfig{}
+				return k8sClient.Status().Update(ctx, createdSlice)
+			})
+			Expect(err).To(BeNil())
+
 			Expect(k8sClient.Create(ctx, svcex)).Should(Succeed())
 			svcKey := types.NamespacedName{Name: "iperf-server", Namespace: "default"}
 			createdSvcEx := &meshv1beta1.ServiceExport{}
@@ -165,8 +195,20 @@ var _ = Describe("ServiceExportController", func() {
 
 			Expect(k8sClient.Create(ctx, dnssvc)).Should(Succeed())
 			Expect(k8sClient.Create(ctx, slice)).Should(Succeed())
-			slice.Status.SliceConfig = &meshv1beta1.SliceConfig{}
-			Expect(k8sClient.Status().Update(ctx, slice)).Should(Succeed())
+
+			err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+				err := k8sClient.Get(ctx, types.NamespacedName{
+					Name:      slice.Name,
+					Namespace: slice.Namespace,
+				}, createdSlice)
+				if err != nil {
+					return err
+				}
+				createdSlice.Status.SliceConfig = &meshv1beta1.SliceConfig{}
+				return k8sClient.Status().Update(ctx, createdSlice)
+			})
+			Expect(err).To(BeNil())
+
 			Expect(k8sClient.Create(ctx, svcex)).Should(Succeed())
 			expectedLabel := map[string]string{
 				"kubeslice.io/slice": svcex.Spec.Slice,
