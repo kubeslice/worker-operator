@@ -102,9 +102,16 @@ func (r *Reconciler) DeleteDnsRecordsForServiceImport(ctx context.Context, servi
 		return err
 	}
 
-	err = dns.DeleteRecordsAndReconcileDNSFile(ctx, cm.Data["slice.db"], serviceimport)
+	updatedDnsData, err := dns.DeleteRecordsAndReconcileDNSFile(ctx, cm.Data["slice.db"], serviceimport)
 	if err != nil {
 		log.Error(err, "unable to delete dns records")
+		return err
+	}
+
+	cm.Data["slice.db"] = updatedDnsData
+	err = r.Update(ctx, cm)
+	if err != nil {
+		log.Error(err, "Unable to update DNS configmap, unable to delete ServiceImport DNS entries")
 		return err
 	}
 
