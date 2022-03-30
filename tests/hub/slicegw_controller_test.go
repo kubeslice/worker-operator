@@ -49,6 +49,9 @@ var _ = Describe("Hub SlicegwController", func() {
 				},
 				Spec: spokev1alpha1.SpokeSliceGatewaySpec{
 					SliceName: "test-slice",
+					LocalGatewayConfig: spokev1alpha1.SliceGatewayConfig{
+						ClusterName: CLUSTER_NAME,
+					},
 				},
 			}
 			hubSecret = &corev1.Secret{
@@ -87,13 +90,13 @@ var _ = Describe("Hub SlicegwController", func() {
 					return false
 				}
 				return true
-			}, time.Second*10, time.Millisecond*250).Should(BeTrue())
+			}, time.Second*20, time.Millisecond*250).Should(BeTrue())
 
 			sliceGwKey := types.NamespacedName{Namespace: CONTROL_PLANE_NS, Name: hubSliceGw.Name}
 			Eventually(func() bool {
 				err := k8sClient.Get(ctx, sliceGwKey, createdSliceGwOnSpoke)
 				return err == nil
-			}, time.Second*10, time.Second*1).Should(BeTrue())
+			}, time.Second*20, time.Second*1).Should(BeTrue())
 		})
 
 		It("Should set slice as owner of slicegw", func() {
