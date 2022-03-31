@@ -17,7 +17,8 @@
   "spec": {
     "type": "ClusterIP",
     "selector": {
-      "istio": "egressgateway"
+      "istio": "egressgateway",
+      "slice": "SLICE"
     },
     "ports": [
       {
