@@ -195,3 +195,20 @@ func (r *Reconciler) getVirtualServiceFromEgress(ctx context.Context, serviceimp
 
 	return vs, nil
 }
+
+func (r *Reconciler) DeleteIstioVirtualServicesEgress(ctx context.Context, serviceimport *meshv1beta1.ServiceImport) error {
+	vs, err := r.getVirtualServiceFromEgress(ctx, serviceimport)
+	if err != nil {
+		if errors.IsNotFound(err) {
+			return nil
+		}
+		return err
+	}
+
+	err = r.Delete(ctx, vs)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}

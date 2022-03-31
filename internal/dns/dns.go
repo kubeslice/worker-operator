@@ -55,6 +55,28 @@ func ReconcileDNSFile(ctx context.Context, dnsFile string, si *meshv1beta1.Servi
 
 }
 
+func DeleteRecordsAndReconcileDNSFile(ctx context.Context, dnsFile string, si *meshv1beta1.ServiceImport) (string, error) {
+	log := logger.FromContext(ctx).WithValues("type", "CoreDNS")
+	debugLog := log.V(1)
+
+	log.Info("Deleting records for service import", "ServiceImport", si.Name)
+
+	debugLog.Info("Deleting records in DNS file", "dnsFile", dnsFile, "recordsToDelete", si.Status.Endpoints)
+
+	df := strings.Split(dnsFile, "\n")
+	dnsEntries := df[1:]
+
+	dnsEntries = removeServiceDnsRecords(dnsEntries, si)
+	sort.Strings(dnsEntries)
+
+	u := GenerateDNSFile(df[0], dnsEntries)
+	log.Info("dns records deleted")
+	debugLog.Info("dns records updated", "entries", dnsEntries, "dnsFile", u)
+
+	return u, nil
+
+}
+
 func removeServiceDnsRecords(dnsEntries []string, si *meshv1beta1.ServiceImport) []string {
 	de := []string{}
 	for _, v := range dnsEntries {

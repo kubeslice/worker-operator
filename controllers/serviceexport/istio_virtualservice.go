@@ -240,3 +240,20 @@ func hasVirtualServiceRoutesChanged(vs *istiov1beta1.VirtualService, serviceExpo
 
 	return false
 }
+
+func (r *Reconciler) DeleteIstioVirtualServices(ctx context.Context, serviceexport *meshv1beta1.ServiceExport) error {
+	vs, err := r.getVirtualService(ctx, serviceexport)
+	if err != nil {
+		if errors.IsNotFound(err) {
+			return nil
+		}
+		return err
+	}
+
+	err = r.Delete(ctx, vs)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}

@@ -99,3 +99,27 @@ func (r *Reconciler) ReconcileService(ctx context.Context, serviceimport *meshv1
 
 	return ctrl.Result{}, nil, false
 }
+
+func (r *Reconciler) DeleteIstioResources(ctx context.Context, serviceimport *meshv1beta1.ServiceImport, slice *meshv1beta1.Slice) error {
+	// We should only clean up resources that were created in the control plane namespace. Setting the service import object
+	// in the app namespace as the owner reference does not clean up resources in other namespaces.
+	// Resources in application namespaces are garbage collected because the owner reference for them is set to be the
+	// service import object, so we do not have to delete them explicitly here.
+	if slice.Status.SliceConfig.ExternalGatewayConfig == nil ||
+		slice.Status.SliceConfig.ExternalGatewayConfig.Egress == nil ||
+		slice.Status.SliceConfig.ExternalGatewayConfig.Egress.Enabled == false {
+		return nil
+	}
+
+	err := r.DeleteIstioServiceEntries(ctx, serviceimport)
+	if err != nil {
+		return err
+	}
+
+	err = r.DeleteIstioVirtualServicesEgress(ctx, serviceimport)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
