@@ -4,9 +4,11 @@ import (
 	"context"
 
 	meshv1beta1 "bitbucket.org/realtimeai/kubeslice-operator/api/v1beta1"
+	"bitbucket.org/realtimeai/kubeslice-operator/controllers"
 	"bitbucket.org/realtimeai/kubeslice-operator/internal/logger"
 	networkingv1beta1 "istio.io/api/networking/v1beta1"
 	istiov1beta1 "istio.io/client-go/pkg/apis/networking/v1beta1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -165,4 +167,24 @@ func servicesEntriesToDelete(seList []istiov1beta1.ServiceEntry, si *meshv1beta1
 	}
 
 	return toDelete
+}
+
+func (r *Reconciler) DeleteIstioServiceEntries(ctx context.Context, serviceimport *meshv1beta1.ServiceImport) error {
+	entries, err := getServiceEntriesForSI(ctx, r.Client, serviceimport, controllers.ControlPlaneNamespace)
+	if err != nil {
+		if errors.IsNotFound(err) {
+			return nil
+		}
+
+		return err
+	}
+
+	for _, se := range entries {
+		err = r.Delete(ctx, &se)
+		if err != nil {
+			return nil
+		}
+	}
+
+	return nil
 }

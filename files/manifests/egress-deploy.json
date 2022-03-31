@@ -20,7 +20,8 @@
   "spec": {
     "selector": {
       "matchLabels": {
-        "istio": "egressgateway"
+        "istio": "egressgateway",
+        "slice": "SLICE"
       }
     },
     "strategy": {

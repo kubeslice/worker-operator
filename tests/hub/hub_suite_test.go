@@ -103,7 +103,8 @@ var _ = BeforeSuite(func() {
 	}
 
 	sgwr := &controllers.SliceGwReconciler{
-		MeshClient: k8sClient,
+		MeshClient:  k8sClient,
+		ClusterName: CLUSTER_NAME,
 	}
 
 	err = builder.

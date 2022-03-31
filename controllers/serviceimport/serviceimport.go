@@ -11,6 +11,7 @@ import (
 	"bitbucket.org/realtimeai/kubeslice-operator/internal/logger"
 	corev1 "k8s.io/api/core/v1"
 
+	k8sapierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -87,4 +88,61 @@ func (r *Reconciler) serviceForServiceImport(serviceImport *meshv1beta1.ServiceI
 
 	ctrl.SetControllerReference(serviceImport, svc, r.Scheme)
 	return svc
+}
+
+func (r *Reconciler) DeleteDnsRecordsForServiceImport(ctx context.Context, serviceimport *meshv1beta1.ServiceImport) error {
+	log := logger.FromContext(ctx)
+	cm := &corev1.ConfigMap{}
+	err := r.Get(ctx, types.NamespacedName{
+		Namespace: controllers.ControlPlaneNamespace,
+		Name:      controllers.DNSDeploymentName,
+	}, cm)
+	if err != nil {
+		log.Error(err, "Unable to fetch DNS ConfigMap, cannnot delete ServiceImport DNS entries")
+		return err
+	}
+
+	updatedDnsData, err := dns.DeleteRecordsAndReconcileDNSFile(ctx, cm.Data["slice.db"], serviceimport)
+	if err != nil {
+		log.Error(err, "unable to delete dns records")
+		return err
+	}
+
+	cm.Data["slice.db"] = updatedDnsData
+	err = r.Update(ctx, cm)
+	if err != nil {
+		log.Error(err, "Unable to update DNS configmap, unable to delete ServiceImport DNS entries")
+		return err
+	}
+
+	return nil
+}
+
+func (r *Reconciler) DeleteServiceImportResources(ctx context.Context, serviceimport *meshv1beta1.ServiceImport) error {
+	log := logger.FromContext(ctx)
+	slice, err := controllers.GetSlice(ctx, r.Client, serviceimport.Spec.Slice)
+	if err != nil {
+		if k8sapierrors.IsNotFound(err) {
+			return nil
+		}
+		log.Error(err, "Unable to fetch slice for serviceimport cleanup")
+		return err
+	}
+
+	if slice.Status.SliceConfig == nil {
+		return nil
+	}
+
+	// Invalidate endpoints and reconcile DNS records to remove entries specific to the service import
+	err = r.DeleteDnsRecordsForServiceImport(ctx, serviceimport)
+	if err != nil {
+		return err
+	}
+
+	err = r.DeleteIstioResources(ctx, serviceimport, slice)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

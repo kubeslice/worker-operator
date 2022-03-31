@@ -72,7 +72,8 @@ func Start(meshClient client.Client, ctx context.Context) {
 	}
 
 	sliceGwReconciler := &controllers.SliceGwReconciler{
-		MeshClient: meshClient,
+		MeshClient:  meshClient,
+		ClusterName: ClusterName,
 	}
 	err = builder.
 		ControllerManagedBy(mgr).

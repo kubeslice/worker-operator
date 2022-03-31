@@ -35,3 +35,12 @@ func getServiceProtocol(si *meshv1beta1.ServiceImport) meshv1beta1.ServiceProtoc
 	return meshv1beta1.ServiceProtocolTCP
 
 }
+
+func containsString(slice []string, s string) bool {
+	for _, item := range slice {
+		if item == s {
+			return true
+		}
+	}
+	return false
+}

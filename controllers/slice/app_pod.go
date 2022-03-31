@@ -1,12 +1,14 @@
-package controllers
+package slice
 
 import (
 	"context"
 	"time"
 
 	meshv1beta1 "bitbucket.org/realtimeai/kubeslice-operator/api/v1beta1"
+	"bitbucket.org/realtimeai/kubeslice-operator/controllers"
 	"bitbucket.org/realtimeai/kubeslice-operator/internal/logger"
 	"bitbucket.org/realtimeai/kubeslice-operator/internal/router"
+
 	corev1 "k8s.io/api/core/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -71,6 +73,14 @@ func (r *SliceReconciler) ReconcileAppPod(ctx context.Context, slice *meshv1beta
 		return ctrl.Result{}, err, true
 	}
 	debugLog.Info("Got pods connected to slice", "result", podsConnectedToSlice)
+	corePodList := &corev1.PodList{}
+	listOpts := []client.ListOption{
+		client.MatchingLabels(labelsForAppPods()),
+	}
+	if err := r.List(ctx, corePodList, listOpts...); err != nil {
+		log.Error(err, "Failed to list pods")
+		return ctrl.Result{}, err, true
+	}
 	for i := range slice.Status.AppPods {
 		pod := &slice.Status.AppPods[i]
 		debugLog.Info("getting app pod connectivity status", "podIp", pod.PodIP, "podName", pod.PodName)
@@ -97,11 +107,29 @@ func (r *SliceReconciler) ReconcileAppPod(ctx context.Context, slice *meshv1beta
 			continue
 		}
 
-		if pod.NsmIP == "" || pod.NsmPeerIP == "" {
+		if pod.NsmIP != appPodConnectedToSlice.NsmIP {
 			pod.NsmIP, pod.NsmPeerIP, pod.NsmInterface =
 				appPodConnectedToSlice.NsmIP, appPodConnectedToSlice.NsmPeerIP, appPodConnectedToSlice.NsmInterface
 			slice.Status.AppPodsUpdatedOn = time.Now().Unix()
 			log.Info("app pod status changed", "nsmIp", pod.NsmIP, "peerIp", pod.NsmPeerIP)
+
+			//Label pod with NSM IP
+			podIndex := findPodInPodList(pod.PodName, corePodList)
+			if podIndex == -1 {
+				debugLog.Info("Could not find pod in podList, skipping nsmIP labelling")
+			} else {
+				corePod := corePodList.Items[podIndex]
+				labels := corePod.GetLabels()
+				labels[controllers.NSMIPLabelSelectorKey] = pod.NsmIP
+				corePod.SetLabels(labels)
+
+				err := r.Update(ctx, &corePod)
+				if err != nil {
+					log.Error(err, "Failed to update NSM IP label for app pod")
+					return ctrl.Result{}, err, true
+				}
+				debugLog.Info("App pod label added/updated", "nsmIP", pod.NsmIP)
+			}
 			err = r.Status().Update(ctx, slice)
 			if err != nil {
 				log.Error(err, "Failed to update Slice status for app pods")
@@ -110,7 +138,6 @@ func (r *SliceReconciler) ReconcileAppPod(ctx context.Context, slice *meshv1beta
 			log.Info("App pod status updated")
 			return ctrl.Result{}, nil, true
 		}
-
 	}
 	return ctrl.Result{}, nil, false
 }
@@ -127,4 +154,16 @@ func findAppPodConnectedToSlice(podName string, connectedPods []meshv1beta1.AppP
 		}
 	}
 	return nil
+}
+
+// findPodInPodList returns the index of the pod in the podList that matches
+// the input pod to be found
+func findPodInPodList(podName string, podList *corev1.PodList) int {
+	for i := range podList.Items {
+		pod := podList.Items[i]
+		if podName == pod.Name {
+			return i
+		}
+	}
+	return -1
 }
