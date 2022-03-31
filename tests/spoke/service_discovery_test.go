@@ -2,7 +2,6 @@ package spoke_test
 
 import (
 	"context"
-
 	"reflect"
 	"strings"
 	"time"
@@ -190,7 +189,6 @@ var _ = Describe("ServiceExportController", func() {
 
 		})
 		It("Should Add a slice label to service export", func() {
-
 			log.Info("Creating slice", "slice", slice)
 
 			Expect(k8sClient.Create(ctx, dnssvc)).Should(Succeed())

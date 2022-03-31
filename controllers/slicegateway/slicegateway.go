@@ -2,16 +2,12 @@ package slicegateway
 
 import (
 	"context"
+	"os"
+	"strconv"
+	"time"
 
 	"bitbucket.org/realtimeai/kubeslice-operator/controllers"
 	"bitbucket.org/realtimeai/kubeslice-operator/internal/netop"
-
-	//	"errors"
-	"os"
-	"strconv"
-
-	//	"strings"
-	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"

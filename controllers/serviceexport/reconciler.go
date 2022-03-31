@@ -160,7 +160,7 @@ func (r Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resul
 
 		if ingressGwPod != nil {
 			ep := &meshv1beta1.ServicePod{
-				Name:  fmt.Sprintf("%s-ingress", serviceexport.Name),
+				Name:  fmt.Sprintf("%s-%s-ingress", serviceexport.Name, serviceexport.ObjectMeta.Namespace),
 				NsmIP: ingressGwPod.NsmIP,
 				DNSName: fmt.Sprintf("%s-ingress.%s.%s.svc.slice.local",
 					serviceexport.Name, controllers.ClusterName, serviceexport.Namespace),

@@ -156,10 +156,14 @@ func getHubServiceDiscoveryPorts(serviceexport *meshv1beta1.ServiceExport) []hub
 	return portList
 }
 
+func getHubServiceExportObjName(serviceexport *meshv1beta1.ServiceExport) string {
+	return serviceexport.Name + "-" + serviceexport.ObjectMeta.Namespace + "-" + ClusterName
+}
+
 func getHubServiceExportObj(serviceexport *meshv1beta1.ServiceExport) *hubv1alpha1.ServiceExportConfig {
 	return &hubv1alpha1.ServiceExportConfig{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      serviceexport.Name,
+			Name:      getHubServiceExportObjName(serviceexport),
 			Namespace: ProjectNamespace,
 		},
 		Spec: hubv1alpha1.ServiceExportConfigSpec{
@@ -187,14 +191,14 @@ func (hubClient *HubClientConfig) UpdateServiceExportEndpointForIngressGw(ctx co
 	ep *meshv1beta1.ServicePod) error {
 	hubSvcEx := &hubv1alpha1.ServiceExportConfig{}
 	err := hubClient.Get(ctx, types.NamespacedName{
-		Name:      serviceexport.Name,
+		Name:      getHubServiceExportObjName(serviceexport),
 		Namespace: ProjectNamespace,
 	}, hubSvcEx)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			hubSvcExObj := &hubv1alpha1.ServiceExportConfig{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      serviceexport.Name,
+					Name:      getHubServiceExportObjName(serviceexport),
 					Namespace: ProjectNamespace,
 				},
 				Spec: hubv1alpha1.ServiceExportConfigSpec{
@@ -230,7 +234,7 @@ func (hubClient *HubClientConfig) UpdateServiceExportEndpointForIngressGw(ctx co
 func (hubClient *HubClientConfig) UpdateServiceExport(ctx context.Context, serviceexport *meshv1beta1.ServiceExport) error {
 	hubSvcEx := &hubv1alpha1.ServiceExportConfig{}
 	err := hubClient.Get(ctx, types.NamespacedName{
-		Name:      serviceexport.Name,
+		Name:      getHubServiceExportObjName(serviceexport),
 		Namespace: ProjectNamespace,
 	}, hubSvcEx)
 	if err != nil {
@@ -257,7 +261,7 @@ func (hubClient *HubClientConfig) UpdateServiceExport(ctx context.Context, servi
 func (hubClient *HubClientConfig) DeleteServiceExport(ctx context.Context, serviceexport *meshv1beta1.ServiceExport) error {
 	hubSvcEx := &hubv1alpha1.ServiceExportConfig{}
 	err := hubClient.Get(ctx, types.NamespacedName{
-		Name:      serviceexport.Name,
+		Name:      getHubServiceExportObjName(serviceexport),
 		Namespace: ProjectNamespace,
 	}, hubSvcEx)
 	if err != nil {
