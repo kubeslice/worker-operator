@@ -61,10 +61,15 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req reconcile.Request) 
 				// so that it can be retried
 				return reconcile.Result{}, err
 			}
-			// remove our finalizer from the list and update it.
+			// remove our finalizer from the spokeslice and update it.
 			// retry on conflict
-			controllerutil.RemoveFinalizer(slice, sliceFinalizer)
 			err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+				//fetch the latest spokeslice from hub
+				if getErr := r.Get(ctx, req.NamespacedName, slice); err != nil {
+					return getErr
+				}
+				//remove the finalizer
+				controllerutil.RemoveFinalizer(slice, sliceFinalizer)
 				if err := r.Update(ctx, slice); err != nil {
 					return err
 				}
@@ -188,6 +193,9 @@ func (r *SliceReconciler) deleteSliceResourceOnSpoke(ctx context.Context, slice 
 		},
 	}
 	if err := r.MeshClient.Delete(ctx, sliceOnSpoke); err != nil {
+		if errors.IsNotFound(err) {
+			return nil
+		}
 		return err
 	}
 	log.Info("Deleted Slice CR on spoke cluster", "slice", sliceOnSpoke.Name)
