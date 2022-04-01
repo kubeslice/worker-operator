@@ -29,7 +29,7 @@ var _ = Describe("ClusterInfoUpdate", func() {
 					},
 				},
 				Spec: corev1.NodeSpec{
-					ProviderID: "gke://demo",
+					ProviderID: "gce://demo",
 				},
 				Status: corev1.NodeStatus{
 					Addresses: []corev1.NodeAddress{
@@ -84,7 +84,7 @@ prefixes:
 			}, time.Second*10, time.Millisecond*250).Should(BeTrue())
 
 			Expect(cluster.Spec.NodeIP).Should(Equal("35.235.10.1"))
-			Expect(cluster.Spec.ClusterProperty.GeoLocation.CloudProvider).Should(Equal("gke"))
+			Expect(cluster.Spec.ClusterProperty.GeoLocation.CloudProvider).Should(Equal("gcp"))
 			Expect(cluster.Spec.ClusterProperty.GeoLocation.CloudRegion).Should(Equal("us-east-1"))
 			Expect(cluster.Status.CniSubnet).Should(Equal([]string{"192.168.0.0/16", "10.96.0.0/12"}))
 		})
