@@ -9,6 +9,7 @@ import (
 	"github.com/go-logr/logr"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -61,8 +62,15 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req reconcile.Request) 
 				return reconcile.Result{}, err
 			}
 			// remove our finalizer from the list and update it.
+			// retry on conflict
 			controllerutil.RemoveFinalizer(slice, sliceFinalizer)
-			if err := r.Update(ctx, slice); err != nil {
+			err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+				if err := r.Update(ctx, slice); err != nil {
+					return err
+				}
+				return nil
+			})
+			if err != nil {
 				return reconcile.Result{}, err
 			}
 		}

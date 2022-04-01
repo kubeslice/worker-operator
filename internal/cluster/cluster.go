@@ -61,7 +61,7 @@ func (c *Cluster) getClusterLocation(ctx context.Context) (GeoLocation, error) {
 		g.CloudProvider = strings.Split(nodeList.Items[0].Spec.ProviderID, ":")[0]
 		//change gce to gcp
 		if g.CloudProvider == "gce" {
-				g.CloudProvider = "gcp"
+			g.CloudProvider = "gcp"
 		}
 	}
 	return g, nil
