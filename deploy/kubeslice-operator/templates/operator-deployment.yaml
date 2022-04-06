@@ -74,8 +74,14 @@ spec:
             value: '{{ .Values.openvpn.client.image }}:{{ .Values.openvpn.client.tag }}'
           - name: AVESHA_OPENVPN_CLIENT_PULLPOLICY
             value: '{{ .Values.openvpn.client.pullPolicy }}'
-          - name: IMAGE_PULL_SECRET_NAME
-            value: '{{ .Values.imagePullSecrets.name }}'
+
+          {{- if .Values.imagePullSecrets }}
+          {{- with (first .Values.imagePullSecrets) }}
+          - name: AVESHA_IMAGE_PULL_SECRET_NAME
+            value: {{ .name }}
+          {{- end }}
+          {{- end }}
+          
         livenessProbe:
           httpGet:
             path: /healthz
