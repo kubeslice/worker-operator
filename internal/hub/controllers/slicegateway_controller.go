@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"context"
+	"strconv"
 	"time"
 
 	meshv1beta1 "bitbucket.org/realtimeai/kubeslice-operator/api/v1beta1"
@@ -139,6 +140,7 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req reconcile.Request
 		SliceGatewayRemoteGatewayID: sliceGw.Spec.RemoteGatewayConfig.GatewayName,
 		SliceGatewayLocalVpnIP:      sliceGw.Spec.LocalGatewayConfig.VpnIp,
 		SliceGatewayRemoteVpnIP:     sliceGw.Spec.RemoteGatewayConfig.VpnIp,
+		SliceGatewayName:            strconv.Itoa(sliceGw.Spec.GatewayNumber),
 	}
 	err = r.MeshClient.Status().Update(ctx, meshSliceGw)
 	if err != nil {

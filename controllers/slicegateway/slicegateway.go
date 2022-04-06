@@ -64,7 +64,7 @@ func (r *SliceGwReconciler) deploymentForGatewayServer(g *meshv1beta1.SliceGatew
 	sidecarPullPolicy := corev1.PullAlways
 	vpnImg := "nexus.dev.aveshalabs.io/avesha/openvpn-server.ubuntu.18.04:1.0.0"
 	vpnPullPolicy := corev1.PullAlways
-	baseFileName := os.Getenv("CLUSTER_NAME") + "-" + g.Spec.SliceName + "-1.vpn.aveshasystems.com"
+	baseFileName := os.Getenv("CLUSTER_NAME") + "-" + g.Spec.SliceName + "-" + g.Status.Config.SliceGatewayName + ".vpn.aveshasystems.com"
 
 	if len(gwSidecarImage) != 0 {
 		sidecarImg = gwSidecarImage
