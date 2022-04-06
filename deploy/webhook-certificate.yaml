@@ -24,6 +24,7 @@ spec:
   isCA: true
   commonName: my-selfsigned-ca
   secretName: root-secret
+  duration: 87600h # 10yrs
   privateKey:
     algorithm: ECDSA
     size: 256
@@ -55,3 +56,4 @@ spec:
     name: my-ca-issuer
   # The generated Certificate will be added to this secret
   secretName: webhook-server-cert
+  duration: 87600h # 10yrs
