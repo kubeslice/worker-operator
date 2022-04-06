@@ -61,7 +61,21 @@ spec:
           - name: AVESHA_VL3_SIDECAR_IMAGE_PULLPOLICY
             value: {{ .Values.routerSidecar.pullPolicy }}
           - name: NODE_IP
-            value: "{{ .Values.cluster.nodeIp }}"
+            value: '{{ .Values.cluster.nodeIp }}'
+          - name: AVESHA_GW_SIDECAR_IMAGE
+            value: '{{ .Values.gateway.image }}:{{ .Values.gateway.tag }}'
+          - name: AVESHA_GW_SIDECAR_IMAGE_PULLPOLICY
+            value: '{{ .Values.gateway.pullPolicy }}'
+          - name: AVESHA_OPENVPN_SERVER_IMAGE
+            value: '{{ .Values.openvpn.server.image }}:{{ .Values.openvpn.server.tag }}'
+          - name: AVESHA_OPENVPN_SERVER_PULLPOLICY
+            value: '{{ .Values.openvpn.server.pullPolicy }}'
+          - name: AVESHA_OPENVPN_CLIENT_IMAGE
+            value: '{{ .Values.openvpn.client.image }}:{{ .Values.openvpn.client.tag }}'
+          - name: AVESHA_OPENVPN_CLIENT_PULLPOLICY
+            value: '{{ .Values.openvpn.client.pullPolicy }}'
+          - name: IMAGE_PULL_SECRET_NAME
+            value: '{{ .Values.imagePullSecrets.name }}'
         livenessProbe:
           httpGet:
             path: /healthz
