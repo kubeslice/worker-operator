@@ -869,6 +869,12 @@ rules:
 - apiGroups:
   - mesh.avesha.io
   resources:
+  - serviceimports/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - mesh.avesha.io
+  resources:
   - slice
   verbs:
   - create

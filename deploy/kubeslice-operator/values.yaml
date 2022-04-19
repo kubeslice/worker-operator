@@ -22,7 +22,7 @@ router:
 
 routerSidecar:
   image: nexus.dev.aveshalabs.io/kubeslice-router-sidecar
-  tag: 1.0.0-SNAPSHOT
+  tag: 1.0.0
   pullPolicy: IfNotPresent
 
 netop:
@@ -31,6 +31,22 @@ netop:
   tag: 1.0.0
   pullPolicy: IfNotPresent
   logLevel: INFO
+
+gateway:
+  image: nexus.dev.aveshalabs.io/kubeslice/gw-sidecar
+  tag: 1.0.0
+  pullPolicy: IfNotPresent
+  logLevel: INFO
+
+openvpn:
+  server:
+    image: nexus.dev.aveshalabs.io/avesha/openvpn-server.ubuntu.18.04
+    tag: 1.0.0
+    pullPolicy: IfNotPresent
+  client:
+    image: nexus.dev.aveshalabs.io/avesha/openvpn-client.alpine.amd64
+    tag: 1.0.0
+    pullPolicy: IfNotPresent
 
 # Imagepullsecrets name which are needed if docker images are hosted in private registry
 # This secret should be already present in the cluster

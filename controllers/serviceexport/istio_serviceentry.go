@@ -8,6 +8,7 @@ import (
 	"bitbucket.org/realtimeai/kubeslice-operator/internal/logger"
 	networkingv1beta1 "istio.io/api/networking/v1beta1"
 	istiov1beta1 "istio.io/client-go/pkg/apis/networking/v1beta1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -163,4 +164,23 @@ func serviceEntryExists(seList []istiov1beta1.ServiceEntry, e meshv1beta1.Servic
 	}
 
 	return false
+}
+
+func (r *Reconciler) DeleteIstioServiceEntries(ctx context.Context, serviceexport *meshv1beta1.ServiceExport) error {
+	entries, err := getServiceEntries(ctx, r, serviceexport)
+	if err != nil {
+		if errors.IsNotFound(err) {
+			return nil
+		}
+		return err
+	}
+
+	for _, se := range entries {
+		err = r.Delete(ctx, &se)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }

@@ -13,6 +13,7 @@ import (
 
 	meshv1beta1 "bitbucket.org/realtimeai/kubeslice-operator/api/v1beta1"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
 // Reconciler reconciles a ServiceImport object
@@ -23,6 +24,8 @@ type Reconciler struct {
 	ClusterID     string
 	EventRecorder *events.EventRecorder
 }
+
+var finalizerName = "mesh.avesha.io/serviceimport-finalizer"
 
 // NewReconciler creates a new reconciler for serviceimport
 func NewReconciler(c client.Client, s *runtime.Scheme, clusterId string) Reconciler {
@@ -62,6 +65,36 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	ctx = logger.WithLogger(ctx, log)
 
 	log.Info("reconciling", "serviceimport", serviceimport.Name)
+
+	// examine DeletionTimestamp to determine if object is under deletion
+	if serviceimport.ObjectMeta.DeletionTimestamp.IsZero() {
+		// register our finalizer
+		if !containsString(serviceimport.GetFinalizers(), finalizerName) {
+			log.Info("adding finalizer")
+			controllerutil.AddFinalizer(serviceimport, finalizerName)
+			if err := r.Update(ctx, serviceimport); err != nil {
+				return ctrl.Result{}, err
+			}
+			return ctrl.Result{Requeue: true}, nil
+		}
+	} else {
+		// The object is being deleted
+		if containsString(serviceimport.GetFinalizers(), finalizerName) {
+			log.Info("deleting serviceimport")
+			if err := r.DeleteServiceImportResources(ctx, serviceimport); err != nil {
+				log.Error(err, "unable to delete service import resources")
+				return ctrl.Result{}, err
+			}
+
+			log.Info("removing finalizer")
+			controllerutil.RemoveFinalizer(serviceimport, finalizerName)
+			if err := r.Update(ctx, serviceimport); err != nil {
+				return ctrl.Result{}, err
+			}
+		}
+
+		return ctrl.Result{}, nil
+	}
 
 	if serviceimport.Status.ExposedPorts != portListToDisplayString(serviceimport.Spec.Ports) {
 		serviceimport.Status.ExposedPorts = portListToDisplayString(serviceimport.Spec.Ports)

@@ -11,7 +11,8 @@ var (
 	// ControlPlaneNamespace is the namespace where slice operator is running
 	ControlPlaneNamespace = "kubeslice-system"
 	// DNSDeploymentName is the name of coredns deployment running in the cluster
-	DNSDeploymentName = "mesh-dns"
+	DNSDeploymentName            = "mesh-dns"
+	NSMIPLabelSelectorKey string = "avesha.io/nsmIP"
 
 	ClusterName = os.Getenv("CLUSTER_NAME")
 

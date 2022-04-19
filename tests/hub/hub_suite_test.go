@@ -112,6 +112,7 @@ var _ = BeforeSuite(func() {
 		EventRecorder: &events.EventRecorder{
 			Recorder: &record.FakeRecorder{},
 		},
+		ClusterName: CLUSTER_NAME,
 	}
 
 	err = builder.

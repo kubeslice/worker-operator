@@ -12,6 +12,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
@@ -20,6 +21,8 @@ type ServiceImportReconciler struct {
 	MeshClient    client.Client
 	EventRecorder *events.EventRecorder
 }
+
+var svcimFinalizer = "hub.kubeslice.io/hubSpokeServiceImport-finalizer"
 
 func getProtocol(protocol string) corev1.Protocol {
 	switch protocol {
@@ -95,6 +98,34 @@ func (r *ServiceImportReconciler) Reconcile(ctx context.Context, req reconcile.R
 	}
 
 	log.Info("got service import from hub", "serviceimport", svcim)
+
+	// examine DeletionTimestamp to determine if object is under deletion
+	if svcim.ObjectMeta.DeletionTimestamp.IsZero() {
+		// Register finalizer.
+		if !controllerutil.ContainsFinalizer(svcim, svcimFinalizer) {
+			controllerutil.AddFinalizer(svcim, svcimFinalizer)
+			if err := r.Update(ctx, svcim); err != nil {
+				return reconcile.Result{}, err
+			}
+		}
+	} else {
+		// The object is being deleted
+		if controllerutil.ContainsFinalizer(svcim, svcimFinalizer) {
+			// our finalizer is present, so lets handle any external dependency
+			if err := r.DeleteServiceImportOnSpoke(ctx, svcim); err != nil {
+				// if fail to delete the external dependency here, return with error
+				// so that it can be retried
+				return reconcile.Result{}, err
+			}
+			// remove our finalizer from the list and update it.
+			controllerutil.RemoveFinalizer(svcim, svcimFinalizer)
+			if err := r.Update(ctx, svcim); err != nil {
+				return reconcile.Result{}, err
+			}
+		}
+		// Stop reconciliation as the item is being deleted
+		return reconcile.Result{}, nil
+	}
 
 	sliceName := svcim.Spec.SliceName
 	meshSlice := &meshv1beta1.Slice{}
@@ -187,6 +218,25 @@ func (r *ServiceImportReconciler) Reconcile(ctx context.Context, req reconcile.R
 	}
 
 	return reconcile.Result{}, nil
+}
+
+func (r *ServiceImportReconciler) DeleteServiceImportOnSpoke(ctx context.Context, svcim *spokev1alpha1.SpokeServiceImport) error {
+	log := logger.FromContext(ctx)
+
+	svcimOnSpoke := &meshv1beta1.ServiceImport{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      svcim.Spec.ServiceName,
+			Namespace: svcim.Spec.ServiceNamespace,
+		},
+	}
+
+	err := r.MeshClient.Delete(ctx, svcimOnSpoke)
+	if err != nil {
+		return err
+	}
+
+	log.Info("Deleted serviceimport on spoke cluster", "slice", svcimOnSpoke.Name)
+	return nil
 }
 
 func (a *ServiceImportReconciler) InjectClient(c client.Client) error {

@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"context"
+	"strconv"
 	"time"
 
 	meshv1beta1 "bitbucket.org/realtimeai/kubeslice-operator/api/v1beta1"
@@ -21,6 +22,7 @@ type SliceGwReconciler struct {
 	client.Client
 	MeshClient    client.Client
 	EventRecorder *events.EventRecorder
+	ClusterName string
 }
 
 func (r *SliceGwReconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
@@ -41,7 +43,8 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req reconcile.Request
 	log.Info("got sliceGw from hub", "sliceGw", sliceGw.Name)
 
 	// Return if the slice gw resource does not belong to our cluster
-	if sliceGw.Spec.LocalGatewayConfig.ClusterName != clusterName {
+	if sliceGw.Spec.LocalGatewayConfig.ClusterName != r.ClusterName {
+		log.Info("sliceGw doesn't belong to this cluster", "sliceGw", sliceGw.Name, "cluster", clusterName, "slicegw cluster", sliceGw.Spec.LocalGatewayConfig.ClusterName)
 		return reconcile.Result{}, nil
 	}
 
@@ -174,6 +177,7 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req reconcile.Request
 		SliceGatewayRemoteGatewayID: sliceGw.Spec.RemoteGatewayConfig.GatewayName,
 		SliceGatewayLocalVpnIP:      sliceGw.Spec.LocalGatewayConfig.VpnIp,
 		SliceGatewayRemoteVpnIP:     sliceGw.Spec.RemoteGatewayConfig.VpnIp,
+		SliceGatewayName:            strconv.Itoa(sliceGw.Spec.GatewayNumber),
 	}
 	err = r.MeshClient.Status().Update(ctx, meshSliceGw)
 	if err != nil {

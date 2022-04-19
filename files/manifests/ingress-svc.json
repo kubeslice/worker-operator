@@ -11,14 +11,16 @@
       "release": "release-name",
       "istio.io/rev": "default",
       "install.operator.istio.io/owning-resource": "unknown",
-      "operator.istio.io/component": "IngressGateways"
+      "operator.istio.io/component": "IngressGateways",
+      "slice": "SLICE"
     }
   },
   "spec": {
     "type": "ClusterIP",
     "selector": {
       "app": "istio-ingressgateway",
-      "istio": "ingressgateway"
+      "istio": "ingressgateway",
+      "slice": "SLICE"
     },
     "ports": [
       {
