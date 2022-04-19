@@ -35,12 +35,12 @@ spec:
   selector:
     app: mesh-dns
   ports:
-  - port: 53
-    protocol: UDP
-    name: udp-53
-  - port: 53
-    protocol: TCP
-    name: tcp-53
+    - port: 53
+      protocol: UDP
+      name: udp-53
+    - port: 53
+      protocol: TCP
+      name: tcp-53
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -63,64 +63,65 @@ spec:
         nodeAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
             nodeSelectorTerms:
-            - matchExpressions:
-              - key: avesha/node-type
-                operator: In
-                values:
-                - gateway
+              - matchExpressions:
+                  - key: avesha/node-type
+                    operator: In
+                    values:
+                      - gateway
+      serviceAccount: mesh-dns
       terminationGracePeriodSeconds: 30
       dnsPolicy: Default
       containers:
-      - name: "coredns"
-        image: "coredns/coredns:1.8.0"
-        imagePullPolicy: IfNotPresent
-        args: [ "-conf", "/etc/coredns/Corefile" ]
-        volumeMounts:
-        - name: config-volume
-          mountPath: /etc/coredns
-        resources:
-          limits:
-            cpu: 100m
-            memory: 128Mi
-          requests:
-            cpu: 100m
-            memory: 128Mi
-        ports:
-        - containerPort: 53
-          protocol: UDP
-          name: udp-53
-        - containerPort: 53
-          protocol: TCP
-          name: tcp-53
-        livenessProbe:
-          httpGet:
-            path: /health
-            port: 8080
-            scheme: HTTP
-          initialDelaySeconds: 60
-          periodSeconds: 10
-          timeoutSeconds: 5
-          successThreshold: 1
-          failureThreshold: 5
-        readinessProbe:
-          httpGet:
-            path: /ready
-            port: 8181
-            scheme: HTTP
-          initialDelaySeconds: 30
-          periodSeconds: 10
-          timeoutSeconds: 5
-          successThreshold: 1
-          failureThreshold: 5
+        - name: "coredns"
+          image: "coredns/coredns:1.8.0"
+          imagePullPolicy: IfNotPresent
+          args: ["-conf", "/etc/coredns/Corefile"]
+          volumeMounts:
+            - name: config-volume
+              mountPath: /etc/coredns
+          resources:
+            limits:
+              cpu: 100m
+              memory: 128Mi
+            requests:
+              cpu: 100m
+              memory: 128Mi
+          ports:
+            - containerPort: 53
+              protocol: UDP
+              name: udp-53
+            - containerPort: 53
+              protocol: TCP
+              name: tcp-53
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+              scheme: HTTP
+            initialDelaySeconds: 60
+            periodSeconds: 10
+            timeoutSeconds: 5
+            successThreshold: 1
+            failureThreshold: 5
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 8181
+              scheme: HTTP
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            successThreshold: 1
+            failureThreshold: 5
       volumes:
         - name: config-volume
           configMap:
             name: mesh-dns
             items:
-            - key: Corefile
-              path: Corefile
-            - key: slice.db
-              path: slice.db
+              - key: Corefile
+                path: Corefile
+              - key: slice.db
+                path: slice.db
       tolerations:
         - key: "avesha/node-type"
           operator: "Equal"

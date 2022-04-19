@@ -104,7 +104,7 @@ func (r *SliceGwReconciler) deploymentForGatewayServer(g *meshv1beta1.SliceGatew
 					},
 				},
 				Spec: corev1.PodSpec{
-					ServiceAccountName: "nsmgr-acc",
+					ServiceAccountName: "vpn-gateway-server",
 					Affinity: &corev1.Affinity{
 						NodeAffinity: &corev1.NodeAffinity{
 							RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
@@ -361,7 +361,7 @@ func (r *SliceGwReconciler) deploymentForGatewayClient(g *meshv1beta1.SliceGatew
 					},
 				},
 				Spec: corev1.PodSpec{
-					ServiceAccountName: "nsmgr-acc",
+					ServiceAccountName: "vpn-gateway-client",
 					Affinity: &corev1.Affinity{
 						NodeAffinity: &corev1.NodeAffinity{
 							RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
