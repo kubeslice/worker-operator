@@ -1,6 +1,7 @@
 package slice
 
 import (
+	"bitbucket.org/realtimeai/kubeslice-operator/pkg/events"
 	"context"
 	goerrors "errors"
 	"fmt"
@@ -333,10 +334,17 @@ func (r *SliceReconciler) deploySliceRouter(ctx context.Context, slice *meshv1be
 	err = r.Create(ctx, dep)
 	if err != nil {
 		log.Error(err, "Failed to create deployment for slice router")
+		r.EventRecorder.Record(
+			&events.Event{
+				Object:    slice,
+				EventType: events.EventTypeWarning,
+				Reason:    "Error",
+				Message:   "Error creating slice router",
+			},
+		)
 		return err
 	}
 	log.Info("Created deployment spec for slice router: ", "Name: ", slice.Name, "ipamOctet: ", ipamOctet)
-
 	return nil
 }
 
@@ -366,10 +374,17 @@ func (r *SliceReconciler) deploySliceRouterSvc(ctx context.Context, slice *meshv
 	err := r.Create(ctx, svc)
 	if err != nil {
 		log.Error(err, "Failed to create svc for slice router")
+		r.EventRecorder.Record(
+			&events.Event{
+				Object:    slice,
+				EventType: events.EventTypeWarning,
+				Reason:    "Error",
+				Message:   "Error creating service for slice router",
+			},
+		)
 		return err
 	}
 	log.Info("Created svc spec for slice router: ", "Name: ", slice.Name)
-
 	return nil
 }
 
@@ -413,7 +428,7 @@ func (r *SliceReconciler) ReconcileSliceRouter(ctx context.Context, slice *meshv
 					RequeueAfter: 10 * time.Second,
 				}, nil, true
 			}
-			// Define and create a new deployment for the slice router
+			// Define and create a new service for the slice router
 			err := r.deploySliceRouterSvc(ctx, slice)
 			if err != nil {
 				log.Error(err, "Failed to deploy slice router service")

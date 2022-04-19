@@ -34,6 +34,7 @@ import (
 	"bitbucket.org/realtimeai/kubeslice-operator/controllers"
 	"bitbucket.org/realtimeai/kubeslice-operator/internal/logger"
 	"bitbucket.org/realtimeai/kubeslice-operator/internal/manifest"
+	"bitbucket.org/realtimeai/kubeslice-operator/pkg/events"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
@@ -42,10 +43,11 @@ var sliceFinalizer = "mesh.kubeslice.io/slice-finalizer"
 // SliceReconciler reconciles a Slice object
 type SliceReconciler struct {
 	client.Client
-	Scheme    *runtime.Scheme
-	Log       logr.Logger
-	NetOpPods []NetOpPod
-	HubClient HubClientProvider
+	EventRecorder *events.EventRecorder
+	Scheme        *runtime.Scheme
+	Log           logr.Logger
+	NetOpPods     []NetOpPod
+	HubClient     HubClientProvider
 }
 
 //+kubebuilder:rbac:groups=mesh.avesha.io,resources=slice,verbs=get;list;watch;create;update;patch;delete
@@ -155,6 +157,15 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 	err = r.SyncSliceQosProfileWithNetOp(ctx, slice)
 	if err != nil {
 		log.Error(err, "Failed to sync QoS profile with netop pods")
+		//post event to slice
+		r.EventRecorder.Record(
+			&events.Event{
+				Object:    slice,
+				EventType: events.EventTypeWarning,
+				Reason:    "Error",
+				Message:   "Failed to sync QoS profile with netop pods",
+			},
+		)
 	}
 
 	log.Info("ExternalGatewayConfig", "egw", slice.Status.SliceConfig)
@@ -164,6 +175,15 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 		err = manifest.InstallEgress(ctx, r.Client, slice)
 		if err != nil {
 			log.Error(err, "unable to install egress")
+			//post event to slice
+			r.EventRecorder.Record(
+				&events.Event{
+					Object:    slice,
+					EventType: events.EventTypeWarning,
+					Reason:    "Error",
+					Message:   "Failed to install egress",
+				},
+			)
 			return ctrl.Result{}, nil
 		}
 	}
@@ -173,6 +193,15 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 		err = manifest.InstallIngress(ctx, r.Client, slice)
 		if err != nil {
 			log.Error(err, "unable to install ingress")
+			//post event to slice
+			r.EventRecorder.Record(
+				&events.Event{
+					Object:    slice,
+					EventType: events.EventTypeWarning,
+					Reason:    "Error",
+					Message:   "Failed to install ingress",
+				},
+			)
 			return ctrl.Result{}, nil
 		}
 	}
@@ -211,6 +240,15 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 		err = r.HubClient.UpdateAppPodsList(ctx, sliceConfigName, slice.Status.AppPods)
 		if err != nil {
 			log.Error(err, "Failed to update app pod list in hub")
+			//post event to slice
+			r.EventRecorder.Record(
+				&events.Event{
+					Object:    slice,
+					EventType: events.EventTypeWarning,
+					Reason:    "Error",
+					Message:   "Failed to update app pod list in kubeslice-controller cluster",
+				},
+			)
 			return ctrl.Result{}, err
 		}
 

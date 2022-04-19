@@ -27,7 +27,7 @@ COPY main.go main.go
 COPY api/ api/
 COPY controllers/ controllers/
 COPY internal/ internal/
-
+COPY pkg/ pkg/
 # Build
 RUN go env -w GOPRIVATE=bitbucket.org/realtimeai && \
     CGO_ENABLED=0 GOOS=linux GOARCH=amd64 GO111MODULE=on go build -mod=vendor -a -o manager main.go

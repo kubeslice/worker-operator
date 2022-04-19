@@ -1,11 +1,11 @@
 package controllers
 
 import (
-	"context"
-
 	meshv1beta1 "bitbucket.org/realtimeai/kubeslice-operator/api/v1beta1"
 	"bitbucket.org/realtimeai/kubeslice-operator/internal/logger"
+	"bitbucket.org/realtimeai/kubeslice-operator/pkg/events"
 	spokev1alpha1 "bitbucket.org/realtimeai/mesh-apis/pkg/spoke/v1alpha1"
+	"context"
 	"github.com/go-logr/logr"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -17,8 +17,9 @@ import (
 
 type SliceReconciler struct {
 	client.Client
-	Log        logr.Logger
-	MeshClient client.Client
+	Log           logr.Logger
+	MeshClient    client.Client
+	EventRecorder *events.EventRecorder
 }
 
 var sliceFinalizer = "hub.kubeslice.io/hubSpokeSlice-finalizer"
@@ -106,10 +107,25 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req reconcile.Request) 
 			err = r.MeshClient.Create(ctx, s)
 			if err != nil {
 				log.Error(err, "unable to create slice in spoke cluster", "slice", s)
+				r.EventRecorder.Record(
+					&events.Event{
+						Object:    slice,
+						EventType: events.EventTypeWarning,
+						Reason:    "Error",
+						Message:   "Error creating slice on spoke cluster , slice " + sliceName + " cluster " + clusterName,
+					},
+				)
 				return reconcile.Result{}, err
 			}
 			log.Info("slice created in spoke cluster")
-
+			r.EventRecorder.Record(
+				&events.Event{
+					Object:    slice,
+					EventType: events.EventTypeNormal,
+					Reason:    "Created",
+					Message:   "Created slice on spoke cluster , slice " + sliceName + " cluster " + clusterName,
+				},
+			)
 			err = r.updateSliceConfig(ctx, s, slice)
 			if err != nil {
 				log.Error(err, "unable to update slice status in spoke cluster", "slice", s)
