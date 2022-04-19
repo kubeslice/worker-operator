@@ -175,7 +175,7 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 					Object:    sliceGw,
 					EventType: events.EventTypeWarning,
 					Reason:    "Error",
-					Message:   "Unable to post nodePort to hub object",
+					Message:   "Unable to post NodePort to kubeslice-controller cluster",
 				},
 			)
 			return ctrl.Result{}, err

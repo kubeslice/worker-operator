@@ -339,7 +339,7 @@ func (r *SliceReconciler) deploySliceRouter(ctx context.Context, slice *meshv1be
 				Object:    slice,
 				EventType: events.EventTypeWarning,
 				Reason:    "Error",
-				Message:   "Error Creating slice router",
+				Message:   "Error creating slice router",
 			},
 		)
 		return err

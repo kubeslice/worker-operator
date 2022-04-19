@@ -182,7 +182,7 @@ func (r Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resul
 					Object:    serviceexport,
 					EventType: events.EventTypeWarning,
 					Reason:    "Error",
-					Message:   "Failed to post serviceexport to hub cluster",
+					Message:   "Failed to post serviceexport to kubeslice-controller cluster",
 				})
 			return ctrl.Result{}, err
 		}
@@ -193,7 +193,7 @@ func (r Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resul
 				Object:    serviceexport,
 				EventType: events.EventTypeNormal,
 				Reason:    "Success",
-				Message:   "Successfully posted serviceexport to hub cluster",
+				Message:   "Successfully posted serviceexport to kubeslice-controller cluster",
 			})
 		currentTime := time.Now().Unix()
 		serviceexport.Status.LastSync = currentTime

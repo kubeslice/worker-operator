@@ -163,7 +163,7 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 				Object:    slice,
 				EventType: events.EventTypeWarning,
 				Reason:    "Error",
-				Message:   "Failed to sync QoS profile with netop pods ",
+				Message:   "Failed to sync QoS profile with netop pods",
 			},
 		)
 	}
@@ -181,7 +181,7 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 					Object:    slice,
 					EventType: events.EventTypeWarning,
 					Reason:    "Error",
-					Message:   "Failed to install egress ",
+					Message:   "Failed to install egress",
 				},
 			)
 			return ctrl.Result{}, nil
@@ -199,7 +199,7 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 					Object:    slice,
 					EventType: events.EventTypeWarning,
 					Reason:    "Error",
-					Message:   "Failed to install ingress ",
+					Message:   "Failed to install ingress",
 				},
 			)
 			return ctrl.Result{}, nil
@@ -246,7 +246,7 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 					Object:    slice,
 					EventType: events.EventTypeWarning,
 					Reason:    "Error",
-					Message:   "Failed to update app pod list in hub ",
+					Message:   "Failed to update app pod list in kubeslice-controller cluster",
 				},
 			)
 			return ctrl.Result{}, err
