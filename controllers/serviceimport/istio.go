@@ -107,7 +107,7 @@ func (r *Reconciler) DeleteIstioResources(ctx context.Context, serviceimport *me
 	// service import object, so we do not have to delete them explicitly here.
 	if slice.Status.SliceConfig.ExternalGatewayConfig == nil ||
 		slice.Status.SliceConfig.ExternalGatewayConfig.Egress == nil ||
-		slice.Status.SliceConfig.ExternalGatewayConfig.Egress.Enabled == false {
+		!slice.Status.SliceConfig.ExternalGatewayConfig.Egress.Enabled {
 		return nil
 	}
 

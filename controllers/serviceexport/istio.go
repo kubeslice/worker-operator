@@ -27,7 +27,7 @@ func (r *Reconciler) ReconcileIstio(ctx context.Context, serviceexport *meshv1be
 
 	if slice.Status.SliceConfig.ExternalGatewayConfig == nil ||
 		slice.Status.SliceConfig.ExternalGatewayConfig.Ingress == nil ||
-		slice.Status.SliceConfig.ExternalGatewayConfig.Ingress.Enabled == false {
+		!slice.Status.SliceConfig.ExternalGatewayConfig.Ingress.Enabled {
 		debugLog.Info("istio ingress not enabled for slice, skipping reconcilation")
 		return ctrl.Result{}, nil, false
 	}
@@ -54,7 +54,7 @@ func (r *Reconciler) DeleteIstioResources(ctx context.Context, serviceexport *me
 	// service export object, so we do not have to delete them explicitly here.
 	if slice.Status.SliceConfig.ExternalGatewayConfig == nil ||
 		slice.Status.SliceConfig.ExternalGatewayConfig.Ingress == nil ||
-		slice.Status.SliceConfig.ExternalGatewayConfig.Ingress.Enabled == false {
+		!slice.Status.SliceConfig.ExternalGatewayConfig.Ingress.Enabled {
 		return nil
 	}
 

@@ -77,10 +77,7 @@ prefixes:
 			//get the cluster object
 			Eventually(func() bool {
 				err := k8sClient.Get(ctx, types.NamespacedName{Name: cluster.Name, Namespace: cluster.Namespace}, cluster)
-				if err != nil {
-					return false
-				}
-				return true
+				return err == nil
 			}, time.Second*10, time.Millisecond*250).Should(BeTrue())
 
 			Expect(cluster.Spec.NodeIP).Should(Equal("35.235.10.1"))

@@ -133,9 +133,7 @@ func getServiceEntriesForSI(ctx context.Context, c client.Client, serviceimport 
 
 	ses := []istiov1beta1.ServiceEntry{}
 
-	for _, se := range seList.Items {
-		ses = append(ses, se)
-	}
+	ses = append(ses, seList.Items...)
 
 	return ses, nil
 }

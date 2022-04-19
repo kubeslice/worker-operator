@@ -15,12 +15,15 @@ import (
 )
 
 func (r *Reconciler) ReconcileVirtualServiceEgress(ctx context.Context, serviceimport *meshv1beta1.ServiceImport) (ctrl.Result, error, bool) {
+
+	var vs *istiov1beta1.VirtualService
+
 	log := logger.FromContext(ctx).WithValues("type", "Istio VS with egress")
 	debugLog := log.V(1)
 
 	debugLog.Info("reconciling istio vs with egress")
 
-	vs, err := r.getVirtualServiceFromAppPod(ctx, serviceimport)
+	_, err := r.getVirtualServiceFromAppPod(ctx, serviceimport)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			log.Info("vs to egress not found; creating")

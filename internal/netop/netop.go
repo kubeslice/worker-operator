@@ -7,6 +7,7 @@ import (
 	sidecar "bitbucket.org/realtimeai/kubeslice-netops/pkg/proto"
 	meshv1beta1 "bitbucket.org/realtimeai/kubeslice-operator/api/v1beta1"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 // Generic event types enum
@@ -19,7 +20,7 @@ const (
 )
 
 func UpdateSliceQosProfile(ctx context.Context, addr string, slice *meshv1beta1.Slice) error {
-	conn, err := grpc.Dial(addr, grpc.WithInsecure())
+	conn, err := grpc.Dial(addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		return err
 	}
@@ -47,7 +48,7 @@ func UpdateSliceQosProfile(ctx context.Context, addr string, slice *meshv1beta1.
 }
 
 func SendSliceLifeCycleEventToNetOp(ctx context.Context, addr string, sliceName string, eventType EventType) error {
-	conn, err := grpc.Dial(addr, grpc.WithInsecure())
+	conn, err := grpc.Dial(addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		return err
 	}
@@ -73,7 +74,7 @@ func SendSliceLifeCycleEventToNetOp(ctx context.Context, addr string, sliceName 
 
 // SendConnectionContext sends sonnectioncontext to netop sidecar
 func SendConnectionContext(ctx context.Context, serverAddr string, gw *meshv1beta1.SliceGateway, sliceGwNodePort int32) error {
-	conn, err := grpc.Dial(serverAddr, grpc.WithInsecure())
+	conn, err := grpc.Dial(serverAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		return err
 	}

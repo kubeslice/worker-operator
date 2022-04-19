@@ -148,7 +148,7 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 	}
 
 	if slice.Status.SliceConfig == nil {
-		err := fmt.Errorf("Slice not reconciled from hub")
+		err := fmt.Errorf("slice not reconciled from hub")
 		log.Error(err, "Slice is not reconciled from hub yet, skipping reconciliation")
 		return ctrl.Result{}, err
 	}
@@ -232,7 +232,7 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 	}
 
 	debugLog.Info("reconciling app pods")
-	res, err, requeue = r.ReconcileAppPod(ctx, slice)
+	res, _, requeue = r.ReconcileAppPod(ctx, slice)
 
 	if requeue {
 		log.Info("updating app pod list in hub spokesliceconfig status")

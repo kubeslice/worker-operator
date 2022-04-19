@@ -84,10 +84,7 @@ var _ = Describe("IngressGateway", func() {
 			// Wait until deployment is created properly
 			Eventually(func() bool {
 				err := k8sClient.Get(ctx, deployKey, createdDeploy)
-				if err != nil {
-					return false
-				}
-				return true
+				return err == nil
 			}, time.Second*10, time.Millisecond*250).Should(BeTrue())
 
 			Expect(createdDeploy.ObjectMeta.Name).To(Equal("green-istio-ingressgateway"))
@@ -111,10 +108,7 @@ var _ = Describe("IngressGateway", func() {
 			// Wait until deployment is created properly
 			Eventually(func() bool {
 				err := k8sClient.Get(ctx, key, svc)
-				if err != nil {
-					return false
-				}
-				return true
+				return err == nil
 			}, time.Second*10, time.Millisecond*250).Should(BeTrue())
 
 			Expect(svc.ObjectMeta.Name).To(Equal("green-istio-ingressgateway"))
@@ -127,19 +121,13 @@ var _ = Describe("IngressGateway", func() {
 			// Wait until role is created properly
 			Eventually(func() bool {
 				err := k8sClient.Get(ctx, rkey, role)
-				if err != nil {
-					return false
-				}
-				return true
+				return err == nil
 			}, time.Second*10, time.Millisecond*250).Should(BeTrue())
 
 			// Wait until rolebinding is created properly
 			Eventually(func() bool {
 				err := k8sClient.Get(ctx, rkey, rb)
-				if err != nil {
-					return false
-				}
-				return true
+				return err == nil
 			}, time.Second*10, time.Millisecond*250).Should(BeTrue())
 
 			Expect(role.ObjectMeta.Name).To(Equal("green-istio-ingressgateway-sds"))
@@ -152,10 +140,7 @@ var _ = Describe("IngressGateway", func() {
 			// Wait until sa is created properly
 			Eventually(func() bool {
 				err := k8sClient.Get(ctx, skey, sa)
-				if err != nil {
-					return false
-				}
-				return true
+				return err == nil
 			}, time.Second*10, time.Millisecond*250).Should(BeTrue())
 
 			Expect(sa.ObjectMeta.Name).To(Equal("green-istio-ingressgateway-service-account"))
@@ -173,10 +158,7 @@ var _ = Describe("IngressGateway", func() {
 			// Wait until deployment is created properly
 			Eventually(func() bool {
 				err := k8sClient.Get(ctx, deployKey, createdDeploy)
-				if err != nil {
-					return false
-				}
-				return true
+				return err == nil
 			}, time.Second*10, time.Millisecond*250).Should(BeTrue())
 
 			Expect(createdDeploy.ObjectMeta.Name).To(Equal("green-istio-ingressgateway"))
@@ -235,10 +217,7 @@ var _ = Describe("IngressGateway", func() {
 			// Wait until deployment is deleted properly
 			Eventually(func() bool {
 				err := k8sClient.Get(ctx, deployKey, deploy)
-				if err != nil {
-					return false
-				}
-				return true
+				return err == nil
 			}, time.Second*10, time.Millisecond*250).Should(BeTrue())
 
 			err = manifest.UninstallIngress(ctx, k8sClient, "green")
@@ -247,10 +226,7 @@ var _ = Describe("IngressGateway", func() {
 			// Wait until deployment is deleted properly
 			Eventually(func() bool {
 				err := k8sClient.Get(ctx, deployKey, deploy)
-				if errors.IsNotFound(err) {
-					return true
-				}
-				return false
+				return errors.IsNotFound(err)
 			}, time.Second*10, time.Millisecond*250).Should(BeTrue())
 
 		})

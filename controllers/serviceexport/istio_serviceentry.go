@@ -74,9 +74,7 @@ func getServiceEntries(ctx context.Context, r client.Reader, serviceexport *mesh
 
 	ses := []istiov1beta1.ServiceEntry{}
 
-	for _, se := range seList.Items {
-		ses = append(ses, se)
-	}
+	ses = append(ses, seList.Items...)
 
 	return ses, nil
 }

@@ -8,14 +8,11 @@ import (
 	. "github.com/onsi/gomega"
 
 	meshv1beta1 "bitbucket.org/realtimeai/kubeslice-operator/api/v1beta1"
-	"bitbucket.org/realtimeai/kubeslice-operator/internal/logger"
 	spokev1alpha1 "bitbucket.org/realtimeai/mesh-apis/pkg/spoke/v1alpha1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 )
-
-var log = logger.NewLogger()
 
 var _ = Describe("Hub SliceController", func() {
 
@@ -66,10 +63,7 @@ var _ = Describe("Hub SliceController", func() {
 			// Make sure slice is reconciled in spoke cluster
 			Eventually(func() bool {
 				err := k8sClient.Get(ctx, sliceKey, createdSlice)
-				if err != nil {
-					return false
-				}
-				return true
+				return err == nil
 			}, time.Second*10, time.Millisecond*250).Should(BeTrue())
 
 			Expect(createdSlice.Status.SliceConfig.SliceSubnet).To(Equal("10.0.0.1/16"))
@@ -87,10 +81,7 @@ var _ = Describe("Hub SliceController", func() {
 			// Make sure slice is reconciled in spoke cluster
 			Eventually(func() bool {
 				err := k8sClient.Get(ctx, sliceKey, createdSlice)
-				if err != nil {
-					return false
-				}
-				return true
+				return err == nil
 			}, time.Second*10, time.Millisecond*250).Should(BeTrue())
 
 			//get the created hubSlice
@@ -99,10 +90,7 @@ var _ = Describe("Hub SliceController", func() {
 
 			Eventually(func() bool {
 				err := k8sClient.Get(ctx, hubSliceKey, hubSlice)
-				if err != nil {
-					return false
-				}
-				return true
+				return err == nil
 			}, time.Second*10, time.Millisecond*250).Should(BeTrue())
 			Expect(hubSlice.ObjectMeta.Finalizers[0]).Should(Equal(sliceFinalizer))
 		})
@@ -143,10 +131,7 @@ var _ = Describe("Hub SliceController", func() {
 			// Make sure slice is reconciled in spoke cluster
 			Eventually(func() bool {
 				err := k8sClient.Get(ctx, sliceKey, createdSlice)
-				if err != nil {
-					return false
-				}
-				return true
+				return err == nil
 			}, time.Second*10, time.Millisecond*250).Should(BeTrue())
 			//delete the hubSlice , which should delete the slice CR on spoke
 			Expect(k8sClient.Delete(ctx, hubSlice)).Should(Succeed())
@@ -213,10 +198,7 @@ var _ = Describe("Hub SliceController", func() {
 			// Make sure slice is reconciled in spoke cluster
 			Eventually(func() bool {
 				err := k8sClient.Get(ctx, sliceKey, createdSlice)
-				if err != nil {
-					return false
-				}
-				return true
+				return err == nil
 			}, time.Second*10, time.Millisecond*250).Should(BeTrue())
 
 			Expect(createdSlice.Status.SliceConfig.ExternalGatewayConfig).ToNot(BeNil())

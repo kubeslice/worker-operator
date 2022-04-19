@@ -3,7 +3,6 @@ package slice
 import (
 	"bitbucket.org/realtimeai/kubeslice-operator/pkg/events"
 	"context"
-	goerrors "errors"
 	"fmt"
 	"os"
 	"strconv"
@@ -325,7 +324,7 @@ func (r *SliceReconciler) deploySliceRouter(ctx context.Context, slice *meshv1be
 		return err
 	}
 	if dataplane != nsmDataplaneKernel && dataplane != nsmDataplaneVpp {
-		return goerrors.New(fmt.Sprintf("Invalid dataplane: %v", dataplane))
+		return fmt.Errorf("invalid dataplane: %v", dataplane)
 	}
 
 	ipamOctet := strconv.Itoa(slice.Status.SliceConfig.SliceIpam.IpamClusterOctet)

@@ -6,6 +6,7 @@ import (
 	sidecar "bitbucket.org/realtimeai/kubeslice-gw-sidecar/pkg/sidecar/sidecarpb"
 	empty "github.com/golang/protobuf/ptypes/empty"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 type NsmStatus struct {
@@ -34,7 +35,7 @@ type GwConnectionContext struct {
 
 // GetStatus retrieves sidecar status
 func GetStatus(ctx context.Context, serverAddr string) (*GwStatus, error) {
-	conn, err := grpc.Dial(serverAddr, grpc.WithInsecure())
+	conn, err := grpc.Dial(serverAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		return nil, err
 	}
@@ -67,7 +68,7 @@ func GetStatus(ctx context.Context, serverAddr string) (*GwStatus, error) {
 
 // SendConnectionContext sends connection context info to sidecar
 func SendConnectionContext(ctx context.Context, serverAddr string, gwConnCtx *GwConnectionContext) error {
-	conn, err := grpc.Dial(serverAddr, grpc.WithInsecure())
+	conn, err := grpc.Dial(serverAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		return err
 	}

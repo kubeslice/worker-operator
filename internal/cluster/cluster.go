@@ -79,7 +79,7 @@ func (c *Cluster) GetNsmExcludedPrefix(ctx context.Context, configmap, namespace
 		return true, nil
 	})
 	if len(nsmconfig.Data) == 0 {
-		return nil, fmt.Errorf("CNI Subnet not present..")
+		return nil, fmt.Errorf("CNI Subnet not present")
 	}
 
 	var cmData map[string]interface{}

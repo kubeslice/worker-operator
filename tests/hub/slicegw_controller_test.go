@@ -86,10 +86,7 @@ var _ = Describe("Hub SlicegwController", func() {
 			// Make sure slice is reconciled in spoke cluster
 			Eventually(func() bool {
 				err := k8sClient.Get(ctx, sliceKey, createdSlice)
-				if err != nil {
-					return false
-				}
-				return true
+				return err == nil
 			}, time.Second*20, time.Millisecond*250).Should(BeTrue())
 
 			sliceGwKey := types.NamespacedName{Namespace: CONTROL_PLANE_NS, Name: hubSliceGw.Name}
@@ -108,10 +105,7 @@ var _ = Describe("Hub SlicegwController", func() {
 			// Make sure slice is reconciled in spoke cluster
 			Eventually(func() bool {
 				err := k8sClient.Get(ctx, sliceKey, createdSlice)
-				if err != nil {
-					return false
-				}
-				return true
+				return err == nil
 			}, time.Second*10, time.Millisecond*250).Should(BeTrue())
 
 			sliceGwKey := types.NamespacedName{Namespace: CONTROL_PLANE_NS, Name: hubSliceGw.Name}
@@ -132,10 +126,7 @@ var _ = Describe("Hub SlicegwController", func() {
 			// Make sure slice is reconciled in spoke cluster
 			Eventually(func() bool {
 				err := k8sClient.Get(ctx, sliceKey, createdSlice)
-				if err != nil {
-					return false
-				}
-				return true
+				return err == nil
 			}, time.Second*10, time.Millisecond*250).Should(BeTrue())
 
 			sliceGwKey := types.NamespacedName{Namespace: CONTROL_PLANE_NS, Name: hubSliceGw.Name}

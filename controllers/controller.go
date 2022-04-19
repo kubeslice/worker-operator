@@ -39,7 +39,7 @@ func GetSliceIngressGwPod(ctx context.Context, c client.Client, sliceName string
 
 	if slice.Status.SliceConfig.ExternalGatewayConfig == nil ||
 		slice.Status.SliceConfig.ExternalGatewayConfig.Ingress == nil ||
-		slice.Status.SliceConfig.ExternalGatewayConfig.Ingress.Enabled == false {
+		!slice.Status.SliceConfig.ExternalGatewayConfig.Ingress.Enabled {
 		return nil, nil
 	}
 

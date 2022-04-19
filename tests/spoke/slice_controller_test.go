@@ -72,10 +72,7 @@ var _ = Describe("SliceController", func() {
 			// Wait until service is created properly
 			Eventually(func() bool {
 				err := k8sClient.Get(ctx, svcKey, createdSvc)
-				if err != nil {
-					return false
-				}
-				return true
+				return err == nil
 			}, time.Second*10, time.Millisecond*250).Should(BeTrue())
 
 			sliceKey := types.NamespacedName{Name: "test-slice", Namespace: "kubeslice-system"}
@@ -96,18 +93,12 @@ var _ = Describe("SliceController", func() {
 			// Create slice and mesh-dns service
 			Eventually(func() bool {
 				err := k8sClient.Create(ctx, slice)
-				if err != nil {
-					return false
-				}
-				return true
+				return err == nil
 			}, time.Second*10, time.Millisecond*250).Should(BeTrue())
 
 			Eventually(func() bool {
 				err := k8sClient.Create(ctx, svc)
-				if err != nil {
-					return false
-				}
-				return true
+				return err == nil
 			}, time.Second*10, time.Millisecond*250).Should(BeTrue())
 
 			createdSlice := &meshv1beta1.Slice{}
@@ -209,10 +200,7 @@ var _ = Describe("SliceController", func() {
 			// Wait until service is created properly
 			Eventually(func() bool {
 				err := k8sClient.Get(ctx, svcKey, createdSvc)
-				if err != nil {
-					return false
-				}
-				return true
+				return err == nil
 			}, time.Second*10, time.Millisecond*250).Should(BeTrue())
 
 			createdSlice := &meshv1beta1.Slice{}

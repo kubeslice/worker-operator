@@ -33,8 +33,9 @@ prefixes:
 
 	for _, test := range tests {
 		t.Run(test.description, func(t *testing.T) {
-			client := fake.NewFakeClient(test.objs...)
-			cluster := NewCluster(client, "fakeCluster")
+			client := fake.ClientBuilder{}
+			client.WithRuntimeObjects(test.objs...)
+			cluster := NewCluster(client.Build(), "fakeCluster")
 			actual, err := cluster.GetNsmExcludedPrefix(context.Background(), test.configMap, test.namespace)
 			t.Log(actual)
 			if err != nil {
@@ -62,7 +63,7 @@ func TestCluster_GetClusterInfo(t *testing.T) {
 				Name: "fakeCluster",
 				ClusterProperty: ClusterProperty{
 					GeoLocation: GeoLocation{
-						CloudProvider: "gce",
+						CloudProvider: "gcp",
 						CloudRegion:   "us-west1",
 					},
 				},
@@ -107,8 +108,9 @@ func TestCluster_GetClusterInfo(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.description, func(t *testing.T) {
-			client := fake.NewFakeClient(test.objs...)
-			cluster := NewCluster(client, "fakeCluster")
+			client := fake.ClientBuilder{}
+			client.WithRuntimeObjects(test.objs...)
+			cluster := NewCluster(client.Build(), "fakeCluster")
 			actual, err := cluster.GetClusterInfo(context.Background())
 			t.Log(actual)
 			if err != nil {
