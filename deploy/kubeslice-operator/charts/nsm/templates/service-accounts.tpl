@@ -25,13 +25,13 @@ metadata:
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: mesh-dns
+  name: kubeslice-dns
   namespace: {{ .Release.Namespace }}
 ---
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: mesh-netop
+  name: kubeslice-netop
   namespace: {{ .Release.Namespace }}
 ---
 apiVersion: v1
