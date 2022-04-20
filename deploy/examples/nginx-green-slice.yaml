@@ -1,0 +1,33 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx
+  namespace: default
+  labels:
+    app: nginx
+  annotations:
+    avesha.io/slice: "green"
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: nginx
+  template:
+    metadata:
+      labels:
+        app: nginx
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:1.15.4
+        ports:
+        - containerPort: 80
+      - name: sidecar
+        image: nicolaka/netshoot
+        imagePullPolicy: IfNotPresent
+        command: ["/bin/sleep", "3650d"]
+        securityContext:
+          capabilities:
+            add: ["NET_ADMIN"]
+          allowPrivilegeEscalation: true
+          privileged: true
