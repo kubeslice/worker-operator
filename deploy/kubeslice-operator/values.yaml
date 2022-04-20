@@ -1,0 +1,63 @@
+operator:
+  image: nexus.dev.aveshalabs.io/kubeslice-operator
+  tag: 0.0.1
+  pullPolicy: IfNotPresent
+  logLevel: INFO
+
+## Base64 encoded secret values from hub cluster
+hubSecret:
+  namespace:
+  endpoint:
+  ca.crt:
+  token:
+
+cluster:
+  name:
+  nodeIp:
+
+router:
+  image: nexus.dev.aveshalabs.io/avesha/vl3_ucnf-nse
+  tag: 1.0.0
+  pullPolicy: IfNotPresent
+
+routerSidecar:
+  image: nexus.dev.aveshalabs.io/kubeslice-router-sidecar
+  tag: 1.0.0
+  pullPolicy: IfNotPresent
+
+netop:
+  networkInterface: eth0
+  image: nexus.dev.aveshalabs.io/kubeslice/netops
+  tag: 1.0.0
+  pullPolicy: IfNotPresent
+  logLevel: INFO
+
+gateway:
+  image: nexus.dev.aveshalabs.io/kubeslice/gw-sidecar
+  tag: 1.0.0
+  pullPolicy: IfNotPresent
+  logLevel: INFO
+
+openvpn:
+  server:
+    image: nexus.dev.aveshalabs.io/avesha/openvpn-server.ubuntu.18.04
+    tag: 1.0.0
+    pullPolicy: IfNotPresent
+  client:
+    image: nexus.dev.aveshalabs.io/avesha/openvpn-client.alpine.amd64
+    tag: 1.0.0
+    pullPolicy: IfNotPresent
+
+# Imagepullsecrets name which are needed if docker images are hosted in private registry
+# This secret should be already present in the cluster
+# avesha-nexus is provided as part of nsm chart
+imagePullSecrets:
+- name: avesha-nexus
+
+nsm:
+  forwardingPlane: kernel
+  imagePullSecrets:
+  - name: avesha-nexus
+
+jaeger:
+  enabled: false
