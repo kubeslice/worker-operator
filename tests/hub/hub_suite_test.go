@@ -1,21 +1,3 @@
-/*
- *  Copyright (c) 2022 Avesha, Inc. All rights reserved.
- *
- *  SPDX-License-Identifier: Apache-2.0
- *
- *  Licensed under the Apache License, Version 2.0 (the "License");
- *  you may not use this file except in compliance with the License.
- *  You may obtain a copy of the License at
- *
- *  http://www.apache.org/licenses/LICENSE-2.0
- *
- *  Unless required by applicable law or agreed to in writing, software
- *  distributed under the License is distributed on an "AS IS" BASIS,
- *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *  See the License for the specific language governing permissions and
- *  limitations under the License.
- */
-
 package hub_test
 
 import (
@@ -29,7 +11,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/scheme"
-	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
@@ -38,10 +19,10 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	meshv1beta1 "bitbucket.org/realtimeai/kubeslice-operator/api/v1beta1"
-	"bitbucket.org/realtimeai/kubeslice-operator/internal/hub/controllers"
-	"bitbucket.org/realtimeai/kubeslice-operator/pkg/events"
-	spokev1alpha1 "bitbucket.org/realtimeai/mesh-apis/pkg/spoke/v1alpha1"
+	workerv1alpha1 "github.com/kubeslice/apis/pkg/worker/v1alpha1"
+	kubeslicev1beta1 "github.com/kubeslice/operator/api/v1beta1"
+	"github.com/kubeslice/operator/internal/hub/controllers"
+	"github.com/kubeslice/operator/pkg/events"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 )
 
@@ -50,7 +31,6 @@ func TestHub(t *testing.T) {
 	RunSpecs(t, "Hub Controller Suite")
 }
 
-var cfg *rest.Config
 var k8sClient client.Client
 var testEnv *envtest.Environment
 var ctx context.Context
@@ -80,9 +60,9 @@ var _ = BeforeSuite(func() {
 	Expect(err).NotTo(HaveOccurred())
 	Expect(cfg).NotTo(BeNil())
 
-	err = meshv1beta1.AddToScheme(scheme.Scheme)
+	err = kubeslicev1beta1.AddToScheme(scheme.Scheme)
 	Expect(err).NotTo(HaveOccurred())
-	err = spokev1alpha1.AddToScheme(scheme.Scheme)
+	err = workerv1alpha1.AddToScheme(scheme.Scheme)
 	Expect(err).NotTo(HaveOccurred())
 
 	//+kubebuilder:scaffold:scheme
@@ -114,19 +94,19 @@ var _ = BeforeSuite(func() {
 	})
 	Expect(err).ToNot(HaveOccurred())
 
-	//k8sMeshClient, err := client.New(cfg, client.Options{Scheme: scheme.Scheme})
+	//k8sKubeSliceClient, err := client.New(cfg, client.Options{Scheme: scheme.Scheme})
 	//Expect(err).NotTo(HaveOccurred())
-	//Expect(k8sMeshClient).NotTo(BeNil())
+	//Expect(k8sKubeSliceClient).NotTo(BeNil())
 	sr := &controllers.SliceReconciler{
-		MeshClient: k8sClient,
-		Log:        ctrl.Log.WithName("hub").WithName("controllers").WithName("SliceConfig"),
+		KubeSliceClient: k8sClient,
+		Log:             ctrl.Log.WithName("hub").WithName("controllers").WithName("SliceConfig"),
 		EventRecorder: &events.EventRecorder{
 			Recorder: &record.FakeRecorder{},
 		},
 	}
 
 	sgwr := &controllers.SliceGwReconciler{
-		MeshClient: k8sClient,
+		KubeSliceClient: k8sClient,
 		EventRecorder: &events.EventRecorder{
 			Recorder: &record.FakeRecorder{},
 		},
@@ -135,18 +115,18 @@ var _ = BeforeSuite(func() {
 
 	err = builder.
 		ControllerManagedBy(k8sManager).
-		For(&spokev1alpha1.SpokeSliceConfig{}).
+		For(&workerv1alpha1.WorkerSliceConfig{}).
 		WithEventFilter(predicate.NewPredicateFuncs(func(object client.Object) bool {
-			return object.GetLabels()["spoke-cluster"] == CLUSTER_NAME
+			return object.GetLabels()["worker-cluster"] == CLUSTER_NAME
 		})).
 		Complete(sr)
 	Expect(err).ToNot(HaveOccurred())
 
 	err = builder.
 		ControllerManagedBy(k8sManager).
-		For(&spokev1alpha1.SpokeSliceGateway{}).
+		For(&workerv1alpha1.WorkerSliceGateway{}).
 		WithEventFilter(predicate.NewPredicateFuncs(func(object client.Object) bool {
-			return object.GetLabels()["spoke-cluster"] == CLUSTER_NAME
+			return object.GetLabels()["worker-cluster"] == CLUSTER_NAME
 		})).
 		Complete(sgwr)
 	Expect(err).ToNot(HaveOccurred())

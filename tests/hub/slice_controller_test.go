@@ -1,21 +1,3 @@
-/*
- *  Copyright (c) 2022 Avesha, Inc. All rights reserved.
- *
- *  SPDX-License-Identifier: Apache-2.0
- *
- *  Licensed under the Apache License, Version 2.0 (the "License");
- *  you may not use this file except in compliance with the License.
- *  You may obtain a copy of the License at
- *
- *  http://www.apache.org/licenses/LICENSE-2.0
- *
- *  Unless required by applicable law or agreed to in writing, software
- *  distributed under the License is distributed on an "AS IS" BASIS,
- *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *  See the License for the specific language governing permissions and
- *  limitations under the License.
- */
-
 package hub_test
 
 import (
@@ -25,35 +7,32 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
-	meshv1beta1 "bitbucket.org/realtimeai/kubeslice-operator/api/v1beta1"
-	"bitbucket.org/realtimeai/kubeslice-operator/internal/logger"
-	spokev1alpha1 "bitbucket.org/realtimeai/mesh-apis/pkg/spoke/v1alpha1"
+	workerv1alpha1 "github.com/kubeslice/apis/pkg/worker/v1alpha1"
+	kubeslicev1beta1 "github.com/kubeslice/operator/api/v1beta1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 )
 
-var log = logger.NewLogger()
-
 var _ = Describe("Hub SliceController", func() {
 
 	Context("With Slice CR created in hub", func() {
 
-		var hubSlice *spokev1alpha1.SpokeSliceConfig
-		var createdSlice *meshv1beta1.Slice
+		var hubSlice *workerv1alpha1.WorkerSliceConfig
+		var createdSlice *kubeslicev1beta1.Slice
 
 		BeforeEach(func() {
 
 			// Prepare k8s objects
-			hubSlice = &spokev1alpha1.SpokeSliceConfig{
+			hubSlice = &workerv1alpha1.WorkerSliceConfig{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "test-slice-1",
 					Namespace: PROJECT_NS,
 					Labels: map[string]string{
-						"spoke-cluster": CLUSTER_NAME,
+						"worker-cluster": CLUSTER_NAME,
 					},
 				},
-				Spec: spokev1alpha1.SpokeSliceConfigSpec{
+				Spec: workerv1alpha1.WorkerSliceConfigSpec{
 					SliceName:        "test-slice-1",
 					SliceType:        "Application",
 					SliceSubnet:      "10.0.0.1/16",
@@ -62,7 +41,7 @@ var _ = Describe("Hub SliceController", func() {
 				},
 			}
 
-			createdSlice = &meshv1beta1.Slice{}
+			createdSlice = &kubeslicev1beta1.Slice{}
 
 			// Cleanup after each test
 			DeferCleanup(func() {
@@ -74,20 +53,17 @@ var _ = Describe("Hub SliceController", func() {
 			})
 		})
 
-		It("Should create Slice CR in spoke", func() {
+		It("Should create Slice CR in worker", func() {
 			ctx := context.Background()
 
 			Expect(k8sClient.Create(ctx, hubSlice)).Should(Succeed())
 
 			sliceKey := types.NamespacedName{Name: "test-slice-1", Namespace: "kubeslice-system"}
 
-			// Make sure slice is reconciled in spoke cluster
+			// Make sure slice is reconciled in worker cluster
 			Eventually(func() bool {
 				err := k8sClient.Get(ctx, sliceKey, createdSlice)
-				if err != nil {
-					return false
-				}
-				return true
+				return err == nil
 			}, time.Second*10, time.Millisecond*250).Should(BeTrue())
 
 			Expect(createdSlice.Status.SliceConfig.SliceSubnet).To(Equal("10.0.0.1/16"))
@@ -97,30 +73,24 @@ var _ = Describe("Hub SliceController", func() {
 			Expect(createdSlice.Status.SliceConfig.SliceIpam.IpamClusterOctet).To(Equal(100))
 
 		})
-		It("Should register a finalizer on spokeSliceConfig CR", func() {
+		It("Should register a finalizer on workerSliceConfig CR", func() {
 			ctx := context.Background()
 			Expect(k8sClient.Create(ctx, hubSlice)).Should(Succeed())
 
 			sliceKey := types.NamespacedName{Name: "test-slice-1", Namespace: "kubeslice-system"}
-			// Make sure slice is reconciled in spoke cluster
+			// Make sure slice is reconciled in worker cluster
 			Eventually(func() bool {
 				err := k8sClient.Get(ctx, sliceKey, createdSlice)
-				if err != nil {
-					return false
-				}
-				return true
+				return err == nil
 			}, time.Second*10, time.Millisecond*250).Should(BeTrue())
 
 			//get the created hubSlice
 			hubSliceKey := types.NamespacedName{Name: "test-slice-1", Namespace: PROJECT_NS}
-			sliceFinalizer := "hub.kubeslice.io/hubSpokeSlice-finalizer"
+			sliceFinalizer := "controller.kubeslice.io/hubSpokeSlice-finalizer"
 
 			Eventually(func() bool {
 				err := k8sClient.Get(ctx, hubSliceKey, hubSlice)
-				if err != nil {
-					return false
-				}
-				return true
+				return err == nil
 			}, time.Second*10, time.Millisecond*250).Should(BeTrue())
 			Expect(hubSlice.ObjectMeta.Finalizers[0]).Should(Equal(sliceFinalizer))
 		})
@@ -128,20 +98,20 @@ var _ = Describe("Hub SliceController", func() {
 	})
 
 	Context("With Slice CR deleted on hub", func() {
-		var hubSlice *spokev1alpha1.SpokeSliceConfig
-		var createdSlice *meshv1beta1.Slice
+		var hubSlice *workerv1alpha1.WorkerSliceConfig
+		var createdSlice *kubeslicev1beta1.Slice
 
 		BeforeEach(func() {
 			// Prepare k8s objects
-			hubSlice = &spokev1alpha1.SpokeSliceConfig{
+			hubSlice = &workerv1alpha1.WorkerSliceConfig{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "test-slice-2",
 					Namespace: PROJECT_NS,
 					Labels: map[string]string{
-						"spoke-cluster": CLUSTER_NAME,
+						"worker-cluster": CLUSTER_NAME,
 					},
 				},
-				Spec: spokev1alpha1.SpokeSliceConfigSpec{
+				Spec: workerv1alpha1.WorkerSliceConfigSpec{
 					SliceName:        "test-slice-2",
 					SliceType:        "Application",
 					SliceSubnet:      "10.0.0.1/16",
@@ -150,23 +120,20 @@ var _ = Describe("Hub SliceController", func() {
 				},
 			}
 
-			createdSlice = &meshv1beta1.Slice{}
+			createdSlice = &kubeslicev1beta1.Slice{}
 
 		})
-		It("Should Delete the slice CR on spoke", func() {
+		It("Should Delete the slice CR on worker", func() {
 			ctx := context.Background()
 			Expect(k8sClient.Create(ctx, hubSlice)).Should(Succeed())
 
 			sliceKey := types.NamespacedName{Name: "test-slice-2", Namespace: "kubeslice-system"}
-			// Make sure slice is reconciled in spoke cluster
+			// Make sure slice is reconciled in worker cluster
 			Eventually(func() bool {
 				err := k8sClient.Get(ctx, sliceKey, createdSlice)
-				if err != nil {
-					return false
-				}
-				return true
+				return err == nil
 			}, time.Second*10, time.Millisecond*250).Should(BeTrue())
-			//delete the hubSlice , which should delete the slice CR on spoke
+			//delete the hubSlice , which should delete the slice CR on worker
 			Expect(k8sClient.Delete(ctx, hubSlice)).Should(Succeed())
 
 			Eventually(func() bool {
@@ -179,37 +146,37 @@ var _ = Describe("Hub SliceController", func() {
 
 	Context("With ExternalGatewayConfig", func() {
 
-		var hubSlice *spokev1alpha1.SpokeSliceConfig
-		var createdSlice *meshv1beta1.Slice
+		var hubSlice *workerv1alpha1.WorkerSliceConfig
+		var createdSlice *kubeslicev1beta1.Slice
 
 		BeforeEach(func() {
 
 			// Prepare k8s objects
-			hubSlice = &spokev1alpha1.SpokeSliceConfig{
+			hubSlice = &workerv1alpha1.WorkerSliceConfig{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "test-slice-3",
 					Namespace: PROJECT_NS,
 					Labels: map[string]string{
-						"spoke-cluster": CLUSTER_NAME,
+						"worker-cluster": CLUSTER_NAME,
 					},
 				},
-				Spec: spokev1alpha1.SpokeSliceConfigSpec{
+				Spec: workerv1alpha1.WorkerSliceConfigSpec{
 					SliceName: "test-slice-3",
-					ExternalGatewayConfig: spokev1alpha1.ExternalGatewayConfig{
-						Ingress: spokev1alpha1.ExternalGatewayConfigOptions{
+					ExternalGatewayConfig: workerv1alpha1.ExternalGatewayConfig{
+						Ingress: workerv1alpha1.ExternalGatewayConfigOptions{
 							Enabled: true,
 						},
-						Egress: spokev1alpha1.ExternalGatewayConfigOptions{
+						Egress: workerv1alpha1.ExternalGatewayConfigOptions{
 							Enabled: true,
 						},
-						NsIngress: spokev1alpha1.ExternalGatewayConfigOptions{
+						NsIngress: workerv1alpha1.ExternalGatewayConfigOptions{
 							Enabled: true,
 						},
 					},
 				},
 			}
 
-			createdSlice = &meshv1beta1.Slice{}
+			createdSlice = &kubeslicev1beta1.Slice{}
 
 			// Cleanup after each test
 			DeferCleanup(func() {
@@ -221,20 +188,17 @@ var _ = Describe("Hub SliceController", func() {
 			})
 		})
 
-		It("Should create Slice CR in spoke", func() {
+		It("Should create Slice CR in worker", func() {
 			ctx := context.Background()
 
 			Expect(k8sClient.Create(ctx, hubSlice)).Should(Succeed())
 
 			sliceKey := types.NamespacedName{Name: "test-slice-3", Namespace: "kubeslice-system"}
 
-			// Make sure slice is reconciled in spoke cluster
+			// Make sure slice is reconciled in worker cluster
 			Eventually(func() bool {
 				err := k8sClient.Get(ctx, sliceKey, createdSlice)
-				if err != nil {
-					return false
-				}
-				return true
+				return err == nil
 			}, time.Second*10, time.Millisecond*250).Should(BeTrue())
 
 			Expect(createdSlice.Status.SliceConfig.ExternalGatewayConfig).ToNot(BeNil())

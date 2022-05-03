@@ -5,8 +5,8 @@
     "name": "SLICE-istio-ingressgateway",
     "namespace": "kubeslice-system",
     "annotations": {
-      "avesha.io/slice": "SLICE",
-      "avesha.io/status":"injected"
+      "kubeslice.io/slice": "SLICE",
+      "kubeslice.io/status":"injected"
     },
     "labels": {
       "app": "istio-ingressgateway",
@@ -43,8 +43,8 @@
           "install.operator.istio.io/owning-resource": "unknown",
           "operator.istio.io/component": "IngressGateways",
           "sidecar.istio.io/inject": "false",
-          "avesha.io/pod-type": "app",
-          "avesha.io/slice": "SLICE",
+          "kubeslice.io/pod-type": "app",
+          "kubeslice.io/slice": "SLICE",
           "slice": "SLICE"
         },
         "annotations": {

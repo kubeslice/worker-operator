@@ -2,7 +2,7 @@
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
-  name: slice.mesh.avesha.io
+  name: slice.networking.kubeslice.io
 spec:
   conversion:
     strategy: Webhook

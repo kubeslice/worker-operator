@@ -1,21 +1,3 @@
-/*
- *  Copyright (c) 2022 Avesha, Inc. All rights reserved.
- *
- *  SPDX-License-Identifier: Apache-2.0
- *
- *  Licensed under the Apache License, Version 2.0 (the "License");
- *  you may not use this file except in compliance with the License.
- *  You may obtain a copy of the License at
- *
- *  http://www.apache.org/licenses/LICENSE-2.0
- *
- *  Unless required by applicable law or agreed to in writing, software
- *  distributed under the License is distributed on an "AS IS" BASIS,
- *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *  See the License for the specific language governing permissions and
- *  limitations under the License.
- */
-
 package deploy
 
 import (
@@ -23,8 +5,8 @@ import (
 	"encoding/json"
 	"net/http"
 
-	//	"bitbucket.org/realtimeai/kubeslice-operator/controllers"
-	"bitbucket.org/realtimeai/kubeslice-operator/internal/logger"
+	//	"github.com/kubeslice/operator/controllers"
+	"github.com/kubeslice/operator/internal/logger"
 	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -32,8 +14,8 @@ import (
 )
 
 const (
-	admissionWebhookAnnotationInjectKey = "avesha.io/slice"
-	admissionWebhookAnnotationStatusKey = "avesha.io/status"
+	admissionWebhookAnnotationInjectKey = "kubeslice.io/slice"
+	admissionWebhookAnnotationStatusKey = "kubeslice.io/status"
 )
 
 var (
@@ -88,8 +70,8 @@ func Mutate(deploy *appsv1.Deployment, sliceName string) *appsv1.Deployment {
 
 	// Add slice identifier labels to pod template
 	labels := deploy.Spec.Template.ObjectMeta.Labels
-	labels["avesha.io/pod-type"] = "app"
-	labels["avesha.io/slice"] = sliceName
+	labels["kubeslice.io/pod-type"] = "app"
+	labels["kubeslice.io/slice"] = sliceName
 
 	return deploy
 }
@@ -107,13 +89,13 @@ func MutationRequired(metadata metav1.ObjectMeta) bool {
 		return false
 	}
 
-	if metadata.GetLabels()["avesha.io/pod-type"] == "app" {
+	if metadata.GetLabels()["kubeslice.io/pod-type"] == "app" {
 		log.Info("Pod is already injected")
 		return false
 	}
 
 	// TODO namespace isolation policy
 
-	// The annotation avesha.io/slice:SLICENAME is present, enable mutation
+	// The annotation kubeslice.io/slice:SLICENAME is present, enable mutation
 	return annotations[admissionWebhookAnnotationInjectKey] != ""
 }

@@ -1,0 +1,6 @@
+apiVersion: servicediscovery.kubeslice.io/v1beta1
+kind: ServiceImport
+metadata:
+  name: serviceimport-sample
+spec:
+  # TODO(user): Add fields here

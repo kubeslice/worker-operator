@@ -1,0 +1,143 @@
+/*  Copyright (c) 2022 Avesha, Inc. All rights reserved.
+ *
+ *  SPDX-License-Identifier: Apache-2.0
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *  http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+
+syntax = "proto3";
+
+package sidecar;
+option go_package = ".;sidecar";
+
+import "google/protobuf/empty.proto";
+
+// SidecarResponse represents the Sidecar response format.
+message SidecarResponse {
+    string statusMsg = 1;
+}
+
+// slice gateway-host-type
+enum SliceGwHostType {
+    SLICE_GW_SERVER = 0;
+    SLICE_GW_CLIENT = 1;
+}
+
+// TcType represents Traffic Control Type.
+enum TcType {
+    BANDWIDTH_CONTROL = 0;
+}
+
+//
+enum ClassType {
+    HTB = 0;
+    TBF = 1;
+}
+
+// Slice QoS Profile 
+message SliceQosProfile {
+    // Name of the slice
+    string sliceName = 1;
+    // Slice Identifier
+    string sliceId = 2;
+    // Name of the QoS profile attached to the slice
+    string qosProfileName = 3;
+    // TC type -  Bandwidth control
+    TcType tcType = 4;
+    // ClassType - HTB   ( HTB)
+    ClassType ClassType = 5;
+    // Bandwidth Ceiling in Mbps  - 5 Mbps (100k - 100 Mbps)
+    uint32 bwCeiling = 6;
+    // Bandwidth Guaranteed -  1 Mbps ( 100k- 100 Mbps)
+    uint32 bwGuaranteed = 7;
+    // Priority - 2 (Number 0-3)
+    uint32 priority = 8;
+    // Dscp class to mark inter cluster traffic
+    string dscpClass = 9;
+}
+
+// TunnelInterfaceStatus represents Tunnel Interface Status.
+message TunnelInterfaceStatus  {
+    // Net Interface
+	string netInterface = 1;
+    // Local IP
+	string localIP      = 2;
+    // Peer IP
+	string peerIP       = 3;
+    // Latency
+    uint64 latency      = 4;
+    // Transmit Rate
+    uint64 txRate       = 5;
+    // Receive Rate
+    uint64 rxRate       = 6;
+}
+
+// NsmInterfaceStatus represents the status of NSM Interface to Slice Router.
+message NsmInterfaceStatus {
+	// NSM Interface Name
+	string nsmInterfaceName = 1;
+    	// NSM IP
+	string nsmIP        = 2;
+}
+
+// GwPodStatus represents overall status of Pod.
+message GwPodStatus {
+    // Node IP.
+    string nodeIP                         = 1;
+    // Gateway Pod IP.
+    string gatewayPodIP                   = 2;
+    // The Tunnel Interface Status.
+    TunnelInterfaceStatus tunnelStatus    = 4;
+    // NSM Interface Status
+    NsmInterfaceStatus  nsmIntfStatus     = 5;
+}
+
+
+// SliceGwConnectionContext - Slice Gateway Connection Context.
+message SliceGwConnectionContext {
+    // Slice-Id
+    string sliceId = 1;
+    // Local slice gateway ID
+    string localSliceGwId = 2;
+    // Local slice gateway VPN IP
+    string localSliceGwVpnIP = 3;
+    // Local slice gateway-host-type  -  client/server
+    SliceGwHostType localSliceGwHostType = 4;
+    // Local slice gateway NSM Subnet
+    string localSliceGwNsmSubnet = 5;
+    // Local slice gateway Node IP
+    string localSliceGwNodeIP = 6;
+    // Local slice gateway Node Port
+    string localSliceGwNodePort = 7;
+    // Remote slice gateway ID
+    string remoteSliceGwId = 8;
+    // Remote slice gateway VPN IP
+    string remoteSliceGwVpnIP = 9;
+    // Remote-slice gateway-host-type client or server
+    SliceGwHostType remoteSliceGwHostType = 10;
+    // Remote slice gateway NSM subnet
+    string remoteSliceGwNsmSubnet = 11;
+    // Remote slice gateway Node IP
+    string remoteSliceGwNodeIP = 12;
+    // Remote slice gateway Node Port
+    string remoteSliceGwNodePort = 13;
+}
+
+service GwSidecarService {
+    // The Interface to get the Pod status.
+    rpc GetStatus(google.protobuf.Empty) returns (GwPodStatus) {}
+    // The Interface to update the connection context. It also adds the route.
+    rpc UpdateConnectionContext(SliceGwConnectionContext) returns (SidecarResponse) {}
+    // Update Slice QoS Profile
+    rpc UpdateSliceQosProfile(SliceQosProfile) returns (SidecarResponse) {}
+}

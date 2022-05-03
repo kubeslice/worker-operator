@@ -1,29 +1,11 @@
-/*
- *  Copyright (c) 2022 Avesha, Inc. All rights reserved.
- *
- *  SPDX-License-Identifier: Apache-2.0
- *
- *  Licensed under the Apache License, Version 2.0 (the "License");
- *  you may not use this file except in compliance with the License.
- *  You may obtain a copy of the License at
- *
- *  http://www.apache.org/licenses/LICENSE-2.0
- *
- *  Unless required by applicable law or agreed to in writing, software
- *  distributed under the License is distributed on an "AS IS" BASIS,
- *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *  See the License for the specific language governing permissions and
- *  limitations under the License.
- */
-
 package serviceimport
 
 import (
 	"context"
 
-	meshv1beta1 "bitbucket.org/realtimeai/kubeslice-operator/api/v1beta1"
-	"bitbucket.org/realtimeai/kubeslice-operator/controllers"
-	"bitbucket.org/realtimeai/kubeslice-operator/internal/logger"
+	kubeslicev1beta1 "github.com/kubeslice/operator/api/v1beta1"
+	"github.com/kubeslice/operator/controllers"
+	"github.com/kubeslice/operator/internal/logger"
 	networkingv1beta1 "istio.io/api/networking/v1beta1"
 	istiov1beta1 "istio.io/client-go/pkg/apis/networking/v1beta1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -32,13 +14,16 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 )
 
-func (r *Reconciler) ReconcileVirtualServiceEgress(ctx context.Context, serviceimport *meshv1beta1.ServiceImport) (ctrl.Result, error, bool) {
+func (r *Reconciler) ReconcileVirtualServiceEgress(ctx context.Context, serviceimport *kubeslicev1beta1.ServiceImport) (ctrl.Result, error, bool) {
+
+	var vs *istiov1beta1.VirtualService
+
 	log := logger.FromContext(ctx).WithValues("type", "Istio VS with egress")
 	debugLog := log.V(1)
 
 	debugLog.Info("reconciling istio vs with egress")
 
-	vs, err := r.getVirtualServiceFromAppPod(ctx, serviceimport)
+	_, err := r.getVirtualServiceFromAppPod(ctx, serviceimport)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			log.Info("vs to egress not found; creating")
@@ -91,7 +76,7 @@ func (r *Reconciler) ReconcileVirtualServiceEgress(ctx context.Context, servicei
 
 	if hasVirtualServiceRoutesChanged(vs, serviceimport) {
 		log.Info("virtualService routes changed for egress, updating")
-		if getServiceProtocol(serviceimport) == meshv1beta1.ServiceProtocolHTTP {
+		if getServiceProtocol(serviceimport) == kubeslicev1beta1.ServiceProtocolHTTP {
 			httpRoutes := getVirtualServiceHTTPRoutes(serviceimport)
 			debugLog.Info("new routes", "http", httpRoutes)
 			vs.Spec.Http = []*networkingv1beta1.HTTPRoute{{
@@ -117,7 +102,7 @@ func (r *Reconciler) ReconcileVirtualServiceEgress(ctx context.Context, servicei
 }
 
 // Create a VirtualService which routes all traffic to the service to go to egress
-func (r *Reconciler) virtualServiceToEgress(serviceImport *meshv1beta1.ServiceImport) *istiov1beta1.VirtualService {
+func (r *Reconciler) virtualServiceToEgress(serviceImport *kubeslicev1beta1.ServiceImport) *istiov1beta1.VirtualService {
 
 	egressHost := serviceImport.Spec.Slice + "-istio-egressgateway." + controllers.ControlPlaneNamespace + ".svc.cluster.local"
 
@@ -135,7 +120,7 @@ func (r *Reconciler) virtualServiceToEgress(serviceImport *meshv1beta1.ServiceIm
 		},
 	}
 
-	if getServiceProtocol(serviceImport) == meshv1beta1.ServiceProtocolHTTP {
+	if getServiceProtocol(serviceImport) == kubeslicev1beta1.ServiceProtocolHTTP {
 		vs.Spec.Http = []*networkingv1beta1.HTTPRoute{{
 			Route: []*networkingv1beta1.HTTPRouteDestination{{
 				Destination: &networkingv1beta1.Destination{
@@ -164,7 +149,7 @@ func (r *Reconciler) virtualServiceToEgress(serviceImport *meshv1beta1.ServiceIm
 	return vs
 }
 
-func (r *Reconciler) virtualServiceFromEgress(serviceImport *meshv1beta1.ServiceImport) *istiov1beta1.VirtualService {
+func (r *Reconciler) virtualServiceFromEgress(serviceImport *kubeslicev1beta1.ServiceImport) *istiov1beta1.VirtualService {
 
 	gw := controllers.ControlPlaneNamespace + "/" + serviceImport.Spec.Slice + "-istio-egressgateway"
 
@@ -185,7 +170,7 @@ func (r *Reconciler) virtualServiceFromEgress(serviceImport *meshv1beta1.Service
 		},
 	}
 
-	if getServiceProtocol(serviceImport) == meshv1beta1.ServiceProtocolHTTP {
+	if getServiceProtocol(serviceImport) == kubeslicev1beta1.ServiceProtocolHTTP {
 		vs.Spec.Http = []*networkingv1beta1.HTTPRoute{{
 			Route: getVirtualServiceHTTPRoutes(serviceImport),
 		}}
@@ -200,7 +185,7 @@ func (r *Reconciler) virtualServiceFromEgress(serviceImport *meshv1beta1.Service
 	return vs
 }
 
-func (r *Reconciler) getVirtualServiceFromEgress(ctx context.Context, serviceimport *meshv1beta1.ServiceImport) (*istiov1beta1.VirtualService, error) {
+func (r *Reconciler) getVirtualServiceFromEgress(ctx context.Context, serviceimport *kubeslicev1beta1.ServiceImport) (*istiov1beta1.VirtualService, error) {
 	vs := &istiov1beta1.VirtualService{}
 	err := r.Get(ctx, types.NamespacedName{
 		Name:      virtualServiceFromEgressName(serviceimport),
@@ -214,7 +199,7 @@ func (r *Reconciler) getVirtualServiceFromEgress(ctx context.Context, serviceimp
 	return vs, nil
 }
 
-func (r *Reconciler) DeleteIstioVirtualServicesEgress(ctx context.Context, serviceimport *meshv1beta1.ServiceImport) error {
+func (r *Reconciler) DeleteIstioVirtualServicesEgress(ctx context.Context, serviceimport *kubeslicev1beta1.ServiceImport) error {
 	vs, err := r.getVirtualServiceFromEgress(ctx, serviceimport)
 	if err != nil {
 		if errors.IsNotFound(err) {

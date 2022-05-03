@@ -1,20 +1,15 @@
 /*
- *  Copyright (c) 2022 Avesha, Inc. All rights reserved.
- *
- *  SPDX-License-Identifier: Apache-2.0
- *
- *  Licensed under the Apache License, Version 2.0 (the "License");
- *  you may not use this file except in compliance with the License.
- *  You may obtain a copy of the License at
- *
- *  http://www.apache.org/licenses/LICENSE-2.0
- *
- *  Unless required by applicable law or agreed to in writing, software
- *  distributed under the License is distributed on an "AS IS" BASIS,
- *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *  See the License for the specific language governing permissions and
- *  limitations under the License.
- */
+##########################################################
+serviceexport_types.go
+
+Avesha LLC
+Feb 2021
+
+Copyright (c) Avesha LLC. 2021
+
+Avesha Sice Operator
+##########################################################
+*/
 
 package v1beta1
 
@@ -23,14 +18,14 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// MeshType defines the type of service mesh running in the cluster
-type MeshType string
+// ControllerType defines the type of service mesh running in the cluster
+type ControllerType string
 
 const (
-	// MeshTypeIstio indicates that service is exported through istio
-	MeshTypeIstio MeshType = "istio"
-	// MeshTypeNone indicates that service is running as normal kubernetes service without any mesh
-	MeshTypeNone MeshType = "none"
+	// ControllerTypeIstio indicates that service is exported through istio
+	ControllerTypeIstio ControllerType = "istio"
+	// ControllerTypeNone indicates that service is running as normal kubernetes service without any mesh
+	ControllerTypeNone ControllerType = "none"
 )
 
 // ServicePort is the port exposed by ServicePod
@@ -62,8 +57,8 @@ type ServiceExportSpec struct {
 	Slice string `json:"slice"`
 	// Selector is a label query over pods that should be exposed as a service
 	Selector *metav1.LabelSelector `json:"selector"`
-	// MeshType denotes the type of service mesh the app pods are part of
-	MeshType MeshType `json:"meshType,omitempty"`
+	// ControllerType denotes the type of service mesh the app pods are part of
+	ControllerType ControllerType `json:"controllerType,omitempty"`
 	// IngressEnabled denotes whether the traffic should be proxied through an ingress gateway
 	IngressEnabled bool `json:"ingressEnabled,omitempty"`
 	// Ports which should be exposed through the service

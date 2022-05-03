@@ -5,7 +5,7 @@ metadata:
   name: slice-viewer-role
 rules:
 - apiGroups:
-  - mesh.avesha.io
+  - networking.kubeslice.io
   resources:
   - slice
   verbs:
@@ -13,7 +13,7 @@ rules:
   - list
   - watch
 - apiGroups:
-  - mesh.avesha.io
+  - networking.kubeslice.io
   resources:
   - slice/status
   verbs:

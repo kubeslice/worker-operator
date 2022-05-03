@@ -11,9 +11,9 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.7.0
   creationTimestamp: null
-  name: slice.mesh.avesha.io
+  name: slice.networking.kubeslice.io
 spec:
-  group: mesh.avesha.io
+  group: networking.kubeslice.io
   names:
     kind: Slice
     listKind: SliceList
@@ -122,7 +122,7 @@ metadata:
   name: kubeslice-manager-role
 rules:
 - apiGroups:
-  - mesh.avesha.io
+  - networking.kubeslice.io
   resources:
   - slice
   verbs:
@@ -134,13 +134,13 @@ rules:
   - update
   - watch
 - apiGroups:
-  - mesh.avesha.io
+  - networking.kubeslice.io
   resources:
   - slice/finalizers
   verbs:
   - update
 - apiGroups:
-  - mesh.avesha.io
+  - networking.kubeslice.io
   resources:
   - slice/status
   verbs:
@@ -229,7 +229,7 @@ data:
       port: 9443
     leaderElection:
       leaderElect: true
-      resourceName: f7425d89.avesha.io
+      resourceName: f7425d89.kubeslice.io
 kind: ConfigMap
 metadata:
   name: kubeslice-manager-config

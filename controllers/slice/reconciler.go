@@ -1,20 +1,18 @@
 /*
- *  Copyright (c) 2022 Avesha, Inc. All rights reserved.
- *
- *  SPDX-License-Identifier: Apache-2.0
- *
- *  Licensed under the Apache License, Version 2.0 (the "License");
- *  you may not use this file except in compliance with the License.
- *  You may obtain a copy of the License at
- *
- *  http://www.apache.org/licenses/LICENSE-2.0
- *
- *  Unless required by applicable law or agreed to in writing, software
- *  distributed under the License is distributed on an "AS IS" BASIS,
- *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *  See the License for the specific language governing permissions and
- *  limitations under the License.
- */
+Copyright 2022.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
 
 package slice
 
@@ -32,15 +30,15 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	meshv1beta1 "bitbucket.org/realtimeai/kubeslice-operator/api/v1beta1"
-	"bitbucket.org/realtimeai/kubeslice-operator/controllers"
-	"bitbucket.org/realtimeai/kubeslice-operator/internal/logger"
-	"bitbucket.org/realtimeai/kubeslice-operator/internal/manifest"
-	"bitbucket.org/realtimeai/kubeslice-operator/pkg/events"
+	kubeslicev1beta1 "github.com/kubeslice/operator/api/v1beta1"
+	"github.com/kubeslice/operator/controllers"
+	"github.com/kubeslice/operator/internal/logger"
+	"github.com/kubeslice/operator/internal/manifest"
+	"github.com/kubeslice/operator/pkg/events"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
-var sliceFinalizer = "mesh.kubeslice.io/slice-finalizer"
+var sliceFinalizer = "networking.kubeslice.io/slice-finalizer"
 
 // SliceReconciler reconciles a Slice object
 type SliceReconciler struct {
@@ -52,9 +50,9 @@ type SliceReconciler struct {
 	HubClient     HubClientProvider
 }
 
-//+kubebuilder:rbac:groups=mesh.avesha.io,resources=slice,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=mesh.avesha.io,resources=slice/status,verbs=get;update;patch
-//+kubebuilder:rbac:groups=mesh.avesha.io,resources=slice/finalizers,verbs=update
+//+kubebuilder:rbac:groups=networking.kubeslice.io,resources=slice,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=networking.kubeslice.io,resources=slice/status,verbs=get;update;patch
+//+kubebuilder:rbac:groups=networking.kubeslice.io,resources=slice/finalizers,verbs=update
 //+kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=core,resources=pods,verbs=get;list;watch;update
 //+kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list;watch;create;update;patch;delete
@@ -65,7 +63,7 @@ type SliceReconciler struct {
 //+kubebuilder:rbac:groups=networking.istio.io,resources=gateways,verbs=get;list;create;update;watch;delete
 //+kubebuilder:rbac:groups=networking.istio.io,resources=serviceentries,verbs=get;list;create;update;watch;delete
 //+kubebuilder:rbac:groups=networking.istio.io,resources=virtualservices,verbs=get;list;create;update;watch;delete
-//+kubebuilder:webhook:path=/mutate-appsv1-deploy,mutating=true,failurePolicy=fail,groups="apps",resources=deployments,verbs=create;update,versions=v1,name=mdeploy.avesha.io,admissionReviewVersions=v1,sideEffects=NoneOnDryRun
+//+kubebuilder:webhook:path=/mutate-appsv1-deploy,mutating=true,failurePolicy=fail,groups="apps",resources=deployments,verbs=create;update,versions=v1,name=mdeploy.kubeslice.io,admissionReviewVersions=v1,sideEffects=NoneOnDryRun
 //+kubebuilder:rbac:groups=core,resources=nodes,verbs=get;list;watch
 
 func (r *SliceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
@@ -73,7 +71,7 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 	debugLog := log.V(1)
 	ctx = logger.WithLogger(ctx, log)
 
-	slice := &meshv1beta1.Slice{}
+	slice := &kubeslicev1beta1.Slice{}
 
 	err := r.Get(ctx, req.NamespacedName, slice)
 	if err != nil {
@@ -150,7 +148,7 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 	}
 
 	if slice.Status.SliceConfig == nil {
-		err := fmt.Errorf("Slice not reconciled from hub")
+		err := fmt.Errorf("slice not reconciled from hub")
 		log.Error(err, "Slice is not reconciled from hub yet, skipping reconciliation")
 		return ctrl.Result{}, err
 	}
@@ -234,10 +232,10 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 	}
 
 	debugLog.Info("reconciling app pods")
-	res, err, requeue = r.ReconcileAppPod(ctx, slice)
+	res, _, requeue = r.ReconcileAppPod(ctx, slice)
 
 	if requeue {
-		log.Info("updating app pod list in hub spokesliceconfig status")
+		log.Info("updating app pod list in hub workersliceconfig status")
 		sliceConfigName := slice.Name + "-" + controllers.ClusterName
 		err = r.HubClient.UpdateAppPodsList(ctx, sliceConfigName, slice.Status.AppPods)
 		if err != nil {
@@ -263,7 +261,7 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 	}, nil
 }
 
-func isAppPodStatusChanged(current []meshv1beta1.AppPod, old []meshv1beta1.AppPod) bool {
+func isAppPodStatusChanged(current []kubeslicev1beta1.AppPod, old []kubeslicev1beta1.AppPod) bool {
 	if len(current) != len(old) {
 		return true
 	}
@@ -286,8 +284,8 @@ func isAppPodStatusChanged(current []meshv1beta1.AppPod, old []meshv1beta1.AppPo
 // SetupWithManager sets up the controller with the Manager.
 func (r *SliceReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&meshv1beta1.Slice{}).
+		For(&kubeslicev1beta1.Slice{}).
 		Owns(&appsv1.Deployment{}).
-		Owns(&meshv1beta1.SliceGateway{}).
+		Owns(&kubeslicev1beta1.SliceGateway{}).
 		Complete(r)
 }

@@ -1,28 +1,10 @@
-/*
- *  Copyright (c) 2022 Avesha, Inc. All rights reserved.
- *
- *  SPDX-License-Identifier: Apache-2.0
- *
- *  Licensed under the Apache License, Version 2.0 (the "License");
- *  you may not use this file except in compliance with the License.
- *  You may obtain a copy of the License at
- *
- *  http://www.apache.org/licenses/LICENSE-2.0
- *
- *  Unless required by applicable law or agreed to in writing, software
- *  distributed under the License is distributed on an "AS IS" BASIS,
- *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *  See the License for the specific language governing permissions and
- *  limitations under the License.
- */
-
 package hub_test
 
 import (
 	"time"
 
-	meshv1beta1 "bitbucket.org/realtimeai/kubeslice-operator/api/v1beta1"
-	spokev1alpha1 "bitbucket.org/realtimeai/mesh-apis/pkg/spoke/v1alpha1"
+	spokev1alpha1 "github.com/kubeslice/apis/pkg/worker/v1alpha1"
+	kubeslicev1beta1 "github.com/kubeslice/operator/api/v1beta1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
@@ -33,23 +15,23 @@ import (
 
 var _ = Describe("Hub SlicegwController", func() {
 	Context("With SpokeSliceGW created in hub", func() {
-		var hubSlice *spokev1alpha1.SpokeSliceConfig
-		var createdSlice *meshv1beta1.Slice
-		var hubSliceGw *spokev1alpha1.SpokeSliceGateway
+		var hubSlice *spokev1alpha1.WorkerSliceConfig
+		var createdSlice *kubeslicev1beta1.Slice
+		var hubSliceGw *spokev1alpha1.WorkerSliceGateway
 		var hubSecret *corev1.Secret
-		var createdSliceGwOnSpoke *meshv1beta1.SliceGateway
+		var createdSliceGwOnSpoke *kubeslicev1beta1.SliceGateway
 
 		BeforeEach(func() {
 			// Prepare k8s objects
-			hubSlice = &spokev1alpha1.SpokeSliceConfig{
+			hubSlice = &spokev1alpha1.WorkerSliceConfig{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "test-slice",
 					Namespace: PROJECT_NS,
 					Labels: map[string]string{
-						"spoke-cluster": CLUSTER_NAME,
+						"worker-cluster": CLUSTER_NAME,
 					},
 				},
-				Spec: spokev1alpha1.SpokeSliceConfigSpec{
+				Spec: spokev1alpha1.WorkerSliceConfigSpec{
 					SliceName:        "test-slice",
 					SliceType:        "Application",
 					SliceSubnet:      "10.0.0.1/16",
@@ -57,15 +39,15 @@ var _ = Describe("Hub SlicegwController", func() {
 					IpamClusterOctet: 100,
 				},
 			}
-			hubSliceGw = &spokev1alpha1.SpokeSliceGateway{
+			hubSliceGw = &spokev1alpha1.WorkerSliceGateway{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "test-slicegateway",
 					Namespace: PROJECT_NS,
 					Labels: map[string]string{
-						"spoke-cluster": CLUSTER_NAME,
+						"worker-cluster": CLUSTER_NAME,
 					},
 				},
-				Spec: spokev1alpha1.SpokeSliceGatewaySpec{
+				Spec: spokev1alpha1.WorkerSliceGatewaySpec{
 					SliceName: "test-slice",
 					LocalGatewayConfig: spokev1alpha1.SliceGatewayConfig{
 						ClusterName: CLUSTER_NAME,
@@ -79,8 +61,8 @@ var _ = Describe("Hub SlicegwController", func() {
 				},
 				Data: map[string][]byte{},
 			}
-			createdSlice = &meshv1beta1.Slice{}
-			createdSliceGwOnSpoke = &meshv1beta1.SliceGateway{}
+			createdSlice = &kubeslicev1beta1.Slice{}
+			createdSliceGwOnSpoke = &kubeslicev1beta1.SliceGateway{}
 
 			// Cleanup after each test
 			DeferCleanup(func() {
@@ -104,10 +86,7 @@ var _ = Describe("Hub SlicegwController", func() {
 			// Make sure slice is reconciled in spoke cluster
 			Eventually(func() bool {
 				err := k8sClient.Get(ctx, sliceKey, createdSlice)
-				if err != nil {
-					return false
-				}
-				return true
+				return err == nil
 			}, time.Second*20, time.Millisecond*250).Should(BeTrue())
 
 			sliceGwKey := types.NamespacedName{Namespace: CONTROL_PLANE_NS, Name: hubSliceGw.Name}
@@ -126,10 +105,7 @@ var _ = Describe("Hub SlicegwController", func() {
 			// Make sure slice is reconciled in spoke cluster
 			Eventually(func() bool {
 				err := k8sClient.Get(ctx, sliceKey, createdSlice)
-				if err != nil {
-					return false
-				}
-				return true
+				return err == nil
 			}, time.Second*10, time.Millisecond*250).Should(BeTrue())
 
 			sliceGwKey := types.NamespacedName{Namespace: CONTROL_PLANE_NS, Name: hubSliceGw.Name}
@@ -150,10 +126,7 @@ var _ = Describe("Hub SlicegwController", func() {
 			// Make sure slice is reconciled in spoke cluster
 			Eventually(func() bool {
 				err := k8sClient.Get(ctx, sliceKey, createdSlice)
-				if err != nil {
-					return false
-				}
-				return true
+				return err == nil
 			}, time.Second*10, time.Millisecond*250).Should(BeTrue())
 
 			sliceGwKey := types.NamespacedName{Namespace: CONTROL_PLANE_NS, Name: hubSliceGw.Name}

@@ -1,21 +1,3 @@
-/*
- *  Copyright (c) 2022 Avesha, Inc. All rights reserved.
- *
- *  SPDX-License-Identifier: Apache-2.0
- *
- *  Licensed under the Apache License, Version 2.0 (the "License");
- *  you may not use this file except in compliance with the License.
- *  You may obtain a copy of the License at
- *
- *  http://www.apache.org/licenses/LICENSE-2.0
- *
- *  Unless required by applicable law or agreed to in writing, software
- *  distributed under the License is distributed on an "AS IS" BASIS,
- *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *  See the License for the specific language governing permissions and
- *  limitations under the License.
- */
-
 package spoke_test
 
 import (
@@ -24,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	meshv1beta1 "bitbucket.org/realtimeai/kubeslice-operator/api/v1beta1"
+	kubeslicev1beta1 "github.com/kubeslice/operator/api/v1beta1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
@@ -34,8 +16,8 @@ import (
 	"k8s.io/client-go/util/retry"
 )
 
-func getTestServiceExportPorts() []meshv1beta1.ServicePort {
-	return []meshv1beta1.ServicePort{
+func getTestServiceExportPorts() []kubeslicev1beta1.ServicePort {
+	return []kubeslicev1beta1.ServicePort{
 		{
 			Name:          "proto-tcp",
 			ContainerPort: 80,
@@ -47,24 +29,24 @@ func getTestServiceExportPorts() []meshv1beta1.ServicePort {
 var _ = Describe("ServiceExportController", func() {
 
 	Context("With a service export CR object installed, verify service export CR is reconciled", func() {
-		var slice *meshv1beta1.Slice
+		var slice *kubeslicev1beta1.Slice
 		var dnssvc *corev1.Service
-		var svcex *meshv1beta1.ServiceExport
-		var createdSlice *meshv1beta1.Slice
+		var svcex *kubeslicev1beta1.ServiceExport
+		var createdSlice *kubeslicev1beta1.Slice
 
 		BeforeEach(func() {
-			// Prepare k8s objects for slice and mesh-dns service
-			slice = &meshv1beta1.Slice{
+			// Prepare k8s objects for slice and kubeslice-dns service
+			slice = &kubeslicev1beta1.Slice{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "test-slice-1",
 					Namespace: "kubeslice-system",
 				},
-				Spec: meshv1beta1.SliceSpec{},
+				Spec: kubeslicev1beta1.SliceSpec{},
 			}
 
 			dnssvc = &corev1.Service{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "mesh-dns",
+					Name:      "kubeslice-dns",
 					Namespace: "kubeslice-system",
 				},
 				Spec: corev1.ServiceSpec{
@@ -74,13 +56,13 @@ var _ = Describe("ServiceExportController", func() {
 				},
 			}
 
-			// Prepare k8s objects for slice and mesh-dns service
-			svcex = &meshv1beta1.ServiceExport{
+			// Prepare k8s objects for slice and kubeslice-dns service
+			svcex = &kubeslicev1beta1.ServiceExport{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "iperf-server",
 					Namespace: "default",
 				},
-				Spec: meshv1beta1.ServiceExportSpec{
+				Spec: kubeslicev1beta1.ServiceExportSpec{
 					Slice: "test-slice-1",
 					Selector: &metav1.LabelSelector{
 						MatchLabels: map[string]string{"app": "iperf"},
@@ -88,7 +70,7 @@ var _ = Describe("ServiceExportController", func() {
 					Ports: getTestServiceExportPorts(),
 				},
 			}
-			createdSlice = &meshv1beta1.Slice{}
+			createdSlice = &kubeslicev1beta1.Slice{}
 
 			// Cleanup after each test
 			DeferCleanup(func() {
@@ -126,14 +108,14 @@ var _ = Describe("ServiceExportController", func() {
 				if err != nil {
 					return err
 				}
-				createdSlice.Status.SliceConfig = &meshv1beta1.SliceConfig{}
+				createdSlice.Status.SliceConfig = &kubeslicev1beta1.SliceConfig{}
 				return k8sClient.Status().Update(ctx, createdSlice)
 			})
 			Expect(err).To(BeNil())
 
 			Expect(k8sClient.Create(ctx, svcex)).Should(Succeed())
 			svcKey := types.NamespacedName{Name: "iperf-server", Namespace: "default"}
-			createdSvcEx := &meshv1beta1.ServiceExport{}
+			createdSvcEx := &kubeslicev1beta1.ServiceExport{}
 
 			Eventually(func() bool {
 				err := k8sClient.Get(ctx, svcKey, createdSvcEx)
@@ -143,7 +125,7 @@ var _ = Describe("ServiceExportController", func() {
 				if createdSvcEx.Status.ExposedPorts != "80/TCP" {
 					return false
 				}
-				if createdSvcEx.Status.ExportStatus != meshv1beta1.ExportStatusReady {
+				if createdSvcEx.Status.ExportStatus != kubeslicev1beta1.ExportStatusReady {
 					return false
 				}
 				return true
@@ -163,27 +145,27 @@ var _ = Describe("ServiceExportController", func() {
 				if err != nil {
 					return err
 				}
-				createdSlice.Status.SliceConfig = &meshv1beta1.SliceConfig{}
+				createdSlice.Status.SliceConfig = &kubeslicev1beta1.SliceConfig{}
 				return k8sClient.Status().Update(ctx, createdSlice)
 			})
 			Expect(err).To(BeNil())
 
 			Expect(k8sClient.Create(ctx, svcex)).Should(Succeed())
 			svcKey := types.NamespacedName{Name: "iperf-server", Namespace: "default"}
-			createdSvcEx := &meshv1beta1.ServiceExport{}
+			createdSvcEx := &kubeslicev1beta1.ServiceExport{}
 
 			Eventually(func() bool {
 				err := k8sClient.Get(ctx, svcKey, createdSvcEx)
 				if err != nil {
 					return false
 				}
-				if createdSvcEx.Status.ExportStatus != meshv1beta1.ExportStatusReady {
+				if createdSvcEx.Status.ExportStatus != kubeslicev1beta1.ExportStatusReady {
 					return false
 				}
 				return true
 			}, time.Second*30, time.Millisecond*250).Should(BeTrue())
 
-			createdSvcEx.Spec.Ports = append(createdSvcEx.Spec.Ports, meshv1beta1.ServicePort{
+			createdSvcEx.Spec.Ports = append(createdSvcEx.Spec.Ports, kubeslicev1beta1.ServicePort{
 				Name:          "proto-2",
 				ContainerPort: 5353,
 				Protocol:      corev1.ProtocolUDP,
@@ -199,7 +181,7 @@ var _ = Describe("ServiceExportController", func() {
 				if !strings.Contains(createdSvcEx.Status.ExposedPorts, "5353/UDP") {
 					return false
 				}
-				if createdSvcEx.Status.ExportStatus != meshv1beta1.ExportStatusReady {
+				if createdSvcEx.Status.ExportStatus != kubeslicev1beta1.ExportStatusReady {
 					return false
 				}
 				return true
@@ -220,7 +202,7 @@ var _ = Describe("ServiceExportController", func() {
 				if err != nil {
 					return err
 				}
-				createdSlice.Status.SliceConfig = &meshv1beta1.SliceConfig{}
+				createdSlice.Status.SliceConfig = &kubeslicev1beta1.SliceConfig{}
 				return k8sClient.Status().Update(ctx, createdSlice)
 			})
 			Expect(err).To(BeNil())
@@ -230,7 +212,7 @@ var _ = Describe("ServiceExportController", func() {
 				"kubeslice.io/slice": svcex.Spec.Slice,
 			}
 			svcKey := types.NamespacedName{Name: "iperf-server", Namespace: "default"}
-			createdSvcEx := &meshv1beta1.ServiceExport{}
+			createdSvcEx := &kubeslicev1beta1.ServiceExport{}
 			Eventually(func() bool {
 				err := k8sClient.Get(ctx, svcKey, createdSvcEx)
 				if err != nil {

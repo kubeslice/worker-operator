@@ -1,21 +1,3 @@
-/*
- *  Copyright (c) 2022 Avesha, Inc. All rights reserved.
- *
- *  SPDX-License-Identifier: Apache-2.0
- *
- *  Licensed under the Apache License, Version 2.0 (the "License");
- *  you may not use this file except in compliance with the License.
- *  You may obtain a copy of the License at
- *
- *  http://www.apache.org/licenses/LICENSE-2.0
- *
- *  Unless required by applicable law or agreed to in writing, software
- *  distributed under the License is distributed on an "AS IS" BASIS,
- *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *  See the License for the specific language governing permissions and
- *  limitations under the License.
- */
-
 package slicegateway
 
 import (
@@ -24,8 +6,8 @@ import (
 	"strconv"
 	"time"
 
-	"bitbucket.org/realtimeai/kubeslice-operator/controllers"
-	"bitbucket.org/realtimeai/kubeslice-operator/internal/netop"
+	"github.com/kubeslice/operator/controllers"
+	"github.com/kubeslice/operator/internal/netop"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -35,10 +17,10 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	meshv1beta1 "bitbucket.org/realtimeai/kubeslice-operator/api/v1beta1"
-	"bitbucket.org/realtimeai/kubeslice-operator/internal/gwsidecar"
-	"bitbucket.org/realtimeai/kubeslice-operator/internal/logger"
-	"bitbucket.org/realtimeai/kubeslice-operator/internal/router"
+	kubeslicev1beta1 "github.com/kubeslice/operator/api/v1beta1"
+	"github.com/kubeslice/operator/internal/gwsidecar"
+	"github.com/kubeslice/operator/internal/logger"
+	"github.com/kubeslice/operator/internal/router"
 )
 
 var (
@@ -60,7 +42,7 @@ func labelsForSliceGwDeployment(name string, slice string) map[string]string {
 }
 
 // deploymentForGateway returns a gateway Deployment object
-func (r *SliceGwReconciler) deploymentForGateway(g *meshv1beta1.SliceGateway) *appsv1.Deployment {
+func (r *SliceGwReconciler) deploymentForGateway(g *kubeslicev1beta1.SliceGateway) *appsv1.Deployment {
 	if g.Status.Config.SliceGatewayHostType == "Server" {
 		return r.deploymentForGatewayServer(g)
 	} else {
@@ -68,7 +50,7 @@ func (r *SliceGwReconciler) deploymentForGateway(g *meshv1beta1.SliceGateway) *a
 	}
 }
 
-func (r *SliceGwReconciler) deploymentForGatewayServer(g *meshv1beta1.SliceGateway) *appsv1.Deployment {
+func (r *SliceGwReconciler) deploymentForGatewayServer(g *kubeslicev1beta1.SliceGateway) *appsv1.Deployment {
 	ls := labelsForSliceGwDeployment(g.Name, g.Spec.SliceName)
 
 	var replicas int32 = 1
@@ -303,13 +285,13 @@ func (r *SliceGwReconciler) deploymentForGatewayServer(g *meshv1beta1.SliceGatew
 	return dep
 }
 
-func (r *SliceGwReconciler) serviceForGateway(g *meshv1beta1.SliceGateway) *corev1.Service {
+func (r *SliceGwReconciler) serviceForGateway(g *kubeslicev1beta1.SliceGateway) *corev1.Service {
 	svc := &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "svc-" + g.Name,
 			Namespace: g.Namespace,
 			Labels: map[string]string{
-				"avesha.io/slice": g.Spec.SliceName,
+				"kubeslice.io/slice": g.Spec.SliceName,
 			},
 		},
 		Spec: corev1.ServiceSpec{
@@ -326,7 +308,7 @@ func (r *SliceGwReconciler) serviceForGateway(g *meshv1beta1.SliceGateway) *core
 	return svc
 }
 
-func (r *SliceGwReconciler) deploymentForGatewayClient(g *meshv1beta1.SliceGateway) *appsv1.Deployment {
+func (r *SliceGwReconciler) deploymentForGatewayClient(g *kubeslicev1beta1.SliceGateway) *appsv1.Deployment {
 	var replicas int32 = 1
 	var privileged = true
 
@@ -525,7 +507,7 @@ func (r *SliceGwReconciler) deploymentForGatewayClient(g *meshv1beta1.SliceGatew
 	return dep
 }
 
-func (r *SliceGwReconciler) GetGwPodNameAndIP(ctx context.Context, sliceGw *meshv1beta1.SliceGateway) (string, string) {
+func (r *SliceGwReconciler) GetGwPodNameAndIP(ctx context.Context, sliceGw *kubeslicev1beta1.SliceGateway) (string, string) {
 	log := logger.FromContext(ctx).WithValues("type", "slicegateway")
 	podList := &corev1.PodList{}
 	listOpts := []client.ListOption{
@@ -546,13 +528,13 @@ func (r *SliceGwReconciler) GetGwPodNameAndIP(ctx context.Context, sliceGw *mesh
 	return "", ""
 }
 
-func isGatewayStatusChanged(slicegateway *meshv1beta1.SliceGateway, podName string, podIP string, status *gwsidecar.GwStatus) bool {
+func isGatewayStatusChanged(slicegateway *kubeslicev1beta1.SliceGateway, podName string, podIP string, status *gwsidecar.GwStatus) bool {
 	return slicegateway.Status.PodName != podName ||
 		slicegateway.Status.PodIP != podIP ||
 		slicegateway.Status.LocalNsmIP != status.NsmStatus.LocalIP
 }
 
-func (r *SliceGwReconciler) ReconcileGwPodStatus(ctx context.Context, slicegateway *meshv1beta1.SliceGateway) (ctrl.Result, error, bool) {
+func (r *SliceGwReconciler) ReconcileGwPodStatus(ctx context.Context, slicegateway *kubeslicev1beta1.SliceGateway) (ctrl.Result, error, bool) {
 	log := logger.FromContext(ctx).WithValues("type", "SliceGw")
 	debugLog := log.V(1)
 
@@ -590,7 +572,7 @@ func (r *SliceGwReconciler) ReconcileGwPodStatus(ctx context.Context, slicegatew
 	return ctrl.Result{}, nil, false
 }
 
-func (r *SliceGwReconciler) SendConnectionContextToGwPod(ctx context.Context, slicegateway *meshv1beta1.SliceGateway) (ctrl.Result, error, bool) {
+func (r *SliceGwReconciler) SendConnectionContextToGwPod(ctx context.Context, slicegateway *kubeslicev1beta1.SliceGateway) (ctrl.Result, error, bool) {
 	log := logger.FromContext(ctx).WithValues("type", "SliceGw")
 
 	_, podIP := r.GetGwPodNameAndIP(ctx, slicegateway)
@@ -622,7 +604,7 @@ func (r *SliceGwReconciler) SendConnectionContextToGwPod(ctx context.Context, sl
 	return ctrl.Result{}, nil, false
 }
 
-func (r *SliceGwReconciler) SendConnectionContextToSliceRouter(ctx context.Context, slicegateway *meshv1beta1.SliceGateway) (ctrl.Result, error, bool) {
+func (r *SliceGwReconciler) SendConnectionContextToSliceRouter(ctx context.Context, slicegateway *kubeslicev1beta1.SliceGateway) (ctrl.Result, error, bool) {
 	log := logger.FromContext(ctx).WithValues("type", "SliceGw")
 
 	_, podIP, err := controllers.GetSliceRouterPodNameAndIP(ctx, r.Client, slicegateway.Spec.SliceName)
@@ -657,7 +639,7 @@ func (r *SliceGwReconciler) SendConnectionContextToSliceRouter(ctx context.Conte
 	return ctrl.Result{}, nil, false
 }
 
-func (r *SliceGwReconciler) SyncNetOpConnectionContextAndQos(ctx context.Context, slice *meshv1beta1.Slice, slicegw *meshv1beta1.SliceGateway, sliceGwNodePort int32) error {
+func (r *SliceGwReconciler) SyncNetOpConnectionContextAndQos(ctx context.Context, slice *kubeslicev1beta1.Slice, slicegw *kubeslicev1beta1.SliceGateway, sliceGwNodePort int32) error {
 	log := logger.FromContext(ctx).WithValues("type", "SliceGw")
 	debugLog := log.V(1)
 

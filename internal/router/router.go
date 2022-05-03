@@ -1,29 +1,14 @@
-/*
- *  Copyright (c) 2022 Avesha, Inc. All rights reserved.
- *
- *  SPDX-License-Identifier: Apache-2.0
- *
- *  Licensed under the Apache License, Version 2.0 (the "License");
- *  you may not use this file except in compliance with the License.
- *  You may obtain a copy of the License at
- *
- *  http://www.apache.org/licenses/LICENSE-2.0
- *
- *  Unless required by applicable law or agreed to in writing, software
- *  distributed under the License is distributed on an "AS IS" BASIS,
- *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *  See the License for the specific language governing permissions and
- *  limitations under the License.
- */
-
 package router
 
 import (
 	"context"
 
-	meshv1beta1 "bitbucket.org/realtimeai/kubeslice-operator/api/v1beta1"
-	sidecar "bitbucket.org/realtimeai/kubeslice-router-sidecar/pkg/proto"
+	sidecar "github.com/kubeslice/router-sidecar/pkg/proto"
+
+	//sidecar "github.com/kubeslice/router-sidecar/pkg/sidecar/sidecarpb"
+	kubeslicev1beta1 "github.com/kubeslice/operator/api/v1beta1"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 	emptypb "google.golang.org/protobuf/types/known/emptypb"
 )
 
@@ -32,8 +17,8 @@ type SliceRouterConnCtx struct {
 	LocalNsmGwPeerIP       string
 }
 
-func GetClientConnectionInfo(ctx context.Context, addr string) ([]meshv1beta1.AppPod, error) {
-	conn, err := grpc.Dial(addr, grpc.WithInsecure())
+func GetClientConnectionInfo(ctx context.Context, addr string) ([]kubeslicev1beta1.AppPod, error) {
+	conn, err := grpc.Dial(addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		return nil, err
 	}
@@ -46,10 +31,10 @@ func GetClientConnectionInfo(ctx context.Context, addr string) ([]meshv1beta1.Ap
 		return nil, err
 	}
 
-	var appPods []meshv1beta1.AppPod
+	var appPods []kubeslicev1beta1.AppPod
 
 	for _, c := range info.Connection {
-		appPods = append(appPods, meshv1beta1.AppPod{
+		appPods = append(appPods, kubeslicev1beta1.AppPod{
 			PodName:      c.PodName,
 			NsmInterface: c.NsmInterface,
 			NsmIP:        c.NsmIP,
@@ -61,7 +46,7 @@ func GetClientConnectionInfo(ctx context.Context, addr string) ([]meshv1beta1.Ap
 }
 
 func SendConnectionContext(ctx context.Context, serverAddr string, sliceRouterConnCtx *SliceRouterConnCtx) error {
-	conn, err := grpc.Dial(serverAddr, grpc.WithInsecure())
+	conn, err := grpc.Dial(serverAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		return err
 	}

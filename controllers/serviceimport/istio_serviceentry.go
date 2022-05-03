@@ -1,29 +1,11 @@
-/*
- *  Copyright (c) 2022 Avesha, Inc. All rights reserved.
- *
- *  SPDX-License-Identifier: Apache-2.0
- *
- *  Licensed under the Apache License, Version 2.0 (the "License");
- *  you may not use this file except in compliance with the License.
- *  You may obtain a copy of the License at
- *
- *  http://www.apache.org/licenses/LICENSE-2.0
- *
- *  Unless required by applicable law or agreed to in writing, software
- *  distributed under the License is distributed on an "AS IS" BASIS,
- *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *  See the License for the specific language governing permissions and
- *  limitations under the License.
- */
-
 package serviceimport
 
 import (
 	"context"
 
-	meshv1beta1 "bitbucket.org/realtimeai/kubeslice-operator/api/v1beta1"
-	"bitbucket.org/realtimeai/kubeslice-operator/controllers"
-	"bitbucket.org/realtimeai/kubeslice-operator/internal/logger"
+	kubeslicev1beta1 "github.com/kubeslice/operator/api/v1beta1"
+	"github.com/kubeslice/operator/controllers"
+	"github.com/kubeslice/operator/internal/logger"
 	networkingv1beta1 "istio.io/api/networking/v1beta1"
 	istiov1beta1 "istio.io/client-go/pkg/apis/networking/v1beta1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -33,7 +15,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-func (r *Reconciler) ReconcileServiceEntries(ctx context.Context, serviceimport *meshv1beta1.ServiceImport, ns string) (ctrl.Result, error, bool) {
+func (r *Reconciler) ReconcileServiceEntries(ctx context.Context, serviceimport *kubeslicev1beta1.ServiceImport, ns string) (ctrl.Result, error, bool) {
 	log := logger.FromContext(ctx).WithValues("type", "Istio ServiceEntry")
 	debugLog := log.V(1)
 
@@ -82,7 +64,7 @@ func (r *Reconciler) ReconcileServiceEntries(ctx context.Context, serviceimport 
 }
 
 // Create serviceEntryFor based on serviceImport endpoint spec in the specified namespace
-func (r *Reconciler) serviceEntryForEndpoint(serviceImport *meshv1beta1.ServiceImport, endpoint *meshv1beta1.ServiceEndpoint, ns string) *istiov1beta1.ServiceEntry {
+func (r *Reconciler) serviceEntryForEndpoint(serviceImport *kubeslicev1beta1.ServiceImport, endpoint *kubeslicev1beta1.ServiceEndpoint, ns string) *istiov1beta1.ServiceEntry {
 	p := serviceImport.Spec.Ports[0]
 
 	// TODO: This is a hack. Need a better way to set targetPort for ingress gw.
@@ -115,7 +97,7 @@ func (r *Reconciler) serviceEntryForEndpoint(serviceImport *meshv1beta1.ServiceI
 		},
 	}
 
-	if getServiceProtocol(serviceImport) == meshv1beta1.ServiceProtocolTCP {
+	if getServiceProtocol(serviceImport) == kubeslicev1beta1.ServiceProtocolTCP {
 		se.Spec.Addresses = []string{
 			endpoint.IP,
 		}
@@ -126,7 +108,7 @@ func (r *Reconciler) serviceEntryForEndpoint(serviceImport *meshv1beta1.ServiceI
 	return se
 }
 
-func labelsForServiceEntry(si *meshv1beta1.ServiceImport) map[string]string {
+func labelsForServiceEntry(si *kubeslicev1beta1.ServiceImport) map[string]string {
 	return map[string]string{
 		"avesha-service":    si.Name,
 		"avesha-service-ns": si.Namespace,
@@ -134,12 +116,12 @@ func labelsForServiceEntry(si *meshv1beta1.ServiceImport) map[string]string {
 	}
 }
 
-func serviceEntryName(endpoint *meshv1beta1.ServiceEndpoint) string {
+func serviceEntryName(endpoint *kubeslicev1beta1.ServiceEndpoint) string {
 	return endpoint.Name + "-" + endpoint.ClusterID
 }
 
 // getServiceEntriesForSI returns all the serviceentries belongs to an import
-func getServiceEntriesForSI(ctx context.Context, c client.Client, serviceimport *meshv1beta1.ServiceImport, ns string) ([]istiov1beta1.ServiceEntry, error) {
+func getServiceEntriesForSI(ctx context.Context, c client.Client, serviceimport *kubeslicev1beta1.ServiceImport, ns string) ([]istiov1beta1.ServiceEntry, error) {
 	seList := &istiov1beta1.ServiceEntryList{}
 	listOpts := []client.ListOption{
 		client.MatchingLabels(labelsForServiceEntry(serviceimport)),
@@ -151,14 +133,12 @@ func getServiceEntriesForSI(ctx context.Context, c client.Client, serviceimport 
 
 	ses := []istiov1beta1.ServiceEntry{}
 
-	for _, se := range seList.Items {
-		ses = append(ses, se)
-	}
+	ses = append(ses, seList.Items...)
 
 	return ses, nil
 }
 
-func serviceEntryExists(seList []istiov1beta1.ServiceEntry, e meshv1beta1.ServiceEndpoint) bool {
+func serviceEntryExists(seList []istiov1beta1.ServiceEntry, e kubeslicev1beta1.ServiceEndpoint) bool {
 	for _, se := range seList {
 		if len(se.Spec.Hosts) > 0 && se.Spec.Hosts[0] == e.DNSName {
 			return true
@@ -168,7 +148,7 @@ func serviceEntryExists(seList []istiov1beta1.ServiceEntry, e meshv1beta1.Servic
 	return false
 }
 
-func servicesEntriesToDelete(seList []istiov1beta1.ServiceEntry, si *meshv1beta1.ServiceImport) []istiov1beta1.ServiceEntry {
+func servicesEntriesToDelete(seList []istiov1beta1.ServiceEntry, si *kubeslicev1beta1.ServiceImport) []istiov1beta1.ServiceEntry {
 
 	exists := struct{}{}
 	dnsSet := make(map[string]struct{})
@@ -187,7 +167,7 @@ func servicesEntriesToDelete(seList []istiov1beta1.ServiceEntry, si *meshv1beta1
 	return toDelete
 }
 
-func (r *Reconciler) DeleteIstioServiceEntries(ctx context.Context, serviceimport *meshv1beta1.ServiceImport) error {
+func (r *Reconciler) DeleteIstioServiceEntries(ctx context.Context, serviceimport *kubeslicev1beta1.ServiceImport) error {
 	entries, err := getServiceEntriesForSI(ctx, r.Client, serviceimport, controllers.ControlPlaneNamespace)
 	if err != nil {
 		if errors.IsNotFound(err) {

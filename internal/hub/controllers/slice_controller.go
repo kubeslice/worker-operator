@@ -1,30 +1,13 @@
-/*
- *  Copyright (c) 2022 Avesha, Inc. All rights reserved.
- *
- *  SPDX-License-Identifier: Apache-2.0
- *
- *  Licensed under the Apache License, Version 2.0 (the "License");
- *  you may not use this file except in compliance with the License.
- *  You may obtain a copy of the License at
- *
- *  http://www.apache.org/licenses/LICENSE-2.0
- *
- *  Unless required by applicable law or agreed to in writing, software
- *  distributed under the License is distributed on an "AS IS" BASIS,
- *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *  See the License for the specific language governing permissions and
- *  limitations under the License.
- */
-
 package controllers
 
 import (
-	meshv1beta1 "bitbucket.org/realtimeai/kubeslice-operator/api/v1beta1"
-	"bitbucket.org/realtimeai/kubeslice-operator/internal/logger"
-	"bitbucket.org/realtimeai/kubeslice-operator/pkg/events"
-	spokev1alpha1 "bitbucket.org/realtimeai/mesh-apis/pkg/spoke/v1alpha1"
 	"context"
+
 	"github.com/go-logr/logr"
+	workerv1alpha1 "github.com/kubeslice/apis/pkg/worker/v1alpha1"
+	kubeslicev1beta1 "github.com/kubeslice/operator/api/v1beta1"
+	"github.com/kubeslice/operator/internal/logger"
+	"github.com/kubeslice/operator/pkg/events"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/util/retry"
@@ -35,18 +18,18 @@ import (
 
 type SliceReconciler struct {
 	client.Client
-	Log           logr.Logger
-	MeshClient    client.Client
-	EventRecorder *events.EventRecorder
+	Log             logr.Logger
+	KubeSliceClient client.Client
+	EventRecorder   *events.EventRecorder
 }
 
-var sliceFinalizer = "hub.kubeslice.io/hubSpokeSlice-finalizer"
+var sliceFinalizer = "controller.kubeslice.io/hubSpokeSlice-finalizer"
 
 func (r *SliceReconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
 	log := r.Log.WithValues("sliceconfig", req.NamespacedName)
 	ctx = logger.WithLogger(ctx, log)
 	debuglog := log.V(1)
-	slice := &spokev1alpha1.SpokeSliceConfig{}
+	slice := &workerv1alpha1.WorkerSliceConfig{}
 	err := r.Get(ctx, req.NamespacedName, slice)
 	if err != nil {
 		if errors.IsNotFound(err) {
@@ -103,26 +86,26 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req reconcile.Request) 
 	}
 
 	sliceName := slice.Spec.SliceName
-	meshSlice := &meshv1beta1.Slice{}
+	kubeSlice := &kubeslicev1beta1.Slice{}
 	sliceRef := client.ObjectKey{
 		Name:      sliceName,
 		Namespace: ControlPlaneNamespace,
 	}
 
-	err = r.MeshClient.Get(ctx, sliceRef, meshSlice)
+	err = r.KubeSliceClient.Get(ctx, sliceRef, kubeSlice)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			// Request object not found, create it in the spoke cluster
 			log.Info("Slice resource not found in spoke cluster, creating")
-			s := &meshv1beta1.Slice{
+			s := &kubeslicev1beta1.Slice{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      sliceName,
 					Namespace: ControlPlaneNamespace,
 				},
-				Spec: meshv1beta1.SliceSpec{},
+				Spec: kubeslicev1beta1.SliceSpec{},
 			}
 
-			err = r.MeshClient.Create(ctx, s)
+			err = r.KubeSliceClient.Create(ctx, s)
 			if err != nil {
 				log.Error(err, "unable to create slice in spoke cluster", "slice", s)
 				r.EventRecorder.Record(
@@ -157,21 +140,21 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req reconcile.Request) 
 		return reconcile.Result{}, err
 	}
 
-	err = r.updateSliceConfig(ctx, meshSlice, slice)
+	err = r.updateSliceConfig(ctx, kubeSlice, slice)
 	if err != nil {
-		log.Error(err, "unable to update slice status in spoke cluster", "slice", meshSlice)
+		log.Error(err, "unable to update slice status in spoke cluster", "slice", kubeSlice)
 		return reconcile.Result{}, err
 	}
 
 	return reconcile.Result{}, nil
 }
 
-func (r *SliceReconciler) updateSliceConfig(ctx context.Context, meshSlice *meshv1beta1.Slice, spokeSlice *spokev1alpha1.SpokeSliceConfig) error {
-	if meshSlice.Status.SliceConfig == nil {
-		meshSlice.Status.SliceConfig = &meshv1beta1.SliceConfig{
+func (r *SliceReconciler) updateSliceConfig(ctx context.Context, kubeSlice *kubeslicev1beta1.Slice, spokeSlice *workerv1alpha1.WorkerSliceConfig) error {
+	if kubeSlice.Status.SliceConfig == nil {
+		kubeSlice.Status.SliceConfig = &kubeslicev1beta1.SliceConfig{
 			SliceDisplayName: spokeSlice.Spec.SliceName,
 			SliceSubnet:      spokeSlice.Spec.SliceSubnet,
-			SliceIpam: meshv1beta1.SliceIpamConfig{
+			SliceIpam: kubeslicev1beta1.SliceIpamConfig{
 				SliceIpamType:    spokeSlice.Spec.SliceIpamType,
 				IpamClusterOctet: spokeSlice.Spec.IpamClusterOctet,
 			},
@@ -179,15 +162,15 @@ func (r *SliceReconciler) updateSliceConfig(ctx context.Context, meshSlice *mesh
 		}
 	}
 
-	if meshSlice.Status.SliceConfig.SliceSubnet == "" {
-		meshSlice.Status.SliceConfig.SliceSubnet = spokeSlice.Spec.SliceSubnet
+	if kubeSlice.Status.SliceConfig.SliceSubnet == "" {
+		kubeSlice.Status.SliceConfig.SliceSubnet = spokeSlice.Spec.SliceSubnet
 	}
 
-	if meshSlice.Status.SliceConfig.SliceIpam.IpamClusterOctet == 0 {
-		meshSlice.Status.SliceConfig.SliceIpam.IpamClusterOctet = spokeSlice.Spec.IpamClusterOctet
+	if kubeSlice.Status.SliceConfig.SliceIpam.IpamClusterOctet == 0 {
+		kubeSlice.Status.SliceConfig.SliceIpam.IpamClusterOctet = spokeSlice.Spec.IpamClusterOctet
 	}
 
-	meshSlice.Status.SliceConfig.QosProfileDetails = meshv1beta1.QosProfileDetails{
+	kubeSlice.Status.SliceConfig.QosProfileDetails = kubeslicev1beta1.QosProfileDetails{
 		QueueType:               spokeSlice.Spec.QosProfileDetails.QueueType,
 		BandwidthCeilingKbps:    spokeSlice.Spec.QosProfileDetails.BandwidthCeilingKbps,
 		BandwidthGuaranteedKbps: spokeSlice.Spec.QosProfileDetails.BandwidthGuaranteedKbps,
@@ -197,20 +180,20 @@ func (r *SliceReconciler) updateSliceConfig(ctx context.Context, meshSlice *mesh
 	}
 
 	extGwCfg := spokeSlice.Spec.ExternalGatewayConfig
-	meshSlice.Status.SliceConfig.ExternalGatewayConfig = &meshv1beta1.ExternalGatewayConfig{
+	kubeSlice.Status.SliceConfig.ExternalGatewayConfig = &kubeslicev1beta1.ExternalGatewayConfig{
 		GatewayType: extGwCfg.GatewayType,
-		Egress: &meshv1beta1.ExternalGatewayConfigOptions{
+		Egress: &kubeslicev1beta1.ExternalGatewayConfigOptions{
 			Enabled: extGwCfg.Egress.Enabled,
 		},
-		Ingress: &meshv1beta1.ExternalGatewayConfigOptions{
+		Ingress: &kubeslicev1beta1.ExternalGatewayConfigOptions{
 			Enabled: extGwCfg.Ingress.Enabled,
 		},
-		NsIngress: &meshv1beta1.ExternalGatewayConfigOptions{
+		NsIngress: &kubeslicev1beta1.ExternalGatewayConfigOptions{
 			Enabled: extGwCfg.NsIngress.Enabled,
 		},
 	}
 
-	return r.MeshClient.Status().Update(ctx, meshSlice)
+	return r.KubeSliceClient.Status().Update(ctx, kubeSlice)
 }
 
 func (a *SliceReconciler) InjectClient(c client.Client) error {
@@ -218,15 +201,15 @@ func (a *SliceReconciler) InjectClient(c client.Client) error {
 	return nil
 }
 
-func (r *SliceReconciler) deleteSliceResourceOnSpoke(ctx context.Context, slice *spokev1alpha1.SpokeSliceConfig) error {
+func (r *SliceReconciler) deleteSliceResourceOnSpoke(ctx context.Context, slice *workerv1alpha1.WorkerSliceConfig) error {
 	log := logger.FromContext(ctx)
-	sliceOnSpoke := &meshv1beta1.Slice{
+	sliceOnSpoke := &kubeslicev1beta1.Slice{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      slice.Spec.SliceName,
 			Namespace: ControlPlaneNamespace,
 		},
 	}
-	if err := r.MeshClient.Delete(ctx, sliceOnSpoke); err != nil {
+	if err := r.KubeSliceClient.Delete(ctx, sliceOnSpoke); err != nil {
 		if errors.IsNotFound(err) {
 			return nil
 		}

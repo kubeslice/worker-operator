@@ -1,21 +1,3 @@
-/*
- *  Copyright (c) 2022 Avesha, Inc. All rights reserved.
- *
- *  SPDX-License-Identifier: Apache-2.0
- *
- *  Licensed under the Apache License, Version 2.0 (the "License");
- *  you may not use this file except in compliance with the License.
- *  You may obtain a copy of the License at
- *
- *  http://www.apache.org/licenses/LICENSE-2.0
- *
- *  Unless required by applicable law or agreed to in writing, software
- *  distributed under the License is distributed on an "AS IS" BASIS,
- *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *  See the License for the specific language governing permissions and
- *  limitations under the License.
- */
-
 package dns
 
 import (
@@ -26,12 +8,12 @@ import (
 	"strings"
 	"time"
 
-	meshv1beta1 "bitbucket.org/realtimeai/kubeslice-operator/api/v1beta1"
-	"bitbucket.org/realtimeai/kubeslice-operator/internal/logger"
+	kubeslicev1beta1 "github.com/kubeslice/operator/api/v1beta1"
+	"github.com/kubeslice/operator/internal/logger"
 )
 
 // ReconcileDNSFile reconciles dns file in configmap with the available endpoints in serviceimport
-func ReconcileDNSFile(ctx context.Context, dnsFile string, si *meshv1beta1.ServiceImport) (string, error) {
+func ReconcileDNSFile(ctx context.Context, dnsFile string, si *kubeslicev1beta1.ServiceImport) (string, error) {
 	log := logger.FromContext(ctx).WithValues("type", "CoreDNS")
 	debugLog := log.V(1)
 
@@ -73,7 +55,7 @@ func ReconcileDNSFile(ctx context.Context, dnsFile string, si *meshv1beta1.Servi
 
 }
 
-func DeleteRecordsAndReconcileDNSFile(ctx context.Context, dnsFile string, si *meshv1beta1.ServiceImport) (string, error) {
+func DeleteRecordsAndReconcileDNSFile(ctx context.Context, dnsFile string, si *kubeslicev1beta1.ServiceImport) (string, error) {
 	log := logger.FromContext(ctx).WithValues("type", "CoreDNS")
 	debugLog := log.V(1)
 
@@ -95,7 +77,7 @@ func DeleteRecordsAndReconcileDNSFile(ctx context.Context, dnsFile string, si *m
 
 }
 
-func removeServiceDnsRecords(dnsEntries []string, si *meshv1beta1.ServiceImport) []string {
+func removeServiceDnsRecords(dnsEntries []string, si *kubeslicev1beta1.ServiceImport) []string {
 	de := []string{}
 	for _, v := range dnsEntries {
 		dnsName := strings.Split(v, ". ")[0]

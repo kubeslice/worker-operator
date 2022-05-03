@@ -1,30 +1,12 @@
-/*
- *  Copyright (c) 2022 Avesha, Inc. All rights reserved.
- *
- *  SPDX-License-Identifier: Apache-2.0
- *
- *  Licensed under the Apache License, Version 2.0 (the "License");
- *  you may not use this file except in compliance with the License.
- *  You may obtain a copy of the License at
- *
- *  http://www.apache.org/licenses/LICENSE-2.0
- *
- *  Unless required by applicable law or agreed to in writing, software
- *  distributed under the License is distributed on an "AS IS" BASIS,
- *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *  See the License for the specific language governing permissions and
- *  limitations under the License.
- */
-
 package serviceexport
 
 import (
 	"context"
 	"fmt"
 
-	meshv1beta1 "bitbucket.org/realtimeai/kubeslice-operator/api/v1beta1"
-	"bitbucket.org/realtimeai/kubeslice-operator/controllers"
-	"bitbucket.org/realtimeai/kubeslice-operator/internal/logger"
+	kubeslicev1beta1 "github.com/kubeslice/operator/api/v1beta1"
+	"github.com/kubeslice/operator/controllers"
+	"github.com/kubeslice/operator/internal/logger"
 	networkingv1beta1 "istio.io/api/networking/v1beta1"
 	istiov1beta1 "istio.io/client-go/pkg/apis/networking/v1beta1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -33,7 +15,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 )
 
-func (r *Reconciler) ReconcileVirtualService(ctx context.Context, serviceexport *meshv1beta1.ServiceExport) (ctrl.Result, error, bool) {
+func (r *Reconciler) ReconcileVirtualService(ctx context.Context, serviceexport *kubeslicev1beta1.ServiceExport) (ctrl.Result, error, bool) {
 	log := logger.FromContext(ctx).WithValues("type", "Istio VS ingress")
 	debugLog := log.V(1)
 
@@ -75,7 +57,7 @@ func (r *Reconciler) ReconcileVirtualService(ctx context.Context, serviceexport 
 
 	if hasVirtualServiceRoutesChanged(vs, serviceexport) {
 		log.Info("virtualService routes changed, updating")
-		if getServiceProtocol(serviceexport) == meshv1beta1.ServiceProtocolHTTP {
+		if getServiceProtocol(serviceexport) == kubeslicev1beta1.ServiceProtocolHTTP {
 			httpRoutes := getVirtualServiceHTTPRoutes(serviceexport)
 			log.Info("new routes", "http", httpRoutes)
 			vs.Spec.Http = []*networkingv1beta1.HTTPRoute{{
@@ -100,11 +82,11 @@ func (r *Reconciler) ReconcileVirtualService(ctx context.Context, serviceexport 
 	return ctrl.Result{}, nil, false
 }
 
-func virtualServiceName(serviceexport *meshv1beta1.ServiceExport) string {
+func virtualServiceName(serviceexport *kubeslicev1beta1.ServiceExport) string {
 	return serviceexport.Name + "-" + serviceexport.Namespace
 }
 
-func (r *Reconciler) getVirtualService(ctx context.Context, serviceexport *meshv1beta1.ServiceExport) (*istiov1beta1.VirtualService, error) {
+func (r *Reconciler) getVirtualService(ctx context.Context, serviceexport *kubeslicev1beta1.ServiceExport) (*istiov1beta1.VirtualService, error) {
 	vs := &istiov1beta1.VirtualService{}
 
 	err := r.Get(ctx, types.NamespacedName{
@@ -118,7 +100,7 @@ func (r *Reconciler) getVirtualService(ctx context.Context, serviceexport *meshv
 	return vs, nil
 }
 
-func (r *Reconciler) virtualService(serviceexport *meshv1beta1.ServiceExport) *istiov1beta1.VirtualService {
+func (r *Reconciler) virtualService(serviceexport *kubeslicev1beta1.ServiceExport) *istiov1beta1.VirtualService {
 
 	dnsName := fmt.Sprintf("%s-ingress.%s.%s.svc.slice.local", serviceexport.Name, controllers.ClusterName, serviceexport.Namespace)
 
@@ -141,7 +123,7 @@ func (r *Reconciler) virtualService(serviceexport *meshv1beta1.ServiceExport) *i
 		},
 	}
 
-	if getServiceProtocol(serviceexport) == meshv1beta1.ServiceProtocolHTTP {
+	if getServiceProtocol(serviceexport) == kubeslicev1beta1.ServiceProtocolHTTP {
 		vs.Spec.Http = []*networkingv1beta1.HTTPRoute{{
 			Route: getVirtualServiceHTTPRoutes(serviceexport),
 		}}
@@ -156,7 +138,7 @@ func (r *Reconciler) virtualService(serviceexport *meshv1beta1.ServiceExport) *i
 	return vs
 }
 
-func getVirtualServiceHTTPRoutes(serviceexport *meshv1beta1.ServiceExport) []*networkingv1beta1.HTTPRouteDestination {
+func getVirtualServiceHTTPRoutes(serviceexport *kubeslicev1beta1.ServiceExport) []*networkingv1beta1.HTTPRouteDestination {
 	routes := []*networkingv1beta1.HTTPRouteDestination{}
 
 	port := uint32(serviceexport.Spec.Ports[0].ContainerPort)
@@ -177,7 +159,7 @@ func getVirtualServiceHTTPRoutes(serviceexport *meshv1beta1.ServiceExport) []*ne
 	return routes
 }
 
-func getVirtualServiceTCPRoutes(serviceexport *meshv1beta1.ServiceExport) []*networkingv1beta1.RouteDestination {
+func getVirtualServiceTCPRoutes(serviceexport *kubeslicev1beta1.ServiceExport) []*networkingv1beta1.RouteDestination {
 	routes := []*networkingv1beta1.RouteDestination{}
 
 	var port uint32
@@ -203,7 +185,7 @@ func getVirtualServiceTCPRoutes(serviceexport *meshv1beta1.ServiceExport) []*net
 }
 
 // Initially weights are equally distributed to all endpoints
-func calculateInitialWeight(i int, serviceexport *meshv1beta1.ServiceExport) int32 {
+func calculateInitialWeight(i int, serviceexport *kubeslicev1beta1.ServiceExport) int32 {
 
 	l := len(serviceexport.Status.Pods)
 	weight := 100 / l
@@ -218,10 +200,10 @@ func calculateInitialWeight(i int, serviceexport *meshv1beta1.ServiceExport) int
 
 }
 
-func hasVirtualServiceRoutesChanged(vs *istiov1beta1.VirtualService, serviceExport *meshv1beta1.ServiceExport) bool {
+func hasVirtualServiceRoutesChanged(vs *istiov1beta1.VirtualService, serviceExport *kubeslicev1beta1.ServiceExport) bool {
 
 	// http service
-	if getServiceProtocol(serviceExport) == meshv1beta1.ServiceProtocolHTTP {
+	if getServiceProtocol(serviceExport) == kubeslicev1beta1.ServiceProtocolHTTP {
 		if len(vs.Spec.Http) != 1 {
 			return true
 		}
@@ -240,7 +222,7 @@ func hasVirtualServiceRoutesChanged(vs *istiov1beta1.VirtualService, serviceExpo
 	}
 
 	// tcp service
-	if getServiceProtocol(serviceExport) == meshv1beta1.ServiceProtocolTCP {
+	if getServiceProtocol(serviceExport) == kubeslicev1beta1.ServiceProtocolTCP {
 		if len(vs.Spec.Tcp) != 1 {
 			return true
 		}
@@ -259,7 +241,7 @@ func hasVirtualServiceRoutesChanged(vs *istiov1beta1.VirtualService, serviceExpo
 	return false
 }
 
-func (r *Reconciler) DeleteIstioVirtualServices(ctx context.Context, serviceexport *meshv1beta1.ServiceExport) error {
+func (r *Reconciler) DeleteIstioVirtualServices(ctx context.Context, serviceexport *kubeslicev1beta1.ServiceExport) error {
 	vs, err := r.getVirtualService(ctx, serviceexport)
 	if err != nil {
 		if errors.IsNotFound(err) {

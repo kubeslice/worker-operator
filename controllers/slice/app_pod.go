@@ -1,38 +1,20 @@
-/*
- *  Copyright (c) 2022 Avesha, Inc. All rights reserved.
- *
- *  SPDX-License-Identifier: Apache-2.0
- *
- *  Licensed under the Apache License, Version 2.0 (the "License");
- *  you may not use this file except in compliance with the License.
- *  You may obtain a copy of the License at
- *
- *  http://www.apache.org/licenses/LICENSE-2.0
- *
- *  Unless required by applicable law or agreed to in writing, software
- *  distributed under the License is distributed on an "AS IS" BASIS,
- *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *  See the License for the specific language governing permissions and
- *  limitations under the License.
- */
-
 package slice
 
 import (
 	"context"
 	"time"
 
-	meshv1beta1 "bitbucket.org/realtimeai/kubeslice-operator/api/v1beta1"
-	"bitbucket.org/realtimeai/kubeslice-operator/controllers"
-	"bitbucket.org/realtimeai/kubeslice-operator/internal/logger"
-	"bitbucket.org/realtimeai/kubeslice-operator/internal/router"
+	kubeslicev1beta1 "github.com/kubeslice/operator/api/v1beta1"
+	"github.com/kubeslice/operator/controllers"
+	"github.com/kubeslice/operator/internal/logger"
+	"github.com/kubeslice/operator/internal/router"
 
 	corev1 "k8s.io/api/core/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-func (r *SliceReconciler) getAppPods(ctx context.Context, slice *meshv1beta1.Slice) ([]meshv1beta1.AppPod, error) {
+func (r *SliceReconciler) getAppPods(ctx context.Context, slice *kubeslicev1beta1.Slice) ([]kubeslicev1beta1.AppPod, error) {
 	log := logger.FromContext(ctx).WithValues("type", "app_pod")
 	debugLog := log.V(1)
 
@@ -44,7 +26,7 @@ func (r *SliceReconciler) getAppPods(ctx context.Context, slice *meshv1beta1.Sli
 		log.Error(err, "Failed to list pods")
 		return nil, err
 	}
-	appPods := []meshv1beta1.AppPod{}
+	appPods := []kubeslicev1beta1.AppPod{}
 	for _, pod := range podList.Items {
 
 		a := pod.Annotations
@@ -56,7 +38,7 @@ func (r *SliceReconciler) getAppPods(ctx context.Context, slice *meshv1beta1.Sli
 		}
 
 		if pod.Status.Phase == corev1.PodRunning {
-			appPods = append(appPods, meshv1beta1.AppPod{
+			appPods = append(appPods, kubeslicev1beta1.AppPod{
 				PodName:      pod.Name,
 				PodNamespace: pod.Namespace,
 				PodIP:        pod.Status.PodIP,
@@ -68,7 +50,7 @@ func (r *SliceReconciler) getAppPods(ctx context.Context, slice *meshv1beta1.Sli
 
 // labelsForAppPods returns the labels for App pods
 func labelsForAppPods() map[string]string {
-	return map[string]string{"avesha.io/pod-type": "app"}
+	return map[string]string{"kubeslice.io/pod-type": "app"}
 }
 
 func isAppPodConnectedToSliceRouter(annotations map[string]string, sliceRouter string) bool {
@@ -76,7 +58,7 @@ func isAppPodConnectedToSliceRouter(annotations map[string]string, sliceRouter s
 }
 
 // ReconcileAppPod reconciles app pods
-func (r *SliceReconciler) ReconcileAppPod(ctx context.Context, slice *meshv1beta1.Slice) (ctrl.Result, error, bool) {
+func (r *SliceReconciler) ReconcileAppPod(ctx context.Context, slice *kubeslicev1beta1.Slice) (ctrl.Result, error, bool) {
 	log := logger.FromContext(ctx).WithValues("type", "app_pod")
 	debugLog := log.V(1)
 
@@ -160,12 +142,12 @@ func (r *SliceReconciler) ReconcileAppPod(ctx context.Context, slice *meshv1beta
 	return ctrl.Result{}, nil, false
 }
 
-func getSliceRouterConnectedPods(ctx context.Context, sliceName string) ([]meshv1beta1.AppPod, error) {
+func getSliceRouterConnectedPods(ctx context.Context, sliceName string) ([]kubeslicev1beta1.AppPod, error) {
 	sidecarGrpcAddress := sliceRouterDeploymentNamePrefix + sliceName + ":5000"
 	return router.GetClientConnectionInfo(ctx, sidecarGrpcAddress)
 }
 
-func findAppPodConnectedToSlice(podName string, connectedPods []meshv1beta1.AppPod) *meshv1beta1.AppPod {
+func findAppPodConnectedToSlice(podName string, connectedPods []kubeslicev1beta1.AppPod) *kubeslicev1beta1.AppPod {
 	for _, v := range connectedPods {
 		if v.PodName == podName {
 			return &v

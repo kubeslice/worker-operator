@@ -1,21 +1,3 @@
-/*
- *  Copyright (c) 2022 Avesha, Inc. All rights reserved.
- *
- *  SPDX-License-Identifier: Apache-2.0
- *
- *  Licensed under the Apache License, Version 2.0 (the "License");
- *  you may not use this file except in compliance with the License.
- *  You may obtain a copy of the License at
- *
- *  http://www.apache.org/licenses/LICENSE-2.0
- *
- *  Unless required by applicable law or agreed to in writing, software
- *  distributed under the License is distributed on an "AS IS" BASIS,
- *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *  See the License for the specific language governing permissions and
- *  limitations under the License.
- */
-
 package manager
 
 import (
@@ -32,11 +14,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
-	meshv1beta1 "bitbucket.org/realtimeai/kubeslice-operator/api/v1beta1"
-	"bitbucket.org/realtimeai/kubeslice-operator/internal/hub/controllers"
-	"bitbucket.org/realtimeai/kubeslice-operator/internal/logger"
-	"bitbucket.org/realtimeai/kubeslice-operator/pkg/events"
-	spokev1alpha1 "bitbucket.org/realtimeai/mesh-apis/pkg/spoke/v1alpha1"
+	workerv1alpha1 "github.com/kubeslice/apis/pkg/worker/v1alpha1"
+	kubeslicev1beta1 "github.com/kubeslice/operator/api/v1beta1"
+	"github.com/kubeslice/operator/internal/hub/controllers"
+	"github.com/kubeslice/operator/internal/logger"
+	"github.com/kubeslice/operator/pkg/events"
 	ctrl "sigs.k8s.io/controller-runtime"
 )
 
@@ -45,11 +27,11 @@ var scheme = runtime.NewScheme()
 func init() {
 	log.SetLogger(logger.NewLogger())
 	clientgoscheme.AddToScheme(scheme)
-	utilruntime.Must(spokev1alpha1.AddToScheme(scheme))
-	utilruntime.Must(meshv1beta1.AddToScheme(scheme))
+	utilruntime.Must(workerv1alpha1.AddToScheme(scheme))
+	utilruntime.Must(kubeslicev1beta1.AddToScheme(scheme))
 }
 
-func Start(meshClient client.Client, ctx context.Context) {
+func Start(kubesliceClient client.Client, ctx context.Context) {
 
 	config := &rest.Config{
 		Host:            os.Getenv("HUB_HOST_ENDPOINT"),
@@ -75,18 +57,18 @@ func Start(meshClient client.Client, ctx context.Context) {
 	}
 
 	// create slice-controller recorder
-	spokeSliceEventRecorder := events.NewEventRecorder(mgr.GetEventRecorderFor("spokeSlice-controller"))
+	workerSliceEventRecorder := events.NewEventRecorder(mgr.GetEventRecorderFor("workerSlice-controller"))
 
 	sliceReconciler := &controllers.SliceReconciler{
-		MeshClient:    meshClient,
-		Log:           ctrl.Log.WithName("hub").WithName("controllers").WithName("SliceConfig"),
-		EventRecorder: spokeSliceEventRecorder,
+		KubeSliceClient: kubesliceClient,
+		Log:             ctrl.Log.WithName("hub").WithName("controllers").WithName("SliceConfig"),
+		EventRecorder:   workerSliceEventRecorder,
 	}
 	err = builder.
 		ControllerManagedBy(mgr).
-		For(&spokev1alpha1.SpokeSliceConfig{}).
+		For(&workerv1alpha1.WorkerSliceConfig{}).
 		WithEventFilter(predicate.NewPredicateFuncs(func(object client.Object) bool {
-			return object.GetLabels()["spoke-cluster"] == ClusterName
+			return object.GetLabels()["worker-cluster"] == ClusterName
 		})).
 		Complete(sliceReconciler)
 	if err != nil {
@@ -95,18 +77,18 @@ func Start(meshClient client.Client, ctx context.Context) {
 	}
 
 	// create slice-controller recorder
-	spokeSliceGatewayEventRecorder := events.NewEventRecorder(mgr.GetEventRecorderFor("spokeSliceGateway-controller"))
+	workerSliceGatewayEventRecorder := events.NewEventRecorder(mgr.GetEventRecorderFor("workerSliceGateway-controller"))
 
 	sliceGwReconciler := &controllers.SliceGwReconciler{
-		MeshClient:    meshClient,
-		EventRecorder: spokeSliceGatewayEventRecorder,
-		ClusterName:   ClusterName,
+		KubeSliceClient: kubesliceClient,
+		EventRecorder:   workerSliceGatewayEventRecorder,
+		ClusterName:     ClusterName,
 	}
 	err = builder.
 		ControllerManagedBy(mgr).
-		For(&spokev1alpha1.SpokeSliceGateway{}).
+		For(&workerv1alpha1.WorkerSliceGateway{}).
 		WithEventFilter(predicate.NewPredicateFuncs(func(object client.Object) bool {
-			return object.GetLabels()["spoke-cluster"] == ClusterName
+			return object.GetLabels()["worker-cluster"] == ClusterName
 		})).
 		Complete(sliceGwReconciler)
 	if err != nil {
@@ -114,17 +96,17 @@ func Start(meshClient client.Client, ctx context.Context) {
 		os.Exit(1)
 	}
 
-	spokeServiceImportEventRecorder := events.NewEventRecorder(mgr.GetEventRecorderFor("spokeServiceImport-controller"))
+	workerServiceImportEventRecorder := events.NewEventRecorder(mgr.GetEventRecorderFor("workerServiceImport-controller"))
 
 	serviceImportReconciler := &controllers.ServiceImportReconciler{
-		MeshClient:    meshClient,
-		EventRecorder: spokeServiceImportEventRecorder,
+		MeshClient:    kubesliceClient,
+		EventRecorder: workerServiceImportEventRecorder,
 	}
 	err = builder.
 		ControllerManagedBy(mgr).
-		For(&spokev1alpha1.SpokeServiceImport{}).
+		For(&workerv1alpha1.WorkerServiceImport{}).
 		WithEventFilter(predicate.NewPredicateFuncs(func(object client.Object) bool {
-			return object.GetLabels()["spoke-cluster"] == ClusterName
+			return object.GetLabels()["worker-cluster"] == ClusterName
 		})).
 		Complete(serviceImportReconciler)
 	if err != nil {

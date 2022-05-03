@@ -1,21 +1,3 @@
-/*
- *  Copyright (c) 2022 Avesha, Inc. All rights reserved.
- *
- *  SPDX-License-Identifier: Apache-2.0
- *
- *  Licensed under the Apache License, Version 2.0 (the "License");
- *  you may not use this file except in compliance with the License.
- *  You may obtain a copy of the License at
- *
- *  http://www.apache.org/licenses/LICENSE-2.0
- *
- *  Unless required by applicable law or agreed to in writing, software
- *  distributed under the License is distributed on an "AS IS" BASIS,
- *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *  See the License for the specific language governing permissions and
- *  limitations under the License.
- */
-
 package spoke_test
 
 import (
@@ -24,8 +6,8 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
-	meshv1beta1 "bitbucket.org/realtimeai/kubeslice-operator/api/v1beta1"
-	"bitbucket.org/realtimeai/kubeslice-operator/internal/manifest"
+	kubeslicev1beta1 "github.com/kubeslice/operator/api/v1beta1"
+	"github.com/kubeslice/operator/internal/manifest"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -72,17 +54,17 @@ var _ = Describe("IngressGateway", func() {
 			},
 		}
 
-		slice := &meshv1beta1.Slice{
+		slice := &kubeslicev1beta1.Slice{
 			TypeMeta: metav1.TypeMeta{
 				Kind:       "Slice",
-				APIVersion: "mesh.avesha.io/v1beta1",
+				APIVersion: "networking.kubeslice.io/v1beta1",
 			},
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "green",
 				Namespace: "kubeslice-system",
 				UID:       "test-uid",
 			},
-			Spec: meshv1beta1.SliceSpec{},
+			Spec: kubeslicev1beta1.SliceSpec{},
 		}
 
 		AfterEach(func() {
@@ -102,10 +84,7 @@ var _ = Describe("IngressGateway", func() {
 			// Wait until deployment is created properly
 			Eventually(func() bool {
 				err := k8sClient.Get(ctx, deployKey, createdDeploy)
-				if err != nil {
-					return false
-				}
-				return true
+				return err == nil
 			}, time.Second*10, time.Millisecond*250).Should(BeTrue())
 
 			Expect(createdDeploy.ObjectMeta.Name).To(Equal("green-istio-ingressgateway"))
@@ -114,8 +93,8 @@ var _ = Describe("IngressGateway", func() {
 			Expect(labels["slice"]).To(Equal("green"))
 
 			ann := createdDeploy.ObjectMeta.Annotations
-			Expect(ann["avesha.io/slice"]).To(Equal("green"))
-			Expect(ann["avesha.io/status"]).To(Equal("injected"))
+			Expect(ann["kubeslice.io/slice"]).To(Equal("green"))
+			Expect(ann["kubeslice.io/status"]).To(Equal("injected"))
 		})
 
 		It("Should install istio ingress gateway resources", func() {
@@ -129,10 +108,7 @@ var _ = Describe("IngressGateway", func() {
 			// Wait until deployment is created properly
 			Eventually(func() bool {
 				err := k8sClient.Get(ctx, key, svc)
-				if err != nil {
-					return false
-				}
-				return true
+				return err == nil
 			}, time.Second*10, time.Millisecond*250).Should(BeTrue())
 
 			Expect(svc.ObjectMeta.Name).To(Equal("green-istio-ingressgateway"))
@@ -145,19 +121,13 @@ var _ = Describe("IngressGateway", func() {
 			// Wait until role is created properly
 			Eventually(func() bool {
 				err := k8sClient.Get(ctx, rkey, role)
-				if err != nil {
-					return false
-				}
-				return true
+				return err == nil
 			}, time.Second*10, time.Millisecond*250).Should(BeTrue())
 
 			// Wait until rolebinding is created properly
 			Eventually(func() bool {
 				err := k8sClient.Get(ctx, rkey, rb)
-				if err != nil {
-					return false
-				}
-				return true
+				return err == nil
 			}, time.Second*10, time.Millisecond*250).Should(BeTrue())
 
 			Expect(role.ObjectMeta.Name).To(Equal("green-istio-ingressgateway-sds"))
@@ -170,10 +140,7 @@ var _ = Describe("IngressGateway", func() {
 			// Wait until sa is created properly
 			Eventually(func() bool {
 				err := k8sClient.Get(ctx, skey, sa)
-				if err != nil {
-					return false
-				}
-				return true
+				return err == nil
 			}, time.Second*10, time.Millisecond*250).Should(BeTrue())
 
 			Expect(sa.ObjectMeta.Name).To(Equal("green-istio-ingressgateway-service-account"))
@@ -191,17 +158,14 @@ var _ = Describe("IngressGateway", func() {
 			// Wait until deployment is created properly
 			Eventually(func() bool {
 				err := k8sClient.Get(ctx, deployKey, createdDeploy)
-				if err != nil {
-					return false
-				}
-				return true
+				return err == nil
 			}, time.Second*10, time.Millisecond*250).Should(BeTrue())
 
 			Expect(createdDeploy.ObjectMeta.Name).To(Equal("green-istio-ingressgateway"))
 
 			own := createdDeploy.ObjectMeta.OwnerReferences
 			Expect(len(own)).To(Equal(1))
-			Expect(own[0].APIVersion).To(Equal("mesh.avesha.io/v1beta1"))
+			Expect(own[0].APIVersion).To(Equal("networking.kubeslice.io/v1beta1"))
 			Expect(string(own[0].UID)).To(Equal("test-uid"))
 			Expect(own[0].Kind).To(Equal("Slice"))
 			Expect(own[0].Name).To(Equal("green"))
@@ -253,10 +217,7 @@ var _ = Describe("IngressGateway", func() {
 			// Wait until deployment is deleted properly
 			Eventually(func() bool {
 				err := k8sClient.Get(ctx, deployKey, deploy)
-				if err != nil {
-					return false
-				}
-				return true
+				return err == nil
 			}, time.Second*10, time.Millisecond*250).Should(BeTrue())
 
 			err = manifest.UninstallIngress(ctx, k8sClient, "green")
@@ -265,10 +226,7 @@ var _ = Describe("IngressGateway", func() {
 			// Wait until deployment is deleted properly
 			Eventually(func() bool {
 				err := k8sClient.Get(ctx, deployKey, deploy)
-				if errors.IsNotFound(err) {
-					return true
-				}
-				return false
+				return errors.IsNotFound(err)
 			}, time.Second*10, time.Millisecond*250).Should(BeTrue())
 
 		})

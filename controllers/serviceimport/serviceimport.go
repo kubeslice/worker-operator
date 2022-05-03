@@ -1,21 +1,3 @@
-/*
- *  Copyright (c) 2022 Avesha, Inc. All rights reserved.
- *
- *  SPDX-License-Identifier: Apache-2.0
- *
- *  Licensed under the Apache License, Version 2.0 (the "License");
- *  you may not use this file except in compliance with the License.
- *  You may obtain a copy of the License at
- *
- *  http://www.apache.org/licenses/LICENSE-2.0
- *
- *  Unless required by applicable law or agreed to in writing, software
- *  distributed under the License is distributed on an "AS IS" BASIS,
- *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *  See the License for the specific language governing permissions and
- *  limitations under the License.
- */
-
 package serviceimport
 
 import (
@@ -23,10 +5,10 @@ import (
 	"errors"
 	"strconv"
 
-	meshv1beta1 "bitbucket.org/realtimeai/kubeslice-operator/api/v1beta1"
-	"bitbucket.org/realtimeai/kubeslice-operator/controllers"
-	"bitbucket.org/realtimeai/kubeslice-operator/internal/dns"
-	"bitbucket.org/realtimeai/kubeslice-operator/internal/logger"
+	kubeslicev1beta1 "github.com/kubeslice/operator/api/v1beta1"
+	"github.com/kubeslice/operator/controllers"
+	"github.com/kubeslice/operator/internal/dns"
+	"github.com/kubeslice/operator/internal/logger"
 	corev1 "k8s.io/api/core/v1"
 
 	k8sapierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -36,7 +18,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 )
 
-func (r *Reconciler) reconcileDNSEntries(ctx context.Context, serviceimport *meshv1beta1.ServiceImport) (ctrl.Result, error, bool) {
+func (r *Reconciler) reconcileDNSEntries(ctx context.Context, serviceimport *kubeslicev1beta1.ServiceImport) (ctrl.Result, error, bool) {
 	log := logger.FromContext(ctx).WithValues("type", "DNS")
 	debugLog := log.V(1)
 
@@ -77,7 +59,7 @@ func (r *Reconciler) reconcileDNSEntries(ctx context.Context, serviceimport *mes
 	return ctrl.Result{}, err, false
 }
 
-func (r *Reconciler) serviceForServiceImport(serviceImport *meshv1beta1.ServiceImport) *corev1.Service {
+func (r *Reconciler) serviceForServiceImport(serviceImport *kubeslicev1beta1.ServiceImport) *corev1.Service {
 
 	ports := []corev1.ServicePort{}
 
@@ -108,7 +90,7 @@ func (r *Reconciler) serviceForServiceImport(serviceImport *meshv1beta1.ServiceI
 	return svc
 }
 
-func (r *Reconciler) DeleteDnsRecordsForServiceImport(ctx context.Context, serviceimport *meshv1beta1.ServiceImport) error {
+func (r *Reconciler) DeleteDnsRecordsForServiceImport(ctx context.Context, serviceimport *kubeslicev1beta1.ServiceImport) error {
 	log := logger.FromContext(ctx)
 	cm := &corev1.ConfigMap{}
 	err := r.Get(ctx, types.NamespacedName{
@@ -136,7 +118,7 @@ func (r *Reconciler) DeleteDnsRecordsForServiceImport(ctx context.Context, servi
 	return nil
 }
 
-func (r *Reconciler) DeleteServiceImportResources(ctx context.Context, serviceimport *meshv1beta1.ServiceImport) error {
+func (r *Reconciler) DeleteServiceImportResources(ctx context.Context, serviceimport *kubeslicev1beta1.ServiceImport) error {
 	log := logger.FromContext(ctx)
 	slice, err := controllers.GetSlice(ctx, r.Client, serviceimport.Spec.Slice)
 	if err != nil {

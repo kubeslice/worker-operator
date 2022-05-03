@@ -1,29 +1,11 @@
-/*
- *  Copyright (c) 2022 Avesha, Inc. All rights reserved.
- *
- *  SPDX-License-Identifier: Apache-2.0
- *
- *  Licensed under the Apache License, Version 2.0 (the "License");
- *  you may not use this file except in compliance with the License.
- *  You may obtain a copy of the License at
- *
- *  http://www.apache.org/licenses/LICENSE-2.0
- *
- *  Unless required by applicable law or agreed to in writing, software
- *  distributed under the License is distributed on an "AS IS" BASIS,
- *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *  See the License for the specific language governing permissions and
- *  limitations under the License.
- */
-
 package spoke_test
 
 import (
 	"time"
 
-	clusterpkg "bitbucket.org/realtimeai/kubeslice-operator/internal/cluster"
-	hub "bitbucket.org/realtimeai/kubeslice-operator/internal/hub/hubclient"
-	hubv1alpha1 "bitbucket.org/realtimeai/mesh-apis/pkg/hub/v1alpha1"
+	controllerv1alpha1 "github.com/kubeslice/apis/pkg/controller/v1alpha1"
+	clusterpkg "github.com/kubeslice/operator/internal/cluster"
+	hub "github.com/kubeslice/operator/internal/hub/hubclient"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
@@ -34,7 +16,7 @@ import (
 var _ = Describe("ClusterInfoUpdate", func() {
 	Context("With Cluster CR Created at hub cluster", func() {
 		var ns *corev1.Namespace
-		var cluster *hubv1alpha1.Cluster
+		var cluster *controllerv1alpha1.Cluster
 		var node *corev1.Node
 		var nsmconfig *corev1.ConfigMap
 		BeforeEach(func() {
@@ -64,13 +46,13 @@ var _ = Describe("ClusterInfoUpdate", func() {
 					Name: PROJECT_NS,
 				},
 			}
-			cluster = &hubv1alpha1.Cluster{
+			cluster = &controllerv1alpha1.Cluster{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "cluster-1",
 					Namespace: PROJECT_NS,
 				},
-				Spec:   hubv1alpha1.ClusterSpec{},
-				Status: hubv1alpha1.ClusterStatus{},
+				Spec:   controllerv1alpha1.ClusterSpec{},
+				Status: controllerv1alpha1.ClusterStatus{},
 			}
 			nsmconfig = configMap("nsm-config", "kubeslice-system", `
 prefixes:
@@ -95,10 +77,7 @@ prefixes:
 			//get the cluster object
 			Eventually(func() bool {
 				err := k8sClient.Get(ctx, types.NamespacedName{Name: cluster.Name, Namespace: cluster.Namespace}, cluster)
-				if err != nil {
-					return false
-				}
-				return true
+				return err == nil
 			}, time.Second*10, time.Millisecond*250).Should(BeTrue())
 
 			Expect(cluster.Spec.NodeIP).Should(Equal("35.235.10.1"))

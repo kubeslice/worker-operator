@@ -1,28 +1,10 @@
-/*
- *  Copyright (c) 2022 Avesha, Inc. All rights reserved.
- *
- *  SPDX-License-Identifier: Apache-2.0
- *
- *  Licensed under the Apache License, Version 2.0 (the "License");
- *  you may not use this file except in compliance with the License.
- *  You may obtain a copy of the License at
- *
- *  http://www.apache.org/licenses/LICENSE-2.0
- *
- *  Unless required by applicable law or agreed to in writing, software
- *  distributed under the License is distributed on an "AS IS" BASIS,
- *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *  See the License for the specific language governing permissions and
- *  limitations under the License.
- */
-
 package serviceimport
 
 import (
 	"context"
 
-	meshv1beta1 "bitbucket.org/realtimeai/kubeslice-operator/api/v1beta1"
-	"bitbucket.org/realtimeai/kubeslice-operator/internal/logger"
+	kubeslicev1beta1 "github.com/kubeslice/operator/api/v1beta1"
+	"github.com/kubeslice/operator/internal/logger"
 	networkingv1beta1 "istio.io/api/networking/v1beta1"
 	istiov1beta1 "istio.io/client-go/pkg/apis/networking/v1beta1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -30,7 +12,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 )
 
-func (r *Reconciler) ReconcileVirtualServiceNonEgress(ctx context.Context, serviceimport *meshv1beta1.ServiceImport) (ctrl.Result, error, bool) {
+func (r *Reconciler) ReconcileVirtualServiceNonEgress(ctx context.Context, serviceimport *kubeslicev1beta1.ServiceImport) (ctrl.Result, error, bool) {
 	log := logger.FromContext(ctx).WithValues("type", "Istio VS non-egress")
 	debugLog := log.V(1)
 
@@ -72,7 +54,7 @@ func (r *Reconciler) ReconcileVirtualServiceNonEgress(ctx context.Context, servi
 
 	if hasVirtualServiceRoutesChanged(vs, serviceimport) {
 		log.Info("virtualService routes changed, updating")
-		if getServiceProtocol(serviceimport) == meshv1beta1.ServiceProtocolHTTP {
+		if getServiceProtocol(serviceimport) == kubeslicev1beta1.ServiceProtocolHTTP {
 			httpRoutes := getVirtualServiceHTTPRoutes(serviceimport)
 			debugLog.Info("new routes", "http", httpRoutes)
 			vs.Spec.Http = []*networkingv1beta1.HTTPRoute{{
@@ -97,7 +79,7 @@ func (r *Reconciler) ReconcileVirtualServiceNonEgress(ctx context.Context, servi
 	return ctrl.Result{}, nil, false
 }
 
-func (r *Reconciler) virtualServiceNonEgress(serviceImport *meshv1beta1.ServiceImport) *istiov1beta1.VirtualService {
+func (r *Reconciler) virtualServiceNonEgress(serviceImport *kubeslicev1beta1.ServiceImport) *istiov1beta1.VirtualService {
 
 	vs := &istiov1beta1.VirtualService{
 		ObjectMeta: metav1.ObjectMeta{
@@ -113,7 +95,7 @@ func (r *Reconciler) virtualServiceNonEgress(serviceImport *meshv1beta1.ServiceI
 		},
 	}
 
-	if getServiceProtocol(serviceImport) == meshv1beta1.ServiceProtocolHTTP {
+	if getServiceProtocol(serviceImport) == kubeslicev1beta1.ServiceProtocolHTTP {
 		vs.Spec.Http = []*networkingv1beta1.HTTPRoute{{
 			Route: getVirtualServiceHTTPRoutes(serviceImport),
 		}}

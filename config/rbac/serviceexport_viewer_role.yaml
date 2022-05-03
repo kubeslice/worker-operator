@@ -5,7 +5,7 @@ metadata:
   name: serviceexport-viewer-role
 rules:
 - apiGroups:
-  - mesh.avesha.io
+  - servicediscovery.kubeslice.io
   resources:
   - serviceexports
   verbs:
@@ -13,7 +13,7 @@ rules:
   - list
   - watch
 - apiGroups:
-  - mesh.avesha.io
+  - servicediscovery.kubeslice.io
   resources:
   - serviceexports/status
   verbs:

@@ -1,20 +1,18 @@
 /*
- *  Copyright (c) 2022 Avesha, Inc. All rights reserved.
- *
- *  SPDX-License-Identifier: Apache-2.0
- *
- *  Licensed under the Apache License, Version 2.0 (the "License");
- *  you may not use this file except in compliance with the License.
- *  You may obtain a copy of the License at
- *
- *  http://www.apache.org/licenses/LICENSE-2.0
- *
- *  Unless required by applicable law or agreed to in writing, software
- *  distributed under the License is distributed on an "AS IS" BASIS,
- *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *  See the License for the specific language governing permissions and
- *  limitations under the License.
- */
+Copyright 2022.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
 
 package main
 
@@ -22,8 +20,8 @@ import (
 	"flag"
 	"os"
 
-	"bitbucket.org/realtimeai/kubeslice-operator/internal/cluster"
-	"bitbucket.org/realtimeai/kubeslice-operator/pkg/events"
+	"github.com/kubeslice/operator/internal/cluster"
+	"github.com/kubeslice/operator/pkg/events"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
@@ -41,16 +39,16 @@ import (
 	nsmv1alpha1 "github.com/networkservicemesh/networkservicemesh/k8s/pkg/apis/networkservice/v1alpha1"
 	istiov1beta1 "istio.io/client-go/pkg/apis/networking/v1beta1"
 
-	meshv1beta1 "bitbucket.org/realtimeai/kubeslice-operator/api/v1beta1"
-	"bitbucket.org/realtimeai/kubeslice-operator/controllers/serviceexport"
-	"bitbucket.org/realtimeai/kubeslice-operator/controllers/serviceimport"
-	"bitbucket.org/realtimeai/kubeslice-operator/controllers/slice"
-	"bitbucket.org/realtimeai/kubeslice-operator/controllers/slicegateway"
-	hub "bitbucket.org/realtimeai/kubeslice-operator/internal/hub/hubclient"
-	"bitbucket.org/realtimeai/kubeslice-operator/internal/hub/manager"
-	"bitbucket.org/realtimeai/kubeslice-operator/internal/logger"
-	"bitbucket.org/realtimeai/kubeslice-operator/internal/utils"
-	deploywh "bitbucket.org/realtimeai/kubeslice-operator/internal/webhook/deploy"
+	kubeslicev1beta "github.com/kubeslice/operator/api/v1beta1"
+	"github.com/kubeslice/operator/controllers/serviceexport"
+	"github.com/kubeslice/operator/controllers/serviceimport"
+	"github.com/kubeslice/operator/controllers/slice"
+	"github.com/kubeslice/operator/controllers/slicegateway"
+	hub "github.com/kubeslice/operator/internal/hub/hubclient"
+	"github.com/kubeslice/operator/internal/hub/manager"
+	"github.com/kubeslice/operator/internal/logger"
+	"github.com/kubeslice/operator/internal/utils"
+	deploywh "github.com/kubeslice/operator/internal/webhook/deploy"
 	//+kubebuilder:scaffold:imports
 )
 
@@ -63,7 +61,7 @@ func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 	utilruntime.Must(nsmv1alpha1.AddToScheme(scheme))
 	utilruntime.Must(istiov1beta1.AddToScheme(scheme))
-	utilruntime.Must(meshv1beta1.AddToScheme(scheme))
+	utilruntime.Must(kubeslicev1beta.AddToScheme(scheme))
 	utilruntime.Must(istiov1beta1.AddToScheme(scheme))
 	//+kubebuilder:scaffold:scheme
 }
@@ -91,7 +89,7 @@ func main() {
 		Port:                   9443,
 		HealthProbeBindAddress: probeAddr,
 		LeaderElection:         enableLeaderElection,
-		LeaderElectionID:       "f7425d89.avesha.io",
+		LeaderElectionID:       "f7425d89.kubeslice.io",
 		CertDir:                utils.GetEnvOrDefault("WEBHOOK_CERTS_DIR", "/etc/webhook/certs"),
 	})
 

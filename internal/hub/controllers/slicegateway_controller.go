@@ -1,21 +1,3 @@
-/*
- *  Copyright (c) 2022 Avesha, Inc. All rights reserved.
- *
- *  SPDX-License-Identifier: Apache-2.0
- *
- *  Licensed under the Apache License, Version 2.0 (the "License");
- *  you may not use this file except in compliance with the License.
- *  You may obtain a copy of the License at
- *
- *  http://www.apache.org/licenses/LICENSE-2.0
- *
- *  Unless required by applicable law or agreed to in writing, software
- *  distributed under the License is distributed on an "AS IS" BASIS,
- *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *  See the License for the specific language governing permissions and
- *  limitations under the License.
- */
-
 package controllers
 
 import (
@@ -23,10 +5,10 @@ import (
 	"strconv"
 	"time"
 
-	meshv1beta1 "bitbucket.org/realtimeai/kubeslice-operator/api/v1beta1"
-	"bitbucket.org/realtimeai/kubeslice-operator/internal/logger"
-	"bitbucket.org/realtimeai/kubeslice-operator/pkg/events"
-	spokev1alpha1 "bitbucket.org/realtimeai/mesh-apis/pkg/spoke/v1alpha1"
+	workerv1alpha1 "github.com/kubeslice/apis/pkg/worker/v1alpha1"
+	kubeslicev1beta1 "github.com/kubeslice/operator/api/v1beta1"
+	"github.com/kubeslice/operator/internal/logger"
+	"github.com/kubeslice/operator/pkg/events"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -38,15 +20,15 @@ import (
 
 type SliceGwReconciler struct {
 	client.Client
-	MeshClient    client.Client
-	EventRecorder *events.EventRecorder
-	ClusterName   string
+	KubeSliceClient client.Client
+	EventRecorder   *events.EventRecorder
+	ClusterName     string
 }
 
 func (r *SliceGwReconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
 	log := logger.FromContext(ctx)
 
-	sliceGw := &spokev1alpha1.SpokeSliceGateway{}
+	sliceGw := &workerv1alpha1.WorkerSliceGateway{}
 	err := r.Get(ctx, req.NamespacedName, sliceGw)
 	if err != nil {
 		if errors.IsNotFound(err) {
@@ -66,11 +48,11 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req reconcile.Request
 		return reconcile.Result{}, nil
 	}
 
-	meshSliceGwCerts := &corev1.Secret{}
-	err = r.MeshClient.Get(ctx, types.NamespacedName{
+	kubeSliceGwCerts := &corev1.Secret{}
+	err = r.KubeSliceClient.Get(ctx, types.NamespacedName{
 		Name:      sliceGw.Name,
 		Namespace: ControlPlaneNamespace,
-	}, meshSliceGwCerts)
+	}, kubeSliceGwCerts)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			sliceGwCerts := &corev1.Secret{}
@@ -81,14 +63,14 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req reconcile.Request
 					RequeueAfter: 10 * time.Second,
 				}, nil
 			}
-			meshSliceGwCerts := &corev1.Secret{
+			kubeSliceGwCerts := &corev1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      sliceGw.Name,
 					Namespace: ControlPlaneNamespace,
 				},
 				Data: sliceGwCerts.Data,
 			}
-			err = r.MeshClient.Create(ctx, meshSliceGwCerts)
+			err = r.KubeSliceClient.Create(ctx, kubeSliceGwCerts)
 			if err != nil {
 				log.Error(err, "unable to create secret to store slicegw certs in spoke cluster", "sliceGw", sliceGw.Name)
 				r.EventRecorder.Record(
@@ -111,40 +93,40 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req reconcile.Request
 	sliceGwName := sliceGw.Name
 	sliceName := sliceGw.Spec.SliceName
 
-	meshSliceGw := &meshv1beta1.SliceGateway{}
+	kubeSliceGw := &kubeslicev1beta1.SliceGateway{}
 
 	sliceGwRef := client.ObjectKey{
 		Name:      sliceGwName,
 		Namespace: ControlPlaneNamespace,
 	}
 
-	err = r.MeshClient.Get(ctx, sliceGwRef, meshSliceGw)
+	err = r.KubeSliceClient.Get(ctx, sliceGwRef, kubeSliceGw)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			// Request object not found, create it in the spoke cluster
 			log.Info("SliceGw resource not found in spoke cluster, creating")
-			meshSliceGw = &meshv1beta1.SliceGateway{
+			kubeSliceGw = &kubeslicev1beta1.SliceGateway{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      sliceGwName,
 					Namespace: ControlPlaneNamespace,
 				},
-				Spec: meshv1beta1.SliceGatewaySpec{
+				Spec: kubeslicev1beta1.SliceGatewaySpec{
 					SliceName: sliceName,
 				},
 			}
 			//get the slice object and set it as ownerReference
 			sliceKey := types.NamespacedName{Namespace: ControlPlaneNamespace, Name: sliceGw.Spec.SliceName}
-			sliceOnSpoke := &meshv1beta1.Slice{}
-			if err := r.MeshClient.Get(ctx, sliceKey, sliceOnSpoke); err != nil {
+			sliceOnSpoke := &kubeslicev1beta1.Slice{}
+			if err := r.KubeSliceClient.Get(ctx, sliceKey, sliceOnSpoke); err != nil {
 				log.Error(err, "Failed to get Slice CR")
 				return reconcile.Result{}, err
 			}
-			if err := controllerutil.SetControllerReference(sliceOnSpoke, meshSliceGw, r.MeshClient.Scheme()); err != nil {
+			if err := controllerutil.SetControllerReference(sliceOnSpoke, kubeSliceGw, r.KubeSliceClient.Scheme()); err != nil {
 				log.Error(err, "Failed to set slice as owner of slicegw")
 				return reconcile.Result{}, err
 			}
-			//finally create the meshSliceGw object
-			err = r.MeshClient.Create(ctx, meshSliceGw)
+			//finally create the kubeSliceGw object
+			err = r.KubeSliceClient.Create(ctx, kubeSliceGw)
 			if err != nil {
 				log.Error(err, "unable to create sliceGw in spoke cluster", "sliceGw", sliceGwName)
 				r.EventRecorder.Record(
@@ -158,7 +140,7 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req reconcile.Request
 				return reconcile.Result{}, err
 			}
 			log.Info("sliceGw created in spoke cluster", "sliceGw", sliceGwName)
-			//post event to the spokeslicegateway
+			//post event to the workerslicegateway
 			r.EventRecorder.Record(
 				&events.Event{
 					Object:    sliceGw,
@@ -183,7 +165,7 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req reconcile.Request
 		}
 	}
 
-	meshSliceGw.Status.Config = meshv1beta1.SliceGatewayConfig{
+	kubeSliceGw.Status.Config = kubeslicev1beta1.SliceGatewayConfig{
 		SliceName:                   sliceGw.Spec.SliceName,
 		SliceGatewayID:              sliceGw.Spec.LocalGatewayConfig.GatewayName,
 		SliceGatewaySubnet:          sliceGw.Spec.LocalGatewayConfig.GatewaySubnet,
@@ -197,7 +179,7 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req reconcile.Request
 		SliceGatewayRemoteVpnIP:     sliceGw.Spec.RemoteGatewayConfig.VpnIp,
 		SliceGatewayName:            strconv.Itoa(sliceGw.Spec.GatewayNumber),
 	}
-	err = r.MeshClient.Status().Update(ctx, meshSliceGw)
+	err = r.KubeSliceClient.Status().Update(ctx, kubeSliceGw)
 	if err != nil {
 		log.Error(err, "unable to update sliceGw status in spoke cluster", "sliceGw", sliceGwName)
 		return reconcile.Result{}, err

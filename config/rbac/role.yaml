@@ -93,78 +93,6 @@ rules:
   - update
   - watch
 - apiGroups:
-  - mesh.avesha.io
-  resources:
-  - serviceexports
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - mesh.avesha.io
-  resources:
-  - serviceexports/finalizers
-  verbs:
-  - update
-- apiGroups:
-  - mesh.avesha.io
-  resources:
-  - serviceexports/status
-  verbs:
-  - get
-  - patch
-  - update
-- apiGroups:
-  - mesh.avesha.io
-  resources:
-  - serviceimports
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - mesh.avesha.io
-  resources:
-  - serviceimports/status
-  verbs:
-  - get
-  - patch
-  - update
-- apiGroups:
-  - mesh.avesha.io
-  resources:
-  - slice
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - mesh.avesha.io
-  resources:
-  - slice/finalizers
-  verbs:
-  - update
-- apiGroups:
-  - mesh.avesha.io
-  resources:
-  - slice/status
-  verbs:
-  - get
-  - patch
-  - update
-- apiGroups:
   - networking.istio.io
   resources:
   - gateways
@@ -198,6 +126,32 @@ rules:
   - update
   - watch
 - apiGroups:
+  - networking.kubeslice.io
+  resources:
+  - slice
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - networking.kubeslice.io
+  resources:
+  - slice/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - networking.kubeslice.io
+  resources:
+  - slice/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
   - rbac.authorization.k8s.io
   resources:
   - rolebindings
@@ -221,3 +175,49 @@ rules:
   - patch
   - update
   - watch
+- apiGroups:
+  - servicediscovery.kubeslice.io
+  resources:
+  - serviceexports
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - servicediscovery.kubeslice.io
+  resources:
+  - serviceexports/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - servicediscovery.kubeslice.io
+  resources:
+  - serviceexports/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - servicediscovery.kubeslice.io
+  resources:
+  - serviceimports
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - servicediscovery.kubeslice.io
+  resources:
+  - serviceimports/status
+  verbs:
+  - get
+  - patch
+  - update

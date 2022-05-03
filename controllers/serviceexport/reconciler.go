@@ -1,21 +1,3 @@
-/*
- *  Copyright (c) 2022 Avesha, Inc. All rights reserved.
- *
- *  SPDX-License-Identifier: Apache-2.0
- *
- *  Licensed under the Apache License, Version 2.0 (the "License");
- *  you may not use this file except in compliance with the License.
- *  You may obtain a copy of the License at
- *
- *  http://www.apache.org/licenses/LICENSE-2.0
- *
- *  Unless required by applicable law or agreed to in writing, software
- *  distributed under the License is distributed on an "AS IS" BASIS,
- *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *  See the License for the specific language governing permissions and
- *  limitations under the License.
- */
-
 package serviceexport
 
 import (
@@ -29,10 +11,10 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	meshv1beta1 "bitbucket.org/realtimeai/kubeslice-operator/api/v1beta1"
-	"bitbucket.org/realtimeai/kubeslice-operator/controllers"
-	"bitbucket.org/realtimeai/kubeslice-operator/internal/logger"
-	"bitbucket.org/realtimeai/kubeslice-operator/pkg/events"
+	kubeslicev1beta1 "github.com/kubeslice/operator/api/v1beta1"
+	"github.com/kubeslice/operator/controllers"
+	"github.com/kubeslice/operator/internal/logger"
+	"github.com/kubeslice/operator/pkg/events"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
@@ -46,23 +28,23 @@ type Reconciler struct {
 }
 
 type HubClientProvider interface {
-	UpdateServiceExport(ctx context.Context, serviceexport *meshv1beta1.ServiceExport) error
-	UpdateServiceExportEndpointForIngressGw(ctx context.Context, serviceexport *meshv1beta1.ServiceExport, ep *meshv1beta1.ServicePod) error
-	DeleteServiceExport(ctx context.Context, serviceexport *meshv1beta1.ServiceExport) error
+	UpdateServiceExport(ctx context.Context, serviceexport *kubeslicev1beta1.ServiceExport) error
+	UpdateServiceExportEndpointForIngressGw(ctx context.Context, serviceexport *kubeslicev1beta1.ServiceExport, ep *kubeslicev1beta1.ServicePod) error
+	DeleteServiceExport(ctx context.Context, serviceexport *kubeslicev1beta1.ServiceExport) error
 }
 
-var finalizerName = "mesh.avesha.io/serviceexport-finalizer"
+var finalizerName = "servicediscovery.kubeslice.io/serviceexport-finalizer"
 
-// +kubebuilder:rbac:groups=mesh.avesha.io,resources=serviceexports,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=mesh.avesha.io,resources=serviceexports/status,verbs=get;update;patch
-// +kubebuilder:rbac:groups=mesh.avesha.io,resources=serviceexports/finalizers,verbs=update
+// +kubebuilder:rbac:groups=servicediscovery.kubeslice.io,resources=serviceexports,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=servicediscovery.kubeslice.io,resources=serviceexports/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=servicediscovery.kubeslice.io,resources=serviceexports/finalizers,verbs=update
 // +kubebuilder:rbac:groups=core,resources=pods,verbs=get;list;watch
 
 // Reconcile reconciles serviceexport
 func (r Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := r.Log.WithValues("serviceexport", req.NamespacedName)
 
-	serviceexport := &meshv1beta1.ServiceExport{}
+	serviceexport := &kubeslicev1beta1.ServiceExport{}
 	err := r.Get(ctx, req.NamespacedName, serviceexport)
 	if err != nil {
 		if errors.IsNotFound(err) {
@@ -135,9 +117,9 @@ func (r Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resul
 	}
 
 	// Reconciler running for the first time. Set the initial status here
-	if serviceexport.Status.ExportStatus == meshv1beta1.ExportStatusInitial {
+	if serviceexport.Status.ExportStatus == kubeslicev1beta1.ExportStatusInitial {
 		serviceexport.Status.DNSName = serviceexport.Name + "." + serviceexport.Namespace + ".svc.slice.local"
-		serviceexport.Status.ExportStatus = meshv1beta1.ExportStatusPending
+		serviceexport.Status.ExportStatus = kubeslicev1beta1.ExportStatusPending
 		serviceexport.Status.ExposedPorts = portListToDisplayString(serviceexport.Spec.Ports)
 		err = r.Status().Update(ctx, serviceexport)
 		if err != nil {
@@ -188,7 +170,7 @@ func (r Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resul
 		}
 
 		if ingressGwPod != nil {
-			ep := &meshv1beta1.ServicePod{
+			ep := &kubeslicev1beta1.ServicePod{
 				Name:  fmt.Sprintf("%s-%s-ingress", serviceexport.Name, serviceexport.ObjectMeta.Namespace),
 				NsmIP: ingressGwPod.NsmIP,
 				DNSName: fmt.Sprintf("%s-ingress.%s.%s.svc.slice.local",
@@ -200,7 +182,7 @@ func (r Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resul
 		}
 		if err != nil {
 			log.Error(err, "Failed to post serviceexport")
-			serviceexport.Status.ExportStatus = meshv1beta1.ExportStatusError
+			serviceexport.Status.ExportStatus = kubeslicev1beta1.ExportStatusError
 			r.Status().Update(ctx, serviceexport)
 			//post event to service export
 			r.EventRecorder.Record(
@@ -239,8 +221,8 @@ func (r Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resul
 	}
 
 	// Set export status to ready when reconciliation is complete
-	if serviceexport.Status.ExportStatus != meshv1beta1.ExportStatusReady {
-		serviceexport.Status.ExportStatus = meshv1beta1.ExportStatusReady
+	if serviceexport.Status.ExportStatus != kubeslicev1beta1.ExportStatusReady {
+		serviceexport.Status.ExportStatus = kubeslicev1beta1.ExportStatusReady
 		err = r.Status().Update(ctx, serviceexport)
 		if err != nil {
 			log.Error(err, "Failed to update serviceexport export status")
@@ -256,6 +238,6 @@ func (r Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resul
 // SetupWithManager setus up reconciler with manager
 func (r *Reconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&meshv1beta1.ServiceExport{}).
+		For(&kubeslicev1beta1.ServiceExport{}).
 		Complete(r)
 }

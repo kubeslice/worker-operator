@@ -1,28 +1,10 @@
-/*
- *  Copyright (c) 2022 Avesha, Inc. All rights reserved.
- *
- *  SPDX-License-Identifier: Apache-2.0
- *
- *  Licensed under the Apache License, Version 2.0 (the "License");
- *  you may not use this file except in compliance with the License.
- *  You may obtain a copy of the License at
- *
- *  http://www.apache.org/licenses/LICENSE-2.0
- *
- *  Unless required by applicable law or agreed to in writing, software
- *  distributed under the License is distributed on an "AS IS" BASIS,
- *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *  See the License for the specific language governing permissions and
- *  limitations under the License.
- */
-
 package spoke_test
 
 import (
 	"context"
 	"time"
 
-	meshv1beta1 "bitbucket.org/realtimeai/kubeslice-operator/api/v1beta1"
+	kubeslicev1beta1 "github.com/kubeslice/operator/api/v1beta1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
@@ -34,24 +16,24 @@ import (
 var _ = Describe("ServiceImportController", func() {
 
 	Context("With a service import CR object installed, verify service import CR is reconciled", func() {
-		var slice *meshv1beta1.Slice
+		var slice *kubeslicev1beta1.Slice
 		var dnssvc *corev1.Service
 		var dnscm *corev1.ConfigMap
-		var svcim *meshv1beta1.ServiceImport
-		var createdSlice *meshv1beta1.Slice
+		var svcim *kubeslicev1beta1.ServiceImport
+		var createdSlice *kubeslicev1beta1.Slice
 		BeforeEach(func() {
-			// Prepare k8s objects for slice and mesh-dns service
-			slice = &meshv1beta1.Slice{
+			// Prepare k8s objects for slice and kubeslice-dns service
+			slice = &kubeslicev1beta1.Slice{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "test-slice-2",
 					Namespace: "kubeslice-system",
 				},
-				Spec: meshv1beta1.SliceSpec{},
+				Spec: kubeslicev1beta1.SliceSpec{},
 			}
 
 			dnssvc = &corev1.Service{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "mesh-dns",
+					Name:      "kubeslice-dns",
 					Namespace: "kubeslice-system",
 				},
 				Spec: corev1.ServiceSpec{
@@ -64,25 +46,25 @@ var _ = Describe("ServiceImportController", func() {
 
 			dnscm = &corev1.ConfigMap{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "mesh-dns",
+					Name:      "kubeslice-dns",
 					Namespace: "kubeslice-system",
 				},
 				Data: map[string]string{"slice.db": ""},
 			}
 
-			// Prepare k8s objects for slice and mesh-dns service
-			svcim = &meshv1beta1.ServiceImport{
+			// Prepare k8s objects for slice and kubeslice-dns service
+			svcim = &kubeslicev1beta1.ServiceImport{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "iperf-server",
 					Namespace: "default",
 				},
-				Spec: meshv1beta1.ServiceImportSpec{
+				Spec: kubeslicev1beta1.ServiceImportSpec{
 					Slice:   "test-slice-2",
 					DNSName: "iperf-server.iperf.svc.slice.local",
 					Ports:   getTestServiceExportPorts(),
 				},
 			}
-			createdSlice = &meshv1beta1.Slice{}
+			createdSlice = &kubeslicev1beta1.Slice{}
 
 			// Cleanup after each test
 			DeferCleanup(func() {
@@ -109,13 +91,13 @@ var _ = Describe("ServiceImportController", func() {
 				if err != nil {
 					return err
 				}
-				createdSlice.Status.SliceConfig = &meshv1beta1.SliceConfig{}
+				createdSlice.Status.SliceConfig = &kubeslicev1beta1.SliceConfig{}
 				return k8sClient.Status().Update(ctx, createdSlice)
 			})
 			Expect(err).To(BeNil())
 
 			svcKey := types.NamespacedName{Name: "iperf-server", Namespace: "default"}
-			createdSvcIm := &meshv1beta1.ServiceImport{}
+			createdSvcIm := &kubeslicev1beta1.ServiceImport{}
 
 			Eventually(func() bool {
 				err := k8sClient.Get(ctx, svcKey, createdSvcIm)
@@ -125,7 +107,7 @@ var _ = Describe("ServiceImportController", func() {
 				if createdSvcIm.Status.ExposedPorts != "80/TCP" {
 					return false
 				}
-				if createdSvcIm.Status.ImportStatus != meshv1beta1.ImportStatusReady {
+				if createdSvcIm.Status.ImportStatus != kubeslicev1beta1.ImportStatusReady {
 					return false
 				}
 				return true

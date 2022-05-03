@@ -1,29 +1,11 @@
-/*
- *  Copyright (c) 2022 Avesha, Inc. All rights reserved.
- *
- *  SPDX-License-Identifier: Apache-2.0
- *
- *  Licensed under the Apache License, Version 2.0 (the "License");
- *  you may not use this file except in compliance with the License.
- *  You may obtain a copy of the License at
- *
- *  http://www.apache.org/licenses/LICENSE-2.0
- *
- *  Unless required by applicable law or agreed to in writing, software
- *  distributed under the License is distributed on an "AS IS" BASIS,
- *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *  See the License for the specific language governing permissions and
- *  limitations under the License.
- */
-
 package serviceexport
 
 import (
 	"context"
 
-	meshv1beta1 "bitbucket.org/realtimeai/kubeslice-operator/api/v1beta1"
-	"bitbucket.org/realtimeai/kubeslice-operator/controllers"
-	"bitbucket.org/realtimeai/kubeslice-operator/internal/logger"
+	kubeslicev1beta1 "github.com/kubeslice/operator/api/v1beta1"
+	"github.com/kubeslice/operator/controllers"
+	"github.com/kubeslice/operator/internal/logger"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -32,7 +14,7 @@ import (
 
 // ReconcileAppPod reconciles serviceexport app pods
 func (r *Reconciler) ReconcileAppPod(
-	ctx context.Context, serviceexport *meshv1beta1.ServiceExport) (ctrl.Result, error, bool) {
+	ctx context.Context, serviceexport *kubeslicev1beta1.ServiceExport) (ctrl.Result, error, bool) {
 	log := logger.FromContext(ctx).WithValues("type", "app pod")
 	debugLog := log.V(1)
 
@@ -47,8 +29,8 @@ func (r *Reconciler) ReconcileAppPod(
 		return ctrl.Result{}, nil, false
 	}
 	serviceexport.Status.Pods = appPods
-	serviceexport.Status.LastSync = 0                                   // Force sync to hub in next loop
-	serviceexport.Status.ExportStatus = meshv1beta1.ExportStatusPending // Set status to pending
+	serviceexport.Status.LastSync = 0                                        // Force sync to hub in next loop
+	serviceexport.Status.ExportStatus = kubeslicev1beta1.ExportStatusPending // Set status to pending
 	serviceexport.Status.AvailableEndpoints = len(appPods)
 
 	log.Info("updating service app pods")
@@ -62,7 +44,7 @@ func (r *Reconciler) ReconcileAppPod(
 	return ctrl.Result{Requeue: true}, nil, true
 }
 
-func (r *Reconciler) getAppPods(ctx context.Context, serviceexport *meshv1beta1.ServiceExport) ([]meshv1beta1.ServicePod, error) {
+func (r *Reconciler) getAppPods(ctx context.Context, serviceexport *kubeslicev1beta1.ServiceExport) ([]kubeslicev1beta1.ServicePod, error) {
 	log := logger.FromContext(ctx).WithValues("type", "app pod")
 	debugLog := log.V(1)
 
@@ -79,7 +61,7 @@ func (r *Reconciler) getAppPods(ctx context.Context, serviceexport *meshv1beta1.
 
 	debugLog.Info("pods matching labels", "count", len(podList.Items))
 
-	appPods := []meshv1beta1.ServicePod{}
+	appPods := []kubeslicev1beta1.ServicePod{}
 	appPodsInSlice, err := getAppPodsInSlice(ctx, r.Client, serviceexport.Spec.Slice)
 	if err != nil {
 		log.Error(err, "Unable to fetch app pods in slice")
@@ -91,7 +73,7 @@ func (r *Reconciler) getAppPods(ctx context.Context, serviceexport *meshv1beta1.
 		if pod.Status.Phase == corev1.PodRunning {
 			dnsName := pod.Name + "." + getClusterName() + "." + serviceexport.Name + "." + serviceexport.Namespace + ".svc.slice.local"
 			ip := getNsmIP(&pod, appPodsInSlice)
-			appPods = append(appPods, meshv1beta1.ServicePod{
+			appPods = append(appPods, kubeslicev1beta1.ServicePod{
 				Name:    pod.Name,
 				NsmIP:   ip,
 				PodIp:   pod.Status.PodIP,
@@ -103,7 +85,7 @@ func (r *Reconciler) getAppPods(ctx context.Context, serviceexport *meshv1beta1.
 	return appPods, nil
 }
 
-func (r *Reconciler) DeleteServiceExportResources(ctx context.Context, serviceexport *meshv1beta1.ServiceExport) error {
+func (r *Reconciler) DeleteServiceExportResources(ctx context.Context, serviceexport *kubeslicev1beta1.ServiceExport) error {
 	log := logger.FromContext(ctx)
 	slice, err := controllers.GetSlice(ctx, r.Client, serviceexport.Spec.Slice)
 	if err != nil {

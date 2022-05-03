@@ -11,9 +11,9 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.7.0
   creationTimestamp: null
-  name: serviceexports.mesh.avesha.io
+  name: serviceexports.servicediscovery.kubeslice.io
 spec:
-  group: mesh.avesha.io
+  group: servicediscovery.kubeslice.io
   names:
     kind: ServiceExport
     listKind: ServiceExportList
@@ -63,8 +63,8 @@ spec:
                 description: IngressEnabled denotes whether the traffic should be
                   proxied through an ingress gateway
                 type: boolean
-              meshType:
-                description: MeshType denotes the type of service mesh the app pods
+              controllerType:
+                description: controllerType denotes the type of service mesh the app pods
                   are part of
                 type: string
               ports:
@@ -204,9 +204,9 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.7.0
   creationTimestamp: null
-  name: serviceimports.mesh.avesha.io
+  name: serviceimports.servicediscovery.kubeslice.io
 spec:
-  group: mesh.avesha.io
+  group: servicediscovery.kubeslice.io
   names:
     kind: ServiceImport
     listKind: ServiceImportList
@@ -350,9 +350,9 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.7.0
   creationTimestamp: null
-  name: slice.mesh.avesha.io
+  name: slice.networking.kubeslice.io
 spec:
-  group: mesh.avesha.io
+  group: networking.kubeslice.io
   names:
     kind: Slice
     listKind: SliceList
@@ -514,9 +514,9 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.7.0
   creationTimestamp: null
-  name: slicegateways.mesh.avesha.io
+  name: slicegateways.networking.kubeslice.io
 spec:
-  group: mesh.avesha.io
+  group: networking.kubeslice.io
   names:
     kind: SliceGateway
     listKind: SliceGatewayList
@@ -821,7 +821,7 @@ rules:
   - update
   - watch
 - apiGroups:
-  - mesh.avesha.io
+  - servicediscovery.kubeslice.io
   resources:
   - serviceexports
   verbs:
@@ -833,13 +833,13 @@ rules:
   - update
   - watch
 - apiGroups:
-  - mesh.avesha.io
+  - servicediscovery.kubeslice.io
   resources:
   - serviceexports/finalizers
   verbs:
   - update
 - apiGroups:
-  - mesh.avesha.io
+  - servicediscovery.kubeslice.io
   resources:
   - serviceexports/status
   verbs:
@@ -847,7 +847,7 @@ rules:
   - patch
   - update
 - apiGroups:
-  - mesh.avesha.io
+  - servicediscovery.kubeslice.io
   resources:
   - serviceimports
   verbs:
@@ -859,7 +859,7 @@ rules:
   - update
   - watch
 - apiGroups:
-  - mesh.avesha.io
+  - servicediscovery.kubeslice.io
   resources:
   - serviceimports/status
   verbs:
@@ -867,13 +867,13 @@ rules:
   - patch
   - update
 - apiGroups:
-  - mesh.avesha.io
+  - servicediscovery.kubeslice.io
   resources:
   - serviceimports/finalizers
   verbs:
   - update
 - apiGroups:
-  - mesh.avesha.io
+  - networking.kubeslice.io
   resources:
   - slice
   verbs:
@@ -885,13 +885,13 @@ rules:
   - update
   - watch
 - apiGroups:
-  - mesh.avesha.io
+  - networking.kubeslice.io
   resources:
   - slice/finalizers
   verbs:
   - update
 - apiGroups:
-  - mesh.avesha.io
+  - networking.kubeslice.io
   resources:
   - slice/status
   verbs:
@@ -1037,7 +1037,7 @@ data:
       port: 9443
     leaderElection:
       leaderElect: true
-      resourceName: f7425d89.avesha.io
+      resourceName: f7425d89.kubeslice.io
 kind: ConfigMap
 metadata:
   name: kubeslice-manager-config
@@ -1195,7 +1195,7 @@ webhooks:
       namespace: system
       path: /mutate-appsv1-deploy
   failurePolicy: Fail
-  name: mdeploy.avesha.io
+  name: mdeploy.kubeslice.io
   rules:
   - apiGroups:
     - apps

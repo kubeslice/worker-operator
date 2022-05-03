@@ -29,13 +29,17 @@ spec:
         - name: avesha-nexus
       containers:
         - name: nsm-admission-webhook
-          image: nexus.dev.aveshalabs.io/kubeslice/nsm-admission-webhook:1.0.0
+          image: nexus.dev.aveshalabs.io/kubeslice/nsm-admission-webhook:1.0.1
           imagePullPolicy: {{ .Values.pullPolicy }}
           env:
-            - name: REPO
-              value: "{{ .Values.org }}"
-            - name: TAG
-              value: "{{ .Values.tag }}"
+            - name: INITCONTAINER_REPO
+              value: "{{ .Values.initContainerRegistry }}"
+            - name: INITCONTAINER_TAG
+              value: "{{ .Values.initContainerTag }}"
+            - name: DNS_SIDECAR_REPO
+              value: "{{ .Values.dnsSidecarContainerRegistry }}"
+            - name: DNS_SIDECAR_TAG
+              value: "{{ .Values.dnsSidecarContainerTag }}"
             - name: NSM_NAMESPACE
               value: "{{ .Values.clientNamespace }}"
             - name: TRACER_ENABLED

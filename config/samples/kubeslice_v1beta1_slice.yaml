@@ -1,0 +1,6 @@
+apiVersion: networking.kubeslice.io/v1beta1
+kind: Slice
+metadata:
+  name: slice-sample
+spec:
+  # TODO(user): Add fields here

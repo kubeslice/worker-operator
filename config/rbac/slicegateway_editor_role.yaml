@@ -5,7 +5,7 @@ metadata:
   name: slicegateway-editor-role
 rules:
 - apiGroups:
-  - mesh.avesha.io
+  - networking.kubeslice.io
   resources:
   - slicegateways
   verbs:
@@ -17,7 +17,7 @@ rules:
   - update
   - watch
 - apiGroups:
-  - mesh.avesha.io
+  - networking.kubeslice.io
   resources:
   - slicegateways/status
   verbs:

@@ -1,38 +1,19 @@
-/*
- *  Copyright (c) 2022 Avesha, Inc. All rights reserved.
- *
- *  SPDX-License-Identifier: Apache-2.0
- *
- *  Licensed under the Apache License, Version 2.0 (the "License");
- *  you may not use this file except in compliance with the License.
- *  You may obtain a copy of the License at
- *
- *  http://www.apache.org/licenses/LICENSE-2.0
- *
- *  Unless required by applicable law or agreed to in writing, software
- *  distributed under the License is distributed on an "AS IS" BASIS,
- *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *  See the License for the specific language governing permissions and
- *  limitations under the License.
- */
-
 package slice
 
 import (
-	"bitbucket.org/realtimeai/kubeslice-operator/pkg/events"
 	"context"
-	goerrors "errors"
 	"fmt"
+	"github.com/kubeslice/operator/pkg/events"
 	"os"
 	"strconv"
 	"strings"
 	"time"
 
-	meshv1beta1 "bitbucket.org/realtimeai/kubeslice-operator/api/v1beta1"
+	kubeslicev1beta1 "github.com/kubeslice/operator/api/v1beta1"
 	nsmv1alpha1 "github.com/networkservicemesh/networkservicemesh/k8s/pkg/apis/networkservice/v1alpha1"
 
-	"bitbucket.org/realtimeai/kubeslice-operator/controllers"
-	"bitbucket.org/realtimeai/kubeslice-operator/internal/logger"
+	"github.com/kubeslice/operator/controllers"
+	"github.com/kubeslice/operator/internal/logger"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -62,8 +43,8 @@ func labelsForSliceRouterDeployment(name string) map[string]string {
 	return map[string]string{
 		"networkservicemesh.io/app":  "vl3-nse-" + name,
 		"networkservicemesh.io/impl": "vl3-service-" + name,
-		"avesha.io/pod-type":         "router",
-		"avesha.io/slice":            name,
+		"kubeslice.io/pod-type":      "router",
+		"kubeslice.io/slice":         name,
 	}
 }
 
@@ -77,7 +58,7 @@ func getSliceRouterSidecarImageAndPullPolicy() (string, corev1.PullPolicy) {
 	return sliceRouterSidecarImage, pullPolicy
 }
 
-func (r *SliceReconciler) getNsmDataplaneMode(ctx context.Context, slice *meshv1beta1.Slice) (string, error) {
+func (r *SliceReconciler) getNsmDataplaneMode(ctx context.Context, slice *kubeslicev1beta1.Slice) (string, error) {
 	log := logger.FromContext(ctx).WithValues("type", "SliceRouter")
 
 	vppPodList := &corev1.PodList{}
@@ -103,7 +84,7 @@ func getClusterPrefixPool(sliceSubnet string, ipamOctet string) string {
 	return strings.Join(octetList, ".")
 }
 
-func (r *SliceReconciler) getContainerSpecForSliceRouter(s *meshv1beta1.Slice, ipamOctet string, dataplane string) corev1.Container {
+func (r *SliceReconciler) getContainerSpecForSliceRouter(s *kubeslicev1beta1.Slice, ipamOctet string, dataplane string) corev1.Container {
 	vl3Image := "nexus.dev.aveshalabs.io/avesha/vl3_ucnf-nse:1.0.0"
 	vl3ImagePullPolicy := corev1.PullAlways
 
@@ -239,7 +220,7 @@ func (r *SliceReconciler) getContainerSpecForSliceRouterSidecar(dataplane string
 
 }
 
-func (r *SliceReconciler) getVolumeSpecForSliceRouter(s *meshv1beta1.Slice, dataplane string) []corev1.Volume {
+func (r *SliceReconciler) getVolumeSpecForSliceRouter(s *kubeslicev1beta1.Slice, dataplane string) []corev1.Volume {
 	sliceRouterVolumeSpec := []corev1.Volume{{
 		Name: "shared-volume",
 		VolumeSource: corev1.VolumeSource{
@@ -266,7 +247,7 @@ func (r *SliceReconciler) getVolumeSpecForSliceRouter(s *meshv1beta1.Slice, data
 }
 
 // Creates a deployment spec for the vL3 slice router
-func (r *SliceReconciler) deploymentForSliceRouter(s *meshv1beta1.Slice, ipamOctet string, dataplane string) *appsv1.Deployment {
+func (r *SliceReconciler) deploymentForSliceRouter(s *kubeslicev1beta1.Slice, ipamOctet string, dataplane string) *appsv1.Deployment {
 	var replicas int32 = 1
 
 	ls := labelsForSliceRouterDeployment(s.Name)
@@ -334,7 +315,7 @@ func (r *SliceReconciler) deploymentForSliceRouter(s *meshv1beta1.Slice, ipamOct
 
 // Deploys the vL3 slice router.
 // The configmap needed for the NSE is created first before the NSE is launched.
-func (r *SliceReconciler) deploySliceRouter(ctx context.Context, slice *meshv1beta1.Slice) error {
+func (r *SliceReconciler) deploySliceRouter(ctx context.Context, slice *kubeslicev1beta1.Slice) error {
 	log := logger.FromContext(ctx).WithName("slice-router")
 
 	dataplane, err := r.getNsmDataplaneMode(ctx, slice)
@@ -343,7 +324,7 @@ func (r *SliceReconciler) deploySliceRouter(ctx context.Context, slice *meshv1be
 		return err
 	}
 	if dataplane != nsmDataplaneKernel && dataplane != nsmDataplaneVpp {
-		return goerrors.New(fmt.Sprintf("Invalid dataplane: %v", dataplane))
+		return fmt.Errorf("invalid dataplane: %v", dataplane)
 	}
 
 	ipamOctet := strconv.Itoa(slice.Status.SliceConfig.SliceIpam.IpamClusterOctet)
@@ -367,7 +348,7 @@ func (r *SliceReconciler) deploySliceRouter(ctx context.Context, slice *meshv1be
 }
 
 // Deploys the vL3 slice router service
-func (r *SliceReconciler) deploySliceRouterSvc(ctx context.Context, slice *meshv1beta1.Slice) error {
+func (r *SliceReconciler) deploySliceRouterSvc(ctx context.Context, slice *kubeslicev1beta1.Slice) error {
 	log := logger.FromContext(ctx).WithName("slice-router-svc")
 
 	ls := labelsForSliceRouterDeployment(slice.Name)
@@ -406,7 +387,7 @@ func (r *SliceReconciler) deploySliceRouterSvc(ctx context.Context, slice *meshv
 	return nil
 }
 
-func (r *SliceReconciler) ReconcileSliceRouter(ctx context.Context, slice *meshv1beta1.Slice) (ctrl.Result, error, bool) {
+func (r *SliceReconciler) ReconcileSliceRouter(ctx context.Context, slice *kubeslicev1beta1.Slice) (ctrl.Result, error, bool) {
 	log := logger.FromContext(ctx).WithName("slice-router")
 	// Spawn the slice router for the slice if not done already
 	foundSliceRouter := &appsv1.Deployment{}
