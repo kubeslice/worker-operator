@@ -285,7 +285,7 @@ func (r *SliceReconciler) deploymentForSliceRouter(s *meshv1beta1.Slice, ipamOct
 					Labels: ls,
 				},
 				Spec: corev1.PodSpec{
-					ServiceAccountName: "nsmgr-acc",
+					ServiceAccountName: "slice-router",
 					Affinity: &corev1.Affinity{
 						NodeAffinity: &corev1.NodeAffinity{
 							RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
