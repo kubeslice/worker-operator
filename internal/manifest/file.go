@@ -27,7 +27,7 @@ import (
 
 	"encoding/json"
 
-	"bitbucket.org/realtimeai/kubeslice-operator/internal/logger"
+	"github.com/kubeslice/worker-operator/internal/logger"
 )
 
 var log = logger.NewLogger()

@@ -21,9 +21,9 @@ package spoke_test
 import (
 	"time"
 
-	clusterpkg "bitbucket.org/realtimeai/kubeslice-operator/internal/cluster"
-	hub "bitbucket.org/realtimeai/kubeslice-operator/internal/hub/hubclient"
-	hubv1alpha1 "bitbucket.org/realtimeai/mesh-apis/pkg/hub/v1alpha1"
+	hubv1alpha1 "github.com/kubeslice/apis/pkg/hub/v1alpha1"
+	clusterpkg "github.com/kubeslice/worker-operator/internal/cluster"
+	hub "github.com/kubeslice/worker-operator/internal/hub/hubclient"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"

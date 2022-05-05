@@ -31,11 +31,11 @@ import (
 	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	meshv1beta1 "bitbucket.org/realtimeai/kubeslice-operator/api/v1beta1"
-	"bitbucket.org/realtimeai/kubeslice-operator/internal/cluster"
-	"bitbucket.org/realtimeai/kubeslice-operator/internal/logger"
-	hubv1alpha1 "bitbucket.org/realtimeai/mesh-apis/pkg/hub/v1alpha1"
-	spokev1alpha1 "bitbucket.org/realtimeai/mesh-apis/pkg/spoke/v1alpha1"
+	hubv1alpha1 "github.com/kubeslice/apis/pkg/hub/v1alpha1"
+	spokev1alpha1 "github.com/kubeslice/apis/pkg/spoke/v1alpha1"
+	meshv1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
+	"github.com/kubeslice/worker-operator/internal/cluster"
+	"github.com/kubeslice/worker-operator/internal/logger"
 )
 
 var scheme = runtime.NewScheme()

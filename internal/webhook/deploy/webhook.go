@@ -23,8 +23,8 @@ import (
 	"encoding/json"
 	"net/http"
 
-	//	"bitbucket.org/realtimeai/kubeslice-operator/controllers"
-	"bitbucket.org/realtimeai/kubeslice-operator/internal/logger"
+	//	"github.com/kubeslice/worker-operator/controllers"
+	"github.com/kubeslice/worker-operator/internal/logger"
 	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"

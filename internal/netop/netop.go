@@ -22,8 +22,8 @@ import (
 	"context"
 	"strconv"
 
-	sidecar "bitbucket.org/realtimeai/kubeslice-netops/pkg/proto"
-	meshv1beta1 "bitbucket.org/realtimeai/kubeslice-operator/api/v1beta1"
+	sidecar "github.com/kubeslice/netops/pkg/proto"
+	meshv1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )

@@ -24,8 +24,8 @@ import (
 	"strconv"
 	"time"
 
-	"bitbucket.org/realtimeai/kubeslice-operator/controllers"
-	"bitbucket.org/realtimeai/kubeslice-operator/internal/netop"
+	"github.com/kubeslice/worker-operator/controllers"
+	"github.com/kubeslice/worker-operator/internal/netop"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -35,10 +35,10 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	meshv1beta1 "bitbucket.org/realtimeai/kubeslice-operator/api/v1beta1"
-	"bitbucket.org/realtimeai/kubeslice-operator/internal/gwsidecar"
-	"bitbucket.org/realtimeai/kubeslice-operator/internal/logger"
-	"bitbucket.org/realtimeai/kubeslice-operator/internal/router"
+	meshv1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
+	"github.com/kubeslice/worker-operator/internal/gwsidecar"
+	"github.com/kubeslice/worker-operator/internal/logger"
+	"github.com/kubeslice/worker-operator/internal/router"
 )
 
 var (

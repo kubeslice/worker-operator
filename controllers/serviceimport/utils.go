@@ -22,7 +22,7 @@ import (
 	"strconv"
 	"strings"
 
-	meshv1beta1 "bitbucket.org/realtimeai/kubeslice-operator/api/v1beta1"
+	meshv1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
 )
 
 // portListToDisplayString converts list of ports to a single string
