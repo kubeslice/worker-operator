@@ -22,8 +22,8 @@ import (
 	"flag"
 	"os"
 
-	"bitbucket.org/realtimeai/kubeslice-operator/internal/cluster"
-	"bitbucket.org/realtimeai/kubeslice-operator/pkg/events"
+	"github.com/kubeslice/worker-operator/internal/cluster"
+	"github.com/kubeslice/worker-operator/pkg/events"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
@@ -41,16 +41,16 @@ import (
 	nsmv1alpha1 "github.com/networkservicemesh/networkservicemesh/k8s/pkg/apis/networkservice/v1alpha1"
 	istiov1beta1 "istio.io/client-go/pkg/apis/networking/v1beta1"
 
-	meshv1beta1 "bitbucket.org/realtimeai/kubeslice-operator/api/v1beta1"
-	"bitbucket.org/realtimeai/kubeslice-operator/controllers/serviceexport"
-	"bitbucket.org/realtimeai/kubeslice-operator/controllers/serviceimport"
-	"bitbucket.org/realtimeai/kubeslice-operator/controllers/slice"
-	"bitbucket.org/realtimeai/kubeslice-operator/controllers/slicegateway"
-	hub "bitbucket.org/realtimeai/kubeslice-operator/internal/hub/hubclient"
-	"bitbucket.org/realtimeai/kubeslice-operator/internal/hub/manager"
-	"bitbucket.org/realtimeai/kubeslice-operator/internal/logger"
-	"bitbucket.org/realtimeai/kubeslice-operator/internal/utils"
-	deploywh "bitbucket.org/realtimeai/kubeslice-operator/internal/webhook/deploy"
+	meshv1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
+	"github.com/kubeslice/worker-operator/controllers/serviceexport"
+	"github.com/kubeslice/worker-operator/controllers/serviceimport"
+	"github.com/kubeslice/worker-operator/controllers/slice"
+	"github.com/kubeslice/worker-operator/controllers/slicegateway"
+	hub "github.com/kubeslice/worker-operator/internal/hub/hubclient"
+	"github.com/kubeslice/worker-operator/internal/hub/manager"
+	"github.com/kubeslice/worker-operator/internal/logger"
+	"github.com/kubeslice/worker-operator/internal/utils"
+	deploywh "github.com/kubeslice/worker-operator/internal/webhook/deploy"
 	//+kubebuilder:scaffold:imports
 )
 

@@ -21,8 +21,8 @@ package router
 import (
 	"context"
 
-	meshv1beta1 "bitbucket.org/realtimeai/kubeslice-operator/api/v1beta1"
-	sidecar "bitbucket.org/realtimeai/kubeslice-router-sidecar/pkg/proto"
+	sidecar "github.com/kubeslice/router-sidecar/pkg/proto"
+	meshv1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	emptypb "google.golang.org/protobuf/types/known/emptypb"

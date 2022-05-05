@@ -26,8 +26,8 @@ import (
 	"strings"
 	"time"
 
-	meshv1beta1 "bitbucket.org/realtimeai/kubeslice-operator/api/v1beta1"
-	"bitbucket.org/realtimeai/kubeslice-operator/internal/logger"
+	meshv1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
+	"github.com/kubeslice/worker-operator/internal/logger"
 )
 
 // ReconcileDNSFile reconciles dns file in configmap with the available endpoints in serviceimport

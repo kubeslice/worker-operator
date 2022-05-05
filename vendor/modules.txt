@@ -1,16 +1,3 @@
-# bitbucket.org/realtimeai/kubeslice-gw-sidecar v0.0.0-20220214062837-3c7d18a8439e
-## explicit
-bitbucket.org/realtimeai/kubeslice-gw-sidecar/pkg/sidecar/sidecarpb
-# bitbucket.org/realtimeai/kubeslice-netops v0.0.0-20220323113922-61ae902d49f7
-## explicit
-bitbucket.org/realtimeai/kubeslice-netops/pkg/proto
-# bitbucket.org/realtimeai/kubeslice-router-sidecar v0.0.0-20220221080454-e2276f57c978
-## explicit
-bitbucket.org/realtimeai/kubeslice-router-sidecar/pkg/proto
-# bitbucket.org/realtimeai/mesh-apis v0.0.0-20220324085140-e01c311eb69c
-## explicit
-bitbucket.org/realtimeai/mesh-apis/pkg/hub/v1alpha1
-bitbucket.org/realtimeai/mesh-apis/pkg/spoke/v1alpha1
 # cloud.google.com/go v0.81.0
 cloud.google.com/go/compute/metadata
 # github.com/Azure/go-autorest v14.2.0+incompatible
@@ -28,7 +15,7 @@ github.com/Azure/go-autorest/logger
 github.com/Azure/go-autorest/tracing
 # github.com/beorn7/perks v1.0.1
 github.com/beorn7/perks/quantile
-# github.com/cespare/xxhash/v2 v2.1.1
+# github.com/cespare/xxhash/v2 v2.1.2
 github.com/cespare/xxhash/v2
 # github.com/davecgh/go-spew v1.1.1
 github.com/davecgh/go-spew/spew
@@ -44,6 +31,8 @@ github.com/go-logr/logr
 # github.com/go-logr/zapr v1.2.0
 ## explicit
 github.com/go-logr/zapr
+# github.com/go-ping/ping v0.0.0-20211130115550-779d1e919534
+github.com/go-ping/ping
 # github.com/gogo/protobuf v1.3.2
 github.com/gogo/protobuf/gogoproto
 github.com/gogo/protobuf/jsonpb
@@ -70,7 +59,9 @@ github.com/google/go-cmp/cmp/internal/function
 github.com/google/go-cmp/cmp/internal/value
 # github.com/google/gofuzz v1.1.0
 github.com/google/gofuzz
-# github.com/google/uuid v1.1.2
+# github.com/google/shlex v0.0.0-20191202100458-e7afc7fbc510
+github.com/google/shlex
+# github.com/google/uuid v1.2.0
 github.com/google/uuid
 # github.com/googleapis/gnostic v0.5.5
 github.com/googleapis/gnostic/compiler
@@ -81,6 +72,25 @@ github.com/googleapis/gnostic/openapiv2
 github.com/imdario/mergo
 # github.com/json-iterator/go v1.1.12
 github.com/json-iterator/go
+# github.com/kubeslice/apis v0.0.0-20220324085140-e01c311eb69c => ../mesh-apis
+## explicit
+github.com/kubeslice/apis/pkg/hub/v1alpha1
+github.com/kubeslice/apis/pkg/spoke/v1alpha1
+# github.com/kubeslice/gateway-sidecar v0.0.0-20220214062837-3c7d18a8439e => ../gateway-sidecar
+## explicit
+github.com/kubeslice/gateway-sidecar/pkg/cmd
+github.com/kubeslice/gateway-sidecar/pkg/exec
+github.com/kubeslice/gateway-sidecar/pkg/logger
+github.com/kubeslice/gateway-sidecar/pkg/metrics
+github.com/kubeslice/gateway-sidecar/pkg/nettools
+github.com/kubeslice/gateway-sidecar/pkg/sidecar/sidecarpb
+github.com/kubeslice/gateway-sidecar/pkg/status
+# github.com/kubeslice/netops v0.0.0-20220323113922-61ae902d49f7 => ../netops
+## explicit
+github.com/kubeslice/netops/pkg/proto
+# github.com/kubeslice/router-sidecar v0.0.0-20220221080454-e2276f57c978 => ../router-sidecar
+## explicit
+github.com/kubeslice/router-sidecar/pkg/proto
 # github.com/matttproud/golang_protobuf_extensions v1.0.2-0.20181231171920-c182affec369
 github.com/matttproud/golang_protobuf_extensions/pbutil
 # github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd
@@ -119,18 +129,18 @@ github.com/onsi/gomega/types
 github.com/pkg/errors
 # github.com/pmezard/go-difflib v1.0.0
 github.com/pmezard/go-difflib/difflib
-# github.com/prometheus/client_golang v1.11.0
+# github.com/prometheus/client_golang v1.12.1
 github.com/prometheus/client_golang/prometheus
 github.com/prometheus/client_golang/prometheus/collectors
 github.com/prometheus/client_golang/prometheus/internal
 github.com/prometheus/client_golang/prometheus/promhttp
 # github.com/prometheus/client_model v0.2.0
 github.com/prometheus/client_model/go
-# github.com/prometheus/common v0.28.0
+# github.com/prometheus/common v0.32.1
 github.com/prometheus/common/expfmt
 github.com/prometheus/common/internal/bitbucket.org/ww/goautoneg
 github.com/prometheus/common/model
-# github.com/prometheus/procfs v0.6.0
+# github.com/prometheus/procfs v0.7.3
 github.com/prometheus/procfs
 github.com/prometheus/procfs/internal/fs
 github.com/prometheus/procfs/internal/util
@@ -142,6 +152,11 @@ github.com/stretchr/objx
 ## explicit
 github.com/stretchr/testify/assert
 github.com/stretchr/testify/mock
+# github.com/vishvananda/netlink v1.1.0
+github.com/vishvananda/netlink
+github.com/vishvananda/netlink/nl
+# github.com/vishvananda/netns v0.0.0-20191106174202-0a2b9b5464df
+github.com/vishvananda/netns
 # go.uber.org/atomic v1.7.0
 go.uber.org/atomic
 # go.uber.org/multierr v1.6.0
@@ -159,6 +174,7 @@ golang.org/x/crypto/pkcs12
 golang.org/x/crypto/pkcs12/internal/rc2
 # golang.org/x/net v0.0.0-20220225172249-27dd8689420f
 ## explicit
+golang.org/x/net/bpf
 golang.org/x/net/context
 golang.org/x/net/context/ctxhttp
 golang.org/x/net/html
@@ -167,8 +183,13 @@ golang.org/x/net/html/charset
 golang.org/x/net/http/httpguts
 golang.org/x/net/http2
 golang.org/x/net/http2/hpack
+golang.org/x/net/icmp
 golang.org/x/net/idna
+golang.org/x/net/internal/iana
+golang.org/x/net/internal/socket
 golang.org/x/net/internal/timeseries
+golang.org/x/net/ipv4
+golang.org/x/net/ipv6
 golang.org/x/net/trace
 # golang.org/x/oauth2 v0.0.0-20210819190943-2bc19b11175f
 golang.org/x/oauth2
@@ -178,6 +199,8 @@ golang.org/x/oauth2/google/internal/externalaccount
 golang.org/x/oauth2/internal
 golang.org/x/oauth2/jws
 golang.org/x/oauth2/jwt
+# golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
+golang.org/x/sync/errgroup
 # golang.org/x/sys v0.0.0-20220227234510-4e6760a101f9
 ## explicit
 golang.org/x/sys/internal/unsafeheader
@@ -225,7 +248,7 @@ google.golang.org/appengine/urlfetch
 # google.golang.org/genproto v0.0.0-20220303160752-862486edd9cc
 ## explicit
 google.golang.org/genproto/googleapis/rpc/status
-# google.golang.org/grpc v1.44.0
+# google.golang.org/grpc v1.45.0
 ## explicit
 google.golang.org/grpc
 google.golang.org/grpc/attributes
@@ -638,3 +661,8 @@ sigs.k8s.io/structured-merge-diff/v4/typed
 sigs.k8s.io/structured-merge-diff/v4/value
 # sigs.k8s.io/yaml v1.3.0
 sigs.k8s.io/yaml
+# github.com/kubeslice/worker-operator => ../kubeslice-operator
+# github.com/kubeslice/gateway-sidecar => ../gateway-sidecar
+# github.com/kubeslice/netops => ../netops
+# github.com/kubeslice/router-sidecar => ../router-sidecar
+# github.com/kubeslice/apis => ../mesh-apis

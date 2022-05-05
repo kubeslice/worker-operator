@@ -19,19 +19,19 @@
 package slice
 
 import (
-	"bitbucket.org/realtimeai/kubeslice-operator/pkg/events"
 	"context"
 	"fmt"
+	"github.com/kubeslice/worker-operator/pkg/events"
 	"os"
 	"strconv"
 	"strings"
 	"time"
 
-	meshv1beta1 "bitbucket.org/realtimeai/kubeslice-operator/api/v1beta1"
+	meshv1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
 	nsmv1alpha1 "github.com/networkservicemesh/networkservicemesh/k8s/pkg/apis/networkservice/v1alpha1"
 
-	"bitbucket.org/realtimeai/kubeslice-operator/controllers"
-	"bitbucket.org/realtimeai/kubeslice-operator/internal/logger"
+	"github.com/kubeslice/worker-operator/controllers"
+	"github.com/kubeslice/worker-operator/internal/logger"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"

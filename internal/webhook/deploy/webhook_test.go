@@ -22,7 +22,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
-	"bitbucket.org/realtimeai/kubeslice-operator/internal/webhook/deploy"
+	"github.com/kubeslice/worker-operator/internal/webhook/deploy"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 

@@ -22,9 +22,9 @@ import (
 	"context"
 	"fmt"
 
-	meshv1beta1 "bitbucket.org/realtimeai/kubeslice-operator/api/v1beta1"
-	"bitbucket.org/realtimeai/kubeslice-operator/controllers"
-	"bitbucket.org/realtimeai/kubeslice-operator/internal/logger"
+	meshv1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
+	"github.com/kubeslice/worker-operator/controllers"
+	"github.com/kubeslice/worker-operator/internal/logger"
 	ctrl "sigs.k8s.io/controller-runtime"
 )
 

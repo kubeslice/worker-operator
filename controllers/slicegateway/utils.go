@@ -21,8 +21,8 @@ package slicegateway
 import (
 	"context"
 
-	meshv1beta1 "bitbucket.org/realtimeai/kubeslice-operator/api/v1beta1"
-	"bitbucket.org/realtimeai/kubeslice-operator/internal/hub/controllers"
+	meshv1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
+	"github.com/kubeslice/worker-operator/internal/hub/controllers"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )

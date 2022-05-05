@@ -1,0 +1,79 @@
+/*  Copyright (c) 2022 Avesha, Inc. All rights reserved.
+ *
+ *  SPDX-License-Identifier: Apache-2.0
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *  http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+
+syntax = "proto3";
+
+package router;
+option go_package = "./;sidecar";
+
+import "google/protobuf/empty.proto";
+
+// SidecarResponse represents the Sidecar response format.
+message SidecarResponse {
+    string statusMsg = 1;
+}
+
+// slice gateway-host-type
+enum SliceGwHostType {
+    SLICE_GW_SERVER = 0;
+    SLICE_GW_CLIENT = 1;
+}
+
+// SliceGwConContext - Slice GW connection information
+message SliceGwConContext {
+    // Slice-Id
+    string sliceId = 1;
+    // Local slice-gw ID
+    string localSliceGwId = 2;
+    // Local slice-gw VPN IP
+    string localSliceGwVpnIP = 3;
+    // Local Slice-gw-host-type  -  client/server
+    SliceGwHostType localSliceGwHostType = 4;
+    // Local slice-gw NSM Subnet
+    string localSliceGwNsmSubnet = 5;
+    // Remote slice-gw NSM subnet
+    string remoteSliceGwNsmSubnet = 6;
+    // Local NSM gw peer IP
+    string localNsmGwPeerIP = 7;
+}
+
+// ConnectionInfo - Slice Router client connection information
+message ConnectionInfo {
+    // Pod Name of the client
+    string podName        = 1;
+    // Name of the nsm interface created after successful connection
+    string nsmInterface   = 2;
+    // IP address on the nsm interface on the client
+    string nsmIP          = 3;
+    // IP address on the nsm interface on the slice router
+    string nsmPeerIP      = 4;
+}
+
+// ClientConnectionInfo - Consolidated client connection information.
+// Represents all clients connected to the slice router.
+message ClientConnectionInfo {
+    repeated ConnectionInfo connection = 1;
+}
+
+// Slice router sidecar service verbs
+service SliceRouterSidecarService {
+    // Used to add remote cluster subnet routes in the slice router
+    rpc UpdateSliceGwConnectionContext(SliceGwConContext) returns (SidecarResponse) {}
+    // Provides connection information of all clients connected to the slice router
+    rpc GetSliceRouterClientConnectionInfo(google.protobuf.Empty) returns (ClientConnectionInfo) {}
+}
+

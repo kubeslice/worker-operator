@@ -19,8 +19,8 @@
 package hubclient
 
 import (
-	meshv1beta1 "bitbucket.org/realtimeai/kubeslice-operator/api/v1beta1"
 	"context"
+	meshv1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
 	"github.com/stretchr/testify/mock"
 )
 

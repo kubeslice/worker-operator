@@ -21,9 +21,9 @@ package slice
 import (
 	"context"
 
-	meshv1beta1 "bitbucket.org/realtimeai/kubeslice-operator/api/v1beta1"
-	"bitbucket.org/realtimeai/kubeslice-operator/internal/logger"
-	"bitbucket.org/realtimeai/kubeslice-operator/internal/netop"
+	meshv1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
+	"github.com/kubeslice/worker-operator/internal/logger"
+	"github.com/kubeslice/worker-operator/internal/netop"
 	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )

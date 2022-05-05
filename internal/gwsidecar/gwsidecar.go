@@ -21,8 +21,8 @@ package gwsidecar
 import (
 	"context"
 
-	sidecar "bitbucket.org/realtimeai/kubeslice-gw-sidecar/pkg/sidecar/sidecarpb"
 	empty "github.com/golang/protobuf/ptypes/empty"
+	sidecar "github.com/kubeslice/gateway-sidecar/pkg/sidecar/sidecarpb"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )

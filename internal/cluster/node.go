@@ -19,9 +19,9 @@
 package cluster
 
 import (
-	"bitbucket.org/realtimeai/kubeslice-operator/internal/logger"
 	"context"
 	"fmt"
+	"github.com/kubeslice/worker-operator/internal/logger"
 	corev1 "k8s.io/api/core/v1"
 	"os"
 	"sigs.k8s.io/controller-runtime/pkg/client"

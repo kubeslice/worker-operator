@@ -22,7 +22,7 @@ import (
 	"os"
 	"time"
 
-	"bitbucket.org/realtimeai/kubeslice-operator/internal/utils"
+	"github.com/kubeslice/worker-operator/internal/utils"
 )
 
 var (
