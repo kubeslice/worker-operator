@@ -1,4 +1,4 @@
-@Library('jenkins-library@feature/helm-pipeline') _
+@Library('jenkins-library@feature/opensource') _
 dockerImagePipeline1(
   script: this,
   service: 'kubeslice/operator',
