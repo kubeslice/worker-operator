@@ -1,7 +1,7 @@
 @Library('jenkins-library@feature/opensource') _
 dockerImagePipeline1(
   script: this,
-  service: 'aveshadev/operator',
+  service: 'aveshadev/worker-operator',
   dockerfile: 'Dockerfile',
   buildContext: '.',
   buildArguments: [PLATFORM:"amd64"],
