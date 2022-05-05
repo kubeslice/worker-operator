@@ -1,4 +1,4 @@
-@Library('jenkins-library@feature/opensource') _
+@Library('jenkins-library@opensource') _
 dockerImagePipeline1(
   script: this,
   service: 'aveshadev/worker-operator',
