@@ -30,8 +30,6 @@ require (
 	sigs.k8s.io/controller-runtime v0.11.1
 )
 
-replace github.com/kubeslice/worker-operator => ../kubeslice-operator
-
 replace github.com/kubeslice/gateway-sidecar => ../gateway-sidecar
 
 replace github.com/kubeslice/netops => ../netops
