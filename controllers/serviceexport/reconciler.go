@@ -51,11 +51,11 @@ type HubClientProvider interface {
 	DeleteServiceExport(ctx context.Context, serviceexport *kubeslicev1beta1.ServiceExport) error
 }
 
-var finalizerName = "mesh.avesha.io/serviceexport-finalizer"
+var finalizerName = "networking.kubeslice.io/serviceexport-finalizer"
 
-// +kubebuilder:rbac:groups=mesh.avesha.io,resources=serviceexports,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=mesh.avesha.io,resources=serviceexports/status,verbs=get;update;patch
-// +kubebuilder:rbac:groups=mesh.avesha.io,resources=serviceexports/finalizers,verbs=update
+// +kubebuilder:rbac:groups=networking.kubeslice.io,resources=serviceexports,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=networking.kubeslice.io,resources=serviceexports/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=networking.kubeslice.io,resources=serviceexports/finalizers,verbs=update
 // +kubebuilder:rbac:groups=core,resources=pods,verbs=get;list;watch
 
 // Reconcile reconciles serviceexport

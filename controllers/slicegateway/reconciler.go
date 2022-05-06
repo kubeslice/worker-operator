@@ -55,9 +55,9 @@ func readyToDeployGwClient(sliceGw *kubeslicev1beta1.SliceGateway) bool {
 	return sliceGw.Status.Config.SliceGatewayRemoteNodeIP != "" && sliceGw.Status.Config.SliceGatewayRemoteNodePort != 0
 }
 
-//+kubebuilder:rbac:groups=mesh.avesha.io,resources=slicegateways,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=mesh.avesha.io,resources=slicegateways/finalizers,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=mesh.avesha.io,resources=slicegateways/status,verbs=get;update;patch
+//+kubebuilder:rbac:groups=networking.kubeslice.io,resources=slicegateways,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=networking.kubeslice.io,resources=slicegateways/finalizers,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=networking.kubeslice.io,resources=slicegateways/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=apps,resources=daemonsets,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=networkservicemesh.io,resources=networkservices,verbs=get;list;watch;create;update;patch;delete

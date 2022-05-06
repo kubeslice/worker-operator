@@ -43,7 +43,7 @@ type Reconciler struct {
 	EventRecorder *events.EventRecorder
 }
 
-var finalizerName = "mesh.avesha.io/serviceimport-finalizer"
+var finalizerName = "networking.kubeslice.io/serviceimport-finalizer"
 
 // NewReconciler creates a new reconciler for serviceimport
 func NewReconciler(c client.Client, s *runtime.Scheme, clusterId string) Reconciler {
@@ -55,8 +55,8 @@ func NewReconciler(c client.Client, s *runtime.Scheme, clusterId string) Reconci
 	}
 }
 
-// +kubebuilder:rbac:groups=mesh.avesha.io,resources=serviceimports,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=mesh.avesha.io,resources=serviceimports/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=networking.kubeslice.io,resources=serviceimports,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=networking.kubeslice.io,resources=serviceimports/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=core,resources=configmaps,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=coordination.k8s.io,resources=leases,verbs=get;list;create;update
 

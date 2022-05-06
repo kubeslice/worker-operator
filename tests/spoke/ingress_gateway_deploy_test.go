@@ -75,7 +75,7 @@ var _ = Describe("IngressGateway", func() {
 		slice := &kubeslicev1beta1.Slice{
 			TypeMeta: metav1.TypeMeta{
 				Kind:       "Slice",
-				APIVersion: "mesh.avesha.io/v1beta1",
+				APIVersion: "networking.kubeslice.io/v1beta1",
 			},
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "green",
@@ -183,7 +183,7 @@ var _ = Describe("IngressGateway", func() {
 
 			own := createdDeploy.ObjectMeta.OwnerReferences
 			Expect(len(own)).To(Equal(1))
-			Expect(own[0].APIVersion).To(Equal("mesh.avesha.io/v1beta1"))
+			Expect(own[0].APIVersion).To(Equal("networking.kubeslice.io/v1beta1"))
 			Expect(string(own[0].UID)).To(Equal("test-uid"))
 			Expect(own[0].Kind).To(Equal("Slice"))
 			Expect(own[0].Name).To(Equal("green"))
