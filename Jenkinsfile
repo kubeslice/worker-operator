@@ -5,5 +5,5 @@ dockerImagePipeline1(
   dockerfile: 'Dockerfile',
   buildContext: '.',
   buildArguments: [PLATFORM:"amd64"],
-  trigger_remote: 'false'
+  trigger_remote: 'no'
 )
