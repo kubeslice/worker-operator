@@ -1,9 +1,8 @@
-@Library('jenkins-library@opensource-helm-pipeline') _
+@Library('jenkins-library@master') _
 dockerImagePipeline1(
   script: this,
   service: 'aveshadev/worker-operator',
   dockerfile: 'Dockerfile',
   buildContext: '.',
-  buildArguments: [PLATFORM:"amd64"],
-  trigger_remote: 'no'
+  buildArguments: [PLATFORM:"amd64"]
 )
