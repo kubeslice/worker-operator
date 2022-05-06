@@ -26,12 +26,12 @@ import (
 	"strings"
 	"time"
 
-	meshv1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
+	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
 	"github.com/kubeslice/worker-operator/internal/logger"
 )
 
 // ReconcileDNSFile reconciles dns file in configmap with the available endpoints in serviceimport
-func ReconcileDNSFile(ctx context.Context, dnsFile string, si *meshv1beta1.ServiceImport) (string, error) {
+func ReconcileDNSFile(ctx context.Context, dnsFile string, si *kubeslicev1beta1.ServiceImport) (string, error) {
 	log := logger.FromContext(ctx).WithValues("type", "CoreDNS")
 	debugLog := log.V(1)
 
@@ -73,7 +73,7 @@ func ReconcileDNSFile(ctx context.Context, dnsFile string, si *meshv1beta1.Servi
 
 }
 
-func DeleteRecordsAndReconcileDNSFile(ctx context.Context, dnsFile string, si *meshv1beta1.ServiceImport) (string, error) {
+func DeleteRecordsAndReconcileDNSFile(ctx context.Context, dnsFile string, si *kubeslicev1beta1.ServiceImport) (string, error) {
 	log := logger.FromContext(ctx).WithValues("type", "CoreDNS")
 	debugLog := log.V(1)
 
@@ -95,7 +95,7 @@ func DeleteRecordsAndReconcileDNSFile(ctx context.Context, dnsFile string, si *m
 
 }
 
-func removeServiceDnsRecords(dnsEntries []string, si *meshv1beta1.ServiceImport) []string {
+func removeServiceDnsRecords(dnsEntries []string, si *kubeslicev1beta1.ServiceImport) []string {
 	de := []string{}
 	for _, v := range dnsEntries {
 		dnsName := strings.Split(v, ". ")[0]

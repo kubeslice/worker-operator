@@ -37,7 +37,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	hubv1alpha1 "github.com/kubeslice/apis/pkg/hub/v1alpha1"
-	meshv1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
+	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
 	"github.com/kubeslice/worker-operator/controllers/serviceexport"
 	"github.com/kubeslice/worker-operator/controllers/serviceimport"
 	"github.com/kubeslice/worker-operator/controllers/slice"
@@ -82,7 +82,7 @@ var _ = BeforeSuite(func() {
 	Expect(err).NotTo(HaveOccurred())
 	Expect(cfg).NotTo(BeNil())
 
-	err = meshv1beta1.AddToScheme(scheme.Scheme)
+	err = kubeslicev1beta1.AddToScheme(scheme.Scheme)
 	Expect(err).NotTo(HaveOccurred())
 
 	err = hubv1alpha1.AddToScheme(scheme.Scheme)

@@ -23,15 +23,15 @@ import (
 	"fmt"
 	"strings"
 
-	meshv1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
+	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // GetSlice returns slice object by slice name
-func GetSlice(ctx context.Context, c client.Client, slice string) (*meshv1beta1.Slice, error) {
-	s := &meshv1beta1.Slice{}
+func GetSlice(ctx context.Context, c client.Client, slice string) (*kubeslicev1beta1.Slice, error) {
+	s := &kubeslicev1beta1.Slice{}
 
 	err := c.Get(ctx, types.NamespacedName{
 		Name:      slice,
@@ -44,7 +44,7 @@ func GetSlice(ctx context.Context, c client.Client, slice string) (*meshv1beta1.
 	return s, nil
 }
 
-func GetSliceIngressGwPod(ctx context.Context, c client.Client, sliceName string) (*meshv1beta1.AppPod, error) {
+func GetSliceIngressGwPod(ctx context.Context, c client.Client, sliceName string) (*kubeslicev1beta1.AppPod, error) {
 	slice, err := GetSlice(ctx, c, sliceName)
 	if err != nil {
 		return nil, err

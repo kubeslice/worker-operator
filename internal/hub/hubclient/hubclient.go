@@ -33,7 +33,7 @@ import (
 
 	hubv1alpha1 "github.com/kubeslice/apis/pkg/hub/v1alpha1"
 	spokev1alpha1 "github.com/kubeslice/apis/pkg/spoke/v1alpha1"
-	meshv1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
+	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
 	"github.com/kubeslice/worker-operator/internal/cluster"
 	"github.com/kubeslice/worker-operator/internal/logger"
 )
@@ -45,7 +45,7 @@ func init() {
 	clientgoscheme.AddToScheme(scheme)
 	utilruntime.Must(spokev1alpha1.AddToScheme(scheme))
 	utilruntime.Must(hubv1alpha1.AddToScheme(scheme))
-	utilruntime.Must(meshv1beta1.AddToScheme(scheme))
+	utilruntime.Must(kubeslicev1beta1.AddToScheme(scheme))
 }
 
 type HubClientConfig struct {
@@ -54,9 +54,9 @@ type HubClientConfig struct {
 
 type HubClientRpc interface {
 	UpdateNodePortForSliceGwServer(ctx context.Context, sliceGwNodePort int32, sliceGwName string) error
-	UpdateServiceExport(ctx context.Context, serviceexport *meshv1beta1.ServiceExport) error
-	UpdateServiceExportEndpointForIngressGw(ctx context.Context, serviceexport *meshv1beta1.ServiceExport,
-		ep *meshv1beta1.ServicePod) error
+	UpdateServiceExport(ctx context.Context, serviceexport *kubeslicev1beta1.ServiceExport) error
+	UpdateServiceExportEndpointForIngressGw(ctx context.Context, serviceexport *kubeslicev1beta1.ServiceExport,
+		ep *kubeslicev1beta1.ServicePod) error
 }
 
 func NewHubClientConfig() (*HubClientConfig, error) {
@@ -145,7 +145,7 @@ func updateClusterInfoToHub(ctx context.Context, spokeclient client.Client, hubC
 	return nil
 }
 
-func getHubServiceDiscoveryEps(serviceexport *meshv1beta1.ServiceExport) []hubv1alpha1.ServiceDiscoveryEndpoint {
+func getHubServiceDiscoveryEps(serviceexport *kubeslicev1beta1.ServiceExport) []hubv1alpha1.ServiceDiscoveryEndpoint {
 	epList := []hubv1alpha1.ServiceDiscoveryEndpoint{}
 
 	for _, pod := range serviceexport.Status.Pods {
@@ -161,7 +161,7 @@ func getHubServiceDiscoveryEps(serviceexport *meshv1beta1.ServiceExport) []hubv1
 	return epList
 }
 
-func getHubServiceDiscoveryPorts(serviceexport *meshv1beta1.ServiceExport) []hubv1alpha1.ServiceDiscoveryPort {
+func getHubServiceDiscoveryPorts(serviceexport *kubeslicev1beta1.ServiceExport) []hubv1alpha1.ServiceDiscoveryPort {
 	portList := []hubv1alpha1.ServiceDiscoveryPort{}
 	for _, port := range serviceexport.Spec.Ports {
 		portList = append(portList, hubv1alpha1.ServiceDiscoveryPort{
@@ -174,11 +174,11 @@ func getHubServiceDiscoveryPorts(serviceexport *meshv1beta1.ServiceExport) []hub
 	return portList
 }
 
-func getHubServiceExportObjName(serviceexport *meshv1beta1.ServiceExport) string {
+func getHubServiceExportObjName(serviceexport *kubeslicev1beta1.ServiceExport) string {
 	return serviceexport.Name + "-" + serviceexport.ObjectMeta.Namespace + "-" + ClusterName
 }
 
-func getHubServiceExportObj(serviceexport *meshv1beta1.ServiceExport) *hubv1alpha1.ServiceExportConfig {
+func getHubServiceExportObj(serviceexport *kubeslicev1beta1.ServiceExport) *hubv1alpha1.ServiceExportConfig {
 	return &hubv1alpha1.ServiceExportConfig{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      getHubServiceExportObjName(serviceexport),
@@ -196,7 +196,7 @@ func getHubServiceExportObj(serviceexport *meshv1beta1.ServiceExport) *hubv1alph
 	}
 }
 
-func getHubServiceDiscoveryEp(ep *meshv1beta1.ServicePod) hubv1alpha1.ServiceDiscoveryEndpoint {
+func getHubServiceDiscoveryEp(ep *kubeslicev1beta1.ServicePod) hubv1alpha1.ServiceDiscoveryEndpoint {
 	return hubv1alpha1.ServiceDiscoveryEndpoint{
 		PodName: ep.Name,
 		Cluster: ClusterName,
@@ -205,8 +205,8 @@ func getHubServiceDiscoveryEp(ep *meshv1beta1.ServicePod) hubv1alpha1.ServiceDis
 	}
 }
 
-func (hubClient *HubClientConfig) UpdateServiceExportEndpointForIngressGw(ctx context.Context, serviceexport *meshv1beta1.ServiceExport,
-	ep *meshv1beta1.ServicePod) error {
+func (hubClient *HubClientConfig) UpdateServiceExportEndpointForIngressGw(ctx context.Context, serviceexport *kubeslicev1beta1.ServiceExport,
+	ep *kubeslicev1beta1.ServicePod) error {
 	hubSvcEx := &hubv1alpha1.ServiceExportConfig{}
 	err := hubClient.Get(ctx, types.NamespacedName{
 		Name:      getHubServiceExportObjName(serviceexport),
@@ -249,7 +249,7 @@ func (hubClient *HubClientConfig) UpdateServiceExportEndpointForIngressGw(ctx co
 	return nil
 }
 
-func (hubClient *HubClientConfig) UpdateServiceExport(ctx context.Context, serviceexport *meshv1beta1.ServiceExport) error {
+func (hubClient *HubClientConfig) UpdateServiceExport(ctx context.Context, serviceexport *kubeslicev1beta1.ServiceExport) error {
 	hubSvcEx := &hubv1alpha1.ServiceExportConfig{}
 	err := hubClient.Get(ctx, types.NamespacedName{
 		Name:      getHubServiceExportObjName(serviceexport),
@@ -276,7 +276,7 @@ func (hubClient *HubClientConfig) UpdateServiceExport(ctx context.Context, servi
 	return nil
 }
 
-func (hubClient *HubClientConfig) DeleteServiceExport(ctx context.Context, serviceexport *meshv1beta1.ServiceExport) error {
+func (hubClient *HubClientConfig) DeleteServiceExport(ctx context.Context, serviceexport *kubeslicev1beta1.ServiceExport) error {
 	hubSvcEx := &hubv1alpha1.ServiceExportConfig{}
 	err := hubClient.Get(ctx, types.NamespacedName{
 		Name:      getHubServiceExportObjName(serviceexport),
@@ -297,7 +297,7 @@ func (hubClient *HubClientConfig) DeleteServiceExport(ctx context.Context, servi
 	return nil
 }
 
-func (hubClient *HubClientConfig) UpdateAppPodsList(ctx context.Context, sliceConfigName string, appPods []meshv1beta1.AppPod) error {
+func (hubClient *HubClientConfig) UpdateAppPodsList(ctx context.Context, sliceConfigName string, appPods []kubeslicev1beta1.AppPod) error {
 	sliceConfig := &spokev1alpha1.SpokeSliceConfig{}
 	err := hubClient.Get(ctx, types.NamespacedName{
 		Name:      sliceConfigName,

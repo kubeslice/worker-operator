@@ -22,7 +22,7 @@ import (
 	"context"
 	"fmt"
 
-	meshv1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
+	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
 	"github.com/kubeslice/worker-operator/controllers"
 	"github.com/kubeslice/worker-operator/internal/logger"
 	corev1 "k8s.io/api/core/v1"
@@ -32,7 +32,7 @@ import (
 )
 
 // reconcile istio resources like virtualService and serviceentry to facilitate service to service connectivity
-func (r *Reconciler) reconcileIstio(ctx context.Context, serviceimport *meshv1beta1.ServiceImport) (ctrl.Result, error, bool) {
+func (r *Reconciler) reconcileIstio(ctx context.Context, serviceimport *kubeslicev1beta1.ServiceImport) (ctrl.Result, error, bool) {
 	log := logger.FromContext(ctx).WithValues("type", "Istio")
 	debugLog := log.V(1)
 
@@ -89,7 +89,7 @@ func (r *Reconciler) reconcileIstio(ctx context.Context, serviceimport *meshv1be
 	return ctrl.Result{}, nil, false
 }
 
-func (r *Reconciler) ReconcileService(ctx context.Context, serviceimport *meshv1beta1.ServiceImport) (ctrl.Result, error, bool) {
+func (r *Reconciler) ReconcileService(ctx context.Context, serviceimport *kubeslicev1beta1.ServiceImport) (ctrl.Result, error, bool) {
 	log := logger.FromContext(ctx).WithValues("type", "Istio Service")
 
 	svc := &corev1.Service{}
@@ -118,7 +118,7 @@ func (r *Reconciler) ReconcileService(ctx context.Context, serviceimport *meshv1
 	return ctrl.Result{}, nil, false
 }
 
-func (r *Reconciler) DeleteIstioResources(ctx context.Context, serviceimport *meshv1beta1.ServiceImport, slice *meshv1beta1.Slice) error {
+func (r *Reconciler) DeleteIstioResources(ctx context.Context, serviceimport *kubeslicev1beta1.ServiceImport, slice *kubeslicev1beta1.Slice) error {
 	// We should only clean up resources that were created in the control plane namespace. Setting the service import object
 	// in the app namespace as the owner reference does not clean up resources in other namespaces.
 	// Resources in application namespaces are garbage collected because the owner reference for them is set to be the

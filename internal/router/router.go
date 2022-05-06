@@ -22,7 +22,7 @@ import (
 	"context"
 
 	sidecar "github.com/kubeslice/router-sidecar/pkg/proto"
-	meshv1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
+	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	emptypb "google.golang.org/protobuf/types/known/emptypb"
@@ -33,7 +33,7 @@ type SliceRouterConnCtx struct {
 	LocalNsmGwPeerIP       string
 }
 
-func GetClientConnectionInfo(ctx context.Context, addr string) ([]meshv1beta1.AppPod, error) {
+func GetClientConnectionInfo(ctx context.Context, addr string) ([]kubeslicev1beta1.AppPod, error) {
 	conn, err := grpc.Dial(addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		return nil, err
@@ -47,10 +47,10 @@ func GetClientConnectionInfo(ctx context.Context, addr string) ([]meshv1beta1.Ap
 		return nil, err
 	}
 
-	var appPods []meshv1beta1.AppPod
+	var appPods []kubeslicev1beta1.AppPod
 
 	for _, c := range info.Connection {
-		appPods = append(appPods, meshv1beta1.AppPod{
+		appPods = append(appPods, kubeslicev1beta1.AppPod{
 			PodName:      c.PodName,
 			NsmInterface: c.NsmInterface,
 			NsmIP:        c.NsmIP,

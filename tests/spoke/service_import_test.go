@@ -22,7 +22,7 @@ import (
 	"context"
 	"time"
 
-	meshv1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
+	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
@@ -34,19 +34,19 @@ import (
 var _ = Describe("ServiceImportController", func() {
 
 	Context("With a service import CR object installed, verify service import CR is reconciled", func() {
-		var slice *meshv1beta1.Slice
+		var slice *kubeslicev1beta1.Slice
 		var dnssvc *corev1.Service
 		var dnscm *corev1.ConfigMap
-		var svcim *meshv1beta1.ServiceImport
-		var createdSlice *meshv1beta1.Slice
+		var svcim *kubeslicev1beta1.ServiceImport
+		var createdSlice *kubeslicev1beta1.Slice
 		BeforeEach(func() {
 			// Prepare k8s objects for slice and mesh-dns service
-			slice = &meshv1beta1.Slice{
+			slice = &kubeslicev1beta1.Slice{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "test-slice-2",
 					Namespace: "kubeslice-system",
 				},
-				Spec: meshv1beta1.SliceSpec{},
+				Spec: kubeslicev1beta1.SliceSpec{},
 			}
 
 			dnssvc = &corev1.Service{
@@ -71,18 +71,18 @@ var _ = Describe("ServiceImportController", func() {
 			}
 
 			// Prepare k8s objects for slice and mesh-dns service
-			svcim = &meshv1beta1.ServiceImport{
+			svcim = &kubeslicev1beta1.ServiceImport{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "iperf-server",
 					Namespace: "default",
 				},
-				Spec: meshv1beta1.ServiceImportSpec{
+				Spec: kubeslicev1beta1.ServiceImportSpec{
 					Slice:   "test-slice-2",
 					DNSName: "iperf-server.iperf.svc.slice.local",
 					Ports:   getTestServiceExportPorts(),
 				},
 			}
-			createdSlice = &meshv1beta1.Slice{}
+			createdSlice = &kubeslicev1beta1.Slice{}
 
 			// Cleanup after each test
 			DeferCleanup(func() {
@@ -109,13 +109,13 @@ var _ = Describe("ServiceImportController", func() {
 				if err != nil {
 					return err
 				}
-				createdSlice.Status.SliceConfig = &meshv1beta1.SliceConfig{}
+				createdSlice.Status.SliceConfig = &kubeslicev1beta1.SliceConfig{}
 				return k8sClient.Status().Update(ctx, createdSlice)
 			})
 			Expect(err).To(BeNil())
 
 			svcKey := types.NamespacedName{Name: "iperf-server", Namespace: "default"}
-			createdSvcIm := &meshv1beta1.ServiceImport{}
+			createdSvcIm := &kubeslicev1beta1.ServiceImport{}
 
 			Eventually(func() bool {
 				err := k8sClient.Get(ctx, svcKey, createdSvcIm)
@@ -125,7 +125,7 @@ var _ = Describe("ServiceImportController", func() {
 				if createdSvcIm.Status.ExposedPorts != "80/TCP" {
 					return false
 				}
-				if createdSvcIm.Status.ImportStatus != meshv1beta1.ImportStatusReady {
+				if createdSvcIm.Status.ImportStatus != kubeslicev1beta1.ImportStatusReady {
 					return false
 				}
 				return true

@@ -22,7 +22,7 @@ import (
 	"context"
 	"time"
 
-	meshv1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
+	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
 	"github.com/kubeslice/worker-operator/internal/logger"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -39,17 +39,17 @@ var _ = Describe("SliceController", func() {
 
 	Context("With a Slice CR and mesh-dns service created", func() {
 
-		var slice *meshv1beta1.Slice
+		var slice *kubeslicev1beta1.Slice
 		var svc *corev1.Service
 		BeforeEach(func() {
 
 			// Prepare k8s objects for slice and mesh-dns service
-			slice = &meshv1beta1.Slice{
+			slice = &kubeslicev1beta1.Slice{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "test-slice",
 					Namespace: "kubeslice-system",
 				},
-				Spec: meshv1beta1.SliceSpec{},
+				Spec: kubeslicev1beta1.SliceSpec{},
 			}
 
 			svc = &corev1.Service{
@@ -94,7 +94,7 @@ var _ = Describe("SliceController", func() {
 			}, time.Second*10, time.Millisecond*250).Should(BeTrue())
 
 			sliceKey := types.NamespacedName{Name: "test-slice", Namespace: "kubeslice-system"}
-			createdSlice := &meshv1beta1.Slice{}
+			createdSlice := &kubeslicev1beta1.Slice{}
 
 			// Make sure slice status.Status.DNSIP is pointing to correct serviceIP
 			Eventually(func() string {
@@ -119,7 +119,7 @@ var _ = Describe("SliceController", func() {
 				return err == nil
 			}, time.Second*10, time.Millisecond*250).Should(BeTrue())
 
-			createdSlice := &meshv1beta1.Slice{}
+			createdSlice := &kubeslicev1beta1.Slice{}
 			Eventually(func() bool {
 				sliceKey := types.NamespacedName{Name: "test-slice", Namespace: "kubeslice-system"}
 				if err := k8sClient.Get(ctx, sliceKey, createdSlice); err != nil {
@@ -132,19 +132,19 @@ var _ = Describe("SliceController", func() {
 
 	})
 	Context("With Slice CR Deleted", func() {
-		var slice *meshv1beta1.Slice
+		var slice *kubeslicev1beta1.Slice
 		var svc *corev1.Service
-		var svcimport *meshv1beta1.ServiceImport
-		var svcexport *meshv1beta1.ServiceExport
+		var svcimport *kubeslicev1beta1.ServiceImport
+		var svcexport *kubeslicev1beta1.ServiceExport
 		BeforeEach(func() {
 
 			// Prepare k8s objects for slice and mesh-dns service
-			slice = &meshv1beta1.Slice{
+			slice = &kubeslicev1beta1.Slice{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "test-slice-im",
 					Namespace: "kubeslice-system",
 				},
-				Spec: meshv1beta1.SliceSpec{},
+				Spec: kubeslicev1beta1.SliceSpec{},
 			}
 
 			svc = &corev1.Service{
@@ -159,7 +159,7 @@ var _ = Describe("SliceController", func() {
 					}},
 				},
 			}
-			svcimport = &meshv1beta1.ServiceImport{
+			svcimport = &kubeslicev1beta1.ServiceImport{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "test-service-import",
 					Namespace: "kubeslice-system",
@@ -167,10 +167,10 @@ var _ = Describe("SliceController", func() {
 						"kubeslice.io/slice": "test-slice-im",
 					},
 				},
-				Spec: meshv1beta1.ServiceImportSpec{
+				Spec: kubeslicev1beta1.ServiceImportSpec{
 					Slice:   "test-slice-im",
 					DNSName: "pod.svc.local.cluster",
-					Ports: []meshv1beta1.ServicePort{
+					Ports: []kubeslicev1beta1.ServicePort{
 						{
 							Name:          "xyz",
 							ContainerPort: 5000,
@@ -178,7 +178,7 @@ var _ = Describe("SliceController", func() {
 					},
 				},
 			}
-			svcexport = &meshv1beta1.ServiceExport{
+			svcexport = &kubeslicev1beta1.ServiceExport{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "test-service-export",
 					Namespace: "kubeslice-system",
@@ -186,14 +186,14 @@ var _ = Describe("SliceController", func() {
 						"kubeslice.io/slice": "test-slice-im",
 					},
 				},
-				Spec: meshv1beta1.ServiceExportSpec{
+				Spec: kubeslicev1beta1.ServiceExportSpec{
 					Slice: "test-slice-im",
 					Selector: &metav1.LabelSelector{
 						MatchLabels: map[string]string{
 							"app": "iperf",
 						},
 					},
-					Ports: []meshv1beta1.ServicePort{
+					Ports: []kubeslicev1beta1.ServicePort{
 						{
 							Name:          "xyz",
 							ContainerPort: 5000,
@@ -221,7 +221,7 @@ var _ = Describe("SliceController", func() {
 				return err == nil
 			}, time.Second*10, time.Millisecond*250).Should(BeTrue())
 
-			createdSlice := &meshv1beta1.Slice{}
+			createdSlice := &kubeslicev1beta1.Slice{}
 			Eventually(func() bool {
 				sliceKey := types.NamespacedName{Name: "test-slice-im", Namespace: "kubeslice-system"}
 				if err := k8sClient.Get(ctx, sliceKey, createdSlice); err != nil {

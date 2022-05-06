@@ -22,13 +22,13 @@ import (
 	"context"
 	"fmt"
 
-	meshv1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
+	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
 	"github.com/kubeslice/worker-operator/controllers"
 	"github.com/kubeslice/worker-operator/internal/logger"
 	ctrl "sigs.k8s.io/controller-runtime"
 )
 
-func (r *Reconciler) ReconcileIstio(ctx context.Context, serviceexport *meshv1beta1.ServiceExport) (ctrl.Result, error, bool) {
+func (r *Reconciler) ReconcileIstio(ctx context.Context, serviceexport *kubeslicev1beta1.ServiceExport) (ctrl.Result, error, bool) {
 	log := logger.FromContext(ctx).WithValues("type", "Istio")
 	debugLog := log.V(1)
 
@@ -65,7 +65,7 @@ func (r *Reconciler) ReconcileIstio(ctx context.Context, serviceexport *meshv1be
 	return ctrl.Result{}, nil, false
 }
 
-func (r *Reconciler) DeleteIstioResources(ctx context.Context, serviceexport *meshv1beta1.ServiceExport, slice *meshv1beta1.Slice) error {
+func (r *Reconciler) DeleteIstioResources(ctx context.Context, serviceexport *kubeslicev1beta1.ServiceExport, slice *kubeslicev1beta1.Slice) error {
 	// We should only clean up resources that were created in the control plane namespace. Setting the service export object
 	// in the app namespace as the owner reference does not clean up resources in other namespaces.
 	// Resources in application namespaces are garbage collected because the owner reference for them is set to be the

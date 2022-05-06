@@ -23,7 +23,7 @@ import (
 	"strconv"
 
 	sidecar "github.com/kubeslice/netops/pkg/proto"
-	meshv1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
+	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
@@ -37,7 +37,7 @@ const (
 	EventType_EV_DELETE EventType = 2
 )
 
-func UpdateSliceQosProfile(ctx context.Context, addr string, slice *meshv1beta1.Slice) error {
+func UpdateSliceQosProfile(ctx context.Context, addr string, slice *kubeslicev1beta1.Slice) error {
 	conn, err := grpc.Dial(addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		return err
@@ -91,7 +91,7 @@ func SendSliceLifeCycleEventToNetOp(ctx context.Context, addr string, sliceName 
 }
 
 // SendConnectionContext sends sonnectioncontext to netop sidecar
-func SendConnectionContext(ctx context.Context, serverAddr string, gw *meshv1beta1.SliceGateway, sliceGwNodePort int32) error {
+func SendConnectionContext(ctx context.Context, serverAddr string, gw *kubeslicev1beta1.SliceGateway, sliceGwNodePort int32) error {
 	conn, err := grpc.Dial(serverAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		return err

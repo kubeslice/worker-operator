@@ -26,7 +26,7 @@ import (
 	. "github.com/onsi/gomega"
 
 	spokev1alpha1 "github.com/kubeslice/apis/pkg/spoke/v1alpha1"
-	meshv1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
+	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -37,7 +37,7 @@ var _ = Describe("Hub SliceController", func() {
 	Context("With Slice CR created in hub", func() {
 
 		var hubSlice *spokev1alpha1.SpokeSliceConfig
-		var createdSlice *meshv1beta1.Slice
+		var createdSlice *kubeslicev1beta1.Slice
 
 		BeforeEach(func() {
 
@@ -59,7 +59,7 @@ var _ = Describe("Hub SliceController", func() {
 				},
 			}
 
-			createdSlice = &meshv1beta1.Slice{}
+			createdSlice = &kubeslicev1beta1.Slice{}
 
 			// Cleanup after each test
 			DeferCleanup(func() {
@@ -117,7 +117,7 @@ var _ = Describe("Hub SliceController", func() {
 
 	Context("With Slice CR deleted on hub", func() {
 		var hubSlice *spokev1alpha1.SpokeSliceConfig
-		var createdSlice *meshv1beta1.Slice
+		var createdSlice *kubeslicev1beta1.Slice
 
 		BeforeEach(func() {
 			// Prepare k8s objects
@@ -138,7 +138,7 @@ var _ = Describe("Hub SliceController", func() {
 				},
 			}
 
-			createdSlice = &meshv1beta1.Slice{}
+			createdSlice = &kubeslicev1beta1.Slice{}
 
 		})
 		It("Should Delete the slice CR on spoke", func() {
@@ -165,7 +165,7 @@ var _ = Describe("Hub SliceController", func() {
 	Context("With ExternalGatewayConfig", func() {
 
 		var hubSlice *spokev1alpha1.SpokeSliceConfig
-		var createdSlice *meshv1beta1.Slice
+		var createdSlice *kubeslicev1beta1.Slice
 
 		BeforeEach(func() {
 
@@ -194,7 +194,7 @@ var _ = Describe("Hub SliceController", func() {
 				},
 			}
 
-			createdSlice = &meshv1beta1.Slice{}
+			createdSlice = &kubeslicev1beta1.Slice{}
 
 			// Cleanup after each test
 			DeferCleanup(func() {

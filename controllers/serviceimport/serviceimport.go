@@ -23,7 +23,7 @@ import (
 	"errors"
 	"strconv"
 
-	meshv1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
+	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
 	"github.com/kubeslice/worker-operator/controllers"
 	"github.com/kubeslice/worker-operator/internal/dns"
 	"github.com/kubeslice/worker-operator/internal/logger"
@@ -36,7 +36,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 )
 
-func (r *Reconciler) reconcileDNSEntries(ctx context.Context, serviceimport *meshv1beta1.ServiceImport) (ctrl.Result, error, bool) {
+func (r *Reconciler) reconcileDNSEntries(ctx context.Context, serviceimport *kubeslicev1beta1.ServiceImport) (ctrl.Result, error, bool) {
 	log := logger.FromContext(ctx).WithValues("type", "DNS")
 	debugLog := log.V(1)
 
@@ -77,7 +77,7 @@ func (r *Reconciler) reconcileDNSEntries(ctx context.Context, serviceimport *mes
 	return ctrl.Result{}, err, false
 }
 
-func (r *Reconciler) serviceForServiceImport(serviceImport *meshv1beta1.ServiceImport) *corev1.Service {
+func (r *Reconciler) serviceForServiceImport(serviceImport *kubeslicev1beta1.ServiceImport) *corev1.Service {
 
 	ports := []corev1.ServicePort{}
 
@@ -108,7 +108,7 @@ func (r *Reconciler) serviceForServiceImport(serviceImport *meshv1beta1.ServiceI
 	return svc
 }
 
-func (r *Reconciler) DeleteDnsRecordsForServiceImport(ctx context.Context, serviceimport *meshv1beta1.ServiceImport) error {
+func (r *Reconciler) DeleteDnsRecordsForServiceImport(ctx context.Context, serviceimport *kubeslicev1beta1.ServiceImport) error {
 	log := logger.FromContext(ctx)
 	cm := &corev1.ConfigMap{}
 	err := r.Get(ctx, types.NamespacedName{
@@ -136,7 +136,7 @@ func (r *Reconciler) DeleteDnsRecordsForServiceImport(ctx context.Context, servi
 	return nil
 }
 
-func (r *Reconciler) DeleteServiceImportResources(ctx context.Context, serviceimport *meshv1beta1.ServiceImport) error {
+func (r *Reconciler) DeleteServiceImportResources(ctx context.Context, serviceimport *kubeslicev1beta1.ServiceImport) error {
 	log := logger.FromContext(ctx)
 	slice, err := controllers.GetSlice(ctx, r.Client, serviceimport.Spec.Slice)
 	if err != nil {

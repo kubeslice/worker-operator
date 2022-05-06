@@ -32,7 +32,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	meshv1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
+	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
 	"github.com/kubeslice/worker-operator/controllers"
 	"github.com/kubeslice/worker-operator/internal/logger"
 	"github.com/kubeslice/worker-operator/internal/manifest"
@@ -73,7 +73,7 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 	debugLog := log.V(1)
 	ctx = logger.WithLogger(ctx, log)
 
-	slice := &meshv1beta1.Slice{}
+	slice := &kubeslicev1beta1.Slice{}
 
 	err := r.Get(ctx, req.NamespacedName, slice)
 	if err != nil {
@@ -263,7 +263,7 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 	}, nil
 }
 
-func isAppPodStatusChanged(current []meshv1beta1.AppPod, old []meshv1beta1.AppPod) bool {
+func isAppPodStatusChanged(current []kubeslicev1beta1.AppPod, old []kubeslicev1beta1.AppPod) bool {
 	if len(current) != len(old) {
 		return true
 	}
@@ -286,8 +286,8 @@ func isAppPodStatusChanged(current []meshv1beta1.AppPod, old []meshv1beta1.AppPo
 // SetupWithManager sets up the controller with the Manager.
 func (r *SliceReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&meshv1beta1.Slice{}).
+		For(&kubeslicev1beta1.Slice{}).
 		Owns(&appsv1.Deployment{}).
-		Owns(&meshv1beta1.SliceGateway{}).
+		Owns(&kubeslicev1beta1.SliceGateway{}).
 		Complete(r)
 }

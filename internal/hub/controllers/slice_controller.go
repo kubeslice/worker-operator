@@ -22,7 +22,7 @@ import (
 	"context"
 	"github.com/go-logr/logr"
 	spokev1alpha1 "github.com/kubeslice/apis/pkg/spoke/v1alpha1"
-	meshv1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
+	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
 	"github.com/kubeslice/worker-operator/internal/logger"
 	"github.com/kubeslice/worker-operator/pkg/events"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -103,7 +103,7 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req reconcile.Request) 
 	}
 
 	sliceName := slice.Spec.SliceName
-	meshSlice := &meshv1beta1.Slice{}
+	meshSlice := &kubeslicev1beta1.Slice{}
 	sliceRef := client.ObjectKey{
 		Name:      sliceName,
 		Namespace: ControlPlaneNamespace,
@@ -114,12 +114,12 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req reconcile.Request) 
 		if errors.IsNotFound(err) {
 			// Request object not found, create it in the spoke cluster
 			log.Info("Slice resource not found in spoke cluster, creating")
-			s := &meshv1beta1.Slice{
+			s := &kubeslicev1beta1.Slice{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      sliceName,
 					Namespace: ControlPlaneNamespace,
 				},
-				Spec: meshv1beta1.SliceSpec{},
+				Spec: kubeslicev1beta1.SliceSpec{},
 			}
 
 			err = r.MeshClient.Create(ctx, s)
@@ -166,12 +166,12 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req reconcile.Request) 
 	return reconcile.Result{}, nil
 }
 
-func (r *SliceReconciler) updateSliceConfig(ctx context.Context, meshSlice *meshv1beta1.Slice, spokeSlice *spokev1alpha1.SpokeSliceConfig) error {
+func (r *SliceReconciler) updateSliceConfig(ctx context.Context, meshSlice *kubeslicev1beta1.Slice, spokeSlice *spokev1alpha1.SpokeSliceConfig) error {
 	if meshSlice.Status.SliceConfig == nil {
-		meshSlice.Status.SliceConfig = &meshv1beta1.SliceConfig{
+		meshSlice.Status.SliceConfig = &kubeslicev1beta1.SliceConfig{
 			SliceDisplayName: spokeSlice.Spec.SliceName,
 			SliceSubnet:      spokeSlice.Spec.SliceSubnet,
-			SliceIpam: meshv1beta1.SliceIpamConfig{
+			SliceIpam: kubeslicev1beta1.SliceIpamConfig{
 				SliceIpamType:    spokeSlice.Spec.SliceIpamType,
 				IpamClusterOctet: spokeSlice.Spec.IpamClusterOctet,
 			},
@@ -187,7 +187,7 @@ func (r *SliceReconciler) updateSliceConfig(ctx context.Context, meshSlice *mesh
 		meshSlice.Status.SliceConfig.SliceIpam.IpamClusterOctet = spokeSlice.Spec.IpamClusterOctet
 	}
 
-	meshSlice.Status.SliceConfig.QosProfileDetails = meshv1beta1.QosProfileDetails{
+	meshSlice.Status.SliceConfig.QosProfileDetails = kubeslicev1beta1.QosProfileDetails{
 		QueueType:               spokeSlice.Spec.QosProfileDetails.QueueType,
 		BandwidthCeilingKbps:    spokeSlice.Spec.QosProfileDetails.BandwidthCeilingKbps,
 		BandwidthGuaranteedKbps: spokeSlice.Spec.QosProfileDetails.BandwidthGuaranteedKbps,
@@ -197,15 +197,15 @@ func (r *SliceReconciler) updateSliceConfig(ctx context.Context, meshSlice *mesh
 	}
 
 	extGwCfg := spokeSlice.Spec.ExternalGatewayConfig
-	meshSlice.Status.SliceConfig.ExternalGatewayConfig = &meshv1beta1.ExternalGatewayConfig{
+	meshSlice.Status.SliceConfig.ExternalGatewayConfig = &kubeslicev1beta1.ExternalGatewayConfig{
 		GatewayType: extGwCfg.GatewayType,
-		Egress: &meshv1beta1.ExternalGatewayConfigOptions{
+		Egress: &kubeslicev1beta1.ExternalGatewayConfigOptions{
 			Enabled: extGwCfg.Egress.Enabled,
 		},
-		Ingress: &meshv1beta1.ExternalGatewayConfigOptions{
+		Ingress: &kubeslicev1beta1.ExternalGatewayConfigOptions{
 			Enabled: extGwCfg.Ingress.Enabled,
 		},
-		NsIngress: &meshv1beta1.ExternalGatewayConfigOptions{
+		NsIngress: &kubeslicev1beta1.ExternalGatewayConfigOptions{
 			Enabled: extGwCfg.NsIngress.Enabled,
 		},
 	}
@@ -220,7 +220,7 @@ func (a *SliceReconciler) InjectClient(c client.Client) error {
 
 func (r *SliceReconciler) deleteSliceResourceOnSpoke(ctx context.Context, slice *spokev1alpha1.SpokeSliceConfig) error {
 	log := logger.FromContext(ctx)
-	sliceOnSpoke := &meshv1beta1.Slice{
+	sliceOnSpoke := &kubeslicev1beta1.Slice{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      slice.Spec.SliceName,
 			Namespace: ControlPlaneNamespace,
