@@ -158,7 +158,7 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req reconcile.Request
 				return reconcile.Result{}, err
 			}
 			log.Info("sliceGw created in spoke cluster", "sliceGw", sliceGwName)
-			//post event to the spokeslicegateway
+			//post event to the workerslicegateway
 			r.EventRecorder.Record(
 				&events.Event{
 					Object:    sliceGw,
