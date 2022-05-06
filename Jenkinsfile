@@ -1,5 +1,5 @@
 @Library('jenkins-library@master') _
-dockerImagePipeline1(
+dockerImagePipeline(
   script: this,
   service: 'aveshadev/worker-operator',
   dockerfile: 'Dockerfile',
