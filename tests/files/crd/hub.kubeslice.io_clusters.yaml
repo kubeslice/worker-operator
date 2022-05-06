@@ -6,9 +6,9 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.7.0
   creationTimestamp: null
-  name: clusters.hub.kubeslice.io
+  name: clusters.controller.kubeslice.io
 spec:
-  group: hub.kubeslice.io
+  group: controller.kubeslice.io
   names:
     kind: Cluster
     listKind: ClusterList
@@ -105,7 +105,7 @@ spec:
                   type: string
                 type: array
               secretName:
-                description: SecretName is the name of the secret for the spoke cluster.
+                description: SecretName is the name of the secret for the worker cluster.
                 type: string
             type: object
         type: object

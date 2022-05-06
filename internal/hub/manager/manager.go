@@ -84,7 +84,7 @@ func Start(meshClient client.Client, ctx context.Context) {
 	}
 	err = builder.
 		ControllerManagedBy(mgr).
-		For(&spokev1alpha1.SpokeSliceConfig{}).
+		For(&spokev1alpha1.WorkerSliceConfig{}).
 		WithEventFilter(predicate.NewPredicateFuncs(func(object client.Object) bool {
 			return object.GetLabels()["spoke-cluster"] == ClusterName
 		})).
@@ -104,7 +104,7 @@ func Start(meshClient client.Client, ctx context.Context) {
 	}
 	err = builder.
 		ControllerManagedBy(mgr).
-		For(&spokev1alpha1.SpokeSliceGateway{}).
+		For(&spokev1alpha1.WorkerSliceGateway{}).
 		WithEventFilter(predicate.NewPredicateFuncs(func(object client.Object) bool {
 			return object.GetLabels()["spoke-cluster"] == ClusterName
 		})).
@@ -122,7 +122,7 @@ func Start(meshClient client.Client, ctx context.Context) {
 	}
 	err = builder.
 		ControllerManagedBy(mgr).
-		For(&spokev1alpha1.SpokeServiceImport{}).
+		For(&spokev1alpha1.WorkerServiceImport{}).
 		WithEventFilter(predicate.NewPredicateFuncs(func(object client.Object) bool {
 			return object.GetLabels()["spoke-cluster"] == ClusterName
 		})).

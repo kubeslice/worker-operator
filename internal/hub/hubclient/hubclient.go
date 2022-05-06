@@ -78,7 +78,7 @@ func NewHubClientConfig() (*HubClientConfig, error) {
 }
 
 func (hubClient *HubClientConfig) UpdateNodePortForSliceGwServer(ctx context.Context, sliceGwNodePort int32, sliceGwName string) error {
-	sliceGw := &spokev1alpha1.SpokeSliceGateway{}
+	sliceGw := &spokev1alpha1.WorkerSliceGateway{}
 	err := hubClient.Get(ctx, types.NamespacedName{
 		Name:      sliceGwName,
 		Namespace: ProjectNamespace,
@@ -297,7 +297,7 @@ func (hubClient *HubClientConfig) DeleteServiceExport(ctx context.Context, servi
 }
 
 func (hubClient *HubClientConfig) UpdateAppPodsList(ctx context.Context, sliceConfigName string, appPods []kubeslicev1beta1.AppPod) error {
-	sliceConfig := &spokev1alpha1.SpokeSliceConfig{}
+	sliceConfig := &spokev1alpha1.WorkerSliceConfig{}
 	err := hubClient.Get(ctx, types.NamespacedName{
 		Name:      sliceConfigName,
 		Namespace: ProjectNamespace,

@@ -6,12 +6,12 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.7.0
   creationTimestamp: null
-  name: workerslicegateways.spoke.kubeslice.io
+  name: workerslicegateways.worker.kubeslice.io
 spec:
-  group: spoke.kubeslice.io
+  group: worker.kubeslice.io
   names:
-    kind: SpokeSliceGateway
-    listKind: SpokeSliceGatewayList
+    kind: WorkerSliceGateway
+    listKind: WorkerSliceGatewayList
     plural: workerslicegateways
     singular: workerslicegateway
   scope: Namespaced
@@ -19,7 +19,7 @@ spec:
   - name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: SpokeSliceGateway is the Schema for the slicegateways API
+        description: WorkerSliceGateway is the Schema for the slicegateways API
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation
@@ -34,7 +34,7 @@ spec:
           metadata:
             type: object
           spec:
-            description: SpokeSliceGatewaySpec defines the desired state of SpokeSliceGateway
+            description: WorkerSliceGatewaySpec defines the desired state of WorkerSliceGateway
             properties:
               gatewayCredentials:
                 properties:
@@ -86,7 +86,7 @@ spec:
                 type: string
             type: object
           status:
-            description: SpokeSliceGatewayStatus defines the observed state of SpokeSliceGateway
+            description: WorkerSliceGatewayStatus defines the observed state of WorkerSliceGateway
             properties:
               clusterInsertionIndex:
                 type: integer

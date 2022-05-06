@@ -6,9 +6,9 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.7.0
   creationTimestamp: null
-  name: serviceexportconfigs.hub.kubeslice.io
+  name: serviceexportconfigs.controller.kubeslice.io
 spec:
-  group: hub.kubeslice.io
+  group: controller.kubeslice.io
   names:
     kind: ServiceExportConfig
     listKind: ServiceExportConfigList

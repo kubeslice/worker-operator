@@ -20,6 +20,7 @@ package controllers
 
 import (
 	"context"
+
 	"github.com/go-logr/logr"
 	spokev1alpha1 "github.com/kubeslice/apis/pkg/worker/v1alpha1"
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
@@ -40,13 +41,13 @@ type SliceReconciler struct {
 	EventRecorder *events.EventRecorder
 }
 
-var sliceFinalizer = "hub.kubeslice.io/hubSpokeSlice-finalizer"
+var sliceFinalizer = "controller.kubeslice.io/hubSpokeSlice-finalizer"
 
 func (r *SliceReconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
 	log := r.Log.WithValues("sliceconfig", req.NamespacedName)
 	ctx = logger.WithLogger(ctx, log)
 	debuglog := log.V(1)
-	slice := &spokev1alpha1.SpokeSliceConfig{}
+	slice := &spokev1alpha1.WorkerSliceConfig{}
 	err := r.Get(ctx, req.NamespacedName, slice)
 	if err != nil {
 		if errors.IsNotFound(err) {
@@ -166,7 +167,7 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req reconcile.Request) 
 	return reconcile.Result{}, nil
 }
 
-func (r *SliceReconciler) updateSliceConfig(ctx context.Context, meshSlice *kubeslicev1beta1.Slice, spokeSlice *spokev1alpha1.SpokeSliceConfig) error {
+func (r *SliceReconciler) updateSliceConfig(ctx context.Context, meshSlice *kubeslicev1beta1.Slice, spokeSlice *spokev1alpha1.WorkerSliceConfig) error {
 	if meshSlice.Status.SliceConfig == nil {
 		meshSlice.Status.SliceConfig = &kubeslicev1beta1.SliceConfig{
 			SliceDisplayName: spokeSlice.Spec.SliceName,
@@ -218,7 +219,7 @@ func (a *SliceReconciler) InjectClient(c client.Client) error {
 	return nil
 }
 
-func (r *SliceReconciler) deleteSliceResourceOnSpoke(ctx context.Context, slice *spokev1alpha1.SpokeSliceConfig) error {
+func (r *SliceReconciler) deleteSliceResourceOnSpoke(ctx context.Context, slice *spokev1alpha1.WorkerSliceConfig) error {
 	log := logger.FromContext(ctx)
 	sliceOnSpoke := &kubeslicev1beta1.Slice{
 		ObjectMeta: metav1.ObjectMeta{

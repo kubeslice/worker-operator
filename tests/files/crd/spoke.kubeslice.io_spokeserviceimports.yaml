@@ -6,20 +6,20 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.7.0
   creationTimestamp: null
-  name: spokeserviceimports.spoke.kubeslice.io
+  name: workerserviceimports.worker.kubeslice.io
 spec:
-  group: spoke.kubeslice.io
+  group: worker.kubeslice.io
   names:
-    kind: SpokeServiceImport
-    listKind: SpokeServiceImportList
-    plural: spokeserviceimports
-    singular: spokeserviceimport
+    kind: WorkerServiceImport
+    listKind: WorkerServiceImportList
+    plural: workerserviceimports
+    singular: workerserviceimport
   scope: Namespaced
   versions:
   - name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: SpokeServiceImport is the Schema for the spokeserviceimport API
+        description: WorkerServiceImport is the Schema for the workerserviceimport API
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation
@@ -34,7 +34,7 @@ spec:
           metadata:
             type: object
           spec:
-            description: SpokeServiceImportSpec defines the desired state of SpokeServiceImport
+            description: WorkerServiceImportSpec defines the desired state of WorkerServiceImport
             properties:
               meshType:
                 description: The type of service mesh running in the cluster
@@ -100,7 +100,7 @@ spec:
                 type: array
             type: object
           status:
-            description: SpokeServiceImportStatus defines the observed state of SpokeServiceImport
+            description: WorkerServiceImportStatus defines the observed state of WorkerServiceImport
             type: object
         type: object
     served: true

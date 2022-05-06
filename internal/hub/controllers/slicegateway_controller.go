@@ -46,7 +46,7 @@ type SliceGwReconciler struct {
 func (r *SliceGwReconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
 	log := logger.FromContext(ctx)
 
-	sliceGw := &spokev1alpha1.SpokeSliceGateway{}
+	sliceGw := &spokev1alpha1.WorkerSliceGateway{}
 	err := r.Get(ctx, req.NamespacedName, sliceGw)
 	if err != nil {
 		if errors.IsNotFound(err) {

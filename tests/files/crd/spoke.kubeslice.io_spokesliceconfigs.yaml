@@ -6,12 +6,12 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.7.0
   creationTimestamp: null
-  name: workersliceconfigs.spoke.kubeslice.io
+  name: workersliceconfigs.worker.kubeslice.io
 spec:
-  group: spoke.kubeslice.io
+  group: worker.kubeslice.io
   names:
-    kind: SpokeSliceConfig
-    listKind: SpokeSliceConfigList
+    kind: WorkerSliceConfig
+    listKind: WorkerSliceConfigList
     plural: workersliceconfigs
     singular: workersliceconfig
   scope: Namespaced
@@ -19,7 +19,7 @@ spec:
   - name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: SpokeSliceConfig is the Schema for the slice API
+        description: WorkerSliceConfig is the Schema for the slice API
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation
@@ -34,7 +34,7 @@ spec:
           metadata:
             type: object
           spec:
-            description: SpokeSliceConfigSpec defines the desired state of Slice
+            description: WorkerSliceConfigSpec defines the desired state of Slice
             properties:
               externalGatewayConfig:
                 properties:
@@ -108,7 +108,7 @@ spec:
                     type: string
                 type: object
               sliceGatewayProvider:
-                description: SpokeSliceGatewayProvider defines the configuration for
+                description: WorkerSliceGatewayProvider defines the configuration for
                   slicegateway
                 properties:
                   sliceCaType:
@@ -134,7 +134,7 @@ spec:
                 type: string
             type: object
           status:
-            description: SpokeSliceConfigStatus defines the observed state of Slice
+            description: WorkerSliceConfigStatus defines the observed state of Slice
             type: object
         type: object
     served: true
