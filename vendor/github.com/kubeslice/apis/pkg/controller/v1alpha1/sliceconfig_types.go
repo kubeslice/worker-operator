@@ -1,18 +1,18 @@
 /*
-Copyright 2022.
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
+ *  Copyright (c) 2022 Avesha, Inc. All rights reserved. # # SPDX-License-Identifier: Apache-2.0
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *  http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
 
 package v1alpha1
 
@@ -26,14 +26,16 @@ import (
 // SliceConfigSpec defines the desired state of SliceConfig
 type SliceConfigSpec struct {
 	SliceSubnet string `json:"sliceSubnet,omitempty"`
-	//+kubebuilder:validation:Enum:=Application
-	SliceType            string                    `json:"sliceType,omitempty"`
-	SliceGatewayProvider SpokeSliceGatewayProvider `json:"sliceGatewayProvider,omitempty"`
-	//+kubebuilder:validation:Enum:=Local
-	SliceIpamType             string                    `json:"sliceIpamType,omitempty"`
-	Clusters                  []string                  `json:"clusters,omitempty"`
-	StandardQosProfileName    string                    `json:"standardQosProfileName,omitempty"` // FIXME: Add OneOf StandardQosProfileName vs QosProfileDetails
-	QosProfileDetails         QOSProfile                `json:"qosProfileDetails,omitempty"`      // FIXME: Add OneOf StandardQosProfileName vs QosProfileDetails
+	//+kubebuilder:default:=Application
+	SliceType string `json:"sliceType,omitempty"`
+	// +kubebuilder:validation:Required
+	SliceGatewayProvider WorkerSliceGatewayProvider `json:"sliceGatewayProvider"`
+	//+kubebuilder:default:=Local
+	SliceIpamType string   `json:"sliceIpamType,omitempty"`
+	Clusters      []string `json:"clusters,omitempty"`
+	// +kubebuilder:validation:Required
+	// The custom QOS Profile Details
+	QosProfileDetails         QOSProfile                `json:"qosProfileDetails"` // FIXME: Add OneOf StandardQosProfileName vs QosProfileDetails
 	NamespaceIsolationProfile NamespaceIsolationProfile `json:"namespaceIsolationProfile,omitempty"`
 	ExternalGatewayConfig     []ExternalGatewayConfig   `json:"externalGatewayConfig,omitempty"`
 }
@@ -43,7 +45,7 @@ type ExternalGatewayConfig struct {
 	Ingress   ExternalGatewayConfigOptions `json:"ingress,omitempty"`
 	Egress    ExternalGatewayConfigOptions `json:"egress,omitempty"`
 	NsIngress ExternalGatewayConfigOptions `json:"nsIngress,omitempty"`
-	//+kubebuilder:validation:Enum:=none,istio
+	//+kubebuilder:validation:Enum:=none;istio
 	GatewayType string   `json:"gatewayType,omitempty"`
 	Clusters    []string `json:"clusters,omitempty"`
 }
@@ -52,25 +54,39 @@ type ExternalGatewayConfigOptions struct {
 	Enabled bool `json:"enabled,omitempty"`
 }
 
-// SpokeSliceGatewayProvider defines the configuration for slicegateway
-type SpokeSliceGatewayProvider struct {
-	//+kubebuilder:validation:Enum:=OpenVPN
-	SliceGatewayType string `json:"sliceGatewayType,omitempty"`
-	//+kubebuilder:validation:Enum:=Local
-	SliceCaType string `json:"sliceCaType,omitempty"`
+// WorkerSliceGatewayProvider defines the configuration for slicegateway
+type WorkerSliceGatewayProvider struct {
+	//+kubebuilder:default:=OpenVPN
+	// +kubebuilder:validation:Required
+	SliceGatewayType string `json:"sliceGatewayType"`
+
+	//+kubebuilder:default:=Local
+	// +kubebuilder:validation:Required
+	SliceCaType string `json:"sliceCaType"`
 }
 
 // QOSProfile is the QOS Profile configuration from backend
 type QOSProfile struct {
-	//+kubebuilder:validation:Enum:=HTB
-	QueueType string `json:"queueType,omitempty"`
-	Priority  int    `json:"priority,omitempty"`
-	//+kubebuilder:validation:Enum:=BANDWIDTH_CONTROL
-	TcType                  string `json:"tcType,omitempty"`
-	BandwidthCeilingKbps    int    `json:"bandwidthCeilingKbps,omitempty"` //FIXME: Need research for unlimited
-	BandwidthGuaranteedKbps int    `json:"bandwidthGuaranteedKbps,omitempty"`
+	//+kubebuilder:default:=HTB
+	// +kubebuilder:validation:Required
+	QueueType string `json:"queueType"`
+
+	// +kubebuilder:validation:Required
+	Priority int `json:"priority"`
+
+	//+kubebuilder:default:=BANDWIDTH_CONTROL
+	// +kubebuilder:validation:Required
+	TcType string `json:"tcType"`
+
+	//+kubebuilder:validation:Required
+	BandwidthCeilingKbps int `json:"bandwidthCeilingKbps"` //FIXME: Need research for unlimited
+
+	//+kubebuilder:validation:Required
+	BandwidthGuaranteedKbps int `json:"bandwidthGuaranteedKbps"`
+
 	//+kubebuilder:validation:Enum:=Default;AF11;AF12;AF13;AF21;AF22;AF23;AF31;AF32;AF33;AF41;AF42;AF43;EF
-	DscpClass string `json:"dscpClass,omitempty"`
+	//+kubebuilder:validation:Required
+	DscpClass string `json:"dscpClass"`
 }
 
 type NamespaceIsolationProfile struct {

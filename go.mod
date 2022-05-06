@@ -36,4 +36,4 @@ replace github.com/kubeslice/netops => ../netops
 
 replace github.com/kubeslice/router-sidecar => ../router-sidecar
 
-replace github.com/kubeslice/apis => ../mesh-apis
+replace github.com/kubeslice/apis => ../apis

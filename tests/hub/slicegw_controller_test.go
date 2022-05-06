@@ -21,7 +21,7 @@ package hub_test
 import (
 	"time"
 
-	spokev1alpha1 "github.com/kubeslice/apis/pkg/spoke/v1alpha1"
+	spokev1alpha1 "github.com/kubeslice/apis/pkg/worker/v1alpha1"
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"

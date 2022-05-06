@@ -23,16 +23,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// MeshType defines the type of service mesh running in the cluster
-type MeshType string
-
-const (
-	// MeshTypeIstio indicates that service is exported through istio
-	MeshTypeIstio MeshType = "istio"
-	// MeshTypeNone indicates that service is running as normal kubernetes service without any mesh
-	MeshTypeNone MeshType = "none"
-)
-
 // ServicePort is the port exposed by ServicePod
 type ServicePort struct {
 	// Name of the port
@@ -62,8 +52,6 @@ type ServiceExportSpec struct {
 	Slice string `json:"slice"`
 	// Selector is a label query over pods that should be exposed as a service
 	Selector *metav1.LabelSelector `json:"selector"`
-	// MeshType denotes the type of service mesh the app pods are part of
-	MeshType MeshType `json:"meshType,omitempty"`
 	// IngressEnabled denotes whether the traffic should be proxied through an ingress gateway
 	IngressEnabled bool `json:"ingressEnabled,omitempty"`
 	// Ports which should be exposed through the service

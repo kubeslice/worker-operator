@@ -20,8 +20,9 @@ package hub
 
 import (
 	"context"
-	"k8s.io/apimachinery/pkg/api/errors"
 	"os"
+
+	"k8s.io/apimachinery/pkg/api/errors"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -31,8 +32,8 @@ import (
 	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	hubv1alpha1 "github.com/kubeslice/apis/pkg/hub/v1alpha1"
-	spokev1alpha1 "github.com/kubeslice/apis/pkg/spoke/v1alpha1"
+	hubv1alpha1 "github.com/kubeslice/apis/pkg/controller/v1alpha1"
+	spokev1alpha1 "github.com/kubeslice/apis/pkg/worker/v1alpha1"
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
 	"github.com/kubeslice/worker-operator/internal/cluster"
 	"github.com/kubeslice/worker-operator/internal/logger"
@@ -189,7 +190,6 @@ func getHubServiceExportObj(serviceexport *kubeslicev1beta1.ServiceExport) *hubv
 			ServiceNamespace:          serviceexport.ObjectMeta.Namespace,
 			SourceCluster:             ClusterName,
 			SliceName:                 serviceexport.Spec.Slice,
-			MeshType:                  string(serviceexport.Spec.MeshType),
 			ServiceDiscoveryEndpoints: getHubServiceDiscoveryEps(serviceexport),
 			ServiceDiscoveryPorts:     getHubServiceDiscoveryPorts(serviceexport),
 		},
@@ -224,7 +224,6 @@ func (hubClient *HubClientConfig) UpdateServiceExportEndpointForIngressGw(ctx co
 					ServiceNamespace:          serviceexport.ObjectMeta.Namespace,
 					SourceCluster:             ClusterName,
 					SliceName:                 serviceexport.Spec.Slice,
-					MeshType:                  string(serviceexport.Spec.MeshType),
 					ServiceDiscoveryEndpoints: []hubv1alpha1.ServiceDiscoveryEndpoint{getHubServiceDiscoveryEp(ep)},
 					ServiceDiscoveryPorts:     getHubServiceDiscoveryPorts(serviceexport),
 				},
