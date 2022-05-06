@@ -37,13 +37,13 @@ COPY controllers/ controllers/
 COPY internal/ internal/
 COPY pkg/ pkg/
 # Build
-RUN go env -w GOPRIVATE=bitbucket.org/realtimeai && \
+RUN go env -w GOPRIVATE=github.com/kubeslice && \
     CGO_ENABLED=0 GOOS=linux GOARCH=amd64 GO111MODULE=on go build -mod=vendor -a -o manager main.go
 
 # Use distroless as minimal base image to package the manager binary
 # Refer to https://github.com/GoogleContainerTools/distroless for more details
 FROM gcr.io/distroless/static:nonroot
-LABEL maintainer="Avesha Systems LLC"
+LABEL maintainer="Avesha Systems"
 WORKDIR /
 COPY --from=builder /workspace/manager .
 
