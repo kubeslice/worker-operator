@@ -21,7 +21,7 @@ package router
 import (
 	"context"
 
-	sidecar "github.com/kubeslice/router-sidecar/pkg/proto"
+	sidecar "github.com/kubeslice/router-sidecar/pkg/sidecar/sidecarpb"
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"

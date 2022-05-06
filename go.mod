@@ -7,10 +7,10 @@ require (
 	github.com/go-logr/zapr v1.2.0
 	github.com/golang/protobuf v1.5.2
 	github.com/google/go-cmp v0.5.6
-	github.com/kubeslice/apis v0.0.0-20220324085140-e01c311eb69c
-	github.com/kubeslice/gateway-sidecar v0.0.0-20220214062837-3c7d18a8439e
-	github.com/kubeslice/netops v0.0.0-20220323113922-61ae902d49f7
-	github.com/kubeslice/router-sidecar v0.0.0-20220221080454-e2276f57c978
+	github.com/kubeslice/apis v0.0.0-20220503083146-b9e5ed39a74a
+	github.com/kubeslice/gateway-sidecar v0.0.0-20220506071225-eac5ccc17b42
+	github.com/kubeslice/netops v0.0.0-20220506082959-81fef290c265
+	github.com/kubeslice/router-sidecar v1.0.0
 	github.com/networkservicemesh/networkservicemesh/k8s/pkg/apis v0.0.0-20211028170547-e58ac1200f18
 	github.com/onsi/ginkgo/v2 v2.1.3
 	github.com/onsi/gomega v1.18.1
@@ -29,11 +29,3 @@ require (
 	k8s.io/client-go v0.23.5
 	sigs.k8s.io/controller-runtime v0.11.1
 )
-
-replace github.com/kubeslice/gateway-sidecar => ../gateway-sidecar
-
-replace github.com/kubeslice/netops => ../netops
-
-replace github.com/kubeslice/router-sidecar => ../router-sidecar
-
-replace github.com/kubeslice/apis => ../apis

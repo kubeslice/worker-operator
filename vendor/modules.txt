@@ -72,11 +72,11 @@ github.com/googleapis/gnostic/openapiv2
 github.com/imdario/mergo
 # github.com/json-iterator/go v1.1.12
 github.com/json-iterator/go
-# github.com/kubeslice/apis v0.0.0-20220324085140-e01c311eb69c => ../apis
+# github.com/kubeslice/apis v0.0.0-20220503083146-b9e5ed39a74a
 ## explicit
 github.com/kubeslice/apis/pkg/controller/v1alpha1
 github.com/kubeslice/apis/pkg/worker/v1alpha1
-# github.com/kubeslice/gateway-sidecar v0.0.0-20220214062837-3c7d18a8439e => ../gateway-sidecar
+# github.com/kubeslice/gateway-sidecar v0.0.0-20220506071225-eac5ccc17b42
 ## explicit
 github.com/kubeslice/gateway-sidecar/pkg/cmd
 github.com/kubeslice/gateway-sidecar/pkg/exec
@@ -85,12 +85,12 @@ github.com/kubeslice/gateway-sidecar/pkg/metrics
 github.com/kubeslice/gateway-sidecar/pkg/nettools
 github.com/kubeslice/gateway-sidecar/pkg/sidecar/sidecarpb
 github.com/kubeslice/gateway-sidecar/pkg/status
-# github.com/kubeslice/netops v0.0.0-20220323113922-61ae902d49f7 => ../netops
+# github.com/kubeslice/netops v0.0.0-20220506082959-81fef290c265
 ## explicit
 github.com/kubeslice/netops/pkg/proto
-# github.com/kubeslice/router-sidecar v0.0.0-20220221080454-e2276f57c978 => ../router-sidecar
+# github.com/kubeslice/router-sidecar v1.0.0
 ## explicit
-github.com/kubeslice/router-sidecar/pkg/proto
+github.com/kubeslice/router-sidecar/pkg/sidecar/sidecarpb
 # github.com/matttproud/golang_protobuf_extensions v1.0.2-0.20181231171920-c182affec369
 github.com/matttproud/golang_protobuf_extensions/pbutil
 # github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd
@@ -661,7 +661,3 @@ sigs.k8s.io/structured-merge-diff/v4/typed
 sigs.k8s.io/structured-merge-diff/v4/value
 # sigs.k8s.io/yaml v1.3.0
 sigs.k8s.io/yaml
-# github.com/kubeslice/gateway-sidecar => ../gateway-sidecar
-# github.com/kubeslice/netops => ../netops
-# github.com/kubeslice/router-sidecar => ../router-sidecar
-# github.com/kubeslice/apis => ../apis
