@@ -21,13 +21,13 @@ package slicegateway
 import (
 	"context"
 
-	meshv1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
+	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
 	"github.com/kubeslice/worker-operator/internal/logger"
 	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-func (r *SliceGwReconciler) getNetOpPods(ctx context.Context, slicegateway *meshv1beta1.SliceGateway) error {
+func (r *SliceGwReconciler) getNetOpPods(ctx context.Context, slicegateway *kubeslicev1beta1.SliceGateway) error {
 	log := logger.FromContext(ctx).WithValues("type", "net_op")
 	debugLog := log.V(1)
 

@@ -37,8 +37,8 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	spokev1alpha1 "github.com/kubeslice/apis/pkg/spoke/v1alpha1"
-	meshv1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
+	spokev1alpha1 "github.com/kubeslice/apis/pkg/worker/v1alpha1"
+	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
 	"github.com/kubeslice/worker-operator/internal/hub/controllers"
 	"github.com/kubeslice/worker-operator/pkg/events"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
@@ -78,7 +78,7 @@ var _ = BeforeSuite(func() {
 	Expect(err).NotTo(HaveOccurred())
 	Expect(cfg).NotTo(BeNil())
 
-	err = meshv1beta1.AddToScheme(scheme.Scheme)
+	err = kubeslicev1beta1.AddToScheme(scheme.Scheme)
 	Expect(err).NotTo(HaveOccurred())
 	err = spokev1alpha1.AddToScheme(scheme.Scheme)
 	Expect(err).NotTo(HaveOccurred())
@@ -133,7 +133,7 @@ var _ = BeforeSuite(func() {
 
 	err = builder.
 		ControllerManagedBy(k8sManager).
-		For(&spokev1alpha1.SpokeSliceConfig{}).
+		For(&spokev1alpha1.WorkerSliceConfig{}).
 		WithEventFilter(predicate.NewPredicateFuncs(func(object client.Object) bool {
 			return object.GetLabels()["spoke-cluster"] == CLUSTER_NAME
 		})).
@@ -142,7 +142,7 @@ var _ = BeforeSuite(func() {
 
 	err = builder.
 		ControllerManagedBy(k8sManager).
-		For(&spokev1alpha1.SpokeSliceGateway{}).
+		For(&spokev1alpha1.WorkerSliceGateway{}).
 		WithEventFilter(predicate.NewPredicateFuncs(func(object client.Object) bool {
 			return object.GetLabels()["spoke-cluster"] == CLUSTER_NAME
 		})).

@@ -29,7 +29,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	meshv1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
+	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
@@ -43,7 +43,7 @@ type Reconciler struct {
 	EventRecorder *events.EventRecorder
 }
 
-var finalizerName = "mesh.avesha.io/serviceimport-finalizer"
+var finalizerName = "networking.kubeslice.io/serviceimport-finalizer"
 
 // NewReconciler creates a new reconciler for serviceimport
 func NewReconciler(c client.Client, s *runtime.Scheme, clusterId string) Reconciler {
@@ -55,8 +55,8 @@ func NewReconciler(c client.Client, s *runtime.Scheme, clusterId string) Reconci
 	}
 }
 
-// +kubebuilder:rbac:groups=mesh.avesha.io,resources=serviceimports,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=mesh.avesha.io,resources=serviceimports/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=networking.kubeslice.io,resources=serviceimports,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=networking.kubeslice.io,resources=serviceimports/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=core,resources=configmaps,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=coordination.k8s.io,resources=leases,verbs=get;list;create;update
 
@@ -64,7 +64,7 @@ func NewReconciler(c client.Client, s *runtime.Scheme, clusterId string) Reconci
 func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := r.Log.WithValues("serviceimport", req.NamespacedName)
 
-	serviceimport := &meshv1beta1.ServiceImport{}
+	serviceimport := &kubeslicev1beta1.ServiceImport{}
 	err := r.Get(ctx, req.NamespacedName, serviceimport)
 	if err != nil {
 		if errors.IsNotFound(err) {
@@ -116,8 +116,8 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 
 	if serviceimport.Status.ExposedPorts != portListToDisplayString(serviceimport.Spec.Ports) {
 		serviceimport.Status.ExposedPorts = portListToDisplayString(serviceimport.Spec.Ports)
-		if serviceimport.Status.ImportStatus == meshv1beta1.ImportStatusInitial {
-			serviceimport.Status.ImportStatus = meshv1beta1.ImportStatusPending
+		if serviceimport.Status.ImportStatus == kubeslicev1beta1.ImportStatusInitial {
+			serviceimport.Status.ImportStatus = kubeslicev1beta1.ImportStatusPending
 		}
 		err = r.Status().Update(ctx, serviceimport)
 		if err != nil {
@@ -171,8 +171,8 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	}
 
 	// Set import status to ready when reconciliation is complete
-	if serviceimport.Status.ImportStatus != meshv1beta1.ImportStatusReady {
-		serviceimport.Status.ImportStatus = meshv1beta1.ImportStatusReady
+	if serviceimport.Status.ImportStatus != kubeslicev1beta1.ImportStatusReady {
+		serviceimport.Status.ImportStatus = kubeslicev1beta1.ImportStatusReady
 		err = r.Status().Update(ctx, serviceimport)
 		if err != nil {
 			log.Error(err, "Failed to update serviceimport import status")
@@ -188,6 +188,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 // SetupWithManager sets up reconciler with manager
 func (r *Reconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&meshv1beta1.ServiceImport{}).
+		For(&kubeslicev1beta1.ServiceImport{}).
 		Complete(r)
 }

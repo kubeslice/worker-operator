@@ -21,7 +21,7 @@ package serviceexport
 import (
 	"context"
 
-	meshv1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
+	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
 	"github.com/kubeslice/worker-operator/controllers"
 	"github.com/kubeslice/worker-operator/internal/logger"
 	networkingv1beta1 "istio.io/api/networking/v1beta1"
@@ -32,7 +32,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-func (r *Reconciler) ReconcileServiceEntries(ctx context.Context, serviceexport *meshv1beta1.ServiceExport) (ctrl.Result, error, bool) {
+func (r *Reconciler) ReconcileServiceEntries(ctx context.Context, serviceexport *kubeslicev1beta1.ServiceExport) (ctrl.Result, error, bool) {
 	log := logger.FromContext(ctx).WithValues("type", "Istio ServiceEntry")
 	debugLog := log.V(1)
 
@@ -80,7 +80,7 @@ func (r *Reconciler) ReconcileServiceEntries(ctx context.Context, serviceexport 
 }
 
 // getServiceEntries returns all the serviceentries belongs to a serviceexport
-func getServiceEntries(ctx context.Context, r client.Reader, serviceexport *meshv1beta1.ServiceExport) ([]istiov1beta1.ServiceEntry, error) {
+func getServiceEntries(ctx context.Context, r client.Reader, serviceexport *kubeslicev1beta1.ServiceExport) ([]istiov1beta1.ServiceEntry, error) {
 	seList := &istiov1beta1.ServiceEntryList{}
 	listOpts := []client.ListOption{
 		client.MatchingLabels(labelsForServiceEntry(serviceexport)),
@@ -98,7 +98,7 @@ func getServiceEntries(ctx context.Context, r client.Reader, serviceexport *mesh
 }
 
 // Create serviceEntry based on serviceExport endpoint spec
-func createServiceEntryForEndpoint(serviceexport *meshv1beta1.ServiceExport, endpoint *meshv1beta1.ServicePod) *istiov1beta1.ServiceEntry {
+func createServiceEntryForEndpoint(serviceexport *kubeslicev1beta1.ServiceExport, endpoint *kubeslicev1beta1.ServicePod) *istiov1beta1.ServiceEntry {
 	ports := []*networkingv1beta1.Port{}
 
 	for _, p := range serviceexport.Spec.Ports {
@@ -141,11 +141,11 @@ func createServiceEntryForEndpoint(serviceexport *meshv1beta1.ServiceExport, end
 	return se
 }
 
-func serviceEntryName(endpoint *meshv1beta1.ServicePod, ns string) string {
+func serviceEntryName(endpoint *kubeslicev1beta1.ServicePod, ns string) string {
 	return endpoint.Name + "-" + ns + "-ingress"
 }
 
-func servicesEntriesToDelete(seList []istiov1beta1.ServiceEntry, se *meshv1beta1.ServiceExport) []istiov1beta1.ServiceEntry {
+func servicesEntriesToDelete(seList []istiov1beta1.ServiceEntry, se *kubeslicev1beta1.ServiceExport) []istiov1beta1.ServiceEntry {
 
 	exists := struct{}{}
 	dnsSet := make(map[string]struct{})
@@ -164,7 +164,7 @@ func servicesEntriesToDelete(seList []istiov1beta1.ServiceEntry, se *meshv1beta1
 	return toDelete
 }
 
-func labelsForServiceEntry(se *meshv1beta1.ServiceExport) map[string]string {
+func labelsForServiceEntry(se *kubeslicev1beta1.ServiceExport) map[string]string {
 	return map[string]string{
 		"avesha-service":    se.Name,
 		"avesha-service-ns": se.Namespace,
@@ -172,7 +172,7 @@ func labelsForServiceEntry(se *meshv1beta1.ServiceExport) map[string]string {
 	}
 }
 
-func serviceEntryExists(seList []istiov1beta1.ServiceEntry, e meshv1beta1.ServicePod) bool {
+func serviceEntryExists(seList []istiov1beta1.ServiceEntry, e kubeslicev1beta1.ServicePod) bool {
 	for _, se := range seList {
 		if len(se.Spec.Hosts) > 0 && se.Spec.Hosts[0] == e.DNSName {
 			return true
@@ -182,7 +182,7 @@ func serviceEntryExists(seList []istiov1beta1.ServiceEntry, e meshv1beta1.Servic
 	return false
 }
 
-func (r *Reconciler) DeleteIstioServiceEntries(ctx context.Context, serviceexport *meshv1beta1.ServiceExport) error {
+func (r *Reconciler) DeleteIstioServiceEntries(ctx context.Context, serviceexport *kubeslicev1beta1.ServiceExport) error {
 	entries, err := getServiceEntries(ctx, r, serviceexport)
 	if err != nil {
 		if errors.IsNotFound(err) {

@@ -24,7 +24,7 @@ import (
 	"strconv"
 	"strings"
 
-	meshv1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
+	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
 	"github.com/kubeslice/worker-operator/controllers"
 	corev1 "k8s.io/api/core/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -36,7 +36,7 @@ func getClusterName() string {
 }
 
 // portListToDisplayString converts list of ports to a single string
-func portListToDisplayString(servicePorts []meshv1beta1.ServicePort) string {
+func portListToDisplayString(servicePorts []kubeslicev1beta1.ServicePort) string {
 	ports := []string{}
 	for _, port := range servicePorts {
 		protocol := "TCP"
@@ -49,7 +49,7 @@ func portListToDisplayString(servicePorts []meshv1beta1.ServicePort) string {
 }
 
 // Get NSM Ip of an app pod
-func getNsmIP(pod *corev1.Pod, appPods []meshv1beta1.AppPod) string {
+func getNsmIP(pod *corev1.Pod, appPods []kubeslicev1beta1.AppPod) string {
 	for _, appPod := range appPods {
 		if pod.Name == appPod.PodName && pod.Namespace == appPod.PodNamespace {
 			return appPod.NsmIP
@@ -59,12 +59,12 @@ func getNsmIP(pod *corev1.Pod, appPods []meshv1beta1.AppPod) string {
 }
 
 // Determine if there is a change in existing service pods list
-func isServiceAppPodChanged(current []meshv1beta1.ServicePod, old []meshv1beta1.ServicePod) bool {
+func isServiceAppPodChanged(current []kubeslicev1beta1.ServicePod, old []kubeslicev1beta1.ServicePod) bool {
 	if len(current) != len(old) {
 		return true
 	}
 
-	s := make(map[string]meshv1beta1.ServicePod)
+	s := make(map[string]kubeslicev1beta1.ServicePod)
 
 	for _, c := range old {
 		s[c.Name] = c
@@ -83,7 +83,7 @@ func isServiceAppPodChanged(current []meshv1beta1.ServicePod, old []meshv1beta1.
 }
 
 // Get Apppods connected to a slice
-func getAppPodsInSlice(ctx context.Context, c client.Client, sliceName string) ([]meshv1beta1.AppPod, error) {
+func getAppPodsInSlice(ctx context.Context, c client.Client, sliceName string) ([]kubeslicev1beta1.AppPod, error) {
 	log := ctrl.Log.WithName("util")
 
 	slice, err := controllers.GetSlice(ctx, c, sliceName)
@@ -105,18 +105,18 @@ func containsString(slice []string, s string) bool {
 	return false
 }
 
-func getServiceProtocol(se *meshv1beta1.ServiceExport) meshv1beta1.ServiceProtocol {
+func getServiceProtocol(se *kubeslicev1beta1.ServiceExport) kubeslicev1beta1.ServiceProtocol {
 	// currently we only support single port to be exposed
 	if len(se.Spec.Ports) != 1 {
-		return meshv1beta1.ServiceProtocolTCP
+		return kubeslicev1beta1.ServiceProtocolTCP
 	}
 
 	p := se.Spec.Ports[0].Name
 
 	if strings.HasPrefix(p, "http") {
-		return meshv1beta1.ServiceProtocolHTTP
+		return kubeslicev1beta1.ServiceProtocolHTTP
 	}
 
-	return meshv1beta1.ServiceProtocolTCP
+	return kubeslicev1beta1.ServiceProtocolTCP
 
 }

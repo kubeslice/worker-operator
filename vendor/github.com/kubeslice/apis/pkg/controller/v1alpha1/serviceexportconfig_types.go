@@ -1,18 +1,18 @@
 /*
-Copyright 2022.
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
+ *  Copyright (c) 2022 Avesha, Inc. All rights reserved. # # SPDX-License-Identifier: Apache-2.0
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *  http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
 
 package v1alpha1
 
@@ -23,18 +23,15 @@ import (
 // ServiceExportConfigSpec defines the desired state of ServiceExportConfig
 type ServiceExportConfigSpec struct {
 	//ServiceName is the name of the service
-	ServiceName string `json:"serviceName,omitempty"`
-	//ServiceNamespace is the namespace of the service
+	// +kubebuilder:validation:Required
+	ServiceName      string `json:"serviceName"`
 	ServiceNamespace string `json:"serviceNamespace,omitempty"`
 	// clusterId is the id of the cluster where the service is available.
-	SourceCluster string `json:"sourceCluster,omitempty"`
+	// +kubebuilder:validation:Required
+	SourceCluster string `json:"sourceCluster"`
 	// The name of the slice.
-	SliceName string `json:"sliceName,omitempty"`
-	//+kubebuilder:validation:Enum:=istio;none
-	// The type of service mesh running in the cluster
-	MeshType string `json:"meshType,omitempty"`
-	// Proxy enabled or disabled.
-	Proxy bool `json:"proxy,omitempty"`
+	// +kubebuilder:validation:Required
+	SliceName string `json:"sliceName"`
 	// the service discovery endpoint array
 	ServiceDiscoveryEndpoints []ServiceDiscoveryEndpoint `json:"serviceDiscoveryEndpoints,omitempty"`
 	// The ports for the given service.
@@ -68,7 +65,6 @@ type ServiceExportConfigStatus struct {
 
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
-// +kubebuilder:resource:path=serviceexportconfigs,singular=serviceexportconfig,shortName=se
 
 // ServiceExportConfig is the Schema for the serviceexportconfigs API
 type ServiceExportConfig struct {

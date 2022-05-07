@@ -21,13 +21,13 @@ package slicegateway
 import (
 	"context"
 
-	meshv1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
+	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
 	"github.com/kubeslice/worker-operator/internal/hub/controllers"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func (r *SliceGwReconciler) cleanupSliceGwResources(ctx context.Context, slicegw *meshv1beta1.SliceGateway) error {
+func (r *SliceGwReconciler) cleanupSliceGwResources(ctx context.Context, slicegw *kubeslicev1beta1.SliceGateway) error {
 	//delete gateway secret
 	meshSliceGwCerts := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{

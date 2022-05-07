@@ -32,7 +32,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	meshv1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
+	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
 	"github.com/kubeslice/worker-operator/controllers"
 	"github.com/kubeslice/worker-operator/internal/logger"
 	"github.com/kubeslice/worker-operator/internal/manifest"
@@ -52,9 +52,9 @@ type SliceReconciler struct {
 	HubClient     HubClientProvider
 }
 
-//+kubebuilder:rbac:groups=mesh.avesha.io,resources=slice,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=mesh.avesha.io,resources=slice/status,verbs=get;update;patch
-//+kubebuilder:rbac:groups=mesh.avesha.io,resources=slice/finalizers,verbs=update
+//+kubebuilder:rbac:groups=networking.kubeslice.io,resources=slice,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=networking.kubeslice.io,resources=slice/status,verbs=get;update;patch
+//+kubebuilder:rbac:groups=networking.kubeslice.io,resources=slice/finalizers,verbs=update
 //+kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=core,resources=pods,verbs=get;list;watch;update
 //+kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list;watch;create;update;patch;delete
@@ -73,7 +73,7 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 	debugLog := log.V(1)
 	ctx = logger.WithLogger(ctx, log)
 
-	slice := &meshv1beta1.Slice{}
+	slice := &kubeslicev1beta1.Slice{}
 
 	err := r.Get(ctx, req.NamespacedName, slice)
 	if err != nil {
@@ -237,7 +237,7 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 	res, _, requeue = r.ReconcileAppPod(ctx, slice)
 
 	if requeue {
-		log.Info("updating app pod list in hub spokesliceconfig status")
+		log.Info("updating app pod list in hub workersliceconfig status")
 		sliceConfigName := slice.Name + "-" + controllers.ClusterName
 		err = r.HubClient.UpdateAppPodsList(ctx, sliceConfigName, slice.Status.AppPods)
 		if err != nil {
@@ -263,7 +263,7 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 	}, nil
 }
 
-func isAppPodStatusChanged(current []meshv1beta1.AppPod, old []meshv1beta1.AppPod) bool {
+func isAppPodStatusChanged(current []kubeslicev1beta1.AppPod, old []kubeslicev1beta1.AppPod) bool {
 	if len(current) != len(old) {
 		return true
 	}
@@ -286,8 +286,8 @@ func isAppPodStatusChanged(current []meshv1beta1.AppPod, old []meshv1beta1.AppPo
 // SetupWithManager sets up the controller with the Manager.
 func (r *SliceReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&meshv1beta1.Slice{}).
+		For(&kubeslicev1beta1.Slice{}).
 		Owns(&appsv1.Deployment{}).
-		Owns(&meshv1beta1.SliceGateway{}).
+		Owns(&kubeslicev1beta1.SliceGateway{}).
 		Complete(r)
 }

@@ -1,18 +1,18 @@
 /*
-Copyright 2022.
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
+ *  Copyright (c) 2022 Avesha, Inc. All rights reserved. # # SPDX-License-Identifier: Apache-2.0
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *  http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
 
 package v1alpha1
 
@@ -23,8 +23,8 @@ import (
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
 
-// SpokeServiceImportSpec defines the desired state of SpokeServiceImport
-type SpokeServiceImportSpec struct {
+// WorkerServiceImportSpec defines the desired state of WorkerServiceImport
+type WorkerServiceImportSpec struct {
 	//ServiceName is the name of the service
 	ServiceName string `json:"serviceName,omitempty"`
 	//ServiceNamespace is the namespace of the service
@@ -33,11 +33,6 @@ type SpokeServiceImportSpec struct {
 	SourceClusters []string `json:"sourceClusters,omitempty"`
 	// The name of the slice.
 	SliceName string `json:"sliceName,omitempty"`
-	// The type of service mesh running in the cluster
-	//+kubebuilder:validation:Enum:=istio;none
-	MeshType string `json:"meshType,omitempty"`
-	// Proxy enabled or disabled.
-	Proxy bool `json:"proxy,omitempty"`
 	// the service discovery endpoint array
 	ServiceDiscoveryEndpoints []ServiceDiscoveryEndpoint `json:"serviceDiscoveryEndpoints,omitempty"`
 	// The ports for the given service.
@@ -66,8 +61,8 @@ type ServiceDiscoveryPort struct {
 	Protocol string `json:"protocol,omitempty"`
 }
 
-// SpokeServiceImportStatus defines the observed state of SpokeServiceImport
-type SpokeServiceImportStatus struct {
+// WorkerServiceImportStatus defines the observed state of WorkerServiceImport
+type WorkerServiceImportStatus struct {
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 }
@@ -75,24 +70,24 @@ type SpokeServiceImportStatus struct {
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
 
-// SpokeServiceImport is the Schema for the spokeserviceimport API
-type SpokeServiceImport struct {
+// WorkerServiceImport is the Schema for the workerserviceimport API
+type WorkerServiceImport struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   SpokeServiceImportSpec   `json:"spec,omitempty"`
-	Status SpokeServiceImportStatus `json:"status,omitempty"`
+	Spec   WorkerServiceImportSpec   `json:"spec,omitempty"`
+	Status WorkerServiceImportStatus `json:"status,omitempty"`
 }
 
 //+kubebuilder:object:root=true
 
-// SpokeServiceImportList contains a list of SpokeServiceImport
-type SpokeServiceImportList struct {
+// WorkerServiceImportList contains a list of WorkerServiceImport
+type WorkerServiceImportList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []SpokeServiceImport `json:"items"`
+	Items           []WorkerServiceImport `json:"items"`
 }
 
 func init() {
-	SchemeBuilder.Register(&SpokeServiceImport{}, &SpokeServiceImportList{})
+	SchemeBuilder.Register(&WorkerServiceImport{}, &WorkerServiceImportList{})
 }

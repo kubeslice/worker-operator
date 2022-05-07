@@ -21,7 +21,7 @@ package spoke_test
 import (
 	"time"
 
-	hubv1alpha1 "github.com/kubeslice/apis/pkg/hub/v1alpha1"
+	hubv1alpha1 "github.com/kubeslice/apis/pkg/controller/v1alpha1"
 	clusterpkg "github.com/kubeslice/worker-operator/internal/cluster"
 	hub "github.com/kubeslice/worker-operator/internal/hub/hubclient"
 	. "github.com/onsi/ginkgo/v2"

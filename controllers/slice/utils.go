@@ -21,12 +21,12 @@ package slice
 import (
 	"context"
 
-	meshv1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
+	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-func (r *SliceReconciler) cleanupSliceResources(ctx context.Context, slice *meshv1beta1.Slice) {
+func (r *SliceReconciler) cleanupSliceResources(ctx context.Context, slice *kubeslicev1beta1.Slice) {
 	r.Log.Info("Cleaning the slice resources!!")
 	r.cleanupSliceRouter(ctx, slice.Name)
 	//cleanup Service Discovery objects - serviceimport and export objects that belong to this slice
@@ -52,7 +52,7 @@ func (r *SliceReconciler) cleanupServiceImport(ctx context.Context, sliceName st
 		},
 		),
 	}
-	serviceImportList := meshv1beta1.ServiceImportList{}
+	serviceImportList := kubeslicev1beta1.ServiceImportList{}
 	if err := r.List(ctx, &serviceImportList, listOpts...); err != nil {
 		if errors.IsNotFound(err) {
 			//early exit since there are no object found
@@ -75,7 +75,7 @@ func (r *SliceReconciler) cleanupServiceExport(ctx context.Context, sliceName st
 		},
 		),
 	}
-	serviceExportList := meshv1beta1.ServiceExportList{}
+	serviceExportList := kubeslicev1beta1.ServiceExportList{}
 	if err := r.List(ctx, &serviceExportList, listOpts...); err != nil {
 		if errors.IsNotFound(err) {
 			//early exit since there are no object found

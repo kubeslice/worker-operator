@@ -21,7 +21,7 @@ package manifest
 import (
 	"context"
 
-	meshv1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
+	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
 	istiov1beta1 "istio.io/client-go/pkg/apis/networking/v1beta1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -39,7 +39,7 @@ import (
 //  role
 //  rolebinding
 //  service (type clusterip)
-func InstallIngress(ctx context.Context, c client.Client, slice *meshv1beta1.Slice) error {
+func InstallIngress(ctx context.Context, c client.Client, slice *kubeslicev1beta1.Slice) error {
 	sliceName := slice.Name
 
 	deploy := &appsv1.Deployment{}

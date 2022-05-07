@@ -32,7 +32,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
-	meshv1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
+	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
 	"github.com/kubeslice/worker-operator/controllers"
 	"github.com/kubeslice/worker-operator/internal/logger"
 	"github.com/kubeslice/worker-operator/pkg/events"
@@ -51,13 +51,13 @@ type SliceGwReconciler struct {
 	EventRecorder *events.EventRecorder
 }
 
-func readyToDeployGwClient(sliceGw *meshv1beta1.SliceGateway) bool {
+func readyToDeployGwClient(sliceGw *kubeslicev1beta1.SliceGateway) bool {
 	return sliceGw.Status.Config.SliceGatewayRemoteNodeIP != "" && sliceGw.Status.Config.SliceGatewayRemoteNodePort != 0
 }
 
-//+kubebuilder:rbac:groups=mesh.avesha.io,resources=slicegateways,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=mesh.avesha.io,resources=slicegateways/finalizers,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=mesh.avesha.io,resources=slicegateways/status,verbs=get;update;patch
+//+kubebuilder:rbac:groups=networking.kubeslice.io,resources=slicegateways,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=networking.kubeslice.io,resources=slicegateways/finalizers,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=networking.kubeslice.io,resources=slicegateways/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=apps,resources=daemonsets,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=networkservicemesh.io,resources=networkservices,verbs=get;list;watch;create;update;patch;delete
@@ -69,7 +69,7 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	var sliceGwNodePort int32
 	log := r.Log.WithValues("slicegateway", req.NamespacedName)
 
-	sliceGw := &meshv1beta1.SliceGateway{}
+	sliceGw := &kubeslicev1beta1.SliceGateway{}
 	err := r.Get(ctx, req.NamespacedName, sliceGw)
 	if err != nil {
 		if errors.IsNotFound(err) {
@@ -295,7 +295,7 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 // SetupWithManager sets up the controller with the Manager.
 func (r *SliceGwReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&meshv1beta1.SliceGateway{}).
+		For(&kubeslicev1beta1.SliceGateway{}).
 		Owns(&appsv1.Deployment{}).
 		Owns(&corev1.Service{}).
 		Complete(r)

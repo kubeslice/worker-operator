@@ -21,8 +21,8 @@ package hub_test
 import (
 	"time"
 
-	spokev1alpha1 "github.com/kubeslice/apis/pkg/spoke/v1alpha1"
-	meshv1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
+	spokev1alpha1 "github.com/kubeslice/apis/pkg/worker/v1alpha1"
+	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
@@ -33,15 +33,15 @@ import (
 
 var _ = Describe("Hub SlicegwController", func() {
 	Context("With SpokeSliceGW created in hub", func() {
-		var hubSlice *spokev1alpha1.SpokeSliceConfig
-		var createdSlice *meshv1beta1.Slice
-		var hubSliceGw *spokev1alpha1.SpokeSliceGateway
+		var hubSlice *spokev1alpha1.WorkerSliceConfig
+		var createdSlice *kubeslicev1beta1.Slice
+		var hubSliceGw *spokev1alpha1.WorkerSliceGateway
 		var hubSecret *corev1.Secret
-		var createdSliceGwOnSpoke *meshv1beta1.SliceGateway
+		var createdSliceGwOnSpoke *kubeslicev1beta1.SliceGateway
 
 		BeforeEach(func() {
 			// Prepare k8s objects
-			hubSlice = &spokev1alpha1.SpokeSliceConfig{
+			hubSlice = &spokev1alpha1.WorkerSliceConfig{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "test-slice",
 					Namespace: PROJECT_NS,
@@ -49,7 +49,7 @@ var _ = Describe("Hub SlicegwController", func() {
 						"spoke-cluster": CLUSTER_NAME,
 					},
 				},
-				Spec: spokev1alpha1.SpokeSliceConfigSpec{
+				Spec: spokev1alpha1.WorkerSliceConfigSpec{
 					SliceName:        "test-slice",
 					SliceType:        "Application",
 					SliceSubnet:      "10.0.0.1/16",
@@ -57,7 +57,7 @@ var _ = Describe("Hub SlicegwController", func() {
 					IpamClusterOctet: 100,
 				},
 			}
-			hubSliceGw = &spokev1alpha1.SpokeSliceGateway{
+			hubSliceGw = &spokev1alpha1.WorkerSliceGateway{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "test-slicegateway",
 					Namespace: PROJECT_NS,
@@ -65,7 +65,7 @@ var _ = Describe("Hub SlicegwController", func() {
 						"spoke-cluster": CLUSTER_NAME,
 					},
 				},
-				Spec: spokev1alpha1.SpokeSliceGatewaySpec{
+				Spec: spokev1alpha1.WorkerSliceGatewaySpec{
 					SliceName: "test-slice",
 					LocalGatewayConfig: spokev1alpha1.SliceGatewayConfig{
 						ClusterName: CLUSTER_NAME,
@@ -79,8 +79,8 @@ var _ = Describe("Hub SlicegwController", func() {
 				},
 				Data: map[string][]byte{},
 			}
-			createdSlice = &meshv1beta1.Slice{}
-			createdSliceGwOnSpoke = &meshv1beta1.SliceGateway{}
+			createdSlice = &kubeslicev1beta1.Slice{}
+			createdSliceGwOnSpoke = &kubeslicev1beta1.SliceGateway{}
 
 			// Cleanup after each test
 			DeferCleanup(func() {

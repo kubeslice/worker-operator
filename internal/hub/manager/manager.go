@@ -32,8 +32,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
-	spokev1alpha1 "github.com/kubeslice/apis/pkg/spoke/v1alpha1"
-	meshv1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
+	spokev1alpha1 "github.com/kubeslice/apis/pkg/worker/v1alpha1"
+	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
 	"github.com/kubeslice/worker-operator/internal/hub/controllers"
 	"github.com/kubeslice/worker-operator/internal/logger"
 	"github.com/kubeslice/worker-operator/pkg/events"
@@ -46,7 +46,7 @@ func init() {
 	log.SetLogger(logger.NewLogger())
 	clientgoscheme.AddToScheme(scheme)
 	utilruntime.Must(spokev1alpha1.AddToScheme(scheme))
-	utilruntime.Must(meshv1beta1.AddToScheme(scheme))
+	utilruntime.Must(kubeslicev1beta1.AddToScheme(scheme))
 }
 
 func Start(meshClient client.Client, ctx context.Context) {
@@ -84,7 +84,7 @@ func Start(meshClient client.Client, ctx context.Context) {
 	}
 	err = builder.
 		ControllerManagedBy(mgr).
-		For(&spokev1alpha1.SpokeSliceConfig{}).
+		For(&spokev1alpha1.WorkerSliceConfig{}).
 		WithEventFilter(predicate.NewPredicateFuncs(func(object client.Object) bool {
 			return object.GetLabels()["spoke-cluster"] == ClusterName
 		})).
@@ -104,7 +104,7 @@ func Start(meshClient client.Client, ctx context.Context) {
 	}
 	err = builder.
 		ControllerManagedBy(mgr).
-		For(&spokev1alpha1.SpokeSliceGateway{}).
+		For(&spokev1alpha1.WorkerSliceGateway{}).
 		WithEventFilter(predicate.NewPredicateFuncs(func(object client.Object) bool {
 			return object.GetLabels()["spoke-cluster"] == ClusterName
 		})).
@@ -122,7 +122,7 @@ func Start(meshClient client.Client, ctx context.Context) {
 	}
 	err = builder.
 		ControllerManagedBy(mgr).
-		For(&spokev1alpha1.SpokeServiceImport{}).
+		For(&spokev1alpha1.WorkerServiceImport{}).
 		WithEventFilter(predicate.NewPredicateFuncs(func(object client.Object) bool {
 			return object.GetLabels()["spoke-cluster"] == ClusterName
 		})).

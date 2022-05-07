@@ -1,18 +1,18 @@
 /*
-Copyright 2022.
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
+ *  Copyright (c) 2022 Avesha, Inc. All rights reserved. # # SPDX-License-Identifier: Apache-2.0
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *  http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
 
 package v1alpha1
 
@@ -20,14 +20,14 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// SpokeSliceConfigSpec defines the desired state of Slice
-type SpokeSliceConfigSpec struct {
+// WorkerSliceConfigSpec defines the desired state of Slice
+type WorkerSliceConfigSpec struct {
 	SliceName   string `json:"sliceName,omitempty"`
 	SliceSubnet string `json:"sliceSubnet,omitempty"`
-	//+kubebuilder:validation:Enum:=Application
-	SliceType                 string                    `json:"sliceType,omitempty"`
-	SpokeSliceGatewayProvider SpokeSliceGatewayProvider `json:"spokeSliceGatewayProvider,omitempty"`
-	//+kubebuilder:validation:Enum:=Local
+	//+kubebuilder:default:=Application
+	SliceType            string                     `json:"sliceType,omitempty"`
+	SliceGatewayProvider WorkerSliceGatewayProvider `json:"sliceGatewayProvider,omitempty"`
+	//+kubebuilder:default:=Local
 	SliceIpamType             string                    `json:"sliceIpamType,omitempty"`
 	QosProfileDetails         QOSProfile                `json:"qosProfileDetails,omitempty"`
 	NamespaceIsolationProfile NamespaceIsolationProfile `json:"namespaceIsolationProfile,omitempty"`
@@ -35,17 +35,17 @@ type SpokeSliceConfigSpec struct {
 	ExternalGatewayConfig     ExternalGatewayConfig     `json:"externalGatewayConfig,omitempty"`
 }
 
-// SpokeSliceGatewayProvider defines the configuration for slicegateway
-type SpokeSliceGatewayProvider struct {
-	//+kubebuilder:validation:Enum:=OpenVPN
-	SpokeSliceGatewayType string `json:"spokeSliceGatewayType,omitempty"`
-	//+kubebuilder:validation:Enum:=Local
-	SliceCAType string `json:"sliceCaType,omitempty"`
+// WorkerSliceGatewayProvider defines the configuration for slicegateway
+type WorkerSliceGatewayProvider struct {
+	//+kubebuilder:default:=OpenVPN
+	SliceGatewayType string `json:"sliceGatewayType,omitempty"`
+	//+kubebuilder:default:=Local
+	SliceCaType string `json:"sliceCaType,omitempty"`
 }
 
 // QOSProfile is the QOS Profile configuration from backend
 type QOSProfile struct {
-	//+kubebuilder:validation:Enum:=HTB
+	//+kubebuilder:default:=HTB
 	QueueType               string `json:"queueType,omitempty"`
 	Priority                int    `json:"priority,omitempty"`
 	TcType                  string `json:"tcType,omitempty"`
@@ -65,7 +65,7 @@ type ExternalGatewayConfig struct {
 	Ingress   ExternalGatewayConfigOptions `json:"ingress,omitempty"`
 	Egress    ExternalGatewayConfigOptions `json:"egress,omitempty"`
 	NsIngress ExternalGatewayConfigOptions `json:"nsIngress,omitempty"`
-	//+kubebuilder:validation:Enum:=none,istio
+	//+kubebuilder:validation:Enum:=none;istio
 	GatewayType string `json:"gatewayType,omitempty"`
 }
 
@@ -89,32 +89,32 @@ type AppPod struct {
 	NsmPeerIP string `json:"nsmPeerIp,omitempty"`
 }
 
-// SpokeSliceConfigStatus defines the observed state of Slice
-type SpokeSliceConfigStatus struct {
+// WorkerSliceConfigStatus defines the observed state of Slice
+type WorkerSliceConfigStatus struct {
 	ConnectedAppPods []AppPod `json:"connectedAppPods,omitempty"`
 }
 
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
 
-// SpokeSliceConfig is the Schema for the slice API
-type SpokeSliceConfig struct {
+// WorkerSliceConfig is the Schema for the slice API
+type WorkerSliceConfig struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   SpokeSliceConfigSpec   `json:"spec,omitempty"`
-	Status SpokeSliceConfigStatus `json:"status,omitempty"`
+	Spec   WorkerSliceConfigSpec   `json:"spec,omitempty"`
+	Status WorkerSliceConfigStatus `json:"status,omitempty"`
 }
 
 //+kubebuilder:object:root=true
 
-// SpokeSliceConfigList contains a list of Slice
-type SpokeSliceConfigList struct {
+// WorkerSliceConfigList contains a list of Slice
+type WorkerSliceConfigList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []SpokeSliceConfig `json:"items"`
+	Items           []WorkerSliceConfig `json:"items"`
 }
 
 func init() {
-	SchemeBuilder.Register(&SpokeSliceConfig{}, &SpokeSliceConfigList{})
+	SchemeBuilder.Register(&WorkerSliceConfig{}, &WorkerSliceConfigList{})
 }

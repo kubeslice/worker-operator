@@ -25,8 +25,8 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
-	spokev1alpha1 "github.com/kubeslice/apis/pkg/spoke/v1alpha1"
-	meshv1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
+	spokev1alpha1 "github.com/kubeslice/apis/pkg/worker/v1alpha1"
+	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -36,13 +36,13 @@ var _ = Describe("Hub SliceController", func() {
 
 	Context("With Slice CR created in hub", func() {
 
-		var hubSlice *spokev1alpha1.SpokeSliceConfig
-		var createdSlice *meshv1beta1.Slice
+		var hubSlice *spokev1alpha1.WorkerSliceConfig
+		var createdSlice *kubeslicev1beta1.Slice
 
 		BeforeEach(func() {
 
 			// Prepare k8s objects
-			hubSlice = &spokev1alpha1.SpokeSliceConfig{
+			hubSlice = &spokev1alpha1.WorkerSliceConfig{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "test-slice-1",
 					Namespace: PROJECT_NS,
@@ -50,7 +50,7 @@ var _ = Describe("Hub SliceController", func() {
 						"spoke-cluster": CLUSTER_NAME,
 					},
 				},
-				Spec: spokev1alpha1.SpokeSliceConfigSpec{
+				Spec: spokev1alpha1.WorkerSliceConfigSpec{
 					SliceName:        "test-slice-1",
 					SliceType:        "Application",
 					SliceSubnet:      "10.0.0.1/16",
@@ -59,7 +59,7 @@ var _ = Describe("Hub SliceController", func() {
 				},
 			}
 
-			createdSlice = &meshv1beta1.Slice{}
+			createdSlice = &kubeslicev1beta1.Slice{}
 
 			// Cleanup after each test
 			DeferCleanup(func() {
@@ -104,7 +104,7 @@ var _ = Describe("Hub SliceController", func() {
 
 			//get the created hubSlice
 			hubSliceKey := types.NamespacedName{Name: "test-slice-1", Namespace: PROJECT_NS}
-			sliceFinalizer := "hub.kubeslice.io/hubSpokeSlice-finalizer"
+			sliceFinalizer := "controller.kubeslice.io/hubSpokeSlice-finalizer"
 
 			Eventually(func() bool {
 				err := k8sClient.Get(ctx, hubSliceKey, hubSlice)
@@ -116,12 +116,12 @@ var _ = Describe("Hub SliceController", func() {
 	})
 
 	Context("With Slice CR deleted on hub", func() {
-		var hubSlice *spokev1alpha1.SpokeSliceConfig
-		var createdSlice *meshv1beta1.Slice
+		var hubSlice *spokev1alpha1.WorkerSliceConfig
+		var createdSlice *kubeslicev1beta1.Slice
 
 		BeforeEach(func() {
 			// Prepare k8s objects
-			hubSlice = &spokev1alpha1.SpokeSliceConfig{
+			hubSlice = &spokev1alpha1.WorkerSliceConfig{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "test-slice-2",
 					Namespace: PROJECT_NS,
@@ -129,7 +129,7 @@ var _ = Describe("Hub SliceController", func() {
 						"spoke-cluster": CLUSTER_NAME,
 					},
 				},
-				Spec: spokev1alpha1.SpokeSliceConfigSpec{
+				Spec: spokev1alpha1.WorkerSliceConfigSpec{
 					SliceName:        "test-slice-2",
 					SliceType:        "Application",
 					SliceSubnet:      "10.0.0.1/16",
@@ -138,7 +138,7 @@ var _ = Describe("Hub SliceController", func() {
 				},
 			}
 
-			createdSlice = &meshv1beta1.Slice{}
+			createdSlice = &kubeslicev1beta1.Slice{}
 
 		})
 		It("Should Delete the slice CR on spoke", func() {
@@ -164,13 +164,13 @@ var _ = Describe("Hub SliceController", func() {
 
 	Context("With ExternalGatewayConfig", func() {
 
-		var hubSlice *spokev1alpha1.SpokeSliceConfig
-		var createdSlice *meshv1beta1.Slice
+		var hubSlice *spokev1alpha1.WorkerSliceConfig
+		var createdSlice *kubeslicev1beta1.Slice
 
 		BeforeEach(func() {
 
 			// Prepare k8s objects
-			hubSlice = &spokev1alpha1.SpokeSliceConfig{
+			hubSlice = &spokev1alpha1.WorkerSliceConfig{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "test-slice-3",
 					Namespace: PROJECT_NS,
@@ -178,7 +178,7 @@ var _ = Describe("Hub SliceController", func() {
 						"spoke-cluster": CLUSTER_NAME,
 					},
 				},
-				Spec: spokev1alpha1.SpokeSliceConfigSpec{
+				Spec: spokev1alpha1.WorkerSliceConfigSpec{
 					SliceName: "test-slice-3",
 					ExternalGatewayConfig: spokev1alpha1.ExternalGatewayConfig{
 						Ingress: spokev1alpha1.ExternalGatewayConfigOptions{
@@ -194,7 +194,7 @@ var _ = Describe("Hub SliceController", func() {
 				},
 			}
 
-			createdSlice = &meshv1beta1.Slice{}
+			createdSlice = &kubeslicev1beta1.Slice{}
 
 			// Cleanup after each test
 			DeferCleanup(func() {

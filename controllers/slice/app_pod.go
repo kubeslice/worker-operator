@@ -22,7 +22,7 @@ import (
 	"context"
 	"time"
 
-	meshv1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
+	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
 	"github.com/kubeslice/worker-operator/controllers"
 	"github.com/kubeslice/worker-operator/internal/logger"
 	"github.com/kubeslice/worker-operator/internal/router"
@@ -32,7 +32,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-func (r *SliceReconciler) getAppPods(ctx context.Context, slice *meshv1beta1.Slice) ([]meshv1beta1.AppPod, error) {
+func (r *SliceReconciler) getAppPods(ctx context.Context, slice *kubeslicev1beta1.Slice) ([]kubeslicev1beta1.AppPod, error) {
 	log := logger.FromContext(ctx).WithValues("type", "app_pod")
 	debugLog := log.V(1)
 
@@ -44,7 +44,7 @@ func (r *SliceReconciler) getAppPods(ctx context.Context, slice *meshv1beta1.Sli
 		log.Error(err, "Failed to list pods")
 		return nil, err
 	}
-	appPods := []meshv1beta1.AppPod{}
+	appPods := []kubeslicev1beta1.AppPod{}
 	for _, pod := range podList.Items {
 
 		a := pod.Annotations
@@ -56,7 +56,7 @@ func (r *SliceReconciler) getAppPods(ctx context.Context, slice *meshv1beta1.Sli
 		}
 
 		if pod.Status.Phase == corev1.PodRunning {
-			appPods = append(appPods, meshv1beta1.AppPod{
+			appPods = append(appPods, kubeslicev1beta1.AppPod{
 				PodName:      pod.Name,
 				PodNamespace: pod.Namespace,
 				PodIP:        pod.Status.PodIP,
@@ -76,7 +76,7 @@ func isAppPodConnectedToSliceRouter(annotations map[string]string, sliceRouter s
 }
 
 // ReconcileAppPod reconciles app pods
-func (r *SliceReconciler) ReconcileAppPod(ctx context.Context, slice *meshv1beta1.Slice) (ctrl.Result, error, bool) {
+func (r *SliceReconciler) ReconcileAppPod(ctx context.Context, slice *kubeslicev1beta1.Slice) (ctrl.Result, error, bool) {
 	log := logger.FromContext(ctx).WithValues("type", "app_pod")
 	debugLog := log.V(1)
 
@@ -160,12 +160,12 @@ func (r *SliceReconciler) ReconcileAppPod(ctx context.Context, slice *meshv1beta
 	return ctrl.Result{}, nil, false
 }
 
-func getSliceRouterConnectedPods(ctx context.Context, sliceName string) ([]meshv1beta1.AppPod, error) {
+func getSliceRouterConnectedPods(ctx context.Context, sliceName string) ([]kubeslicev1beta1.AppPod, error) {
 	sidecarGrpcAddress := sliceRouterDeploymentNamePrefix + sliceName + ":5000"
 	return router.GetClientConnectionInfo(ctx, sidecarGrpcAddress)
 }
 
-func findAppPodConnectedToSlice(podName string, connectedPods []meshv1beta1.AppPod) *meshv1beta1.AppPod {
+func findAppPodConnectedToSlice(podName string, connectedPods []kubeslicev1beta1.AppPod) *kubeslicev1beta1.AppPod {
 	for _, v := range connectedPods {
 		if v.PodName == podName {
 			return &v

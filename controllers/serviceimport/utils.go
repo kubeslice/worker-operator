@@ -22,11 +22,11 @@ import (
 	"strconv"
 	"strings"
 
-	meshv1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
+	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
 )
 
 // portListToDisplayString converts list of ports to a single string
-func portListToDisplayString(servicePorts []meshv1beta1.ServicePort) string {
+func portListToDisplayString(servicePorts []kubeslicev1beta1.ServicePort) string {
 	ports := []string{}
 	for _, port := range servicePorts {
 		protocol := "TCP"
@@ -38,19 +38,19 @@ func portListToDisplayString(servicePorts []meshv1beta1.ServicePort) string {
 	return strings.Join(ports, ",")
 }
 
-func getServiceProtocol(si *meshv1beta1.ServiceImport) meshv1beta1.ServiceProtocol {
+func getServiceProtocol(si *kubeslicev1beta1.ServiceImport) kubeslicev1beta1.ServiceProtocol {
 	// currently we only support single port to be exposed
 	if len(si.Spec.Ports) != 1 {
-		return meshv1beta1.ServiceProtocolTCP
+		return kubeslicev1beta1.ServiceProtocolTCP
 	}
 
 	p := si.Spec.Ports[0].Name
 
 	if strings.HasPrefix(p, "http") {
-		return meshv1beta1.ServiceProtocolHTTP
+		return kubeslicev1beta1.ServiceProtocolHTTP
 	}
 
-	return meshv1beta1.ServiceProtocolTCP
+	return kubeslicev1beta1.ServiceProtocolTCP
 
 }
 

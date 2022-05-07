@@ -21,7 +21,7 @@ package slice
 import (
 	"context"
 
-	meshv1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
+	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
 	"github.com/kubeslice/worker-operator/internal/logger"
 	"github.com/kubeslice/worker-operator/internal/netop"
 	corev1 "k8s.io/api/core/v1"
@@ -54,7 +54,7 @@ func GetNetOpPods(ctx context.Context, namespace string,
 }
 
 // SyncSliceQosProfileWithNetOp Syncs slice qos profile with netop pods
-func (r *SliceReconciler) SyncSliceQosProfileWithNetOp(ctx context.Context, slice *meshv1beta1.Slice) error {
+func (r *SliceReconciler) SyncSliceQosProfileWithNetOp(ctx context.Context, slice *kubeslicev1beta1.Slice) error {
 	log := logger.FromContext(ctx).WithValues("type", "net_op")
 
 	// Get the current list of netop pods.

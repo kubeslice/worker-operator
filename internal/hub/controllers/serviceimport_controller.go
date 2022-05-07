@@ -22,8 +22,8 @@ import (
 	"context"
 	"time"
 
-	spokev1alpha1 "github.com/kubeslice/apis/pkg/spoke/v1alpha1"
-	meshv1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
+	spokev1alpha1 "github.com/kubeslice/apis/pkg/worker/v1alpha1"
+	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
 	"github.com/kubeslice/worker-operator/internal/logger"
 	"github.com/kubeslice/worker-operator/pkg/events"
 	corev1 "k8s.io/api/core/v1"
@@ -40,7 +40,7 @@ type ServiceImportReconciler struct {
 	EventRecorder *events.EventRecorder
 }
 
-var svcimFinalizer = "hub.kubeslice.io/hubSpokeServiceImport-finalizer"
+var svcimFinalizer = "controller.kubeslice.io/hubWorkerServiceImport-finalizer"
 
 func getProtocol(protocol string) corev1.Protocol {
 	switch protocol {
@@ -55,10 +55,10 @@ func getProtocol(protocol string) corev1.Protocol {
 	}
 }
 
-func getMeshServiceImportPortList(svcim *spokev1alpha1.SpokeServiceImport) []meshv1beta1.ServicePort {
-	portList := []meshv1beta1.ServicePort{}
+func getMeshServiceImportPortList(svcim *spokev1alpha1.WorkerServiceImport) []kubeslicev1beta1.ServicePort {
+	portList := []kubeslicev1beta1.ServicePort{}
 	for _, port := range svcim.Spec.ServiceDiscoveryPorts {
-		portList = append(portList, meshv1beta1.ServicePort{
+		portList = append(portList, kubeslicev1beta1.ServicePort{
 			Name:          port.Name,
 			ContainerPort: port.Port,
 			Protocol:      getProtocol(port.Protocol),
@@ -68,10 +68,10 @@ func getMeshServiceImportPortList(svcim *spokev1alpha1.SpokeServiceImport) []mes
 	return portList
 }
 
-func getMeshServiceImportEpList(svcim *spokev1alpha1.SpokeServiceImport) []meshv1beta1.ServiceEndpoint {
-	epList := []meshv1beta1.ServiceEndpoint{}
+func getMeshServiceImportEpList(svcim *spokev1alpha1.WorkerServiceImport) []kubeslicev1beta1.ServiceEndpoint {
+	epList := []kubeslicev1beta1.ServiceEndpoint{}
 	for _, ep := range svcim.Spec.ServiceDiscoveryEndpoints {
-		epList = append(epList, meshv1beta1.ServiceEndpoint{
+		epList = append(epList, kubeslicev1beta1.ServiceEndpoint{
 			Name: ep.PodName,
 			IP:   ep.NsmIp,
 			//Port:      ep.Port,
@@ -83,8 +83,8 @@ func getMeshServiceImportEpList(svcim *spokev1alpha1.SpokeServiceImport) []meshv
 	return epList
 }
 
-func getMeshServiceImportObj(svcim *spokev1alpha1.SpokeServiceImport) *meshv1beta1.ServiceImport {
-	return &meshv1beta1.ServiceImport{
+func getMeshServiceImportObj(svcim *spokev1alpha1.WorkerServiceImport) *kubeslicev1beta1.ServiceImport {
+	return &kubeslicev1beta1.ServiceImport{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      svcim.Spec.ServiceName,
 			Namespace: svcim.Spec.ServiceNamespace,
@@ -92,7 +92,7 @@ func getMeshServiceImportObj(svcim *spokev1alpha1.SpokeServiceImport) *meshv1bet
 				"kubeslice.io/slice": svcim.Spec.SliceName,
 			},
 		},
-		Spec: meshv1beta1.ServiceImportSpec{
+		Spec: kubeslicev1beta1.ServiceImportSpec{
 			Slice:   svcim.Spec.SliceName,
 			DNSName: svcim.Spec.ServiceName + "." + svcim.Spec.ServiceNamespace + ".svc.slice.local",
 			Ports:   getMeshServiceImportPortList(svcim),
@@ -103,7 +103,7 @@ func getMeshServiceImportObj(svcim *spokev1alpha1.SpokeServiceImport) *meshv1bet
 func (r *ServiceImportReconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
 	log := logger.FromContext(ctx)
 
-	svcim := &spokev1alpha1.SpokeServiceImport{}
+	svcim := &spokev1alpha1.WorkerServiceImport{}
 	err := r.Get(ctx, req.NamespacedName, svcim)
 	if err != nil {
 		if errors.IsNotFound(err) {
@@ -146,7 +146,7 @@ func (r *ServiceImportReconciler) Reconcile(ctx context.Context, req reconcile.R
 	}
 
 	sliceName := svcim.Spec.SliceName
-	meshSlice := &meshv1beta1.Slice{}
+	meshSlice := &kubeslicev1beta1.Slice{}
 	sliceRef := client.ObjectKey{
 		Name:      sliceName,
 		Namespace: ControlPlaneNamespace,
@@ -160,7 +160,7 @@ func (r *ServiceImportReconciler) Reconcile(ctx context.Context, req reconcile.R
 		}, nil
 	}
 
-	meshSvcIm := &meshv1beta1.ServiceImport{}
+	meshSvcIm := &kubeslicev1beta1.ServiceImport{}
 	err = r.MeshClient.Get(ctx, client.ObjectKey{
 		Name:      svcim.Spec.ServiceName,
 		Namespace: svcim.Spec.ServiceNamespace,
@@ -238,10 +238,10 @@ func (r *ServiceImportReconciler) Reconcile(ctx context.Context, req reconcile.R
 	return reconcile.Result{}, nil
 }
 
-func (r *ServiceImportReconciler) DeleteServiceImportOnSpoke(ctx context.Context, svcim *spokev1alpha1.SpokeServiceImport) error {
+func (r *ServiceImportReconciler) DeleteServiceImportOnSpoke(ctx context.Context, svcim *spokev1alpha1.WorkerServiceImport) error {
 	log := logger.FromContext(ctx)
 
-	svcimOnSpoke := &meshv1beta1.ServiceImport{
+	svcimOnSpoke := &kubeslicev1beta1.ServiceImport{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      svcim.Spec.ServiceName,
 			Namespace: svcim.Spec.ServiceNamespace,

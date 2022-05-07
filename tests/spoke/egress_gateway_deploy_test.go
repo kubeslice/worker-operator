@@ -24,7 +24,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
-	meshv1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
+	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
 	"github.com/kubeslice/worker-operator/internal/manifest"
 	istiov1beta1 "istio.io/client-go/pkg/apis/networking/v1beta1"
 	appsv1 "k8s.io/api/apps/v1"
@@ -78,17 +78,17 @@ var _ = Describe("EgressGatewayDeploy", func() {
 			},
 		}
 
-		slice := &meshv1beta1.Slice{
+		slice := &kubeslicev1beta1.Slice{
 			TypeMeta: metav1.TypeMeta{
 				Kind:       "Slice",
-				APIVersion: "mesh.avesha.io/v1beta1",
+				APIVersion: "networking.kubeslice.io/v1beta1",
 			},
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "green",
 				Namespace: "kubeslice-system",
 				UID:       "test-uid",
 			},
-			Spec: meshv1beta1.SliceSpec{},
+			Spec: kubeslicev1beta1.SliceSpec{},
 		}
 
 		AfterEach(func() {
@@ -198,7 +198,7 @@ var _ = Describe("EgressGatewayDeploy", func() {
 
 			own := createdDeploy.ObjectMeta.OwnerReferences
 			Expect(len(own)).To(Equal(1))
-			Expect(own[0].APIVersion).To(Equal("mesh.avesha.io/v1beta1"))
+			Expect(own[0].APIVersion).To(Equal("networking.kubeslice.io/v1beta1"))
 			Expect(string(own[0].UID)).To(Equal("test-uid"))
 			Expect(own[0].Kind).To(Equal("Slice"))
 			Expect(own[0].Name).To(Equal("green"))

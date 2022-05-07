@@ -20,7 +20,7 @@ package hubclient
 
 import (
 	"context"
-	meshv1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
+	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
 	"github.com/stretchr/testify/mock"
 )
 
@@ -38,16 +38,16 @@ func (hubClientEmulator *HubClientEmulator) UpdateNodePortForSliceGwServer(
 }
 
 func (hubClientEmulator *HubClientEmulator) UpdateServiceExport(
-	ctx context.Context, serviceexport *meshv1beta1.ServiceExport) error {
+	ctx context.Context, serviceexport *kubeslicev1beta1.ServiceExport) error {
 	return nil
 }
 
 func (hubClientEmulator *HubClientEmulator) UpdateServiceExportEndpointForIngressGw(ctx context.Context,
-	serviceexport *meshv1beta1.ServiceExport, ep *meshv1beta1.ServicePod) error {
+	serviceexport *kubeslicev1beta1.ServiceExport, ep *kubeslicev1beta1.ServicePod) error {
 	return nil
 }
 
 func (hubClientEmulator *HubClientEmulator) DeleteServiceExport(
-	ctx context.Context, serviceexport *meshv1beta1.ServiceExport) error {
+	ctx context.Context, serviceexport *kubeslicev1beta1.ServiceExport) error {
 	return nil
 }

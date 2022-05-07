@@ -21,7 +21,7 @@ package serviceimport
 import (
 	"context"
 
-	meshv1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
+	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
 	"github.com/kubeslice/worker-operator/controllers"
 	"github.com/kubeslice/worker-operator/internal/logger"
 	networkingv1beta1 "istio.io/api/networking/v1beta1"
@@ -32,7 +32,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 )
 
-func (r *Reconciler) ReconcileVirtualServiceEgress(ctx context.Context, serviceimport *meshv1beta1.ServiceImport) (ctrl.Result, error, bool) {
+func (r *Reconciler) ReconcileVirtualServiceEgress(ctx context.Context, serviceimport *kubeslicev1beta1.ServiceImport) (ctrl.Result, error, bool) {
 
 	var vs *istiov1beta1.VirtualService
 
@@ -94,7 +94,7 @@ func (r *Reconciler) ReconcileVirtualServiceEgress(ctx context.Context, servicei
 
 	if hasVirtualServiceRoutesChanged(vs, serviceimport) {
 		log.Info("virtualService routes changed for egress, updating")
-		if getServiceProtocol(serviceimport) == meshv1beta1.ServiceProtocolHTTP {
+		if getServiceProtocol(serviceimport) == kubeslicev1beta1.ServiceProtocolHTTP {
 			httpRoutes := getVirtualServiceHTTPRoutes(serviceimport)
 			debugLog.Info("new routes", "http", httpRoutes)
 			vs.Spec.Http = []*networkingv1beta1.HTTPRoute{{
@@ -120,7 +120,7 @@ func (r *Reconciler) ReconcileVirtualServiceEgress(ctx context.Context, servicei
 }
 
 // Create a VirtualService which routes all traffic to the service to go to egress
-func (r *Reconciler) virtualServiceToEgress(serviceImport *meshv1beta1.ServiceImport) *istiov1beta1.VirtualService {
+func (r *Reconciler) virtualServiceToEgress(serviceImport *kubeslicev1beta1.ServiceImport) *istiov1beta1.VirtualService {
 
 	egressHost := serviceImport.Spec.Slice + "-istio-egressgateway." + controllers.ControlPlaneNamespace + ".svc.cluster.local"
 
@@ -138,7 +138,7 @@ func (r *Reconciler) virtualServiceToEgress(serviceImport *meshv1beta1.ServiceIm
 		},
 	}
 
-	if getServiceProtocol(serviceImport) == meshv1beta1.ServiceProtocolHTTP {
+	if getServiceProtocol(serviceImport) == kubeslicev1beta1.ServiceProtocolHTTP {
 		vs.Spec.Http = []*networkingv1beta1.HTTPRoute{{
 			Route: []*networkingv1beta1.HTTPRouteDestination{{
 				Destination: &networkingv1beta1.Destination{
@@ -167,7 +167,7 @@ func (r *Reconciler) virtualServiceToEgress(serviceImport *meshv1beta1.ServiceIm
 	return vs
 }
 
-func (r *Reconciler) virtualServiceFromEgress(serviceImport *meshv1beta1.ServiceImport) *istiov1beta1.VirtualService {
+func (r *Reconciler) virtualServiceFromEgress(serviceImport *kubeslicev1beta1.ServiceImport) *istiov1beta1.VirtualService {
 
 	gw := controllers.ControlPlaneNamespace + "/" + serviceImport.Spec.Slice + "-istio-egressgateway"
 
@@ -188,7 +188,7 @@ func (r *Reconciler) virtualServiceFromEgress(serviceImport *meshv1beta1.Service
 		},
 	}
 
-	if getServiceProtocol(serviceImport) == meshv1beta1.ServiceProtocolHTTP {
+	if getServiceProtocol(serviceImport) == kubeslicev1beta1.ServiceProtocolHTTP {
 		vs.Spec.Http = []*networkingv1beta1.HTTPRoute{{
 			Route: getVirtualServiceHTTPRoutes(serviceImport),
 		}}
@@ -203,7 +203,7 @@ func (r *Reconciler) virtualServiceFromEgress(serviceImport *meshv1beta1.Service
 	return vs
 }
 
-func (r *Reconciler) getVirtualServiceFromEgress(ctx context.Context, serviceimport *meshv1beta1.ServiceImport) (*istiov1beta1.VirtualService, error) {
+func (r *Reconciler) getVirtualServiceFromEgress(ctx context.Context, serviceimport *kubeslicev1beta1.ServiceImport) (*istiov1beta1.VirtualService, error) {
 	vs := &istiov1beta1.VirtualService{}
 	err := r.Get(ctx, types.NamespacedName{
 		Name:      virtualServiceFromEgressName(serviceimport),
@@ -217,7 +217,7 @@ func (r *Reconciler) getVirtualServiceFromEgress(ctx context.Context, serviceimp
 	return vs, nil
 }
 
-func (r *Reconciler) DeleteIstioVirtualServicesEgress(ctx context.Context, serviceimport *meshv1beta1.ServiceImport) error {
+func (r *Reconciler) DeleteIstioVirtualServicesEgress(ctx context.Context, serviceimport *kubeslicev1beta1.ServiceImport) error {
 	vs, err := r.getVirtualServiceFromEgress(ctx, serviceimport)
 	if err != nil {
 		if errors.IsNotFound(err) {
