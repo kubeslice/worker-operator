@@ -60,7 +60,7 @@
         "containers": [
           {
             "name": "istio-proxy",
-            "image": "docker.io/istio/proxyv2:1.9.0",
+            "image": "docker.io/istio/proxyv2:1.13.3",
             "ports": [
               {
                 "containerPort": 15021,
