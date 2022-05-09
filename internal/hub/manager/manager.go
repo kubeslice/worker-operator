@@ -86,7 +86,7 @@ func Start(meshClient client.Client, ctx context.Context) {
 		ControllerManagedBy(mgr).
 		For(&spokev1alpha1.WorkerSliceConfig{}).
 		WithEventFilter(predicate.NewPredicateFuncs(func(object client.Object) bool {
-			return object.GetLabels()["spoke-cluster"] == ClusterName
+			return object.GetLabels()["worker-cluster"] == ClusterName
 		})).
 		Complete(sliceReconciler)
 	if err != nil {
@@ -106,7 +106,7 @@ func Start(meshClient client.Client, ctx context.Context) {
 		ControllerManagedBy(mgr).
 		For(&spokev1alpha1.WorkerSliceGateway{}).
 		WithEventFilter(predicate.NewPredicateFuncs(func(object client.Object) bool {
-			return object.GetLabels()["spoke-cluster"] == ClusterName
+			return object.GetLabels()["worker-cluster"] == ClusterName
 		})).
 		Complete(sliceGwReconciler)
 	if err != nil {
@@ -124,7 +124,7 @@ func Start(meshClient client.Client, ctx context.Context) {
 		ControllerManagedBy(mgr).
 		For(&spokev1alpha1.WorkerServiceImport{}).
 		WithEventFilter(predicate.NewPredicateFuncs(func(object client.Object) bool {
-			return object.GetLabels()["spoke-cluster"] == ClusterName
+			return object.GetLabels()["worker-cluster"] == ClusterName
 		})).
 		Complete(serviceImportReconciler)
 	if err != nil {
