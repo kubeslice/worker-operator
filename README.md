@@ -1,24 +1,39 @@
-# kubeslice-operator
+# kubeslice-worker operator
 
-TODO: Add description
+kubeslice-worker operator uses Kubebuilder, a framework for building Kubernetes APIs
+using [custom resource definitions (CRDs)](https://kubernetes.io/docs/tasks/access-kubernetes-api/extend-api-custom-resource-definitions).
 
-## Getting secrets from hub cluster
+## Getting Started
 
-The following command will fetch the relevant secrets from hub cluster
+It is strongly recommended to use a released version.
+
+## Installing `kubeslice-worker` in local kind cluster
+
+### Prerequisites
+
+* Docker installed and running in your local machine
+* A running [`kind`](https://kind.sigs.k8s.io/) or [`Docker Desktop Kubernetes`](https://docs.docker.com/desktop/kubernetes/)
+  cluster
+* [`kubectl`](https://kubernetes.io/docs/tasks/tools/) installed and configured
+* [`kubeslice-controller`](https://github.com/kubeslice/kubeslice-controller) should be installed and setup
+
+## Getting secrets from controller cluster
+
+The following command will fetch the relevant secrets from controller cluster
 and copy them to `secrets` folder. It will also output them so that we
 can use it to populate helm chart values.
 
 ```
-deploy/hub_secret.sh [hub_cluster_context] [tenant_namespace] [spoke_cluster_name]
+deploy/controller_secret.sh [controller_cluster_context] [tenant_namespace] [worker_cluster_name]
 
 eg:
-deploy/hub_secret.sh gke_avesha-dev_us-east1-c_xxxx hub-avesha-tenant-cisco my-awesome-cluster
+deploy/controller_secret.sh gke_avesha-dev_us-east1-c_xxxx controller-avesha-tenant-cisco my-awesome-cluster
 ```
 
 ## Build and push docker images
 
 Adjust `VERSION` variable in the Makefile to change the docker tag to be built.
-Image is set as `nexus.dev.aveshalabs.io/kubeslice-operator:$(VERSION)` in the makefile. Change this if required
+Image is set as `docker.io/aveshasystems/worker-operator:$(VERSION)` in the makefile. Change this if required
 
 ```
 make docker-build
@@ -55,13 +70,13 @@ k scale deploy kubeslice-operator --replicas=0
 
 Copy the env.sample to `.env` and make changes as required
 
-Get the serviceaccount token and ca from hub cluster (after base64
+Get the serviceaccount token and ca from controller cluster (after base64
 decode) and copy them into files under `secrets` folder in this repo.
 
-* HUB_PROJECT_NAMESPACE : namespace for the tenant in hub cluster
-* HUB_HOST_ENDPOINT: get hub api endpoint by running `k cluster-info` against the hub cluster
-* HUB_TOKEN_FILE : file path where hub token is kept
-* HUB_CA_FILE : file path where hub ca file is kept
+* HUB_PROJECT_NAMESPACE : namespace for the tenant in controller cluster
+* HUB_HOST_ENDPOINT: get controller api endpoint by running `k cluster-info` against the controller cluster
+* HUB_TOKEN_FILE : file path where controller token is kept
+* HUB_CA_FILE : file path where controller ca file is kept
 * ENABLE_WEBHOOKS : set to false as webhooks doesn't work locally (TODO: need to think about using telepresence later)
 
 You can add more env variables to override defaults as needed
@@ -100,7 +115,7 @@ Adjust `.env` values
 
 ```
 export ENABLE_WEBHOOKS=true
-export WEBHOOK_CERTS_DIR=/home/jayadeep/workspace/work/avesha/mesh/repos/kubeslice-operator/secrets/webhook
+export WEBHOOK_CERTS_DIR=${PWD}/secrets/webhook
 ```
 
 Use [Telepresence](https://www.telepresence.io/) to intercept traffic into your manager pod in the
@@ -128,3 +143,7 @@ To stop telepresence,
 ```
 telepresence uninstall --everything
 ```
+
+## License
+
+Apache License 2.0
