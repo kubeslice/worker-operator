@@ -135,7 +135,7 @@ var _ = BeforeSuite(func() {
 		ControllerManagedBy(k8sManager).
 		For(&spokev1alpha1.WorkerSliceConfig{}).
 		WithEventFilter(predicate.NewPredicateFuncs(func(object client.Object) bool {
-			return object.GetLabels()["spoke-cluster"] == CLUSTER_NAME
+			return object.GetLabels()["worker-cluster"] == CLUSTER_NAME
 		})).
 		Complete(sr)
 	Expect(err).ToNot(HaveOccurred())
@@ -144,7 +144,7 @@ var _ = BeforeSuite(func() {
 		ControllerManagedBy(k8sManager).
 		For(&spokev1alpha1.WorkerSliceGateway{}).
 		WithEventFilter(predicate.NewPredicateFuncs(func(object client.Object) bool {
-			return object.GetLabels()["spoke-cluster"] == CLUSTER_NAME
+			return object.GetLabels()["worker-cluster"] == CLUSTER_NAME
 		})).
 		Complete(sgwr)
 	Expect(err).ToNot(HaveOccurred())

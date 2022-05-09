@@ -46,7 +46,7 @@ var _ = Describe("Hub SlicegwController", func() {
 					Name:      "test-slice",
 					Namespace: PROJECT_NS,
 					Labels: map[string]string{
-						"spoke-cluster": CLUSTER_NAME,
+						"worker-cluster": CLUSTER_NAME,
 					},
 				},
 				Spec: spokev1alpha1.WorkerSliceConfigSpec{
@@ -62,7 +62,7 @@ var _ = Describe("Hub SlicegwController", func() {
 					Name:      "test-slicegateway",
 					Namespace: PROJECT_NS,
 					Labels: map[string]string{
-						"spoke-cluster": CLUSTER_NAME,
+						"worker-cluster": CLUSTER_NAME,
 					},
 				},
 				Spec: spokev1alpha1.WorkerSliceGatewaySpec{
