@@ -1,4 +1,4 @@
-domain: avesha.io
+domain: kubeslice.io
 layout:
 - go.kubebuilder.io/v3
 plugins:
@@ -11,20 +11,20 @@ resources:
     crdVersion: v1
     namespaced: true
   controller: true
-  domain: avesha.io
+  domain: kubeslice.io
   group: mesh
   kind: Slice
   path: bitbucket.org/realtimeai/kubeslice-operator/api/v1beta1
   version: v1beta1
-- domain: avesha.io
+- domain: kubeslice.io
   group: mesh
   kind: SliceGateway 
   version: v1beta1
-- domain: avesha.io
+- domain: kubeslice.io
   group: mesh
   kind: ServiceExport
   version: v1beta1
-- domain: avesha.io
+- domain: kubeslice.io
   group: mesh
   kind: ServiceImport
   version: v1beta1

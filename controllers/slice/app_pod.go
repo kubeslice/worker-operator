@@ -68,7 +68,7 @@ func (r *SliceReconciler) getAppPods(ctx context.Context, slice *kubeslicev1beta
 
 // labelsForAppPods returns the labels for App pods
 func labelsForAppPods() map[string]string {
-	return map[string]string{"avesha.io/pod-type": "app"}
+	return map[string]string{"kubeslice.io/pod-type": "app"}
 }
 
 func isAppPodConnectedToSliceRouter(annotations map[string]string, sliceRouter string) bool {

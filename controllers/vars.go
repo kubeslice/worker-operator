@@ -30,7 +30,7 @@ var (
 	ControlPlaneNamespace = "kubeslice-system"
 	// DNSDeploymentName is the name of coredns deployment running in the cluster
 	DNSDeploymentName            = "mesh-dns"
-	NSMIPLabelSelectorKey string = "avesha.io/nsmIP"
+	NSMIPLabelSelectorKey string = "kubeslice.io/nsmIP"
 
 	ClusterName = os.Getenv("CLUSTER_NAME")
 

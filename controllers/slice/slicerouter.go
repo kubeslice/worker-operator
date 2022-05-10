@@ -61,8 +61,8 @@ func labelsForSliceRouterDeployment(name string) map[string]string {
 	return map[string]string{
 		"networkservicemesh.io/app":  "vl3-nse-" + name,
 		"networkservicemesh.io/impl": "vl3-service-" + name,
-		"avesha.io/pod-type":         "router",
-		"avesha.io/slice":            name,
+		"kubeslice.io/pod-type":      "router",
+		"kubeslice.io/slice":         name,
 	}
 }
 

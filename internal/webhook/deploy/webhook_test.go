@@ -38,17 +38,17 @@ var _ = Describe("Deploy Webhook", func() {
 				},
 				{
 					Annotations: map[string]string{
-						"avesha.io/status": "",
+						"kubeslice.io/status": "",
 					}, // with empty value for status key
 				},
 				{
 					Annotations: map[string]string{
-						"avesha.io/slice": "",
+						"kubeslice.io/slice": "",
 					}, // with empty value for slice key
 				},
 				{
 					Annotations: map[string]string{
-						"avesha.io/status": "not injected",
+						"kubeslice.io/status": "not injected",
 					}, // with different value for status key
 				},
 			}
@@ -68,19 +68,19 @@ var _ = Describe("Deploy Webhook", func() {
 			table := []metav1.ObjectMeta{
 				{
 					Annotations: map[string]string{
-						"avesha.io/slice": "green",
+						"kubeslice.io/slice": "green",
 					}, // with proper annotations
 				},
 				{
 					Annotations: map[string]string{
-						"avesha.io/slice":  "green",
-						"avesha.io/status": "",
+						"kubeslice.io/slice":  "green",
+						"kubeslice.io/status": "",
 					}, // with empty value for status key
 				},
 				{
 					Annotations: map[string]string{
-						"avesha.io/slice":  "green",
-						"avesha.io/status": "not injected",
+						"kubeslice.io/slice":  "green",
+						"kubeslice.io/status": "not injected",
 					}, // with different value for status key
 				},
 			}
@@ -100,20 +100,20 @@ var _ = Describe("Deploy Webhook", func() {
 			table := []metav1.ObjectMeta{
 				{
 					Annotations: map[string]string{
-						"avesha.io/status": "injected",
+						"kubeslice.io/status": "injected",
 					}, // with injection status
 				},
 				{
 					Labels: map[string]string{
-						"avesha.io/pod-type": "app",
+						"kubeslice.io/pod-type": "app",
 					}, // with pod type set
 				},
 				{
 					Annotations: map[string]string{
-						"avesha.io/status": "injected",
+						"kubeslice.io/status": "injected",
 					}, // with injection status
 					Labels: map[string]string{
-						"avesha.io/pod-type": "app",
+						"kubeslice.io/pod-type": "app",
 					}, // with pod type set
 				},
 				{

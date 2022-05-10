@@ -309,7 +309,7 @@ func (r *SliceGwReconciler) serviceForGateway(g *kubeslicev1beta1.SliceGateway) 
 			Name:      "svc-" + g.Name,
 			Namespace: g.Namespace,
 			Labels: map[string]string{
-				"avesha.io/slice": g.Spec.SliceName,
+				"kubeslice.io/slice": g.Spec.SliceName,
 			},
 		},
 		Spec: corev1.ServiceSpec{

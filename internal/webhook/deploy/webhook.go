@@ -32,8 +32,8 @@ import (
 )
 
 const (
-	admissionWebhookAnnotationInjectKey = "avesha.io/slice"
-	admissionWebhookAnnotationStatusKey = "avesha.io/status"
+	admissionWebhookAnnotationInjectKey = "kubeslice.io/slice"
+	admissionWebhookAnnotationStatusKey = "kubeslice.io/status"
 )
 
 var (
@@ -88,8 +88,8 @@ func Mutate(deploy *appsv1.Deployment, sliceName string) *appsv1.Deployment {
 
 	// Add slice identifier labels to pod template
 	labels := deploy.Spec.Template.ObjectMeta.Labels
-	labels["avesha.io/pod-type"] = "app"
-	labels["avesha.io/slice"] = sliceName
+	labels["kubeslice.io/pod-type"] = "app"
+	labels["kubeslice.io/slice"] = sliceName
 
 	return deploy
 }
@@ -107,13 +107,13 @@ func MutationRequired(metadata metav1.ObjectMeta) bool {
 		return false
 	}
 
-	if metadata.GetLabels()["avesha.io/pod-type"] == "app" {
+	if metadata.GetLabels()["kubeslice.io/pod-type"] == "app" {
 		log.Info("Pod is already injected")
 		return false
 	}
 
 	// TODO namespace isolation policy
 
-	// The annotation avesha.io/slice:SLICENAME is present, enable mutation
+	// The annotation kubeslice.io/slice:SLICENAME is present, enable mutation
 	return annotations[admissionWebhookAnnotationInjectKey] != ""
 }
