@@ -36,7 +36,7 @@ webhooks:
       path: /mutate-appsv1-deploy
   failurePolicy: Ignore
   matchPolicy: Equivalent
-  name: mdeploy.avesha.io
+  name: mdeploy.kubeslice.io
   rules:
   - apiGroups:
     - apps

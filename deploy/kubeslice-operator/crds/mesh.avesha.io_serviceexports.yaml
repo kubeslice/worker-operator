@@ -6,9 +6,9 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.7.0
   creationTimestamp: null
-  name: serviceexports.mesh.avesha.io
+  name: serviceexports.mesh.kubeslice.io
 spec:
-  group: mesh.avesha.io
+  group: mesh.kubeslice.io
   names:
     kind: ServiceExport
     listKind: ServiceExportList
