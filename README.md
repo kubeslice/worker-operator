@@ -1,13 +1,13 @@
 # kubeslice-worker operator
 
-kubeslice-worker operator uses Kubebuilder, a framework for building Kubernetes APIs
-using [custom resource definitions (CRDs)](https://kubernetes.io/docs/tasks/access-kubernetes-api/extend-api-custom-resource-definitions).
+The kubeslice-worker operator manages the life-cycle of KubeSlice worker cluster related [custom resource definitions (CRDs)](https://kubernetes.io/docs/tasks/access-kubernetes-api/extend-api-custom-resource-definitions).
+kubeslice-worker operator uses Kubebuilder, a framework for building Kubernetes APIs using CRDS.
 
 ## Getting Started
 
 It is strongly recommended to use a released version.
 
-## Installing `kubeslice-worker` in local kind cluster
+## Installing `kubeslice-worker` in kind cluster
 
 ### Prerequisites
 
