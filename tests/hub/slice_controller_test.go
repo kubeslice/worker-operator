@@ -27,6 +27,7 @@ import (
 
 	spokev1alpha1 "github.com/kubeslice/apis/pkg/worker/v1alpha1"
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -91,6 +92,27 @@ var _ = Describe("Hub SliceController", func() {
 			Expect(createdSlice.Status.SliceConfig.SliceIpam.IpamClusterOctet).To(Equal(100))
 
 		})
+
+		It("Should Generate Events", func() {
+			ctx := context.Background()
+			Expect(k8sClient.Create(ctx, hubSlice)).Should(Succeed())
+			sliceKey := types.NamespacedName{Name: "test-slice-1", Namespace: "kubeslice-system"}
+
+			// Make sure slice is reconciled in spoke cluster
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, sliceKey, createdSlice)
+				return err == nil
+			}, time.Second*10, time.Millisecond*250).Should(BeTrue())
+
+			events := corev1.EventList{}
+			k8sClient.List(ctx, &events)
+			for _, event := range events.Items {
+				if event.Source.Component == "test-slice-controller" && event.InvolvedObject.Kind == "SpokeSliceConfig" {
+					Expect(event.Message).To(Equal("Created slice on spoke cluster , slice " + event.InvolvedObject.Name + " cluster "))
+				}
+			}
+		})
+
 		It("Should register a finalizer on spokeSliceConfig CR", func() {
 			ctx := context.Background()
 			Expect(k8sClient.Create(ctx, hubSlice)).Should(Succeed())

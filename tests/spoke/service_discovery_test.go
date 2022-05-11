@@ -239,5 +239,46 @@ var _ = Describe("ServiceExportController", func() {
 				return reflect.DeepEqual(createdSvcEx.GetLabels(), expectedLabel)
 			}, time.Second*30, time.Millisecond*250).Should(BeTrue())
 		})
+		It("Should Trap Events in service export sync", func() {
+			Expect(k8sClient.Create(ctx, dnssvc)).Should(Succeed())
+			Expect(k8sClient.Create(ctx, slice)).Should(Succeed())
+
+			err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+				err := k8sClient.Get(ctx, types.NamespacedName{
+					Name:      slice.Name,
+					Namespace: slice.Namespace,
+				}, createdSlice)
+				if err != nil {
+					return err
+				}
+				createdSlice.Status.SliceConfig = &kubeslicev1beta1.SliceConfig{}
+				return k8sClient.Status().Update(ctx, createdSlice)
+			})
+			Expect(err).To(BeNil())
+
+			Expect(k8sClient.Create(ctx, svcex)).Should(Succeed())
+			expectedLabel := map[string]string{
+				"kubeslice.io/slice": svcex.Spec.Slice,
+			}
+
+			svcKey := types.NamespacedName{Name: "iperf-server", Namespace: "default"}
+			createdSvcEx := &kubeslicev1beta1.ServiceExport{}
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, svcKey, createdSvcEx)
+				if err != nil {
+					return false
+				}
+				return reflect.DeepEqual(createdSvcEx.GetLabels(), expectedLabel)
+			}, time.Second*30, time.Millisecond*250).Should(BeTrue())
+
+			events := corev1.EventList{}
+			k8sClient.List(ctx, &events)
+
+			for _, event := range events.Items {
+				if event.Source.Component == "test-SvcEx-controller" && event.InvolvedObject.Kind == "ServiceExport" {
+					Expect(event.Message).To(Equal("Successfully posted serviceexport to kubeslice-controller cluster"))
+				}
+			}
+		})
 	})
 })
