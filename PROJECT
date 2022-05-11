@@ -5,7 +5,7 @@ plugins:
   manifests.sdk.operatorframework.io/v2: {}
   scorecard.sdk.operatorframework.io/v2: {}
 projectName: kubeslice-operator
-repo: bitbucket.org/realtimeai/kubeslice-operator
+repo: github.com/kubeslice/worker-operator
 resources:
 - api:
     crdVersion: v1
@@ -14,7 +14,7 @@ resources:
   domain: kubeslice.io
   group: mesh
   kind: Slice
-  path: bitbucket.org/realtimeai/kubeslice-operator/api/v1beta1
+  path: github.com/kubeslice/worker-operator/api/v1beta1
   version: v1beta1
 - domain: kubeslice.io
   group: mesh
