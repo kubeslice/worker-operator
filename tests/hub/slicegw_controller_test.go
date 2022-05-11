@@ -114,6 +114,44 @@ var _ = Describe("Hub SlicegwController", func() {
 			}, time.Second*20, time.Second*1).Should(BeTrue())
 		})
 
+		It("Should Generate Events", func() {
+			Expect(k8sClient.Create(ctx, hubSlice)).Should(Succeed())
+			Expect(k8sClient.Create(ctx, hubSliceGw)).Should(Succeed())
+			Expect(k8sClient.Create(ctx, hubSecret)).Should(Succeed())
+
+			//once hubSlice is created controller will create a slice CR on spoke cluster
+			sliceKey := types.NamespacedName{Name: "test-slice", Namespace: "kubeslice-system"}
+
+			// Make sure slice is reconciled in spoke cluster
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, sliceKey, createdSlice)
+				return err == nil
+			}, time.Second*20, time.Millisecond*250).Should(BeTrue())
+
+			sliceGwKey := types.NamespacedName{Namespace: CONTROL_PLANE_NS, Name: hubSliceGw.Name}
+
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, sliceGwKey, createdSliceGwOnSpoke)
+				return err == nil
+			}, time.Second*20, time.Second*1).Should(BeTrue())
+
+			events := corev1.EventList{}
+
+			Eventually(func() bool {
+				err := k8sClient.List(ctx, &events)
+				return err == nil
+			}, time.Second*20, time.Second*1).Should(BeTrue())
+
+			for _, event := range events.Items {
+				if event.Source.Component == "test-slicegw-controller" && event.InvolvedObject.Kind == "Slice" {
+					Expect(event.Message).To(Equal("Created slicegw on spoke cluster , slicegateway test-slicegateway"))
+				}
+				if event.Source.Component == "test-slicegw-controller" && event.InvolvedObject.Kind == "SpokeSliceGateway" {
+					Expect(event.Message).To(Equal("Created slicegw on spoke cluster , slicegateway test-slicegateway cluster "))
+				}
+			}
+		})
+
 		It("Should set slice as owner of slicegw", func() {
 			Expect(k8sClient.Create(ctx, hubSlice)).Should(Succeed())
 			Expect(k8sClient.Create(ctx, hubSliceGw)).Should(Succeed())
