@@ -123,7 +123,8 @@ docker-push: ## Push docker image with the manager.
 chart-deploy:
 	## Deploy the artifacts using helm
 	## Usage: make chart-deploy VALUESFILE=[valuesfilename]
-	helm upgrade --install kubeslice -n kubeslice-system deploy/kubeslice-operator -f deploy/kubeslice-operator/values/${VALUESFILE}
+	helm repo add kubeslice-opensource https://kubeslice.github.io/charts/
+	helm upgrade --install kubeslice-worker -n kubeslice-system kubeslice-opensource/kubeslice-worker -f deploy/kubeslice-operator/values/${VALUESFILE}
 
 ifndef ignore-not-found
   ignore-not-found = false
