@@ -53,7 +53,29 @@ make chart-deploy VALUESFILE=yourvaluesfile.yaml
 You can run the operator on your Kind cluster with the below command
 
 ```
-kind load docker-image my-custom-image:unique-tag
+kind load docker-image <my-custom-image>:<unique-tag> --name <cluster-name>
+```
+
+## Verify the operator is running
+
+```
+kubectl get pods -n kubeslice-system
+```
+
+Sample output to expect
+
+```
+NAME                                     READY   STATUS    RESTARTS   AGE
+avesha-netop-9xsrh                       1/1     Running   0          42h
+jaeger-65c6b7f5dd-vkhph                  1/1     Running   0          42h
+kubeslice-operator-6c658d5cbd-6bvsm      2/2     Running   0          30m
+mesh-dns-65fd8585ff-qbzrk                1/1     Running   0          42h
+nsm-admission-webhook-7b848ffc4b-fsr24   1/1     Running   0          42h
+nsm-kernel-forwarder-lxpjv               1/1     Running   0          42h
+nsm-kernel-forwarder-mz69c               1/1     Running   0          42h
+nsmgr-5clbs                              3/3     Running   0          42h
+nsmgr-f42t5                              3/3     Running   0          42h
+prefix-service-76bd89c44f-kg4lp          1/1     Running   0          42h
 ```
 
 ## License
