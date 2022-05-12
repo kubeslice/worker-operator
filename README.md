@@ -21,13 +21,13 @@ It is strongly recommended to use a released version.
 
 If you have not added avesha helm repo yet, add it
 
-```
+```console
 helm repo add kubeslice https://kubeslice.github.io/charts/
 ```
 
 upgrade the avesha helm repo
 
-```
+```console
 helm repo update
 ```
 
@@ -37,19 +37,21 @@ The following command will fetch the relevant secrets from controller cluster
 and copy them to `secrets` folder. It will also output them so that we
 can use it to populate helm chart values.
 
-```
+```console
 deploy/controller_secret.sh [controller_cluster_context] [project_namespace] [worker_cluster_name]
 
+```
 eg:
+
+```
 deploy/controller_secret.sh gke_avesha-dev_us-east1-c_xxxx controller-avesha-tenant-cisco my-awesome-cluster
 ```
-
 ## Build docker images
 
 Adjust `VERSION` variable in the Makefile to change the docker tag to be built.
 Image is set as `docker.io/aveshasystems/worker-operator:$(VERSION)` in the Makefile. Change this if required
 
-```
+```console
 make docker-build
 ```
 
@@ -57,7 +59,7 @@ make docker-build
 
 You can run the operator on your Kind cluster with the below command
 
-```
+```console
 kind load docker-image <my-custom-image>:<unique-tag> --name <cluster-name>
 ```
 
@@ -66,13 +68,13 @@ kind load docker-image <my-custom-image>:<unique-tag> --name <cluster-name>
 Create chart values file `yourvaluesfile.yaml`.
 Refer to [values.yaml](https://raw.githubusercontent.com/kubeslice/charts/master/kubeslice-worker/values.yaml?token=GHSAT0AAAAAABTXBAR34JSRCDHTKG4KFGNIYT5AZ4Q) on how to adjust this.
 
-```
+```console
 make chart-deploy VALUESFILE=yourvaluesfile.yaml
 ```
 
 ## Verify the operator is running
 
-```
+```console
 kubectl get pods -n kubeslice-system
 ```
 
