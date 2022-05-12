@@ -19,10 +19,15 @@ It is strongly recommended to use a released version.
 
 ## Setting up your helm repo
 
-Add the kubeslice helm repo
+If you have not added avesha helm repo yet, add it
 
 ```
 helm repo add kubeslice https://kubeslice.github.io/charts/
+```
+
+upgrade the avesha helm repo
+
+```
 helm repo update
 ```
 

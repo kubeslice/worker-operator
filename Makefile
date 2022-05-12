@@ -123,7 +123,7 @@ docker-push: ## Push docker image with the manager.
 chart-deploy:
 	## Deploy the artifacts using helm
 	## Usage: make chart-deploy VALUESFILE=[valuesfilename]
-	helm upgrade --install kubeslice-worker -n kubeslice-system kubeslice/kubeslice-worker -f ${VALUESFILE}
+	helm upgrade --install kubeslice-worker -n kubeslice-system avesha/kubeslice-worker -f ${VALUESFILE}
 
 ifndef ignore-not-found
   ignore-not-found = false
