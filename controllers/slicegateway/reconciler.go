@@ -392,8 +392,8 @@ func (r *SliceGwReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
 	// The mapping function for the slice router pod update should only invoke the reconciler
 	// of the slice gateway objects that belong to the same slice as the restarted slice router.
-	// The netop pods are slice agnostic. Hence, all slice gateway objects should be invoked if
-	// a netop pod restarts.
+	// The netop pods are slice agnostic. Hence, all slice gateway objects belonging to every slice
+	// should be invoked if a netop pod restarts.
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&kubeslicev1beta1.SliceGateway{}).
 		Owns(&appsv1.Deployment{}).
