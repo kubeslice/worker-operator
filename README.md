@@ -39,6 +39,13 @@ Image is set as `docker.io/aveshasystems/worker-operator:$(VERSION)` in the Make
 make docker-build
 ```
 
+## Running locally on Kind
+
+You can run the operator on your Kind cluster with the below command
+
+```
+kind load docker-image <my-custom-image>:<unique-tag> --name <cluster-name>
+```
 ## Deploying in a cluster
 
 Create chart values file in `deploy/kubeslice-operator/values/yourvaluesfile.yaml`.
@@ -46,14 +53,6 @@ Refer to `deploy/kubeslice-operator/values/values.yaml` on how to adjust this.
 
 ```
 make chart-deploy VALUESFILE=yourvaluesfile.yaml
-```
-
-## Running locally on Kind
-
-You can run the operator on your Kind cluster with the below command
-
-```
-kind load docker-image <my-custom-image>:<unique-tag> --name <cluster-name>
 ```
 
 ## Verify the operator is running
