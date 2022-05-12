@@ -22,7 +22,7 @@ __='
 usage(){
   cat << EOF
 Fetch the hub cluster details and credentials, print and save them to \`secrets\` folder.
-usage: hub_secret.sh [hub_cluster_context] [tenant_namespace] [spoke_cluster_name]
+usage: $0 [controller_cluster_context] [project_namespace] [worker_cluster_name]
 
 Dependencies:
 - kubectl
@@ -43,7 +43,7 @@ echo "Cluster: $1"
 echo "Namespace: $2"
 echo "Spoke Cluster Name: $3"
 
-read -n 1 -p "Continue? (y/N) : " p
+read -p "Continue? (y/N) : " p
 echo
 
 if [ "$p" != "y" ];then

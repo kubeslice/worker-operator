@@ -24,7 +24,7 @@ and copy them to `secrets` folder. It will also output them so that we
 can use it to populate helm chart values.
 
 ```
-deploy/controller_secret.sh [controller_cluster_context] [tenant_namespace] [worker_cluster_name]
+deploy/controller_secret.sh [controller_cluster_context] [project_namespace] [worker_cluster_name]
 
 eg:
 deploy/controller_secret.sh gke_avesha-dev_us-east1-c_xxxx controller-avesha-tenant-cisco my-awesome-cluster
