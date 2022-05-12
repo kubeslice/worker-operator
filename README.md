@@ -5,7 +5,7 @@ kubeslice-worker operator uses Kubebuilder, a framework for building Kubernetes 
 
 ## Getting Started
 
-[TBD: Add getting started link]
+[TBD: Add getting started link] 
 It is strongly recommended to use a released version.
 
 ## Installing `kubeslice-worker` in kind cluster
