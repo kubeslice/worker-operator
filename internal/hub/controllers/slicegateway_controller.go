@@ -127,6 +127,7 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req reconcile.Request
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      sliceGwName,
 					Namespace: ControlPlaneNamespace,
+					Labels:    map[string]string{"avesha.io/slice": sliceName},
 				},
 				Spec: kubeslicev1beta1.SliceGatewaySpec{
 					SliceName: sliceName,
