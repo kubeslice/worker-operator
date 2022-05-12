@@ -17,6 +17,15 @@ It is strongly recommended to use a released version.
 * [`kubectl`](https://kubernetes.io/docs/tasks/tools/) installed and configured
 * [`kubeslice-controller`](https://github.com/kubeslice/kubeslice-controller) should be installed and setup
 
+## Setting up your helm repo
+
+Add the kubeslice helm repo
+
+```
+helm repo add kubeslice https://kubeslice.github.io/charts/
+helm repo update
+```
+
 ## Getting secrets from controller cluster
 
 The following command will fetch the relevant secrets from controller cluster
@@ -46,10 +55,11 @@ You can run the operator on your Kind cluster with the below command
 ```
 kind load docker-image <my-custom-image>:<unique-tag> --name <cluster-name>
 ```
+
 ## Deploying in a cluster
 
-Create chart values file in `deploy/kubeslice-operator/values/yourvaluesfile.yaml`.
-Refer to `deploy/kubeslice-operator/values/values.yaml` on how to adjust this.
+Create chart values file `yourvaluesfile.yaml`.
+Refer to [values.yaml] (https://raw.githubusercontent.com/kubeslice/charts/master/kubeslice-worker/values.yaml?token=GHSAT0AAAAAABTXBAR34JSRCDHTKG4KFGNIYT5AZ4Q) on how to adjust this.
 
 ```
 make chart-deploy VALUESFILE=yourvaluesfile.yaml
