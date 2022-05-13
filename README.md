@@ -6,7 +6,9 @@ kubeslice-worker operator uses Kubebuilder, a framework for building Kubernetes 
 
 ## Getting Started
 
-[TBD: Add getting started link] 
+For information on installing KubeSlice on cloud clusters, see [getting started with kind clusters](https://docs.avesha.io/opensource/getting-started-with-kind-clusters)... or try out the example script in [kind-based example](https://github.com/kubeslice/examples/tree/master/kind).
+
+For information on installing KubeSlice on cloud clusters, see [getting started with cloud clusters](https://docs.avesha.io/opensource/getting-started-with-cloud-clusters). 
 It is strongly recommended to use a released version.
 
 ## Installing `kubeslice-worker` in kind cluster
@@ -18,30 +20,30 @@ It is strongly recommended to use a released version.
 * [`kubectl`](https://kubernetes.io/docs/tasks/tools/) installed and configured
 * Follow the getting started from above, to install [`kubeslice-controller`](https://github.com/kubeslice/kubeslice-controller) and [`worker-operator`](https://github.com/kubeslice/worker-operator)
 
-### Local build and update
+### Local Build and Update
 
 
-#### Latest docker hub image
+#### Latest Docker Hub image
 
 ```console
 docker pull aveshasystems/worker-operator:latest
 ```
 
-### Setting up your helm repo
+### Setting up Your Helm Repo
 
-If you have not added avesha helm repo yet, add it
+If you have not added avesha helm repo yet, add it.
 
 ```console
 helm repo add avesha https://kubeslice.github.io/charts/
 ```
 
-upgrade the avesha helm repo
+Upgrade the avesha helm repo.
 
 ```console
 helm repo update
 ```
 
-### Getting secrets from controller cluster, if not already done
+### Getting Secrets from Controller Cluster (if it's not already done)
 
 The following command will fetch the relevant secrets from controller cluster
 and copy them to `secrets` folder. It will also output them so that we
@@ -51,7 +53,7 @@ can use it to populate helm chart values.
 deploy/controller_secret.sh [controller_cluster_context] [project_namespace] [worker_cluster_name]
 
 ```
-eg:
+Example
 
 ```
 deploy/controller_secret.sh gke_avesha-dev_us-east1-c_xxxx controller-avesha-tenant-cisco my-awesome-cluster
@@ -66,16 +68,16 @@ cd worker-operator
 ```
 
 2. Adjust `VERSION` variable in the Makefile to change the docker tag to be built.
-Image is set as `docker.io/aveshasystems/worker-operator:$(VERSION)` in the Makefile. Change this if required
+Image is set as `docker.io/aveshasystems/worker-operator:$(VERSION)` in the Makefile. Change this if required.
 
 ```console
 make docker-build
 ```
 
 
-### Running local image on Kind
+### Running the Local Image on Kind Cluster
 
-1. You can load the operator on your Kind cluster with the below command
+1. You can load the operator on your Kind cluster with the below command.
 
 ```console
 kind load docker-image <my-custom-image>:<unique-tag> --name <cluster-name>
@@ -99,12 +101,12 @@ example:
 docker exec -it kind-control-plane crictl images
 ```
 
-### Deploying in a cluster
+### Deploying in a Cluster
 
 Create chart values file `yourvaluesfile.yaml`.
 Refer to [values.yaml](https://github.com/kubeslice/charts/blob/master/kubeslice-worker/values.yaml) to create `yourvaluesfiel.yaml` and update the operator image subsection to use the local image.
 
-From the sample , 
+From the sample, 
 
 ```
 operator:
@@ -112,7 +114,7 @@ operator:
   tag: 0.2.3
 ```
 
-change it to , 
+change it to, 
 
 ```
 operator:
@@ -120,13 +122,13 @@ operator:
   tag: <unique-tag>
 ````
 
-Deploy the updated chart
+Deploy the Updated Chart
 
 ```console
 make chart-deploy VALUESFILE=yourvaluesfile.yaml
 ```
 
-### Verify the operator is running
+### Verify the Operator is Running
 
 ```console
 kubectl get pods -n kubeslice-system
