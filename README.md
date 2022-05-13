@@ -75,10 +75,28 @@ make docker-build
 
 ### Running local image on Kind
 
-You can load the operator on your Kind cluster with the below command
+1. You can load the operator on your Kind cluster with the below command
 
 ```console
 kind load docker-image <my-custom-image>:<unique-tag> --name <cluster-name>
+```
+
+example:
+
+```console
+kind load docker-image aveshasystems/worker-operator:1.2.1 --name kind
+```
+
+2. Check the loaded image in the cluster. Modify node name if required.
+
+```console
+docker exec -it <node-name> crictl images
+```
+
+example:
+
+```console
+docker exec -it kind-control-plane crictl images
 ```
 
 ### Deploying in a cluster
