@@ -82,7 +82,7 @@ kind load docker-image <my-custom-image>:<unique-tag> --name <cluster-name>
 ### Deploying in a cluster
 
 Create chart values file `yourvaluesfile.yaml`.
-Refer to [values.yaml](https://raw.githubusercontent.com/kubeslice/charts/master/kubeslice-worker/values.yaml?token=GHSAT0AAAAAABTXBAR34JSRCDHTKG4KFGNIYT5AZ4Q) on how to adjust this and update the operator image the local image.
+Refer to [values.yaml](https://github.com/kubeslice/charts/blob/master/kubeslice-worker/values.yaml) on how to adjust this and update the operator image the local image.
 
 From the sample , 
 
