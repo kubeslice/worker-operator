@@ -196,6 +196,11 @@ func (r *SliceReconciler) updateSliceConfig(ctx context.Context, meshSlice *kube
 		TcType:                  spokeSlice.Spec.QosProfileDetails.TcType,
 		Priority:                spokeSlice.Spec.QosProfileDetails.Priority,
 	}
+	meshSlice.Status.SliceConfig.NamespaceIsolationProfile = kubeslicev1beta1.NamespaceIsolationProfile{
+		IsolationEnabled:      spokeSlice.Spec.NamespaceIsolationProfile.IsolationEnabled,
+		AllowedNamespaces:     spokeSlice.Spec.NamespaceIsolationProfile.AllowedNamespaces,
+		ApplicationNamespaces: spokeSlice.Spec.NamespaceIsolationProfile.ApplicationNamespaces,
+	}
 
 	extGwCfg := spokeSlice.Spec.ExternalGatewayConfig
 	meshSlice.Status.SliceConfig.ExternalGatewayConfig = &kubeslicev1beta1.ExternalGatewayConfig{

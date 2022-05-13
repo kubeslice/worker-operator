@@ -49,6 +49,7 @@ import (
 	hub "github.com/kubeslice/worker-operator/internal/hub/hubclient"
 	"github.com/kubeslice/worker-operator/internal/hub/manager"
 	"github.com/kubeslice/worker-operator/internal/logger"
+	"github.com/kubeslice/worker-operator/internal/networkpolicy"
 	"github.com/kubeslice/worker-operator/internal/utils"
 	deploywh "github.com/kubeslice/worker-operator/internal/webhook/deploy"
 	//+kubebuilder:scaffold:imports
@@ -99,7 +100,8 @@ func main() {
 	if utils.GetEnvOrDefault("ENABLE_WEBHOOKS", "true") == "true" {
 		mgr.GetWebhookServer().Register("/mutate-appsv1-deploy", &webhook.Admission{
 			Handler: &deploywh.WebhookServer{
-				Client: mgr.GetClient(),
+				Client:   mgr.GetClient(),
+				WhClient: deploywh.NewWebhookClient(),
 			},
 		})
 	}
@@ -166,6 +168,16 @@ func main() {
 		EventRecorder: serviceImportEventRecorder,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "ServiceImport")
+		os.Exit(1)
+	}
+	netpolEventRecorder := events.NewEventRecorder(mgr.GetEventRecorderFor("networkpolicy-controller"))
+	if err = (&networkpolicy.NetpolReconciler{
+		Client:        mgr.GetClient(),
+		Log:           ctrl.Log.WithName("controllers").WithName("networkpolicy"),
+		Scheme:        mgr.GetScheme(),
+		EventRecorder: netpolEventRecorder,
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "networkpolicy")
 		os.Exit(1)
 	}
 	//+kubebuilder:scaffold:builder
