@@ -5,11 +5,12 @@ The kubeslice-worker operator manages the life-cycle of KubeSlice worker cluster
 kubeslice-worker operator uses Kubebuilder, a framework for building Kubernetes APIs using CRDS.
 
 ## Getting Started
+It is strongly recommended to use a released version.
 
-For information on installing KubeSlice on cloud clusters, see [getting started with kind clusters](https://docs.avesha.io/opensource/getting-started-with-kind-clusters)... or try out the example script in [kind-based example](https://github.com/kubeslice/examples/tree/master/kind).
+For information on installing KubeSlice on kind clusters, see [getting started with kind clusters](https://docs.avesha.io/opensource/getting-started-with-kind-clusters) or try out the example script in [kind-based example](https://github.com/kubeslice/examples/tree/master/kind).
 
 For information on installing KubeSlice on cloud clusters, see [getting started with cloud clusters](https://docs.avesha.io/opensource/getting-started-with-cloud-clusters). 
-It is strongly recommended to use a released version.
+
 
 ## Installing `kubeslice-worker` in kind cluster
 
