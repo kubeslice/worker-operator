@@ -155,6 +155,12 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 		return ctrl.Result{}, err
 	}
 
+	res, err, reconcile := r.ReconcileSliceNamespaces(ctx, slice)
+	if reconcile {
+		debugLog.Info("Reconciling SliceNamespaces", "res", res, "err", err)
+		return res, err
+	}
+
 	debugLog.Info("Syncing slice QoS config with NetOp pods")
 	err = r.SyncSliceQosProfileWithNetOp(ctx, slice)
 	if err != nil {
