@@ -131,6 +131,8 @@ func (r *SliceReconciler) reconcileAppNamespaces(ctx context.Context, slice *kub
 			log.Error(err, "Failed to update slice status")
 			return ctrl.Result{}, err, true
 		}
+		//TODO:
+		//post changes to workersliceconfig
 	}
 	return ctrl.Result{}, nil, false
 }
@@ -234,6 +236,8 @@ func (r *SliceReconciler) reconcileAllowedNamespaces(ctx context.Context, slice 
 			log.Error(err, "Failed to update slice status")
 			return err
 		}
+		//TODO:
+		//post changes to workersliceconfig
 	}
 	return nil
 }
@@ -328,6 +332,8 @@ func (r *SliceReconciler) unbindAppNamespace(ctx context.Context, slice *kubesli
 			continue
 		}
 		//delete all the labels and annotations webhook added
+		//TODO:
+		//use constants
 		_, ok := labels["avesha.io/pod-type"]
 		if ok {
 			delete(labels, "avesha.io/pod-type")
