@@ -1,7 +1,7 @@
 # kubeslice-worker operator
 
-[Docker Image Size](https://img.shields.io/docker/image-size/aveshasystems/worker-operator)
-[Docker Image Version](https://img.shields.io/docker/v/aveshasystems/worker-operator?sort=date)
+![Docker Image Size](https://img.shields.io/docker/image-size/aveshasystems/worker-operator)
+![Docker Image Version](https://img.shields.io/docker/v/aveshasystems/worker-operator?sort=date)
 
 The kubeslice-worker operator manages the life-cycle of KubeSlice worker cluster related [custom resource definitions (CRDs)](https://kubernetes.io/docs/tasks/access-kubernetes-api/extend-api-custom-resource-definitions).
 kubeslice-worker operator uses Kubebuilder, a framework for building Kubernetes APIs using CRDS.
