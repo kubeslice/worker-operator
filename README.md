@@ -20,8 +20,12 @@ It is strongly recommended to use a released version.
 
 ### Local build and update
 
-#### Latest docker image
-[TBD link to docker hub]
+
+#### Latest docker hub image
+
+```console
+docker pull aveshasystems/worker-operator:latest
+```
 
 ### Setting up your helm repo
 
