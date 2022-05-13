@@ -45,6 +45,7 @@ import (
 	hce "github.com/kubeslice/worker-operator/tests/emulator/hubclient"
 	nsmv1alpha1 "github.com/networkservicemesh/networkservicemesh/k8s/pkg/apis/networkservice/v1alpha1"
 	istiov1beta1 "istio.io/client-go/pkg/apis/networking/v1beta1"
+	"github.com/kubeslice/worker-operator/internal/networkpolicy"
 	//+kubebuilder:scaffold:imports
 )
 
@@ -141,6 +142,15 @@ var _ = BeforeSuite(func() {
 		EventRecorder: &events.EventRecorder{
 			Recorder: &record.FakeRecorder{},
 		},
+	}).SetupWithManager(k8sManager)
+	Expect(err).ToNot(HaveOccurred())
+
+	netpolEventRecorder := events.NewEventRecorder(k8sManager.GetEventRecorderFor("networkpolicy-controller"))
+	err = (&networkpolicy.NetpolReconciler{
+		Client:        k8sManager.GetClient(),
+		Log:           ctrl.Log.WithName("controllers").WithName("networkpolicy"),
+		Scheme:        k8sManager.GetScheme(),
+		EventRecorder: netpolEventRecorder,
 	}).SetupWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())
 

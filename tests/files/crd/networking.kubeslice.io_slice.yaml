@@ -39,6 +39,11 @@ spec:
           status:
             description: SliceStatus defines the observed state of Slice
             properties:
+              allowedNamespaces:
+                description: Slice Allowed Namespace list
+                items:
+                  type: string
+                type: array
               appPods:
                 description: AppPods contains the list of app pods connected to the
                   slice
@@ -69,9 +74,19 @@ spec:
                 description: AppPodsUpdatedOn is the time when app pods list was updated
                 format: int64
                 type: integer
+              applicationNamespaces:
+                description: Slice Application Namespace list
+                items:
+                  type: string
+                type: array
               dnsIP:
                 description: DNSIP is the IP of Coredns server
                 type: string
+              networkPoliciesInstalled:
+                default: false
+                description: NetworkPoliciesInstalled defines whether the netpol are
+                  installed in appNS
+                type: boolean
               sliceConfig:
                 description: SliceConfig is the spec for slice received from hub cluster
                 properties:
@@ -96,6 +111,28 @@ spec:
                           enabled:
                             type: boolean
                         type: object
+                    type: object
+                  namespaceIsolationProfile:
+                    description: Namespace Isolation profile contains fields related
+                      to namespace binding to slice
+                    properties:
+                      allowedNamespaces:
+                        description: Allowed namespaces is a list of namespaces that
+                          can send and receive traffic to app namespaces
+                        items:
+                          type: string
+                        type: array
+                      applicationNamespaces:
+                        description: Application namespaces is a list of namespaces
+                          that are bound to the slice
+                        items:
+                          type: string
+                        type: array
+                      isolationEnabled:
+                        description: Enable Namespace Isolation in the slice
+                        type: boolean
+                    required:
+                    - isolationEnabled
                     type: object
                   qosProfileDetails:
                     description: QOS profile details
