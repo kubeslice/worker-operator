@@ -54,7 +54,7 @@ deploy/controller_secret.sh [controller_cluster_context] [project_namespace] [wo
 eg:
 
 ```
-deploy/controller_secret.sh gke_avesha-dev_us-east1-c_xxxx controller-avesha-tenant-cisco my-awesome-cluster
+deploy/controller_secret.sh gke_avesha-dev_us-east1-c_xxxx kubeslice-cisco my-awesome-cluster
 ```
 ### Build docker images
 
