@@ -125,6 +125,10 @@ chart-deploy:
 	## Usage: make chart-deploy VALUESFILE=[valuesfilename]
 	helm upgrade --install kubeslice-worker -n kubeslice-system avesha/kubeslice-worker -f ${VALUESFILE}
 
+.PHONY: chart-undeploy
+chart-undeploy:
+	helm uninstall kubeslice-worker -n kubeslice-system
+
 ifndef ignore-not-found
   ignore-not-found = false
 endif
