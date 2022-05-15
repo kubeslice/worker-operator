@@ -60,7 +60,7 @@ Example
 deploy/controller_secret.sh gke_avesha-dev_us-east1-c_xxxx controller-avesha-tenant-cisco my-awesome-cluster
 ```
 
-### Building Docker Images
+### Build Docker Images
 
 1. Clone the latest version of worker-operator from  the `master` branch.
 
