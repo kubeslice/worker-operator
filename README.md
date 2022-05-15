@@ -154,7 +154,7 @@ prefix-service-76bd89c44f-2p6dw          1/1     Running   0          48s
 
 ### Uninstalling the worker-operator
 
-For more information, see [deregistering the worker cluster ](https://docs.avesha.io/opensource/de-registering-the-worker-cluster).
+For more information, see [deregistering the worker cluster](https://docs.avesha.io/opensource/de-registering-the-worker-cluster).
 
 ```console
 helm uninstall kubeslice-worker -n kubeslice-system
