@@ -12,7 +12,7 @@ For information on installing KubeSlice on kind clusters, see [getting started w
 For information on installing KubeSlice on cloud clusters, see [getting started with cloud clusters](https://docs.avesha.io/opensource/getting-started-with-cloud-clusters). 
 
 
-## Installing `kubeslice-worker` in kind cluster
+## Installing `kubeslice-worker` in Kind Cluster
 
 ### Prerequisites
 
@@ -24,7 +24,7 @@ For information on installing KubeSlice on cloud clusters, see [getting started 
 ### Local Build and Update
 
 
-#### Latest Docker Hub image
+#### Latest Docker Hub Image
 
 ```console
 docker pull aveshasystems/worker-operator:latest
@@ -59,7 +59,8 @@ Example
 ```
 deploy/controller_secret.sh gke_avesha-dev_us-east1-c_xxxx controller-avesha-tenant-cisco my-awesome-cluster
 ```
-### Build docker images
+
+### Build Docker Images
 
 1. Clone the latest version of worker-operator from  the `master` branch.
 
@@ -107,7 +108,7 @@ docker exec -it kind-control-plane crictl images
 Create chart values file `yourvaluesfile.yaml`.
 Refer to [values.yaml](https://github.com/kubeslice/charts/blob/master/kubeslice-worker/values.yaml) to create `yourvaluesfiel.yaml` and update the operator image subsection to use the local image.
 
-From the sample, 
+From the sample: 
 
 ```
 operator:
@@ -115,7 +116,7 @@ operator:
   tag: 0.2.3
 ```
 
-change it to, 
+Change it to: 
 
 ```
 operator:
@@ -129,13 +130,13 @@ Deploy the Updated Chart
 make chart-deploy VALUESFILE=yourvaluesfile.yaml
 ```
 
-### Verify the Operator is Running
+### Verify if the Operator is Running
 
 ```console
 kubectl get pods -n kubeslice-system
 ```
 
-Sample output to expect
+Example output 
 
 ```
 NAME                                     READY   STATUS    RESTARTS   AGE
@@ -150,6 +151,14 @@ nsmgr-62kdk                              3/3     Running   0          48s
 nsmgr-7dh2w                              3/3     Running   0          48s
 prefix-service-76bd89c44f-2p6dw          1/1     Running   0          48s
 ```
+
+### Uninstalling the worker-operator
+
+For more information, see [deregistering the worker cluster ](https://docs.avesha.io/opensource/de-registering-the-worker-cluster).
+
+```console
+helm uninstall kubeslice-worker -n kubeslice-system
+ ```
 
 ## License
 
