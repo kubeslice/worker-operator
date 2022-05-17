@@ -66,7 +66,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		return ctrl.Result{}, err
 	}
 
-	//get the sliceName from namespace label
+	//get the slice name from namespace label
 	sliceName, err := r.getSliceNameFromNs(namespace.Name)
 	if err != nil {
 		log.Error(err, "error while retrieving labels from namespace")
