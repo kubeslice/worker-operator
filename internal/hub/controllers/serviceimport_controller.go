@@ -109,7 +109,7 @@ func (r *ServiceImportReconciler) Reconcile(ctx context.Context, req reconcile.R
 		if errors.IsNotFound(err) {
 			// Request object not found, could have been deleted after reconcile request.
 			// Return and don't requeue
-			log.Info("Slice resource not found in hub. Ignoring since object must be deleted")
+			log.Info("spoke service import resource not found in hub. Ignoring since object must be deleted")
 			return reconcile.Result{}, nil
 		}
 		return reconcile.Result{}, err

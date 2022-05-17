@@ -146,6 +146,20 @@ var _ = BeforeSuite(func() {
 		Complete(sgwr)
 	Expect(err).ToNot(HaveOccurred())
 
+	testSvcimEventRecorder := events.NewEventRecorder(k8sManager.GetEventRecorderFor("test-svcim-controller"))
+	serviceImportReconciler := &controllers.ServiceImportReconciler{
+		MeshClient:    k8sClient,
+		EventRecorder: testSvcimEventRecorder,
+	}
+
+	err = builder.
+		ControllerManagedBy(k8sManager).
+		For(&spokev1alpha1.WorkerServiceImport{}).
+		WithEventFilter(predicate.NewPredicateFuncs(func(object client.Object) bool {
+			return object.GetLabels()["worker-cluster"] == ns.ClusterName
+		})).
+		Complete(serviceImportReconciler)
+	Expect(err).ToNot(HaveOccurred())
 	go func() {
 		defer GinkgoRecover()
 		err = k8sManager.Start(ctx)
