@@ -41,6 +41,8 @@ import (
 	"github.com/kubeslice/worker-operator/controllers/serviceexport"
 	"github.com/kubeslice/worker-operator/controllers/serviceimport"
 	"github.com/kubeslice/worker-operator/controllers/slice"
+	hub "github.com/kubeslice/worker-operator/internal/hub/hubclient"
+	namespace "github.com/kubeslice/worker-operator/internal/namespace/controllers"
 	"github.com/kubeslice/worker-operator/pkg/events"
 	hce "github.com/kubeslice/worker-operator/tests/emulator/hubclient"
 	nsmv1alpha1 "github.com/networkservicemesh/networkservicemesh/k8s/pkg/apis/networkservice/v1alpha1"
@@ -140,6 +142,19 @@ var _ = BeforeSuite(func() {
 		Log:    ctrl.Log.WithName("SvcImTest"),
 		EventRecorder: &events.EventRecorder{
 			Recorder: &record.FakeRecorder{},
+		},
+	}).SetupWithManager(k8sManager)
+	Expect(err).ToNot(HaveOccurred())
+
+	err = (&namespace.Reconciler{
+		Client: k8sManager.GetClient(),
+		Scheme: k8sManager.GetScheme(),
+		Log:    ctrl.Log.WithName("NamespaceTest"),
+		EventRecorder: &events.EventRecorder{
+			Recorder: &record.FakeRecorder{},
+		},
+		Hubclient: &hub.HubClientConfig{
+			Client: k8sClient,
 		},
 	}).SetupWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())
