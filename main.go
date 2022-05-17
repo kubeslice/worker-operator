@@ -23,6 +23,7 @@ import (
 	"os"
 
 	"github.com/kubeslice/worker-operator/internal/cluster"
+	namespacecontroller "github.com/kubeslice/worker-operator/internal/namespace/controllers"
 	"github.com/kubeslice/worker-operator/pkg/events"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
@@ -166,6 +167,18 @@ func main() {
 		EventRecorder: serviceImportEventRecorder,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "ServiceImport")
+		os.Exit(1)
+	}
+
+	namespaceEventRecorder := events.NewEventRecorder(mgr.GetEventRecorderFor("namespace-controller"))
+	if err = (&namespacecontroller.Reconciler{
+		Client:        mgr.GetClient(),
+		Log:           ctrl.Log.WithName("controllers").WithName("namespace"),
+		Scheme:        mgr.GetScheme(),
+		EventRecorder: namespaceEventRecorder,
+		Hubclient:     hubClient,
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "namespace")
 		os.Exit(1)
 	}
 	//+kubebuilder:scaffold:builder
