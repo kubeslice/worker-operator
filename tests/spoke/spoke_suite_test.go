@@ -98,6 +98,9 @@ var _ = BeforeSuite(func() {
 	Expect(err).NotTo(HaveOccurred())
 	Expect(k8sClient).NotTo(BeNil())
 
+	hubClientEmulator, err := hce.NewHubClientEmulator()
+	Expect(err).ToNot(HaveOccurred())
+
 	// Create control plane namespace
 	ns := &corev1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
@@ -118,11 +121,10 @@ var _ = BeforeSuite(func() {
 		EventRecorder: &events.EventRecorder{
 			Recorder: &record.FakeRecorder{},
 		},
+		HubClient: hubClientEmulator,
 	}).SetupWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())
 
-	hubClientEmulator, err := hce.NewHubClientEmulator()
-	Expect(err).ToNot(HaveOccurred())
 	err = (&serviceexport.Reconciler{
 		Client:    k8sManager.GetClient(),
 		Scheme:    k8sManager.GetScheme(),
