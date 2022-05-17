@@ -20,119 +20,78 @@ import (
 	"context"
 
 	"github.com/stretchr/testify/mock"
-
 	"k8s.io/apimachinery/pkg/api/meta"
-
 	"k8s.io/apimachinery/pkg/runtime"
-
 	"k8s.io/apimachinery/pkg/types"
-
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // Client is a mock for the controller-runtime dynamic client interface.
-
 type MockClient struct {
 	client.Client
-
 	mock.Mock
-
 	StatusMock *StatusClient
 }
 
 var _ client.Client = &MockClient{}
 
 func NewClient() *MockClient {
-
 	return &MockClient{
-
 		StatusMock: &StatusClient{},
 	}
-
 }
 
 func (c *MockClient) Status() client.StatusWriter {
-
 	return c.StatusMock
-
 }
 
 // Reader interface
 
 func (c *MockClient) Get(ctx context.Context, key types.NamespacedName, obj client.Object) error {
-
 	// obj = obj.(*spokev1alpha1.SpokeSliceConfig)
-
 	args := c.Called(ctx, key, obj)
-
 	return args.Error(0)
-
 }
-
 func (c *MockClient) List(ctx context.Context, list client.ObjectList, opts ...client.ListOption) error {
-
 	args := c.Called(ctx, list, opts)
-
 	return args.Error(0)
-
 }
 
 // Writer interface
 
 func (c *MockClient) Create(ctx context.Context, obj client.Object, opts ...client.CreateOption) error {
-
 	args := c.Called(ctx, obj, opts)
-
 	return args.Error(0)
-
 }
 
 func (c *MockClient) Delete(ctx context.Context, obj client.Object, opts ...client.DeleteOption) error {
-
 	args := c.Called(ctx, obj, opts)
-
 	return args.Error(0)
-
 }
 
 func (c *MockClient) Update(ctx context.Context, obj client.Object, opts ...client.UpdateOption) error {
-
 	args := c.Called(ctx, obj, opts)
-
 	return args.Error(0)
-
 }
 
 func (c *MockClient) Patch(ctx context.Context, obj client.Object, patch client.Patch, opts ...client.PatchOption) error {
-
 	args := c.Called(ctx, obj, patch, opts)
-
 	return args.Error(0)
-
 }
 
 func (c *MockClient) DeleteAllOf(ctx context.Context, obj client.Object, opts ...client.DeleteAllOfOption) error {
-
 	args := c.Called(ctx, obj, opts)
-
 	return args.Error(0)
-
 }
 
 func (c *MockClient) Scheme() *runtime.Scheme {
-
 	args := c.Called()
-
 	return args.Get(0).(*runtime.Scheme)
-
 }
 
 func (c *MockClient) RESTMapper() meta.RESTMapper {
-
 	args := c.Called()
-
 	return args.Get(0).(meta.RESTMapper)
-
 }
 
 type StatusClient struct {
@@ -142,21 +101,13 @@ type StatusClient struct {
 var _ client.StatusWriter = &StatusClient{}
 
 func (c *StatusClient) Update(
-
 	ctx context.Context, obj client.Object, opts ...client.UpdateOption) error {
-
 	args := c.Called(ctx, obj, opts)
-
 	return args.Error(0)
-
 }
 
 func (c *StatusClient) Patch(
-
 	ctx context.Context, obj client.Object, patch client.Patch, opts ...client.PatchOption) error {
-
 	args := c.Called(ctx, obj, patch, opts)
-
 	return args.Error(0)
-
 }
