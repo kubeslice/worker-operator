@@ -155,8 +155,8 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 		return ctrl.Result{}, err
 	}
 
-	res, err, reconcile := r.ReconcileSliceNamespaces(ctx, slice)
-	if reconcile {
+	res, err, requeue := r.ReconcileSliceNamespaces(ctx, slice)
+	if requeue {
 		debugLog.Info("Reconciling SliceNamespaces", "res", res, "err", err)
 		return res, err
 	}
@@ -214,7 +214,7 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 		}
 	}
 
-	res, err, requeue := r.ReconcileSliceRouter(ctx, slice)
+	res, err, requeue = r.ReconcileSliceRouter(ctx, slice)
 	if requeue {
 		return res, err
 	}

@@ -112,6 +112,7 @@ func GetSliceNamespaceIsolationPolicy(ctx context.Context, slice string) (bool, 
 	})
 	if err != nil {
 		log.Error(err, "Creating new client for webhook call->GetSliceNamespaceIsolationPolicy")
+		return false,err
 	}
 	s, err := GetSlice(ctx, c, slice)
 	if err != nil {
