@@ -46,11 +46,10 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			return ctrl.Result{}, nil
 		}
 	}
-	log := r.Log.WithValues("namespace", req.Name)
+	log := r.Log.WithValues("namespaceReconciler", req.Name)
 	ctx = logger.WithLogger(ctx, log)
 	namespace := corev1.Namespace{}
 	err := r.Get(ctx, req.NamespacedName, &namespace)
-
 	if err != nil {
 		if errors.IsNotFound(err) {
 			log.Info("Namespace deleted on worker cluster, updating the cluster CR on conrtoller cluster")

@@ -23,7 +23,7 @@ import (
 	"os"
 
 	"github.com/kubeslice/worker-operator/internal/cluster"
-	namespace "github.com/kubeslice/worker-operator/internal/namespace/controllers"
+	namespacecontroller "github.com/kubeslice/worker-operator/internal/namespace/controllers"
 	"github.com/kubeslice/worker-operator/pkg/events"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
@@ -171,7 +171,7 @@ func main() {
 	}
 
 	namespaceEventRecorder := events.NewEventRecorder(mgr.GetEventRecorderFor("namespace-controller"))
-	if err = (&namespace.Reconciler{
+	if err = (&namespacecontroller.Reconciler{
 		Client:        mgr.GetClient(),
 		Log:           ctrl.Log.WithName("controllers").WithName("namespace"),
 		Scheme:        mgr.GetScheme(),
