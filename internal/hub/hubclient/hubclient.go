@@ -156,8 +156,8 @@ func UpdateNamespaceInfoToHub(ctx context.Context, hubClient client.Client, onbo
 	if err != nil {
 		return err
 	}
-	nsIndex, toAddNs := getNamespaceInfo(onboardNamespace, hubCluster.Status.Namespaces)
-	if toAddNs != nil && toAddNs.SliceName != sliceName {
+	nsIndex, nsInfo := getNamespaceInfo(onboardNamespace, hubCluster.Status.Namespaces)
+	if nsInfo != nil && nsInfo.SliceName != sliceName {
 		// update the existing namespace
 		hubCluster.Status.Namespaces[nsIndex] = hubv1alpha1.NamespacesConfig{
 			Name:      onboardNamespace,
@@ -262,7 +262,8 @@ func deleteNamespaceInfoToHub(hubClient client.Client, ctx context.Context,
 	return nil
 }
 
-// gets the namespace info of worker namespace from hub cluster CR array
+// gets the namespace info along with the index of worker namespace from hub cluster CR array
+// needs when we need to update the ns info if slice changes
 func getNamespaceInfo(onboardNamespace string, ns []hubv1alpha1.NamespacesConfig) (int, *hubv1alpha1.NamespacesConfig) {
 	for k, v := range ns {
 		if onboardNamespace == v.Name {
