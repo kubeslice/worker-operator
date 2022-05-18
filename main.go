@@ -29,6 +29,10 @@ import (
 	// to ensure that exec-entrypoint and run can make use of them.
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
+	sidecar "github.com/kubeslice/worker-operator/internal/gwsidecar"
+	netop "github.com/kubeslice/worker-operator/internal/netop"
+	router "github.com/kubeslice/worker-operator/internal/router"
+
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
@@ -114,26 +118,46 @@ func main() {
 		setupLog.Error(err, "could not create hub client for slice gateway reconciler")
 		os.Exit(1)
 	}
+	workerRouterClient, err := router.NewWorkerRouterClientProvider()
+	if err != nil {
+		setupLog.Error(err, "could not create spoke router client for slice gateway reconciler")
+		os.Exit(1)
+	}
 
+	workerNetOPClient, err := netop.NewWorkerNetOpClientProvider()
+	if err != nil {
+		setupLog.Error(err, "could not create spoke netop client for slice gateway reconciler")
+		os.Exit(1)
+	}
 	sliceEventRecorder := events.NewEventRecorder(mgr.GetEventRecorderFor("slice-controller"))
 	if err = (&slice.SliceReconciler{
-		Client:        mgr.GetClient(),
-		Log:           ctrl.Log.WithName("controllers").WithName("Slice"),
-		Scheme:        mgr.GetScheme(),
-		HubClient:     hubClient,
-		EventRecorder: sliceEventRecorder,
+		Client:            mgr.GetClient(),
+		Log:               ctrl.Log.WithName("controllers").WithName("Slice"),
+		Scheme:            mgr.GetScheme(),
+		HubClient:         hubClient,
+		EventRecorder:     sliceEventRecorder,
+		SpokeRouterClient: workerRouterClient,
+		SpokeNetOpClient:  workerNetOPClient,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Slice")
 		os.Exit(1)
 	}
 
 	sliceGwEventRecorder := events.NewEventRecorder(mgr.GetEventRecorderFor("sliceGw-controller"))
+	workerGWClient, err := sidecar.NewWorkerGWSidecarClientProvider()
+	if err != nil {
+		setupLog.Error(err, "could not create spoke sidecar gateway client for slice gateway reconciler")
+		os.Exit(1)
+	}
 	if err = (&slicegateway.SliceGwReconciler{
-		Client:        mgr.GetClient(),
-		Log:           ctrl.Log.WithName("controllers").WithName("SliceGw"),
-		Scheme:        mgr.GetScheme(),
-		HubClient:     hubClient,
-		EventRecorder: sliceGwEventRecorder,
+		Client:               mgr.GetClient(),
+		Log:                  ctrl.Log.WithName("controllers").WithName("SliceGw"),
+		Scheme:               mgr.GetScheme(),
+		HubClient:            hubClient,
+		SpokeGWSidecarClient: workerGWClient,
+		SpokeRouterClient:    workerRouterClient,
+		SpokeNetOpClient:     workerNetOPClient,
+		EventRecorder:        sliceGwEventRecorder,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "SliceGw")
 		os.Exit(1)

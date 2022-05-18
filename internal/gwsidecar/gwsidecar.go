@@ -51,16 +51,27 @@ type GwConnectionContext struct {
 	RemoteSliceGwNsmSubnet string
 }
 
+type WorkerClientRpc interface {
+	GetStatus(ctx context.Context, serverAddr string) (*GwStatus, error)
+}
+
+type workerClientConfig struct {
+	Client sidecar.GwSidecarServiceClient
+}
+
+func NewWorkerGWSidecarClientProvider() (*workerClientConfig, error) {
+	return &workerClientConfig{}, nil
+}
+
 // GetStatus retrieves sidecar status
-func GetStatus(ctx context.Context, serverAddr string) (*GwStatus, error) {
+func (worker workerClientConfig) GetStatus(ctx context.Context, serverAddr string) (*GwStatus, error) {
 	conn, err := grpc.Dial(serverAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		return nil, err
 	}
 	defer conn.Close()
-
-	client := sidecar.NewGwSidecarServiceClient(conn)
-	res, err := client.GetStatus(ctx, &empty.Empty{})
+	worker.Client = sidecar.NewGwSidecarServiceClient(conn)
+	res, err := worker.Client.GetStatus(ctx, &empty.Empty{})
 	if err != nil {
 		return nil, err
 	}
@@ -85,21 +96,21 @@ func GetStatus(ctx context.Context, serverAddr string) (*GwStatus, error) {
 }
 
 // SendConnectionContext sends connection context info to sidecar
-func SendConnectionContext(ctx context.Context, serverAddr string, gwConnCtx *GwConnectionContext) error {
+func (worker workerClientConfig) SendConnectionContext(ctx context.Context, serverAddr string, gwConnCtx *GwConnectionContext) error {
 	conn, err := grpc.Dial(serverAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		return err
 	}
 	defer conn.Close()
 
-	client := sidecar.NewGwSidecarServiceClient(conn)
+	worker.Client = sidecar.NewGwSidecarServiceClient(conn)
 
 	msg := &sidecar.SliceGwConnectionContext{
 		RemoteSliceGwVpnIP:     gwConnCtx.RemoteSliceGwVpnIP,
 		RemoteSliceGwNsmSubnet: gwConnCtx.RemoteSliceGwNsmSubnet,
 	}
 
-	_, err = client.UpdateConnectionContext(ctx, msg)
+	_, err = worker.Client.UpdateConnectionContext(ctx, msg)
 
 	return err
 }
