@@ -29,7 +29,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/scheme"
-	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -112,20 +111,18 @@ var _ = BeforeSuite(func() {
 	})
 	Expect(err).ToNot(HaveOccurred())
 
+	testSliceEventRecorder := events.NewEventRecorder(k8sManager.GetEventRecorderFor("test-slice-controller"))
 	sr := &controllers.SliceReconciler{
-		MeshClient: k8sClient,
-		Log:        ctrl.Log.WithName("hub").WithName("controllers").WithName("SliceConfig"),
-		EventRecorder: &events.EventRecorder{
-			Recorder: &record.FakeRecorder{},
-		},
+		MeshClient:    k8sClient,
+		Log:           ctrl.Log.WithName("hub").WithName("controllers").WithName("SliceConfig"),
+		EventRecorder: testSliceEventRecorder,
 	}
 
+	testSliceGwEventRecorder := events.NewEventRecorder(k8sManager.GetEventRecorderFor("test-slicegw-controller"))
 	sgwr := &controllers.SliceGwReconciler{
-		MeshClient: k8sClient,
-		EventRecorder: &events.EventRecorder{
-			Recorder: &record.FakeRecorder{},
-		},
-		ClusterName: CLUSTER_NAME,
+		MeshClient:    k8sClient,
+		EventRecorder: testSliceGwEventRecorder,
+		ClusterName:   CLUSTER_NAME,
 	}
 
 	err = builder.
