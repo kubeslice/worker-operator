@@ -45,6 +45,7 @@ var _ = Describe("Worker SlicegwController", func() {
 	var slice *kubeslicev1beta1.Slice
 	var createdSlice *kubeslicev1beta1.Slice
 	var vl3ServiceEndpoint *nsmv1alpha1.NetworkServiceEndpoint
+	var appPod *corev1.Pod
 	Context("With SliceGW CR created", func() {
 
 		BeforeEach(func() {
@@ -66,6 +67,7 @@ var _ = Describe("Worker SlicegwController", func() {
 				Spec: kubeslicev1beta1.SliceSpec{},
 			}
 			labels := map[string]string{
+				"avesha.io/slice":            "test-slice-4",
 				"kubeslice.io/slice":         "test-slice-4",
 				"kubeslice.io/pod-type":      "slicegateway",
 				"networkservicemesh.io/app":  "test-slicegw",
@@ -136,6 +138,10 @@ var _ = Describe("Worker SlicegwController", func() {
 					return errors.IsNotFound(err)
 				}, time.Second*30, time.Millisecond*250).Should(BeTrue())
 				Expect(k8sClient.Delete(ctx, vl3ServiceEndpoint)).Should(Succeed())
+				Eventually(func() bool {
+					err := k8sClient.Get(ctx, types.NamespacedName{Name: sliceGw.Name, Namespace: sliceGw.Namespace}, appPod)
+					return errors.IsNotFound(err)
+				}, time.Second*40, time.Millisecond*250).Should(BeTrue())
 				Expect(k8sClient.Delete(ctx, appPod)).Should(Succeed())
 				Eventually(func() bool {
 					err := k8sClient.Get(ctx, deplKey, founddepl)
@@ -157,7 +163,7 @@ var _ = Describe("Worker SlicegwController", func() {
 			Expect(k8sClient.Create(ctx, slice)).Should(Succeed())
 			Expect(k8sClient.Create(ctx, vl3ServiceEndpoint)).Should(Succeed())
 			Expect(k8sClient.Create(ctx, sliceGw)).Should(Succeed())
-
+			Expect(k8sClient.Create(ctx, appPod)).Should(Succeed())
 			sliceKey := types.NamespacedName{Name: "test-slice-4", Namespace: CONTROL_PLANE_NS}
 			Eventually(func() bool {
 				err := k8sClient.Get(ctx, sliceKey, createdSlice)
@@ -199,6 +205,7 @@ var _ = Describe("Worker SlicegwController", func() {
 			Expect(k8sClient.Create(ctx, slice)).Should(Succeed())
 			Expect(k8sClient.Create(ctx, vl3ServiceEndpoint)).Should(Succeed())
 			Expect(k8sClient.Create(ctx, sliceGw)).Should(Succeed())
+			Expect(k8sClient.Create(ctx, appPod)).Should(Succeed())
 
 			sliceKey := types.NamespacedName{Name: "test-slice-4", Namespace: CONTROL_PLANE_NS}
 			Eventually(func() bool {
@@ -296,6 +303,14 @@ var _ = Describe("Worker SlicegwController", func() {
 				}
 				return reflect.DeepEqual(createdSliceGw.GetFinalizers(), sliceGwFinalizer)
 			}, time.Second*30, time.Millisecond*250).Should(BeTrue())
+
+			Eventually(func() bool {
+				err := k8sClient.Create(ctx, appPod)
+				if err != nil {
+					return false
+				}
+				return true
+			}, time.Second*10, time.Millisecond*250).Should(BeTrue())
 		})
 
 		It("Should create a deployment for gw client", func() {
@@ -303,6 +318,7 @@ var _ = Describe("Worker SlicegwController", func() {
 			Expect(k8sClient.Create(ctx, slice)).Should(Succeed())
 			Expect(k8sClient.Create(ctx, vl3ServiceEndpoint)).Should(Succeed())
 			Expect(k8sClient.Create(ctx, sliceGw)).Should(Succeed())
+			Expect(k8sClient.Create(ctx, appPod)).Should(Succeed())
 
 			sliceKey := types.NamespacedName{Name: "test-slice-4", Namespace: CONTROL_PLANE_NS}
 			Eventually(func() bool {
@@ -422,6 +438,7 @@ var _ = Describe("Worker SlicegwController", func() {
 			Expect(k8sClient.Create(ctx, slice)).Should(Succeed())
 			Expect(k8sClient.Create(ctx, vl3ServiceEndpoint)).Should(Succeed())
 			Expect(k8sClient.Create(ctx, sliceGw)).Should(Succeed())
+			// Expect(k8sClient.Create(ctx, appPod)).Should(Succeed())
 
 			sliceKey := types.NamespacedName{Name: "test-slice-del", Namespace: CONTROL_PLANE_NS}
 			Eventually(func() bool {
