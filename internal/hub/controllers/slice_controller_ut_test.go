@@ -264,8 +264,8 @@ func TestUpdateSliceConfigByModyfingSubnetOfHubSlice(t *testing.T) {
 	if expected.err != err {
 		t.Error("Expected error:", expected.err, " but got ", err)
 	}
-	if spokeslice.Status.SliceConfig.SliceSubnet != hubSlice.Spec.SliceSubnet {
-		t.Error("Expected error:", hubSlice.Spec.SliceSubnet, " but got ", spokeslice.Status.SliceConfig.SliceSubnet)
+	if workerslice.Status.SliceConfig.SliceSubnet != hubSlice.Spec.SliceSubnet {
+		t.Error("Expected error:", hubSlice.Spec.SliceSubnet, " but got ", workerslice.Status.SliceConfig.SliceSubnet)
 	}
 }
 func TestDeleteSliceResourceOnSpoke(t *testing.T) {

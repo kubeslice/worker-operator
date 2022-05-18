@@ -131,13 +131,13 @@ func main() {
 	}
 	sliceEventRecorder := events.NewEventRecorder(mgr.GetEventRecorderFor("slice-controller"))
 	if err = (&slice.SliceReconciler{
-		Client:            mgr.GetClient(),
-		Log:               ctrl.Log.WithName("controllers").WithName("Slice"),
-		Scheme:            mgr.GetScheme(),
-		HubClient:         hubClient,
-		EventRecorder:     sliceEventRecorder,
-		SpokeRouterClient: workerRouterClient,
-		SpokeNetOpClient:  workerNetOPClient,
+		Client:             mgr.GetClient(),
+		Log:                ctrl.Log.WithName("controllers").WithName("Slice"),
+		Scheme:             mgr.GetScheme(),
+		HubClient:          hubClient,
+		EventRecorder:      sliceEventRecorder,
+		WorkerRouterClient: workerRouterClient,
+		WorkerNetOpClient:  workerNetOPClient,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Slice")
 		os.Exit(1)
@@ -150,14 +150,14 @@ func main() {
 		os.Exit(1)
 	}
 	if err = (&slicegateway.SliceGwReconciler{
-		Client:               mgr.GetClient(),
-		Log:                  ctrl.Log.WithName("controllers").WithName("SliceGw"),
-		Scheme:               mgr.GetScheme(),
-		HubClient:            hubClient,
-		SpokeGWSidecarClient: workerGWClient,
-		SpokeRouterClient:    workerRouterClient,
-		SpokeNetOpClient:     workerNetOPClient,
-		EventRecorder:        sliceGwEventRecorder,
+		Client:                mgr.GetClient(),
+		Log:                   ctrl.Log.WithName("controllers").WithName("SliceGw"),
+		Scheme:                mgr.GetScheme(),
+		HubClient:             hubClient,
+		WorkerGWSidecarClient: workerGWClient,
+		WorkerRouterClient:    workerRouterClient,
+		WorkerNetOpClient:     workerNetOPClient,
+		EventRecorder:         sliceGwEventRecorder,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "SliceGw")
 		os.Exit(1)
