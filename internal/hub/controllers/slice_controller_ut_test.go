@@ -1,5 +1,7 @@
 /*
- *  Copyright (c) 2022 Avesha, Inc. All rights reserved. # # SPDX-License-Identifier: Apache-2.0
+ *  Copyright (c) 2022 Avesha, Inc. All rights reserved.
+ *
+ *	SPDX-License-Identifier: Apache-2.0
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -24,7 +26,7 @@ import (
 
 	workerv1alpha1 "github.com/kubeslice/apis/pkg/worker/v1alpha1"
 	"github.com/kubeslice/worker-operator/api/v1beta1"
-	meshv1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
+	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
 	"github.com/stretchr/testify/mock"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -51,12 +53,12 @@ var controllerSlice = &workerv1alpha1.WorkerSliceConfig{
 	},
 }
 
-var workerslice = &meshv1beta1.Slice{
+var workerslice = &kubeslicev1beta1.Slice{
 	ObjectMeta: metav1.ObjectMeta{
 		Name:      "test-slice",
 		Namespace: "kubeslice-system",
 	},
-	Spec: meshv1beta1.SliceSpec{},
+	Spec: kubeslicev1beta1.SliceSpec{},
 }
 
 func TestReconcileToReturnErrorWhileFetchingControllerSlice(t *testing.T) {
@@ -223,7 +225,7 @@ func TestUpdateSliceConfig(t *testing.T) {
 
 	client.StatusMock.On("Update",
 		mock.IsType(ctx),
-		mock.IsType(&meshv1beta1.Slice{}),
+		mock.IsType(&kubeslicev1beta1.Slice{}),
 		mock.IsType([]k8sclient.UpdateOption(nil)),
 	).Return(nil)
 	err := reconciler.updateSliceConfig(expected.ctx, workerslice, controllerSlice)
@@ -259,7 +261,7 @@ func TestUpdateSliceConfigByModyfingSubnetOfControllerSlice(t *testing.T) {
 		mock.IsType([]k8sclient.UpdateOption(nil)),
 	).Return(nil)
 	controllerSlice.Spec.SliceSubnet = "10.0.0.2/16"
-	workerslice.Status = meshv1beta1.SliceStatus{}
+	workerslice.Status = kubeslicev1beta1.SliceStatus{}
 	err := reconciler.updateSliceConfig(expected.ctx, workerslice, controllerSlice)
 	if expected.err != err {
 		t.Error("Expected error:", expected.err, " but got ", err)
@@ -291,7 +293,7 @@ func TestDeleteSliceResourceOnWorker(t *testing.T) {
 
 	client.On("Delete",
 		mock.IsType(expected.ctx),
-		mock.IsType(&meshv1beta1.Slice{}),
+		mock.IsType(&kubeslicev1beta1.Slice{}),
 		mock.IsType([]k8sclient.DeleteOption(nil)),
 	).Return(nil)
 
