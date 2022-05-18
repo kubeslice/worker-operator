@@ -146,6 +146,7 @@ func updateClusterInfoToHub(ctx context.Context, spokeclient client.Client, hubC
 	}
 	return nil
 }
+
 func UpdateNamespaceInfoToHub(ctx context.Context, hubClient client.Client, onboardNamespace, sliceName string) error {
 	hubCluster := &hubv1alpha1.Cluster{}
 	err := hubClient.Get(ctx, types.NamespacedName{
@@ -155,8 +156,16 @@ func UpdateNamespaceInfoToHub(ctx context.Context, hubClient client.Client, onbo
 	if err != nil {
 		return err
 	}
-	toAddNs := indexOf(onboardNamespace, hubCluster.Status.Namespaces)
-	if toAddNs == -1 {
+	nsIndex, toAddNs := getNamespaceInfo(onboardNamespace, hubCluster.Status.Namespaces)
+	if toAddNs != nil && toAddNs.SliceName != sliceName {
+		// update the existing namespace
+		hubCluster.Status.Namespaces[nsIndex] = hubv1alpha1.NamespacesConfig{
+			Name:      onboardNamespace,
+			SliceName: sliceName,
+		}
+		log.Info("Updating namespace on hub cluster", "cluster", ClusterName, "namespace", onboardNamespace)
+		return updateNamespaceInfoToHub(hubClient, ctx, hubCluster, onboardNamespace, sliceName)
+	} else if nsIndex == -1 {
 		hubCluster.Status.Namespaces = append(hubCluster.Status.Namespaces, hubv1alpha1.NamespacesConfig{
 			Name:      onboardNamespace,
 			SliceName: sliceName,
@@ -193,6 +202,17 @@ func updateNamespaceInfoToHub(hubClient client.Client, ctx context.Context,
 	log.Info("Successfully update cluster namespace", "namespace", onboardNamespace)
 	return nil
 }
+
+// gets the index of worker namespace from hub cluster CR array
+func indexOf(onboardNamespace string, ns []hubv1alpha1.NamespacesConfig) int {
+	for k, v := range ns {
+		if onboardNamespace == v.Name {
+			return k
+		}
+	}
+	return -1
+}
+
 func DeleteNamespaceInfoFromHub(ctx context.Context, hubClient client.Client, onboardNamespace string) error {
 	hubCluster := &hubv1alpha1.Cluster{}
 	err := hubClient.Get(ctx, types.NamespacedName{
@@ -242,14 +262,14 @@ func deleteNamespaceInfoToHub(hubClient client.Client, ctx context.Context,
 	return nil
 }
 
-// gets the index of worker namespace from hub cluster CR array
-func indexOf(onboardNamespace string, ns []hubv1alpha1.NamespacesConfig) int {
+// gets the namespace info of worker namespace from hub cluster CR array
+func getNamespaceInfo(onboardNamespace string, ns []hubv1alpha1.NamespacesConfig) (int, *hubv1alpha1.NamespacesConfig) {
 	for k, v := range ns {
 		if onboardNamespace == v.Name {
-			return k
+			return k, &v
 		}
 	}
-	return -1
+	return -1, nil
 }
 
 func getHubServiceDiscoveryEps(serviceexport *kubeslicev1beta1.ServiceExport) []hubv1alpha1.ServiceDiscoveryEndpoint {

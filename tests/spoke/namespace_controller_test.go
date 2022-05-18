@@ -34,10 +34,11 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/util/retry"
 )
 
 var _ = Describe("ClusterInfoUpdate", func() {
-	FContext("With Namespace Created at spoke cluster", func() {
+	Context("With Namespace Created at spoke cluster", func() {
 		var ns *corev1.Namespace
 		var slice *kubeslicev1beta1.Slice
 		var cluster *hubv1alpha1.Cluster
@@ -105,7 +106,6 @@ var _ = Describe("ClusterInfoUpdate", func() {
 		})
 
 	})
-
 	Context("With Namespace Created at spoke cluster", func() {
 		var ns *corev1.Namespace
 		var cluster *hubv1alpha1.Cluster
@@ -261,5 +261,163 @@ var _ = Describe("ClusterInfoUpdate", func() {
 				return isDeleted
 			}, time.Second*10, time.Millisecond*250).Should(BeTrue())
 		})
+	})
+	Context("With Existing Namespace at spoke cluster and no slice name", func() {
+		var ns *corev1.Namespace
+		var cluster *hubv1alpha1.Cluster
+		var applicationNS *corev1.Namespace
+
+		BeforeEach(func() {
+			ns = &corev1.Namespace{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "kubeslice-avesha-4",
+				},
+			}
+			os.Setenv("HUB_PROJECT_NAMESPACE", ns.Name)
+			cluster = &hubv1alpha1.Cluster{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "cluster-1",
+					Namespace: ns.Name,
+				},
+				Spec:   hubv1alpha1.ClusterSpec{},
+				Status: hubv1alpha1.ClusterStatus{},
+			}
+			os.Setenv("CLUSTER_NAME", cluster.Name)
+			applicationNS = &corev1.Namespace{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "application-namespace-5"},
+			}
+			DeferCleanup(func() {
+				ctx := context.Background()
+				Expect(k8sClient.Delete(ctx, cluster)).Should(Succeed())
+			})
+		})
+		It("Should update cluster CR with updated application namespace", func() {
+			sliceName := "test-slice"
+			Expect(k8sClient.Create(ctx, ns)).Should(Succeed())
+			Expect(k8sClient.Create(ctx, cluster)).Should(Succeed())
+			Expect(k8sClient.Create(ctx, applicationNS)).Should(Succeed())
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, types.NamespacedName{
+					Name: cluster.Name, Namespace: ns.Name,
+				}, cluster)
+				if err != nil {
+					return false
+				}
+				idAdded := false
+				for _, v := range cluster.Status.Namespaces {
+					if v.Name == applicationNS.Name {
+						idAdded = true
+					}
+				}
+				return idAdded
+			}, time.Second*10, time.Millisecond*250).Should(BeTrue())
+			Eventually(func() error {
+				err := k8sClient.Get(ctx, types.NamespacedName{
+					Name: applicationNS.Name,
+				}, applicationNS)
+				if err != nil {
+					return err
+				}
+				applicationNS.Labels = map[string]string{"kubeslice.io/slice": sliceName}
+				return k8sClient.Status().Update(ctx, applicationNS)
+			}, time.Second*10, time.Millisecond*250).Should(BeNil())
+
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, types.NamespacedName{
+					Name: cluster.Name, Namespace: ns.Name,
+				}, cluster)
+				if err != nil {
+					return false
+				}
+				idAdded := false
+				for _, v := range cluster.Status.Namespaces {
+					if v.Name == applicationNS.Name && v.SliceName == sliceName {
+						idAdded = true
+					}
+				}
+				return idAdded
+			}, time.Second*10, time.Millisecond*250).Should(BeTrue())
+		})
+	})
+	Context("With Existing Namespace at spoke cluster and Slice changed", func() {
+		var ns *corev1.Namespace
+		var slice *kubeslicev1beta1.Slice
+		var cluster *hubv1alpha1.Cluster
+		var applicationNS *corev1.Namespace
+
+		BeforeEach(func() {
+			ns = &corev1.Namespace{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "kubeslice-avesha-5",
+				},
+			}
+			os.Setenv("HUB_PROJECT_NAMESPACE", ns.Name)
+			cluster = &hubv1alpha1.Cluster{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "cluster-1",
+					Namespace: ns.Name,
+				},
+				Spec:   hubv1alpha1.ClusterSpec{},
+				Status: hubv1alpha1.ClusterStatus{},
+			}
+			os.Setenv("CLUSTER_NAME", cluster.Name)
+			slice = &kubeslicev1beta1.Slice{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-slice",
+					Namespace: "kubeslice-avesha-5",
+				},
+				Spec:   kubeslicev1beta1.SliceSpec{},
+				Status: kubeslicev1beta1.SliceStatus{},
+			}
+			applicationNS = &corev1.Namespace{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:   "application-namespace-3",
+					Labels: map[string]string{"kubeslice.io/slice": "test-slice"},
+				},
+			}
+			DeferCleanup(func() {
+				ctx := context.Background()
+				Expect(k8sClient.Delete(ctx, cluster)).Should(Succeed())
+			})
+		})
+		It("Should update cluster CR with updated slice name", func() {
+			Expect(k8sClient.Create(ctx, ns)).Should(Succeed())
+			Expect(k8sClient.Create(ctx, cluster)).Should(Succeed())
+			Expect(k8sClient.Create(ctx, slice)).Should(Succeed())
+			//get the cluster object
+			err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+				err := k8sClient.Get(ctx, types.NamespacedName{
+					Name: cluster.Name, Namespace: ns.Name,
+				}, cluster)
+				if err != nil {
+					return err
+				}
+				cluster.Status = hubv1alpha1.ClusterStatus{
+					Namespaces: []hubv1alpha1.NamespacesConfig{{
+						Name:      "application-namespace-4",
+						SliceName: "test-slice-old"}},
+				}
+				return k8sClient.Status().Update(ctx, cluster)
+			})
+			Expect(err).To(BeNil())
+			Expect(k8sClient.Create(ctx, applicationNS)).Should(Succeed())
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, types.NamespacedName{
+					Name: cluster.Name, Namespace: ns.Name,
+				}, cluster)
+				if err != nil {
+					return false
+				}
+				idAdded := false
+				for _, v := range cluster.Status.Namespaces {
+					if v.Name == applicationNS.Name && v.SliceName == slice.Name {
+						idAdded = true
+					}
+				}
+				return idAdded
+			}, time.Second*10, time.Millisecond*250).Should(BeTrue())
+		})
+
 	})
 })
