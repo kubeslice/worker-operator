@@ -123,14 +123,13 @@ var _ = BeforeSuite(func() {
 
 	hubClientEmulator, err := hce.NewHubClientEmulator()
 	Expect(err).ToNot(HaveOccurred())
+	testSvcExEventRecorder := events.NewEventRecorder(k8sManager.GetEventRecorderFor("test-SvcEx-controller"))
 	err = (&serviceexport.Reconciler{
-		Client:    k8sManager.GetClient(),
-		Scheme:    k8sManager.GetScheme(),
-		Log:       ctrl.Log.WithName("SvcExTest"),
-		HubClient: hubClientEmulator,
-		EventRecorder: &events.EventRecorder{
-			Recorder: &record.FakeRecorder{},
-		},
+		Client:        k8sManager.GetClient(),
+		Scheme:        k8sManager.GetScheme(),
+		Log:           ctrl.Log.WithName("SvcExTest"),
+		HubClient:     hubClientEmulator,
+		EventRecorder: testSvcExEventRecorder,
 	}).SetupWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())
 

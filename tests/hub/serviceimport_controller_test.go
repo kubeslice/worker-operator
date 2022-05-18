@@ -21,7 +21,7 @@ package hub_test
 import (
 	"reflect"
 
-	spokev1alpha1 "github.com/kubeslice/apis/pkg/worker/v1alpha1"
+	workerv1alpha1 "github.com/kubeslice/apis/pkg/worker/v1alpha1"
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
 
 	"context"
@@ -29,6 +29,7 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -36,8 +37,8 @@ import (
 
 var _ = Describe("Hub serviceImportController", func() {
 	Context("With a spokeserviceImport CR installed on hub,verify service import is reconciled on worker cluster", func() {
-		var hubServiceImport *spokev1alpha1.WorkerServiceImport
-		var reflectedSvcIm *spokev1alpha1.WorkerServiceImport
+		var hubServiceImport *workerv1alpha1.WorkerServiceImport
+		var reflectedSvcIm *workerv1alpha1.WorkerServiceImport
 		var createdSvcIm *kubeslicev1beta1.ServiceImport
 		var slice *kubeslicev1beta1.Slice
 
@@ -52,16 +53,16 @@ var _ = Describe("Hub serviceImportController", func() {
 			}
 			// Prepare k8s objects for serviceImport
 
-			hubServiceImport = &spokev1alpha1.WorkerServiceImport{
+			hubServiceImport = &workerv1alpha1.WorkerServiceImport{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "test-service-import",
 					Namespace: PROJECT_NS,
 				},
-				Spec: spokev1alpha1.WorkerServiceImportSpec{
+				Spec: workerv1alpha1.WorkerServiceImportSpec{
 					SliceName:        "test-slice-1",
 					ServiceName:      "test-service-import",
 					ServiceNamespace: "default",
-					ServiceDiscoveryPorts: []spokev1alpha1.ServiceDiscoveryPort{
+					ServiceDiscoveryPorts: []workerv1alpha1.ServiceDiscoveryPort{
 						{
 							Name:     "abc",
 							Port:     5000,
@@ -83,7 +84,7 @@ var _ = Describe("Hub serviceImportController", func() {
 							Protocol: "invalidProtocol",
 						},
 					},
-					ServiceDiscoveryEndpoints: []spokev1alpha1.ServiceDiscoveryEndpoint{
+					ServiceDiscoveryEndpoints: []workerv1alpha1.ServiceDiscoveryEndpoint{
 						{
 							PodName: "abc",
 							NsmIp:   "x.x.x.1",
@@ -93,7 +94,7 @@ var _ = Describe("Hub serviceImportController", func() {
 					},
 				},
 			}
-			reflectedSvcIm = &spokev1alpha1.WorkerServiceImport{}
+			reflectedSvcIm = &workerv1alpha1.WorkerServiceImport{}
 			createdSvcIm = &kubeslicev1beta1.ServiceImport{}
 			// Cleanup after each test
 			DeferCleanup(func() {
@@ -128,6 +129,73 @@ var _ = Describe("Hub serviceImportController", func() {
 				err := k8sClient.Get(ctx, svcKey, reflectedSvcIm)
 				return err == nil && reflect.DeepEqual(reflectedSvcIm.ObjectMeta.Finalizers, serviceImportFinalizer)
 			}, time.Second*30, time.Millisecond*250).Should(BeTrue())
+		})
+
+		It("Should able to fetch slice object for service import", func() {
+			ctx := context.Background()
+			Expect(k8sClient.Create(ctx, slice)).Should(Succeed())
+			Expect(k8sClient.Create(ctx, hubServiceImport)).Should(Succeed())
+
+			createdSlice := &kubeslicev1beta1.Slice{}
+			sliceKey := types.NamespacedName{Namespace: CONTROL_PLANE_NS, Name: hubServiceImport.Spec.SliceName}
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, sliceKey, createdSlice)
+				return err == nil
+			}, time.Second*30, time.Microsecond*250).Should(BeTrue())
+		})
+
+		It("Should create service import on spoke cluster", func() {
+			ctx := context.Background()
+			Expect(k8sClient.Create(ctx, slice)).Should(Succeed())
+			Expect(k8sClient.Create(ctx, hubServiceImport)).Should(Succeed())
+
+			//created slice for service import
+			createdSlice := &kubeslicev1beta1.Slice{}
+			sliceKey := types.NamespacedName{Namespace: CONTROL_PLANE_NS, Name: hubServiceImport.Spec.SliceName}
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, sliceKey, createdSlice)
+				return err == nil
+			}, time.Second*30, time.Microsecond*250).Should(BeTrue())
+
+			//created service import on spoke cluster
+			svcImKey := types.NamespacedName{Namespace: hubServiceImport.Spec.ServiceNamespace, Name: hubServiceImport.Spec.ServiceName}
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, svcImKey, createdSvcIm)
+				return err == nil
+			}, time.Second*30, time.Microsecond*250).Should(BeTrue())
+		})
+
+		It("Should generate Events", func() {
+			ctx := context.Background()
+			Expect(k8sClient.Create(ctx, slice)).Should(Succeed())
+			Expect(k8sClient.Create(ctx, hubServiceImport)).Should(Succeed())
+
+			//created slice for service import
+			createdSlice := &kubeslicev1beta1.Slice{}
+			sliceKey := types.NamespacedName{Namespace: CONTROL_PLANE_NS, Name: hubServiceImport.Spec.SliceName}
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, sliceKey, createdSlice)
+				return err == nil
+			}, time.Second*30, time.Microsecond*250).Should(BeTrue())
+
+			//created service import on spoke cluster
+			svcImKey := types.NamespacedName{Namespace: hubServiceImport.Spec.ServiceNamespace, Name: hubServiceImport.Spec.ServiceName}
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, svcImKey, createdSvcIm)
+				return err == nil
+			}, time.Second*30, time.Microsecond*250).Should(BeTrue())
+
+			events := corev1.EventList{}
+			Eventually(func() bool {
+				err := k8sClient.List(ctx, &events)
+				return err == nil
+			}, time.Second*10, time.Millisecond*250).Should(BeTrue())
+
+			for _, event := range events.Items {
+				if event.Source.Component == "test-svcim-controller" && event.InvolvedObject.Kind == "WorkerServiceImport" {
+					Expect(event.Message).To(Equal("Successfully created service import on spoke cluster , svc import " + hubServiceImport.Spec.ServiceName + " cluster "))
+				}
+			}
 		})
 	})
 })
