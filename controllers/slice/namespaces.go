@@ -4,6 +4,7 @@ import (
 	"context"
 
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
+	"github.com/kubeslice/worker-operator/controllers"
 	"github.com/kubeslice/worker-operator/internal/logger"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -133,6 +134,12 @@ func (r *SliceReconciler) reconcileAppNamespaces(ctx context.Context, slice *kub
 		}
 		//TODO:
 		//post changes to workersliceconfig
+		sliceConfigName := slice.Name + "-" + controllers.ClusterName
+		err = r.HubClient.UpdateAppNamesapces(ctx, sliceConfigName, labeledAppNsList)
+		if err != nil {
+			log.Error(err, "Failed to update workerslice status in controller cluster")
+			return ctrl.Result{}, err, true
+		}
 	}
 	return ctrl.Result{}, nil, false
 }
@@ -140,64 +147,59 @@ func (r *SliceReconciler) reconcileAppNamespaces(ctx context.Context, slice *kub
 func (r *SliceReconciler) reconcileAllowedNamespaces(ctx context.Context, slice *kubeslicev1beta1.Slice) error {
 	log := logger.FromContext(ctx).WithValues("type", "allowedNamespaces")
 	debugLog := log.V(1)
-	//cfgAllowedNsList = list of all allowed namespaces in slice CR
+
+	//cfgAllowedNsList contains list of allowedNamespaces from workersliceconfig
 	var cfgAllowedNsList []string
-	for _, allowedNS := range slice.Status.SliceConfig.NamespaceIsolationProfile.AllowedNamespaces {
-		// Ignore control plane namespace if it appears in the app namespace list
-		if allowedNS == ControlPlaneNamespace {
-			continue
-		}
-		cfgAllowedNsList = append(cfgAllowedNsList, allowedNS)
-	}
+	cfgAllowedNsList = append(cfgAllowedNsList, ControlPlaneNamespace)
+	cfgAllowedNsList = append(cfgAllowedNsList, slice.Status.SliceConfig.NamespaceIsolationProfile.AllowedNamespaces...)
 	debugLog.Info("reconciling", "allowedNamespaces", cfgAllowedNsList)
 
-	// Get the list of existing namespaces that are tagged with the kubeslice label
-	// existingAllowedNsList = list of all namespaces that have kubeslice label
-	existingAllowedNsList := &corev1.NamespaceList{}
+	// Get the list of existing namespaces that are tagged with the kube-slice label
+	labeledNsList := &corev1.NamespaceList{}
 	listOpts := []client.ListOption{
 		client.HasLabels([]string{AllowedNamespaceSelectorLabelKey}),
 	}
-	err := r.List(ctx, existingAllowedNsList, listOpts...)
+	err := r.List(ctx, labeledNsList, listOpts...)
 	if err != nil {
-		log.Error(err, "Failed to list namespaces")
-		return err
-	}
-	log.Info("reconciling", "existingAllowedNsList", existingAllowedNsList)
-	// Convert the list into a map for faster lookups. Will come in handy when we compare
-	// existing namespaces against configured namespaces.
-	type nsMarker struct {
-		ns     *corev1.Namespace
-		marked bool
-	}
-	existingAllowedNsMap := make(map[string]*nsMarker)
-
-	for _, existingAllowedNsObj := range existingAllowedNsList.Items {
-		existingAllowedNsMap[existingAllowedNsObj.ObjectMeta.Name] = &nsMarker{
-			ns:     &existingAllowedNsObj,
-			marked: false,
+		if !errors.IsNotFound(err) {
+			log.Error(err, "Failed to list namespaces")
+			return err
 		}
 	}
-	// Compare the existing list with the configured list.
-	// If a namespace is not found in the existing list, consider it as an addition event and
-	// label the namespace.
-	// If a namespace is found in the existing list, mark it to indicate that it has been verified
-	// to be valid as it is present in the configured list as well.
-	labeledAllowedNsList := []string{}
-	statusChanged := false
+
+	// Sanitize the list of labeled namespaces to guard against someone manually editing the labels
+	// attached to a namespace. The label key and value must match our syntax.
+	// Also build a map for fast lookups in the rest of this function.
+	labeledNsMap := make(map[string]string)
+	for _, labeledNsObj := range labeledNsList.Items {
+		labels := labeledNsObj.ObjectMeta.GetLabels()
+		if labels[AllowedNamespaceSelectorLabelKey] != labeledNsObj.ObjectMeta.Name {
+			log.Error(err, "Incorrect label", "Namespace", labeledNsObj.ObjectMeta.Name)
+			labels[AllowedNamespaceSelectorLabelKey] = labeledNsObj.ObjectMeta.Name
+			labeledNsObj.ObjectMeta.SetLabels(labels)
+			err := r.Update(ctx, &labeledNsObj)
+			if err != nil {
+				log.Error(err, "Failed to update allowed ns label", "Namespace", labeledNsObj.ObjectMeta.Name)
+				return err
+			}
+		}
+		labeledNsMap[labeledNsObj.ObjectMeta.Name] = labels[AllowedNamespaceSelectorLabelKey]
+	}
+
+	// Label the namespace if needed
 	for _, cfgAllowedNs := range cfgAllowedNsList {
-		// the cfgAllowedNs should be labeled with "kubeslice.io/namespace" and we guard it against someone accidentally changing the value
-		if v, exists := existingAllowedNsMap[cfgAllowedNs]; exists && v.ns.GetLabels()[AllowedNamespaceSelectorLabelKey] == cfgAllowedNs {
-			existingAllowedNsMap[cfgAllowedNs].marked = true
-			labeledAllowedNsList = append(labeledAllowedNsList, cfgAllowedNs)
+		label, exists := labeledNsMap[cfgAllowedNs]
+		if exists && label == cfgAllowedNs {
 			continue
 		}
-		// label does not exists on namespace
+
 		namespace := &corev1.Namespace{}
 		err := r.Get(ctx, types.NamespacedName{Name: cfgAllowedNs}, namespace)
 		if err != nil {
 			log.Info("Failed to find namespace", "namespace", cfgAllowedNs)
 			continue
 		}
+
 		// A namespace might not have any labels attached to it. Directly accessing the label map
 		// leads to a crash for such namespaces.
 		// If the label map is nil, create one and use the setter api to attach it to the namespace.
@@ -205,68 +207,15 @@ func (r *SliceReconciler) reconcileAllowedNamespaces(ctx context.Context, slice 
 		if nsLabels == nil {
 			nsLabels = make(map[string]string)
 		}
+
 		nsLabels[AllowedNamespaceSelectorLabelKey] = cfgAllowedNs
 		namespace.ObjectMeta.SetLabels(nsLabels)
-
 		err = r.Update(ctx, namespace)
 		if err != nil {
-			log.Error(err, "Failed to label namespace", "namespace", cfgAllowedNs)
+			log.Error(err, "Failed to label namespace", "Namespace", cfgAllowedNs)
 			return err
 		}
 		log.Info("Labeled namespace successfully", "namespace", cfgAllowedNs)
-
-		labeledAllowedNsList = append(labeledAllowedNsList, cfgAllowedNs)
-		statusChanged = true
-	}
-	// Sweep the existing namespaces again to unbind any namespace that was not found in the configured list
-	for existingAllowedNs, _ := range existingAllowedNsMap {
-		if !existingAllowedNsMap[existingAllowedNs].marked {
-			err := r.unbindAllowedNamespace(ctx, existingAllowedNs)
-			if err != nil {
-				log.Error(err, "Failed to unbind namespace from slice", "namespace", existingAllowedNs)
-				return err
-			}
-			statusChanged = true
-		}
-	}
-	if statusChanged {
-		slice.Status.AllowedNamespaces = labeledAllowedNsList
-		err := r.Status().Update(ctx, slice)
-		if err != nil {
-			log.Error(err, "Failed to update slice status")
-			return err
-		}
-		//TODO:
-		//post changes to workersliceconfig
-	}
-	return nil
-}
-
-func (r *SliceReconciler) unbindAllowedNamespace(ctx context.Context, allowedNs string) error {
-	log := logger.FromContext(ctx).WithValues("type", "allowedNamespace")
-	namespace := &corev1.Namespace{}
-	err := r.Get(ctx, types.NamespacedName{Name: allowedNs}, namespace)
-	if err != nil {
-		log.Error(err, "NS unbind: Failed to find namespace", "namespace", allowedNs)
-		return err
-	}
-	labels := namespace.ObjectMeta.GetLabels()
-	if labels == nil {
-		log.Error(err, "NS unbind: No labels found", "namespace", allowedNs)
-		return err
-	}
-	_, ok := labels[AllowedNamespaceSelectorLabelKey]
-	if !ok {
-		log.Error(err, "NS unbind: slice label not found", "namespace", allowedNs)
-		return err
-	}
-	delete(labels, AllowedNamespaceSelectorLabelKey)
-	namespace.ObjectMeta.SetLabels(labels)
-
-	err = r.Update(ctx, namespace)
-	if err != nil {
-		log.Error(err, "NS unbind: Failed to remove slice label", "namespace", allowedNs)
-		return err
 	}
 	return nil
 }

@@ -41,11 +41,11 @@ import (
 	"github.com/kubeslice/worker-operator/controllers/serviceexport"
 	"github.com/kubeslice/worker-operator/controllers/serviceimport"
 	"github.com/kubeslice/worker-operator/controllers/slice"
+	"github.com/kubeslice/worker-operator/internal/networkpolicy"
 	"github.com/kubeslice/worker-operator/pkg/events"
 	hce "github.com/kubeslice/worker-operator/tests/emulator/hubclient"
 	nsmv1alpha1 "github.com/networkservicemesh/networkservicemesh/k8s/pkg/apis/networkservice/v1alpha1"
 	istiov1beta1 "istio.io/client-go/pkg/apis/networking/v1beta1"
-	"github.com/kubeslice/worker-operator/internal/networkpolicy"
 	//+kubebuilder:scaffold:imports
 )
 
