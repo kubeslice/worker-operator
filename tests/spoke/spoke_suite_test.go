@@ -41,6 +41,7 @@ import (
 	"github.com/kubeslice/worker-operator/controllers/serviceexport"
 	"github.com/kubeslice/worker-operator/controllers/serviceimport"
 	"github.com/kubeslice/worker-operator/controllers/slice"
+	"github.com/kubeslice/worker-operator/controllers/slicegateway"
 	"github.com/kubeslice/worker-operator/pkg/events"
 	hce "github.com/kubeslice/worker-operator/tests/emulator/hubclient"
 	nsmv1alpha1 "github.com/networkservicemesh/networkservicemesh/k8s/pkg/apis/networkservice/v1alpha1"
@@ -122,6 +123,17 @@ var _ = BeforeSuite(func() {
 	Expect(err).ToNot(HaveOccurred())
 
 	hubClientEmulator, err := hce.NewHubClientEmulator()
+	err = (&slicegateway.SliceGwReconciler{
+		Client:    k8sManager.GetClient(),
+		Scheme:    k8sManager.GetScheme(),
+		Log:       ctrl.Log.WithName("SliceGwTest"),
+		HubClient: hubClientEmulator,
+		EventRecorder: &events.EventRecorder{
+			Recorder: &record.FakeRecorder{},
+		},
+	}).SetupWithManager(k8sManager)
+	Expect(err).ToNot(HaveOccurred())
+
 	Expect(err).ToNot(HaveOccurred())
 	testSvcExEventRecorder := events.NewEventRecorder(k8sManager.GetEventRecorderFor("test-SvcEx-controller"))
 	err = (&serviceexport.Reconciler{
