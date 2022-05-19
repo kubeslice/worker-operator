@@ -55,3 +55,10 @@ func (hubClientEmulator *HubClientEmulator) DeleteServiceExport(
 func (hubClientEmulator *HubClientEmulator) UpdateAppNamesapces(ctx context.Context, sliceConfigName string, onboardedNamespaces []string) error {
 	return nil
 }
+func (hubClientEmulator *HubClientEmulator) UpdateAppPodsList(
+	ctx context.Context,
+	sliceConfigName string,
+	appPods []kubeslicev1beta1.AppPod,
+) error {
+	return nil
+}

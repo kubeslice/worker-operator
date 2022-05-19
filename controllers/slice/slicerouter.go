@@ -50,13 +50,6 @@ const (
 	sliceRouterDeploymentNamePrefix string = "vl3-slice-router-"
 )
 
-var (
-	sliceRouterSidecarImage           = os.Getenv("AVESHA_VL3_SIDECAR_IMAGE")
-	sliceRouterSidecarImagePullPolicy = os.Getenv("AVESHA_VL3_SIDECAR_IMAGE_PULLPOLICY")
-	vl3RouterImage                    = os.Getenv("AVESHA_VL3_ROUTER_IMAGE")
-	vl3RouterPullPolicy               = os.Getenv("AVESHA_VL3_ROUTER_PULLPOLICY")
-)
-
 func labelsForSliceRouterDeployment(name string) map[string]string {
 	return map[string]string{
 		"networkservicemesh.io/app":  "vl3-nse-" + name,
@@ -68,6 +61,9 @@ func labelsForSliceRouterDeployment(name string) map[string]string {
 
 func getSliceRouterSidecarImageAndPullPolicy() (string, corev1.PullPolicy) {
 	pullPolicy := corev1.PullAlways
+
+	sliceRouterSidecarImage := os.Getenv("AVESHA_VL3_SIDECAR_IMAGE")
+	sliceRouterSidecarImagePullPolicy := os.Getenv("AVESHA_VL3_SIDECAR_IMAGE_PULLPOLICY")
 
 	if len(sliceRouterSidecarImagePullPolicy) > 0 {
 		pullPolicy = corev1.PullPolicy(sliceRouterSidecarImagePullPolicy)
@@ -103,12 +99,10 @@ func getClusterPrefixPool(sliceSubnet string, ipamOctet string) string {
 }
 
 func (r *SliceReconciler) getContainerSpecForSliceRouter(s *kubeslicev1beta1.Slice, ipamOctet string, dataplane string) corev1.Container {
-	vl3Image := "nexus.dev.aveshalabs.io/avesha/vl3_ucnf-nse:1.0.0"
 	vl3ImagePullPolicy := corev1.PullAlways
 
-	if len(vl3RouterImage) != 0 {
-		vl3Image = vl3RouterImage
-	}
+	vl3Image := os.Getenv("AVESHA_VL3_ROUTER_IMAGE")
+	vl3RouterPullPolicy := os.Getenv("AVESHA_VL3_ROUTER_PULLPOLICY")
 
 	if len(vl3RouterPullPolicy) != 0 {
 		vl3ImagePullPolicy = corev1.PullPolicy(vl3RouterPullPolicy)
