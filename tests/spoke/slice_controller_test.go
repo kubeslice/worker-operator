@@ -124,10 +124,8 @@ var _ = Describe("SliceController", func() {
 			createdSlice := &kubeslicev1beta1.Slice{}
 			Eventually(func() bool {
 				sliceKey := types.NamespacedName{Name: "test-slice", Namespace: "kubeslice-system"}
-				if err := k8sClient.Get(ctx, sliceKey, createdSlice); err != nil {
-					return false
-				}
-				return true
+				err := k8sClient.Get(ctx, sliceKey, createdSlice)
+				return err == nil
 			}, time.Second*10, time.Millisecond*250).Should(BeTrue())
 			Expect(createdSlice.ObjectMeta.Finalizers[0]).Should(Equal(sliceFinalizer))
 		})
@@ -226,10 +224,8 @@ var _ = Describe("SliceController", func() {
 			createdSlice := &kubeslicev1beta1.Slice{}
 			Eventually(func() bool {
 				sliceKey := types.NamespacedName{Name: "test-slice-im", Namespace: "kubeslice-system"}
-				if err := k8sClient.Get(ctx, sliceKey, createdSlice); err != nil {
-					return false
-				}
-				return true
+				err := k8sClient.Get(ctx, sliceKey, createdSlice)
+				return err == nil
 			}, time.Second*10, time.Millisecond*250).Should(BeTrue())
 
 			//Delete the slice CR which will trigger the finalizer and cleanup resources

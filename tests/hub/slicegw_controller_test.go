@@ -21,7 +21,7 @@ package hub_test
 import (
 	"time"
 
-	spokev1alpha1 "github.com/kubeslice/apis/pkg/worker/v1alpha1"
+	workerv1alpha1 "github.com/kubeslice/apis/pkg/worker/v1alpha1"
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -33,15 +33,15 @@ import (
 
 var _ = Describe("Hub SlicegwController", func() {
 	Context("With SpokeSliceGW created in hub", func() {
-		var hubSlice *spokev1alpha1.WorkerSliceConfig
+		var hubSlice *workerv1alpha1.WorkerSliceConfig
 		var createdSlice *kubeslicev1beta1.Slice
-		var hubSliceGw *spokev1alpha1.WorkerSliceGateway
+		var hubSliceGw *workerv1alpha1.WorkerSliceGateway
 		var hubSecret *corev1.Secret
 		var createdSliceGwOnSpoke *kubeslicev1beta1.SliceGateway
 
 		BeforeEach(func() {
 			// Prepare k8s objects
-			hubSlice = &spokev1alpha1.WorkerSliceConfig{
+			hubSlice = &workerv1alpha1.WorkerSliceConfig{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "test-slice",
 					Namespace: PROJECT_NS,
@@ -49,7 +49,7 @@ var _ = Describe("Hub SlicegwController", func() {
 						"worker-cluster": CLUSTER_NAME,
 					},
 				},
-				Spec: spokev1alpha1.WorkerSliceConfigSpec{
+				Spec: workerv1alpha1.WorkerSliceConfigSpec{
 					SliceName:        "test-slice",
 					SliceType:        "Application",
 					SliceSubnet:      "10.0.0.1/16",
@@ -57,7 +57,7 @@ var _ = Describe("Hub SlicegwController", func() {
 					IpamClusterOctet: 100,
 				},
 			}
-			hubSliceGw = &spokev1alpha1.WorkerSliceGateway{
+			hubSliceGw = &workerv1alpha1.WorkerSliceGateway{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "test-slicegateway",
 					Namespace: PROJECT_NS,
@@ -65,9 +65,9 @@ var _ = Describe("Hub SlicegwController", func() {
 						"worker-cluster": CLUSTER_NAME,
 					},
 				},
-				Spec: spokev1alpha1.WorkerSliceGatewaySpec{
+				Spec: workerv1alpha1.WorkerSliceGatewaySpec{
 					SliceName: "test-slice",
-					LocalGatewayConfig: spokev1alpha1.SliceGatewayConfig{
+					LocalGatewayConfig: workerv1alpha1.SliceGatewayConfig{
 						ClusterName: CLUSTER_NAME,
 					},
 				},
@@ -112,6 +112,44 @@ var _ = Describe("Hub SlicegwController", func() {
 				err := k8sClient.Get(ctx, sliceGwKey, createdSliceGwOnSpoke)
 				return err == nil
 			}, time.Second*20, time.Second*1).Should(BeTrue())
+		})
+
+		It("Should Generate Events", func() {
+			Expect(k8sClient.Create(ctx, hubSlice)).Should(Succeed())
+			Expect(k8sClient.Create(ctx, hubSliceGw)).Should(Succeed())
+			Expect(k8sClient.Create(ctx, hubSecret)).Should(Succeed())
+
+			//once hubSlice is created controller will create a slice CR on spoke cluster
+			sliceKey := types.NamespacedName{Name: "test-slice", Namespace: "kubeslice-system"}
+
+			// Make sure slice is reconciled in spoke cluster
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, sliceKey, createdSlice)
+				return err == nil
+			}, time.Second*20, time.Millisecond*250).Should(BeTrue())
+
+			sliceGwKey := types.NamespacedName{Namespace: CONTROL_PLANE_NS, Name: hubSliceGw.Name}
+
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, sliceGwKey, createdSliceGwOnSpoke)
+				return err == nil
+			}, time.Second*20, time.Second*1).Should(BeTrue())
+
+			events := corev1.EventList{}
+
+			Eventually(func() bool {
+				err := k8sClient.List(ctx, &events)
+				return err == nil
+			}, time.Second*20, time.Second*1).Should(BeTrue())
+
+			for _, event := range events.Items {
+				if event.Source.Component == "test-slicegw-controller" && event.InvolvedObject.Kind == "Slice" {
+					Expect(event.Message).To(Equal("Created slicegw on spoke cluster , slicegateway test-slicegateway"))
+				}
+				if event.Source.Component == "test-slicegw-controller" && event.InvolvedObject.Kind == "WorkerSliceGateway" {
+					Expect(event.Message).To(Equal("Created slicegw on spoke cluster , slicegateway test-slicegateway cluster "))
+				}
+			}
 		})
 
 		It("Should set slice as owner of slicegw", func() {
