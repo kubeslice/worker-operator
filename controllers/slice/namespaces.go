@@ -2,7 +2,6 @@ package slice
 
 import (
 	"context"
-
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
 	"github.com/kubeslice/worker-operator/controllers"
 	"github.com/kubeslice/worker-operator/internal/logger"
@@ -228,7 +227,7 @@ func (r *SliceReconciler) reconcileAllowedNamespaces(ctx context.Context, slice 
 
 func (r *SliceReconciler) unbindAppNamespace(ctx context.Context, slice *kubeslicev1beta1.Slice, appNs string) error {
 	log := logger.FromContext(ctx).WithValues("type", "appNamespaces")
-
+	debuglog := log.V(1)
 	namespace := &corev1.Namespace{}
 	err := r.Get(ctx, types.NamespacedName{Name: appNs}, namespace)
 	if err != nil {
@@ -237,31 +236,24 @@ func (r *SliceReconciler) unbindAppNamespace(ctx context.Context, slice *kubesli
 	}
 
 	nsLabels := namespace.ObjectMeta.GetLabels()
-	if nsLabels == nil {
-		log.Error(err, "NS unbind: No labels found", "namespace", appNs)
-		return err
-	}
-
 	_, ok := nsLabels[ApplicationNamespaceSelectorLabelKey]
 	if !ok {
-		log.Error(err, "NS unbind: slice label not found", "namespace", appNs)
-		return err
+		debuglog.Info("NS unbind: slice label not found", "namespace", appNs)
+	} else{
+		// TBD: For now, we are just deleting the Avesha label from the namespace resource so that it becomes
+		// unreachable (due to the network policy) over the CNI network from other namespaces that are still part of
+		// the slice. But the namespace would still be reachable over the NSM network. We need to block the NSM
+		// network as well.
+		delete(nsLabels, ApplicationNamespaceSelectorLabelKey)
+
+		namespace.ObjectMeta.SetLabels(nsLabels)
+
+		err = r.Update(ctx, namespace)
+		if err != nil {
+			log.Error(err, "NS unbind: Failed to remove slice label", "namespace", appNs)
+			return err
+		}
 	}
-
-	// TBD: For now, we are just deleting the Avesha label from the namespace resource so that it becomes
-	// unreachable (due to the network policy) over the CNI network from other namespaces that are still part of
-	// the slice. But the namespace would still be reachable over the NSM network. We need to block the NSM
-	// network as well.
-	delete(nsLabels, ApplicationNamespaceSelectorLabelKey)
-
-	namespace.ObjectMeta.SetLabels(nsLabels)
-
-	err = r.Update(ctx, namespace)
-	if err != nil {
-		log.Error(err, "NS unbind: Failed to remove slice label", "namespace", appNs)
-		return err
-	}
-
 	// Delete network policy if present
 	netPolicy := &networkingv1.NetworkPolicy{
 		ObjectMeta: metav1.ObjectMeta{
@@ -270,16 +262,22 @@ func (r *SliceReconciler) unbindAppNamespace(ctx context.Context, slice *kubesli
 		},
 	}
 	err = r.Delete(ctx, netPolicy)
-	if err != nil {
+	if err != nil && !errors.IsNotFound(err) {
 		log.Error(err, "NS unbind: Failed to remove slice netpol", "namespace", appNs)
 	}
-	//remove the deployment annotations from this namespace
+	//remove the deployment annotations and labels from this namespace
+	return r.deleteAnnotationsAndLabels(ctx,slice,appNs)
+}
+
+func (r *SliceReconciler) deleteAnnotationsAndLabels(ctx context.Context, slice *kubeslicev1beta1.Slice, appNs string) error {
+	log := logger.FromContext(ctx).WithValues("type", "appNamespaces")
 	deployList := appsv1.DeploymentList{}
 	listOpts := []client.ListOption{
 		client.InNamespace(appNs),
 	}
 	if err := r.List(ctx, &deployList, listOpts...); err != nil {
 		log.Error(err, "Namespace offboarding:cannot list deployments under ns ", appNs)
+		return err
 	}
 	for _, deploy := range deployList.Items {
 		labels := deploy.Spec.Template.ObjectMeta.Labels
@@ -309,6 +307,7 @@ func (r *SliceReconciler) unbindAppNamespace(ctx context.Context, slice *kubesli
 		}
 		if err := r.Update(ctx, &deploy); err != nil {
 			log.Error(err, "Error deleting labels and annotations from deploy while namespace unbinding from slice", deploy.ObjectMeta.Name)
+			return err
 		}
 		log.Info("Removed slice labels and annotations", "deployment", deploy.Name)
 	}

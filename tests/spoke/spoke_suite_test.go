@@ -112,6 +112,9 @@ var _ = BeforeSuite(func() {
 	})
 	Expect(err).ToNot(HaveOccurred())
 
+	hubClientEmulator, err := hce.NewHubClientEmulator()
+	Expect(err).ToNot(HaveOccurred())
+
 	err = (&slice.SliceReconciler{
 		Client: k8sManager.GetClient(),
 		Scheme: k8sManager.GetScheme(),
@@ -122,8 +125,7 @@ var _ = BeforeSuite(func() {
 	}).SetupWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())
 
-	hubClientEmulator, err := hce.NewHubClientEmulator()
-	Expect(err).ToNot(HaveOccurred())
+	
 	err = (&serviceexport.Reconciler{
 		Client:    k8sManager.GetClient(),
 		Scheme:    k8sManager.GetScheme(),
