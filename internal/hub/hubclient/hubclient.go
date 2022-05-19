@@ -330,7 +330,7 @@ func (hubClient *HubClientConfig) UpdateAppNamesapces(ctx context.Context, slice
 	if err != nil {
 		return err
 	}
-	o := []spokev1alpha1.NamespaceConfig{}
+	o := make([]spokev1alpha1.NamespaceConfig, len(onboardedNamespaces))
 	for i, ns := range onboardedNamespaces {
 		o[i].Name = ns
 	}

@@ -90,7 +90,7 @@ func (r *SliceReconciler) reconcileAppNamespaces(ctx context.Context, slice *kub
 		namespace := &corev1.Namespace{}
 		err := r.Get(ctx, types.NamespacedName{Name: cfgAppNs}, namespace)
 		if err != nil {
-			log.Info("Failed to find namespace", "namespace", cfgAppNs)
+			log.Error(err, "Failed to find namespace", "namespace", cfgAppNs)
 			continue
 		}
 		// A namespace might not have any labels attached to it. Directly accessing the label map
