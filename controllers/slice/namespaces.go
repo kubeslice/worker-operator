@@ -341,7 +341,8 @@ func (r *SliceReconciler) reconcileSliceNetworkPolicy(ctx context.Context, slice
 	log := r.Log.WithValues("type", "networkPolicy")
 	//Early Exit if Isolation is not enabled
 	if !slice.Status.SliceConfig.NamespaceIsolationProfile.IsolationEnabled {
-		//IsolationEnabled is either turned off or toggled off
+		// IsolationEnabled is either turned off or toggled off
+		// if NetworkPoliciesInstalled is enabled, this means there are netpol installed in appnamespaces we need to remove
 		if slice.Status.NetworkPoliciesInstalled {
 			//IsolationEnabled toggled off by user/admin , uninstall nepol from app namespaces
 			return r.uninstallNetworkPolicies(ctx, slice)

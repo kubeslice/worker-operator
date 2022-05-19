@@ -117,7 +117,7 @@ type SliceStatus struct {
 	AppPods []AppPod `json:"appPods,omitempty"`
 	// AppPodsUpdatedOn is the time when app pods list was updated
 	AppPodsUpdatedOn int64 `json:"appPodsUpdatedOn,omitempty"`
-	// NetworkPoliciesInstalled defines whether the netpol are installed in appNS
+	// NetworkPoliciesInstalled defines whether the netpol are installed in atleast one applicationNamespace
 	// +kubebuilder:default:=false
 	NetworkPoliciesInstalled bool `json:"networkPoliciesInstalled,omitempty"`
 	// Slice Application Namespace list
