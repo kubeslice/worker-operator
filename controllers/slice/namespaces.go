@@ -148,6 +148,12 @@ func (r *SliceReconciler) reconcileAllowedNamespaces(ctx context.Context, slice 
 	log := logger.FromContext(ctx).WithValues("type", "allowedNamespaces")
 	debugLog := log.V(1)
 
+	//early exit if namespaceIsolation is not enabled
+	if !slice.Status.SliceConfig.NamespaceIsolationProfile.IsolationEnabled{
+		debugLog.Info("skipping reconcileAllowedNamespaces since isolation flag in not enabled")
+		return nil
+	}
+	
 	//cfgAllowedNsList contains list of allowedNamespaces from workersliceconfig
 	var cfgAllowedNsList []string
 	cfgAllowedNsList = append(cfgAllowedNsList, ControlPlaneNamespace)
