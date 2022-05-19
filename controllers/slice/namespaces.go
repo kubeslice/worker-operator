@@ -148,11 +148,11 @@ func (r *SliceReconciler) reconcileAllowedNamespaces(ctx context.Context, slice 
 	debugLog := log.V(1)
 
 	//early exit if namespaceIsolation is not enabled
-	if !slice.Status.SliceConfig.NamespaceIsolationProfile.IsolationEnabled{
+	if !slice.Status.SliceConfig.NamespaceIsolationProfile.IsolationEnabled {
 		debugLog.Info("skipping reconcileAllowedNamespaces since isolation flag in not enabled")
 		return nil
 	}
-	
+
 	//cfgAllowedNsList contains list of allowedNamespaces from workersliceconfig
 	var cfgAllowedNsList []string
 	cfgAllowedNsList = append(cfgAllowedNsList, ControlPlaneNamespace)
@@ -239,7 +239,7 @@ func (r *SliceReconciler) unbindAppNamespace(ctx context.Context, slice *kubesli
 	_, ok := nsLabels[ApplicationNamespaceSelectorLabelKey]
 	if !ok {
 		debuglog.Info("NS unbind: slice label not found", "namespace", appNs)
-	} else{
+	} else {
 		// TBD: For now, we are just deleting the Avesha label from the namespace resource so that it becomes
 		// unreachable (due to the network policy) over the CNI network from other namespaces that are still part of
 		// the slice. But the namespace would still be reachable over the NSM network. We need to block the NSM
@@ -266,7 +266,7 @@ func (r *SliceReconciler) unbindAppNamespace(ctx context.Context, slice *kubesli
 		log.Error(err, "NS unbind: Failed to remove slice netpol", "namespace", appNs)
 	}
 	//remove the deployment annotations and labels from this namespace
-	return r.deleteAnnotationsAndLabels(ctx,slice,appNs)
+	return r.deleteAnnotationsAndLabels(ctx, slice, appNs)
 }
 
 func (r *SliceReconciler) deleteAnnotationsAndLabels(ctx context.Context, slice *kubeslicev1beta1.Slice, appNs string) error {
@@ -294,12 +294,12 @@ func (r *SliceReconciler) deleteAnnotationsAndLabels(ctx context.Context, slice 
 		podannotations := deploy.Spec.Template.ObjectMeta.Annotations
 		if podannotations != nil {
 			v, ok := podannotations["ns.networkservicemesh.io"]
-			if ok && v == "vl3-service-"+ slice.Name {
+			if ok && v == "vl3-service-"+slice.Name {
 				delete(podannotations, "ns.networkservicemesh.io")
 			}
 		}
 		deployannotations := deploy.ObjectMeta.GetAnnotations()
-		if deployannotations!=nil{
+		if deployannotations != nil {
 			_, ok := deployannotations["avesha.io/status"]
 			if ok {
 				delete(deployannotations, "avesha.io/status")
@@ -316,7 +316,7 @@ func (r *SliceReconciler) deleteAnnotationsAndLabels(ctx context.Context, slice 
 
 func (r *SliceReconciler) uninstallNetworkPolicies(ctx context.Context, slice *kubeslicev1beta1.Slice) error {
 	log := r.Log.WithValues("type", "networkPolicy")
-	for _, ns := range slice.Status.SliceConfig.NamespaceIsolationProfile.ApplicationNamespaces {
+	for _, ns := range slice.Status.ApplicationNamespaces {
 		// Delete network policy if present
 		netPolicy := &networkingv1.NetworkPolicy{
 			ObjectMeta: metav1.ObjectMeta{

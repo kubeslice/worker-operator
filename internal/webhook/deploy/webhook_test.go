@@ -49,7 +49,7 @@ func (f fakeWebhookClient) GetNamespaceLabels(ctx context.Context, client client
 var _ = Describe("Deploy Webhook", func() {
 	fakeWhClient := new(fakeWebhookClient)
 	webhookServer := deploy.WebhookServer{
-		WhClient: fakeWhClient,
+		SliceInfoClient: fakeWhClient,
 	}
 	Describe("MutationRequired", func() {
 		Context("New deployment with proper annotation", func() {

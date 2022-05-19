@@ -34,26 +34,26 @@ import (
 const (
 	admissionWebhookAnnotationInjectKey       = "avesha.io/slice"
 	admissionWebhookAnnotationStatusKey       = "avesha.io/status"
-	podinjectkey                              = "avesha.io/pod-type"
+	podInjectLabelKey                         = "avesha.io/pod-type"
 	admissionWebhookSliceNamespaceSelectorKey = "kubeslice.io/slice"
 	controlPlaneNamespace                     = "kubeslice-system"
-	nsmkey                                    = "ns.networkservicemesh.io"
+	nsmInjectAnnotaionKey                     = "ns.networkservicemesh.io"
 )
 
 var (
 	log = logger.NewLogger().WithName("Webhook").V(1)
 )
 
-type WebhookInterface interface {
+type SliceInfoProvider interface {
 	GetSliceNamespaceIsolationPolicy(ctx context.Context, slice string) (bool, error)
 	SliceAppNamespaceConfigured(ctx context.Context, slice string, namespace string) (bool, error)
 	GetNamespaceLabels(ctx context.Context, client client.Client, namespace string) (map[string]string, error)
 }
 
 type WebhookServer struct {
-	Client   client.Client
-	decoder  *admission.Decoder
-	WhClient WebhookInterface
+	Client          client.Client
+	decoder         *admission.Decoder
+	SliceInfoClient SliceInfoProvider
 }
 
 func (wh *WebhookServer) Handle(ctx context.Context, req admission.Request) admission.Response {
@@ -94,11 +94,11 @@ func Mutate(deploy *appsv1.Deployment, sliceName string) *appsv1.Deployment {
 
 	// Add vl3 annotation to pod template
 	annotations := deploy.Spec.Template.ObjectMeta.Annotations
-	annotations[nsmkey] = "vl3-service-" + sliceName
+	annotations[nsmInjectAnnotaionKey] = "vl3-service-" + sliceName
 
 	// Add slice identifier labels to pod template
 	labels := deploy.Spec.Template.ObjectMeta.Labels
-	labels[podinjectkey] = "app"
+	labels[podInjectLabelKey] = "app"
 	labels[admissionWebhookAnnotationInjectKey] = sliceName
 
 	return deploy
@@ -116,7 +116,7 @@ func (wh *WebhookServer) MutationRequired(metadata metav1.ObjectMeta) (bool, str
 		return false, ""
 	}
 
-	if metadata.GetLabels()[podinjectkey] == "app" {
+	if metadata.GetLabels()[podInjectLabelKey] == "app" {
 		log.Info("Pod is already injected")
 		return false, ""
 	}
@@ -128,7 +128,7 @@ func (wh *WebhookServer) MutationRequired(metadata metav1.ObjectMeta) (bool, str
 			return true, sliceNameInAnnotation
 		}
 		// Check if namespace isolation is enabled for this slice
-		nsIsolationEnabled, err := wh.WhClient.GetSliceNamespaceIsolationPolicy(context.Background(), sliceNameInAnnotation)
+		nsIsolationEnabled, err := wh.SliceInfoClient.GetSliceNamespaceIsolationPolicy(context.Background(), sliceNameInAnnotation)
 		if err != nil {
 			log.Error(err, "Could not get namespace isolation policy", "slice", sliceNameInAnnotation)
 			return false, ""
@@ -145,7 +145,7 @@ func (wh *WebhookServer) MutationRequired(metadata metav1.ObjectMeta) (bool, str
 		return false, ""
 	}
 
-	nsLabels, err := wh.WhClient.GetNamespaceLabels(context.Background(), wh.Client, metadata.Namespace)
+	nsLabels, err := wh.SliceInfoClient.GetNamespaceLabels(context.Background(), wh.Client, metadata.Namespace)
 	if err != nil {
 		log.Error(err, "Error getting namespace labels")
 		return false, ""
@@ -165,7 +165,7 @@ func (wh *WebhookServer) MutationRequired(metadata metav1.ObjectMeta) (bool, str
 		return false, ""
 	}
 
-	nsConfigured, err := wh.WhClient.SliceAppNamespaceConfigured(context.Background(), sliceNameInNs, metadata.Namespace)
+	nsConfigured, err := wh.SliceInfoClient.SliceAppNamespaceConfigured(context.Background(), sliceNameInNs, metadata.Namespace)
 	if err != nil {
 		log.Error(err, "Failed to get app namespace info for slice",
 			"slice", sliceNameInNs, "namespace", metadata.Namespace)

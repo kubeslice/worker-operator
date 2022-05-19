@@ -100,17 +100,15 @@ func main() {
 	if utils.GetEnvOrDefault("ENABLE_WEBHOOKS", "true") == "true" {
 		mgr.GetWebhookServer().Register("/mutate-appsv1-deploy", &webhook.Admission{
 			Handler: &deploywh.WebhookServer{
-				Client:   mgr.GetClient(),
-				WhClient: deploywh.NewWebhookClient(),
+				Client:          mgr.GetClient(),
+				SliceInfoClient: deploywh.NewWebhookClient(),
 			},
 		})
 	}
-
 	if err != nil {
 		setupLog.Error(err, "unable to start manager")
 		os.Exit(1)
 	}
-
 	hubClient, err := hub.NewHubClientConfig()
 	if err != nil {
 		setupLog.Error(err, "could not create hub client for slice gateway reconciler")
