@@ -51,3 +51,11 @@ func (hubClientEmulator *HubClientEmulator) DeleteServiceExport(
 	ctx context.Context, serviceexport *kubeslicev1beta1.ServiceExport) error {
 	return nil
 }
+
+func (hubClientEmulator *HubClientEmulator) UpdateAppPodsList(
+	ctx context.Context,
+	sliceConfigName string,
+	appPods []kubeslicev1beta1.AppPod,
+) error {
+	return nil
+}
