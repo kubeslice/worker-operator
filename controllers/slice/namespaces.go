@@ -139,6 +139,7 @@ func (r *SliceReconciler) reconcileAppNamespaces(ctx context.Context, slice *kub
 			log.Error(err, "Failed to update workerslice status in controller cluster")
 			return ctrl.Result{}, err, true
 		}
+		log.Info("updated onboarded namespaces to workersliceconfig")
 	}
 	return ctrl.Result{}, nil, false
 }
