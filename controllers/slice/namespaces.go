@@ -281,29 +281,29 @@ func (r *SliceReconciler) deleteAnnotationsAndLabels(ctx context.Context, slice 
 	}
 	for _, deploy := range deployList.Items {
 		labels := deploy.Spec.Template.ObjectMeta.Labels
-		if labels == nil {
-			continue
-		}
-		//delete all the labels and annotations webhook added
-		//TODO:
-		//use constants
-		_, ok := labels["avesha.io/pod-type"]
-		if ok {
-			delete(labels, "avesha.io/pod-type")
-		}
-		sliceName, ok := labels["avesha.io/slice"]
-		if ok && slice.Name == sliceName {
-			delete(labels, "avesha.io/slice")
+		if labels != nil {
+			_, ok := labels["avesha.io/pod-type"]
+			if ok {
+				delete(labels, "avesha.io/pod-type")
+			}
+			sliceName, ok := labels["avesha.io/slice"]
+			if ok && slice.Name == sliceName {
+				delete(labels, "avesha.io/slice")
+			}
 		}
 		podannotations := deploy.Spec.Template.ObjectMeta.Annotations
-		v, ok := podannotations["ns.networkservicemesh.io"]
-		if ok && v == "vl3-service-"+slice.Name {
-			delete(podannotations, "ns.networkservicemesh.io")
+		if podannotations != nil {
+			v, ok := podannotations["ns.networkservicemesh.io"]
+			if ok && v == "vl3-service-"+ slice.Name {
+				delete(podannotations, "ns.networkservicemesh.io")
+			}
 		}
 		deployannotations := deploy.ObjectMeta.GetAnnotations()
-		_, ok = deployannotations["avesha.io/status"]
-		if ok {
-			delete(deployannotations, "avesha.io/status")
+		if deployannotations!=nil{
+			_, ok := deployannotations["avesha.io/status"]
+			if ok {
+				delete(deployannotations, "avesha.io/status")
+			}
 		}
 		if err := r.Update(ctx, &deploy); err != nil {
 			log.Error(err, "Error deleting labels and annotations from deploy while namespace unbinding from slice", deploy.ObjectMeta.Name)
