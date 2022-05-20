@@ -66,13 +66,13 @@ type SliceConfig struct {
 	// ExternalGatewayConfig determines istio ingress/egress configuration
 	ExternalGatewayConfig *ExternalGatewayConfig `json:"externalGatewayConfig,omitempty"`
 	// Namespace Isolation profile contains fields related to namespace binding to slice
-	NamespaceIsolationProfile NamespaceIsolationProfile `json:"namespaceIsolationProfile,omitempty"`
+	NamespaceIsolationProfile *NamespaceIsolationProfile `json:"namespaceIsolationProfile,omitempty"`
 }
 
 // NamespaceIsolationProfile defines the namespace isolation policy for the slice
 type NamespaceIsolationProfile struct {
 	// Enable Namespace Isolation in the slice
-	IsolationEnabled bool `json:"isolationEnabled"`
+	IsolationEnabled bool `json:"isolationEnabled,omitempty"`
 	//Application namespaces is a list of namespaces that are bound to the slice
 	ApplicationNamespaces []string `json:"applicationNamespaces,omitempty"`
 	//Allowed namespaces is a list of namespaces that can send and receive traffic to app namespaces

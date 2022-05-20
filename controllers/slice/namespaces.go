@@ -34,6 +34,10 @@ func (r *SliceReconciler) ReconcileSliceNamespaces(ctx context.Context, slice *k
 func (r *SliceReconciler) reconcileAppNamespaces(ctx context.Context, slice *kubeslicev1beta1.Slice) (ctrl.Result, error, bool) {
 	log := logger.FromContext(ctx).WithValues("type", "appNamespaces")
 	debugLog := log.V(1)
+	//early exit if NamespaceIsolationProfile is not defined
+	if slice.Status.SliceConfig.NamespaceIsolationProfile == nil {
+		return ctrl.Result{}, nil, false
+	}
 	//cfgAppNsList = list of all app namespaces in slice CR
 	var cfgAppNsList []string
 	for _, qualifiedAppNs := range slice.Status.SliceConfig.NamespaceIsolationProfile.ApplicationNamespaces {
@@ -147,7 +151,10 @@ func (r *SliceReconciler) reconcileAppNamespaces(ctx context.Context, slice *kub
 func (r *SliceReconciler) reconcileAllowedNamespaces(ctx context.Context, slice *kubeslicev1beta1.Slice) error {
 	log := logger.FromContext(ctx).WithValues("type", "allowedNamespaces")
 	debugLog := log.V(1)
-
+	//early exit if namespaceIsolation is empty
+	if slice.Status.SliceConfig.NamespaceIsolationProfile == nil {
+		return nil
+	}
 	//early exit if namespaceIsolation is not enabled
 	if !slice.Status.SliceConfig.NamespaceIsolationProfile.IsolationEnabled {
 		debugLog.Info("skipping reconcileAllowedNamespaces since isolation flag in not enabled")
@@ -339,6 +346,10 @@ func (r *SliceReconciler) uninstallNetworkPolicies(ctx context.Context, slice *k
 
 func (r *SliceReconciler) reconcileSliceNetworkPolicy(ctx context.Context, slice *kubeslicev1beta1.Slice) error {
 	log := r.Log.WithValues("type", "networkPolicy")
+	//early exit if namespaceIsolation is empty
+	if slice.Status.SliceConfig.NamespaceIsolationProfile == nil {
+		return nil
+	}
 	//Early Exit if Isolation is not enabled
 	if !slice.Status.SliceConfig.NamespaceIsolationProfile.IsolationEnabled {
 		// IsolationEnabled is either turned off or toggled off

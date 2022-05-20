@@ -85,7 +85,7 @@ spec:
               networkPoliciesInstalled:
                 default: false
                 description: NetworkPoliciesInstalled defines whether the netpol are
-                  installed in appNS
+                  installed in atleast one applicationNamespace
                 type: boolean
               sliceConfig:
                 description: SliceConfig is the spec for slice received from hub cluster
@@ -131,8 +131,6 @@ spec:
                       isolationEnabled:
                         description: Enable Namespace Isolation in the slice
                         type: boolean
-                    required:
-                    - isolationEnabled
                     type: object
                   qosProfileDetails:
                     description: QOS profile details

@@ -97,7 +97,7 @@ var _ = Describe("SliceNetpol", func() {
 					return err
 				}
 				createdSlice.Status.SliceConfig = &kubeslicev1beta1.SliceConfig{
-					NamespaceIsolationProfile: kubeslicev1beta1.NamespaceIsolationProfile{
+					NamespaceIsolationProfile: &kubeslicev1beta1.NamespaceIsolationProfile{
 						IsolationEnabled: true,
 						ApplicationNamespaces: []string{
 							"iperf",
@@ -173,7 +173,7 @@ var _ = Describe("SliceNetpol", func() {
 					return err
 				}
 				createdSlice.Status.SliceConfig = &kubeslicev1beta1.SliceConfig{
-					NamespaceIsolationProfile: kubeslicev1beta1.NamespaceIsolationProfile{
+					NamespaceIsolationProfile: &kubeslicev1beta1.NamespaceIsolationProfile{
 						IsolationEnabled:      true,
 						ApplicationNamespaces: []string{},
 						AllowedNamespaces: []string{
@@ -230,7 +230,7 @@ var _ = Describe("SliceNetpol", func() {
 					return err
 				}
 				createdSlice.Status.SliceConfig = &kubeslicev1beta1.SliceConfig{
-					NamespaceIsolationProfile: kubeslicev1beta1.NamespaceIsolationProfile{
+					NamespaceIsolationProfile: &kubeslicev1beta1.NamespaceIsolationProfile{
 						IsolationEnabled: true,
 						ApplicationNamespaces: []string{
 							"iperf-demo",
@@ -315,7 +315,7 @@ var _ = Describe("SliceNetpol", func() {
 					return err
 				}
 				createdSlice.Status.SliceConfig = &kubeslicev1beta1.SliceConfig{
-					NamespaceIsolationProfile: kubeslicev1beta1.NamespaceIsolationProfile{
+					NamespaceIsolationProfile: &kubeslicev1beta1.NamespaceIsolationProfile{
 						IsolationEnabled: true,
 						ApplicationNamespaces: []string{
 							"application-ns",
@@ -427,7 +427,7 @@ var _ = Describe("SliceNetpol", func() {
 					return err
 				}
 				createdSlice.Status.SliceConfig = &kubeslicev1beta1.SliceConfig{
-					NamespaceIsolationProfile: kubeslicev1beta1.NamespaceIsolationProfile{
+					NamespaceIsolationProfile: &kubeslicev1beta1.NamespaceIsolationProfile{
 						IsolationEnabled: true,
 						ApplicationNamespaces: []string{
 							"application-ns-netpol",
@@ -524,7 +524,7 @@ var _ = Describe("SliceNetpol", func() {
 					return err
 				}
 				createdSlice.Status.SliceConfig = &kubeslicev1beta1.SliceConfig{
-					NamespaceIsolationProfile: kubeslicev1beta1.NamespaceIsolationProfile{
+					NamespaceIsolationProfile: &kubeslicev1beta1.NamespaceIsolationProfile{
 						IsolationEnabled: true,
 						ApplicationNamespaces: []string{
 							"iperf-demo-foo",
@@ -614,7 +614,7 @@ var _ = Describe("SliceNetpol", func() {
 					return err
 				}
 				createdSlice.Status.SliceConfig = &kubeslicev1beta1.SliceConfig{
-					NamespaceIsolationProfile: kubeslicev1beta1.NamespaceIsolationProfile{
+					NamespaceIsolationProfile: &kubeslicev1beta1.NamespaceIsolationProfile{
 						IsolationEnabled: true,
 						ApplicationNamespaces: []string{
 							"application-iperf-ns",
