@@ -16,10 +16,6 @@ func NewWebhookClient() *webhookClient {
 	return &webhookClient{}
 }
 
-func (w *webhookClient) GetSliceNamespaceIsolationPolicy(ctx context.Context, slice string) (bool, error) {
-	return controllers.GetSliceNamespaceIsolationPolicy(ctx, slice)
-}
-
 func (w *webhookClient) SliceAppNamespaceConfigured(ctx context.Context, slice string, namespace string) (bool, error) {
 	return controllers.SliceAppNamespaceConfigured(ctx, slice, namespace)
 }

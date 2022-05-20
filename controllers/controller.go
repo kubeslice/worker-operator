@@ -103,24 +103,6 @@ func GetSliceRouterPodNameAndIP(ctx context.Context, c client.Client, sliceName 
 	return "", "", nil
 }
 
-//returns true if namespace isolation is enabled
-func GetSliceNamespaceIsolationPolicy(ctx context.Context, slice string) (bool, error) {
-	scheme := runtime.NewScheme()
-	utilruntime.Must(kubeslicev1beta1.AddToScheme(scheme))
-	c, err := client.New(ctrl.GetConfigOrDie(), client.Options{
-		Scheme: scheme,
-	})
-	if err != nil {
-		log.Error(err, "Creating new client for webhook call->GetSliceNamespaceIsolationPolicy")
-		return false, err
-	}
-	s, err := GetSlice(ctx, c, slice)
-	if err != nil {
-		return false, err
-	}
-	return s.Status.SliceConfig.NamespaceIsolationProfile.IsolationEnabled, nil
-}
-
 // SliceAppNamespaceConfigured returns true if the namespace is present in the application namespace list
 // configured for the slice
 func SliceAppNamespaceConfigured(ctx context.Context, slice string, namespace string) (bool, error) {

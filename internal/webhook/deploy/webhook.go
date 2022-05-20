@@ -45,11 +45,9 @@ var (
 )
 
 type SliceInfoProvider interface {
-	GetSliceNamespaceIsolationPolicy(ctx context.Context, slice string) (bool, error)
 	SliceAppNamespaceConfigured(ctx context.Context, slice string, namespace string) (bool, error)
 	GetNamespaceLabels(ctx context.Context, client client.Client, namespace string) (map[string]string, error)
 }
-
 type WebhookServer struct {
 	Client          client.Client
 	decoder         *admission.Decoder
@@ -108,39 +106,17 @@ func (wh *WebhookServer) MutationRequired(metadata metav1.ObjectMeta) (bool, str
 	annotations := metadata.GetAnnotations()
 	//early exit if metadata in nil
 	//we allow empty annotation, but namespace should not be empty
-	if len(annotations) == 0 && metadata.GetNamespace() == "" {
+	if metadata.GetNamespace() == "" {
 		return false, ""
 	}
+	// do not inject if it is already injected
+	//TODO(rahulsawra): need better way to define injected status
 	if annotations[admissionWebhookAnnotationStatusKey] == "injected" {
 		log.Info("Deployment is already injected")
 		return false, ""
 	}
 
-	if metadata.GetLabels()[podInjectLabelKey] == "app" {
-		log.Info("Pod is already injected")
-		return false, ""
-	}
-	//if slice annotation is present,and the namespaceIsolation is not enabled, we inject
-	sliceNameInAnnotation, sliceAnnotationPresent := metadata.GetAnnotations()[admissionWebhookAnnotationInjectKey]
-	if sliceAnnotationPresent {
-		// Ignore namespace isolation related checks if the object is part of the kubeslice control plane namespace.
-		if metadata.Namespace == controlPlaneNamespace {
-			return true, sliceNameInAnnotation
-		}
-		// Check if namespace isolation is enabled for this slice
-		nsIsolationEnabled, err := wh.SliceInfoClient.GetSliceNamespaceIsolationPolicy(context.Background(), sliceNameInAnnotation)
-		if err != nil {
-			log.Error(err, "Could not get namespace isolation policy", "slice", sliceNameInAnnotation)
-			return false, ""
-		}
-		//if nsIsolationEnabled is not enabled at this point in time,we inject
-		if !nsIsolationEnabled {
-			return true, sliceNameInAnnotation
-		}
-	}
-	// slice annotation is not present, we check if this namespace is part of slice appNS
-	// Do not auto onboard control plane namespace. Ideally, we should not have any deployment/pod in the control plane ns
-	// connect to a slice. But for exceptional cases, return from here before updating the app ns list in the slice config.
+	// Do not auto onboard control plane namespace. Ideally, we should not have any deployment/pod in the control plane ns connect to a slice
 	if metadata.Namespace == controlPlaneNamespace {
 		return false, ""
 	}
@@ -161,10 +137,6 @@ func (wh *WebhookServer) MutationRequired(metadata metav1.ObjectMeta) (bool, str
 		return false, ""
 	}
 
-	if sliceNameInAnnotation != "" && sliceNameInAnnotation != sliceNameInNs {
-		return false, ""
-	}
-
 	nsConfigured, err := wh.SliceInfoClient.SliceAppNamespaceConfigured(context.Background(), sliceNameInNs, metadata.Namespace)
 	if err != nil {
 		log.Error(err, "Failed to get app namespace info for slice",
@@ -175,6 +147,6 @@ func (wh *WebhookServer) MutationRequired(metadata metav1.ObjectMeta) (bool, str
 		log.Info("Namespace not part of slice", "namespace", metadata.Namespace, "slice", sliceNameInNs)
 		return false, ""
 	}
-	// The annotation avesha.io/slice:SLICENAME is present, enable mutation
+	// The annotation kubeslice.io/slice:SLICENAME is present, enable mutation
 	return true, sliceNameInNs
 }
