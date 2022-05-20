@@ -72,6 +72,7 @@ type SliceConfig struct {
 // NamespaceIsolationProfile defines the namespace isolation policy for the slice
 type NamespaceIsolationProfile struct {
 	// Enable Namespace Isolation in the slice
+	// +kubebuilder:default:=false
 	IsolationEnabled bool `json:"isolationEnabled,omitempty"`
 	//Application namespaces is a list of namespaces that are bound to the slice
 	ApplicationNamespaces []string `json:"applicationNamespaces,omitempty"`
