@@ -34,10 +34,6 @@ func (r *SliceReconciler) ReconcileSliceNamespaces(ctx context.Context, slice *k
 func (r *SliceReconciler) reconcileAppNamespaces(ctx context.Context, slice *kubeslicev1beta1.Slice) (ctrl.Result, error, bool) {
 	log := logger.FromContext(ctx).WithValues("type", "appNamespaces")
 	debugLog := log.V(1)
-	//early exit if NamespaceIsolationProfile is not defined
-	if slice.Status.SliceConfig.NamespaceIsolationProfile == nil {
-		return ctrl.Result{}, nil, false
-	}
 	//cfgAppNsList = list of all app namespaces in slice CR
 	var cfgAppNsList []string
 	for _, qualifiedAppNs := range slice.Status.SliceConfig.NamespaceIsolationProfile.ApplicationNamespaces {
