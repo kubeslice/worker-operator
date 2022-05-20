@@ -15,6 +15,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
+var (
+	allowedNamespacesByDefault = []string{"kubeslice-system", "kube-system", "istio-system"}
+)
+
 func (r *SliceReconciler) ReconcileSliceNamespaces(ctx context.Context, slice *kubeslicev1beta1.Slice) (ctrl.Result, error, bool) {
 	res, err, reconcile := r.reconcileAppNamespaces(ctx, slice)
 	if reconcile {
@@ -34,6 +38,10 @@ func (r *SliceReconciler) ReconcileSliceNamespaces(ctx context.Context, slice *k
 func (r *SliceReconciler) reconcileAppNamespaces(ctx context.Context, slice *kubeslicev1beta1.Slice) (ctrl.Result, error, bool) {
 	log := logger.FromContext(ctx).WithValues("type", "appNamespaces")
 	debugLog := log.V(1)
+	//early exit if NamespaceIsolationProfile is not defined
+	if slice.Status.SliceConfig.NamespaceIsolationProfile == nil {
+		return ctrl.Result{}, nil, false
+	}
 	//cfgAppNsList = list of all app namespaces in slice CR
 	var cfgAppNsList []string
 	for _, qualifiedAppNs := range slice.Status.SliceConfig.NamespaceIsolationProfile.ApplicationNamespaces {
@@ -159,8 +167,12 @@ func (r *SliceReconciler) reconcileAllowedNamespaces(ctx context.Context, slice 
 
 	//cfgAllowedNsList contains list of allowedNamespaces from workersliceconfig
 	var cfgAllowedNsList []string
-	cfgAllowedNsList = append(cfgAllowedNsList, ControlPlaneNamespace)
 	cfgAllowedNsList = append(cfgAllowedNsList, slice.Status.SliceConfig.NamespaceIsolationProfile.AllowedNamespaces...)
+	for _, v := range allowedNamespacesByDefault {
+		if !exists(cfgAllowedNsList, v) {
+			cfgAllowedNsList = append(cfgAllowedNsList, v)
+		}
+	}
 	debugLog.Info("reconciling", "allowedNamespaces", cfgAllowedNsList)
 
 	// Get the list of existing namespaces that are tagged with the kube-slice label
@@ -420,6 +432,12 @@ func (r *SliceReconciler) installSliceNetworkPolicyInAppNs(ctx context.Context, 
 
 	var cfgAllowedNsList []string
 	cfgAllowedNsList = slice.Status.SliceConfig.NamespaceIsolationProfile.AllowedNamespaces
+	// traffic from "kubeslice-system","istio-system","kube-system" namespaces is allowed by default
+	for _, v := range allowedNamespacesByDefault {
+		if !exists(cfgAllowedNsList, v) {
+			cfgAllowedNsList = append(cfgAllowedNsList, v)
+		}
+	}
 	for _, allowedNs := range cfgAllowedNsList {
 		ingressRule := networkingv1.NetworkPolicyPeer{
 			NamespaceSelector: &metav1.LabelSelector{
@@ -467,4 +485,13 @@ func (r *SliceReconciler) cleanupSliceNamespaces(ctx context.Context, slice *kub
 			log.Error(err, "Failed to unbind namespace from slice", "namespace", existingAppNsObj.ObjectMeta.Name)
 		}
 	}
+}
+
+func exists(i []string, o string) bool {
+	for _, v := range i {
+		if v == o {
+			return true
+		}
+	}
+	return false
 }
