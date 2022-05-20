@@ -33,15 +33,15 @@ type SliceRouterConnCtx struct {
 	LocalNsmGwPeerIP       string
 }
 
-type workerClientConfig struct {
+type routerSidecarClient struct {
 	client sidecar.SliceRouterSidecarServiceClient
 }
 
-func NewWorkerRouterClientProvider() (*workerClientConfig, error) {
-	return &workerClientConfig{}, nil
+func NewWorkerRouterClientProvider() (*routerSidecarClient, error) {
+	return &routerSidecarClient{}, nil
 }
 
-func (worker workerClientConfig) GetClientConnectionInfo(ctx context.Context, addr string) ([]meshv1beta1.AppPod, error) {
+func (worker routerSidecarClient) GetClientConnectionInfo(ctx context.Context, addr string) ([]meshv1beta1.AppPod, error) {
 	conn, err := grpc.Dial(addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		return nil, err
@@ -67,7 +67,7 @@ func (worker workerClientConfig) GetClientConnectionInfo(ctx context.Context, ad
 	return appPods, nil
 }
 
-func (worker workerClientConfig) SendConnectionContext(ctx context.Context, serverAddr string, sliceRouterConnCtx *SliceRouterConnCtx) error {
+func (worker routerSidecarClient) SendConnectionContext(ctx context.Context, serverAddr string, sliceRouterConnCtx *SliceRouterConnCtx) error {
 	conn, err := grpc.Dial(serverAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		return err
