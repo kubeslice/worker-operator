@@ -194,9 +194,7 @@ func (r *SliceReconciler) updateSliceConfig(ctx context.Context, meshSlice *kube
 		TcType:                  spokeSlice.Spec.QosProfileDetails.TcType,
 		Priority:                spokeSlice.Spec.QosProfileDetails.Priority,
 	}
-
-	r.Log.Info("nsisolationprofile", "meshSlice.Status.SliceConfig.NamespaceIsolationProfile", meshSlice.Status.SliceConfig.NamespaceIsolationProfile.IsolationEnabled)
-
+	
 	meshSlice.Status.SliceConfig.NamespaceIsolationProfile = &kubeslicev1beta1.NamespaceIsolationProfile{
 		IsolationEnabled:      spokeSlice.Spec.NamespaceIsolationProfile.IsolationEnabled,
 		AllowedNamespaces:     spokeSlice.Spec.NamespaceIsolationProfile.AllowedNamespaces,
