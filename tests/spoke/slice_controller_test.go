@@ -354,8 +354,8 @@ var _ = Describe("SliceController", func() {
 			}
 
 			labels := map[string]string{
-				"avesha.io/slice":    slice.Name,
-				"avesha.io/pod-type": "app",
+				"kubeslice.io/slice":    slice.Name,
+				"kubeslice.io/pod-type": "app",
 			}
 
 			ann := map[string]string{
