@@ -234,13 +234,20 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 	}
 
 	debugLog.Info("reconciling app pods")
-	res, _, requeue = r.ReconcileAppPod(ctx, slice)
+	res, err, requeue = r.ReconcileAppPod(ctx, slice)
 
 	if requeue {
+		log.Info("app pods reconciled")
+
+		if err != nil {
+			// app pod reconciliation failed
+			return res, err
+		}
+
+		// reconciliation success, update the app pod list in controller
 		log.Info("updating app pod list in hub workersliceconfig status")
 		sliceConfigName := slice.Name + "-" + controllers.ClusterName
-		err = r.HubClient.UpdateAppPodsList(ctx, sliceConfigName, slice.Status.AppPods)
-		if err != nil {
+		if err = r.HubClient.UpdateAppPodsList(ctx, sliceConfigName, slice.Status.AppPods); err != nil {
 			log.Error(err, "Failed to update app pod list in hub")
 			//post event to slice
 			r.EventRecorder.Record(
@@ -254,9 +261,10 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 			return ctrl.Result{}, err
 		}
 
-		log.Info("app pods reconciled")
-		debugLog.Info("requeuing after app pod list reconcile", "res", res, "er", err)
-		return res, err
+		return ctrl.Result{
+			Requeue: true,
+		}, nil
+
 	}
 	return ctrl.Result{
 		RequeueAfter: controllers.ReconcileInterval,

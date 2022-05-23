@@ -26,11 +26,17 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
 	"github.com/kubeslice/worker-operator/controllers"
@@ -292,12 +298,115 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	return ctrl.Result{}, nil
 }
 
+func (r *SliceGwReconciler) findSliceGwObjectsToReconcile(pod client.Object) []reconcile.Request {
+	podLabels := pod.GetLabels()
+	if podLabels == nil {
+		return []reconcile.Request{}
+	}
+
+	podType, found := podLabels["avesha.io/pod-type"]
+	if !found {
+		return []reconcile.Request{}
+	}
+
+	sliceGwList := &kubeslicev1beta1.SliceGatewayList{}
+	var err error
+
+	if podType == "router" {
+		sliceName, found := podLabels["avesha.io/slice"]
+		if !found {
+			return []reconcile.Request{}
+		}
+
+		sliceGwList, err = r.findObjectsForSliceRouterUpdate(sliceName)
+		if err != nil {
+			return []reconcile.Request{}
+		}
+	} else if podType == "netop" {
+		sliceGwList, err = r.findObjectsForNetopUpdate()
+		if err != nil {
+			return []reconcile.Request{}
+		}
+	} else {
+		return []reconcile.Request{}
+	}
+
+	requests := make([]reconcile.Request, len(sliceGwList.Items))
+	for i, item := range sliceGwList.Items {
+		requests[i] = reconcile.Request{
+			NamespacedName: types.NamespacedName{
+				Name:      item.GetName(),
+				Namespace: item.GetNamespace(),
+			},
+		}
+	}
+
+	return requests
+}
+
+func (r *SliceGwReconciler) findObjectsForSliceRouterUpdate(sliceName string) (*kubeslicev1beta1.SliceGatewayList, error) {
+	sliceGwList := &kubeslicev1beta1.SliceGatewayList{}
+	listOpts := []client.ListOption{
+		client.MatchingLabels(map[string]string{"avesha.io/slice": sliceName}),
+	}
+	err := r.List(context.Background(), sliceGwList, listOpts...)
+	if err != nil {
+		return nil, err
+	}
+
+	return sliceGwList, nil
+}
+
+func (r *SliceGwReconciler) findObjectsForNetopUpdate() (*kubeslicev1beta1.SliceGatewayList, error) {
+	sliceGwList := &kubeslicev1beta1.SliceGatewayList{}
+	listOpts := []client.ListOption{
+		client.InNamespace(controllers.ControlPlaneNamespace),
+	}
+	err := r.List(context.Background(), sliceGwList, listOpts...)
+	if err != nil {
+		return nil, err
+	}
+
+	return sliceGwList, nil
+}
+
 // SetupWithManager sets up the controller with the Manager.
 func (r *SliceGwReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	var labelSelector metav1.LabelSelector
+
+	// The slice gateway reconciler needs to be invoked whenever there is an update to the
+	// slice router or the netop pods. This is needed to re-send connection context to the
+	// restarted slice router or netop pods.
+	// We will add a watch on those pods with appropriate label selectors for filtering.
+	labelSelector.MatchLabels = map[string]string{"avesha.io/pod-type": "router"}
+	slicerouterPredicate, err := predicate.LabelSelectorPredicate(labelSelector)
+	if err != nil {
+		return err
+	}
+
+	labelSelector.MatchLabels = map[string]string{"avesha.io/pod-type": "netop"}
+	netopPredicate, err := predicate.LabelSelectorPredicate(labelSelector)
+	if err != nil {
+		return err
+	}
+
+	// The mapping function for the slice router pod update should only invoke the reconciler
+	// of the slice gateway objects that belong to the same slice as the restarted slice router.
+	// The netop pods are slice agnostic. Hence, all slice gateway objects belonging to every slice
+	// should be invoked if a netop pod restarts. Its mapping function will select all the slice
+	// gateway objects in the control plane namespace.
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&kubeslicev1beta1.SliceGateway{}).
 		Owns(&appsv1.Deployment{}).
 		Owns(&corev1.Service{}).
+		Watches(&source.Kind{Type: &corev1.Pod{}},
+			handler.EnqueueRequestsFromMapFunc(r.findSliceGwObjectsToReconcile),
+			builder.WithPredicates(slicerouterPredicate),
+		).
+		Watches(&source.Kind{Type: &corev1.Pod{}},
+			handler.EnqueueRequestsFromMapFunc(r.findSliceGwObjectsToReconcile),
+			builder.WithPredicates(netopPredicate),
+		).
 		Complete(r)
 }
 
