@@ -2,7 +2,7 @@
 dockerbuildtestPipeline(
   script: this,
   service: 'worker-operator',
-  dockerfile: 'Dockerfile',
+  dockerfile: 'test.Dockerfile',
   buildContext: '.',
   buildArguments: [PLATFORM:"amd64"]
 )
