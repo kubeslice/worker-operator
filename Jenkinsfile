@@ -1,5 +1,5 @@
-@Library('jenkins-library@opensource-helm-pipeline') _
-dockerImagePipeline1(
+@Library('jenkins-library@unit-opensource') _
+dockerbuildtestPipeline(
   script: this,
   service: 'aveshasystems/worker-operator',
   dockerfile: 'Dockerfile',
