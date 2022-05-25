@@ -50,11 +50,14 @@ var sliceGwFinalizer = "mesh.kubeslice.io/slicegw-finalizer"
 // SliceReconciler reconciles a Slice object
 type SliceGwReconciler struct {
 	client.Client
-	Scheme        *runtime.Scheme
-	Log           logr.Logger
-	HubClient     HubClientProvider
-	NetOpPods     []NetOpPod
-	EventRecorder *events.EventRecorder
+	Scheme                *runtime.Scheme
+	Log                   logr.Logger
+	HubClient             HubClientProvider
+	WorkerRouterClient    WorkerRouterClientProvider
+	WorkerNetOpClient     WorkerNetOpClientProvider
+	WorkerGWSidecarClient WorkerGWSidecarClientProvider
+	NetOpPods             []NetOpPod
+	EventRecorder         *events.EventRecorder
 }
 
 func readyToDeployGwClient(sliceGw *kubeslicev1beta1.SliceGateway) bool {
