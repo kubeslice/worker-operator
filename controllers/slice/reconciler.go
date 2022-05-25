@@ -45,11 +45,13 @@ var sliceFinalizer = "mesh.kubeslice.io/slice-finalizer"
 // SliceReconciler reconciles a Slice object
 type SliceReconciler struct {
 	client.Client
-	EventRecorder *events.EventRecorder
-	Scheme        *runtime.Scheme
-	Log           logr.Logger
-	NetOpPods     []NetOpPod
-	HubClient     HubClientProvider
+	EventRecorder      *events.EventRecorder
+	Scheme             *runtime.Scheme
+	Log                logr.Logger
+	NetOpPods          []NetOpPod
+	HubClient          HubClientProvider
+	WorkerRouterClient WorkerRouterClientProvider
+	WorkerNetOpClient  WorkerNetOpClientProvider
 }
 
 //+kubebuilder:rbac:groups=networking.kubeslice.io,resources=slice,verbs=get;list;watch;create;update;patch;delete

@@ -66,7 +66,7 @@ func (r *SliceReconciler) SyncSliceQosProfileWithNetOp(ctx context.Context, slic
 
 	for _, n := range r.NetOpPods {
 		sidecarGrpcAddress := n.PodIP + ":5000"
-		err := netop.UpdateSliceQosProfile(ctx, sidecarGrpcAddress, slice)
+		err := r.WorkerNetOpClient.UpdateSliceQosProfile(ctx, sidecarGrpcAddress, slice)
 		if err != nil {
 			log.Error(err, "Failed to send qos to netop. PodIp: %v, PodName: %v", n.PodIP, n.PodName)
 			return err
@@ -102,7 +102,7 @@ func (r *SliceReconciler) SendSliceDeletionEventToNetOp(ctx context.Context, sli
 
 	for _, n := range r.NetOpPods {
 		sidecarGrpcAddress := n.PodIP + ":5000"
-		err := netop.SendSliceLifeCycleEventToNetOp(ctx, sidecarGrpcAddress, sliceName, netop.EventType_EV_DELETE)
+		err := r.WorkerNetOpClient.SendSliceLifeCycleEventToNetOp(ctx, sidecarGrpcAddress, sliceName, netop.EventType_EV_DELETE)
 		if err != nil {
 			log.Error(err, "Failed to send slice lifecycle event to netop. PodIp: %v, PodName: %v", n.PodIP, n.PodName)
 		}

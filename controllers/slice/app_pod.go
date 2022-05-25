@@ -25,7 +25,6 @@ import (
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
 	"github.com/kubeslice/worker-operator/controllers"
 	"github.com/kubeslice/worker-operator/internal/logger"
-	"github.com/kubeslice/worker-operator/internal/router"
 
 	corev1 "k8s.io/api/core/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -85,7 +84,7 @@ func (r *SliceReconciler) ReconcileAppPod(ctx context.Context, slice *kubeslicev
 	// Get the list of clients currently connected to the slice router. The list would include
 	// both app pods and slice GW pods. It will be compared against the list of app pods obtained
 	// from the k8s api using the labels used on app pods. This way the slice GW pods get filtered out.
-	podsConnectedToSlice, err := getSliceRouterConnectedPods(ctx, sliceName)
+	podsConnectedToSlice, err := r.getSliceRouterConnectedPods(ctx, sliceName)
 	if err != nil {
 		log.Error(err, "Failed to get pods connected to slice")
 		return ctrl.Result{}, err, true
@@ -160,9 +159,9 @@ func (r *SliceReconciler) ReconcileAppPod(ctx context.Context, slice *kubeslicev
 	return ctrl.Result{}, nil, false
 }
 
-func getSliceRouterConnectedPods(ctx context.Context, sliceName string) ([]kubeslicev1beta1.AppPod, error) {
+func (r *SliceReconciler) getSliceRouterConnectedPods(ctx context.Context, sliceName string) ([]kubeslicev1beta1.AppPod, error) {
 	sidecarGrpcAddress := sliceRouterDeploymentNamePrefix + sliceName + ":5000"
-	return router.GetClientConnectionInfo(ctx, sidecarGrpcAddress)
+	return r.WorkerRouterClient.GetClientConnectionInfo(ctx, sidecarGrpcAddress)
 }
 
 func findAppPodConnectedToSlice(podName string, connectedPods []kubeslicev1beta1.AppPod) *kubeslicev1beta1.AppPod {

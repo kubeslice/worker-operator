@@ -37,7 +37,14 @@ const (
 	EventType_EV_DELETE EventType = 2
 )
 
-func UpdateSliceQosProfile(ctx context.Context, addr string, slice *kubeslicev1beta1.Slice) error {
+type netopSidecarClient struct {
+}
+
+func NewWorkerNetOpClientProvider() (*netopSidecarClient, error) {
+	return &netopSidecarClient{}, nil
+}
+
+func (spoke netopSidecarClient) UpdateSliceQosProfile(ctx context.Context, addr string, slice *kubeslicev1beta1.Slice) error {
 	conn, err := grpc.Dial(addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		return err
@@ -65,7 +72,7 @@ func UpdateSliceQosProfile(ctx context.Context, addr string, slice *kubeslicev1b
 	return err
 }
 
-func SendSliceLifeCycleEventToNetOp(ctx context.Context, addr string, sliceName string, eventType EventType) error {
+func (spoke netopSidecarClient) SendSliceLifeCycleEventToNetOp(ctx context.Context, addr string, sliceName string, eventType EventType) error {
 	conn, err := grpc.Dial(addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		return err
@@ -91,7 +98,7 @@ func SendSliceLifeCycleEventToNetOp(ctx context.Context, addr string, sliceName 
 }
 
 // SendConnectionContext sends sonnectioncontext to netop sidecar
-func SendConnectionContext(ctx context.Context, serverAddr string, gw *kubeslicev1beta1.SliceGateway, sliceGwNodePort int32) error {
+func (spoke netopSidecarClient) SendConnectionContext(ctx context.Context, serverAddr string, gw *kubeslicev1beta1.SliceGateway, sliceGwNodePort int32) error {
 	conn, err := grpc.Dial(serverAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		return err

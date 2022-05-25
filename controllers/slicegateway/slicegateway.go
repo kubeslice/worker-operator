@@ -25,8 +25,6 @@ import (
 	"time"
 
 	"github.com/kubeslice/worker-operator/controllers"
-	"github.com/kubeslice/worker-operator/internal/netop"
-
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -564,7 +562,7 @@ func (r *SliceGwReconciler) ReconcileGwPodStatus(ctx context.Context, slicegatew
 
 	sidecarGrpcAddress := podIP + ":5000"
 
-	status, err := gwsidecar.GetStatus(ctx, sidecarGrpcAddress)
+	status, err := r.WorkerGWSidecarClient.GetStatus(ctx, sidecarGrpcAddress)
 	if err != nil {
 		log.Error(err, "Unable to fetch gw status")
 		return ctrl.Result{RequeueAfter: 10 * time.Second}, nil, true
@@ -606,7 +604,7 @@ func (r *SliceGwReconciler) SendConnectionContextToGwPod(ctx context.Context, sl
 		RemoteSliceGwNsmSubnet: slicegateway.Status.Config.SliceGatewayRemoteSubnet,
 	}
 
-	err := gwsidecar.SendConnectionContext(ctx, sidecarGrpcAddress, connCtx)
+	err := r.WorkerGWSidecarClient.SendConnectionContext(ctx, sidecarGrpcAddress, connCtx)
 	if err != nil {
 		log.Error(err, "Unable to send conn ctx to gw")
 		return ctrl.Result{RequeueAfter: 10 * time.Second}, nil, true
@@ -648,7 +646,7 @@ func (r *SliceGwReconciler) SendConnectionContextToSliceRouter(ctx context.Conte
 		LocalNsmGwPeerIP:       slicegateway.Status.LocalNsmIP,
 	}
 
-	err = router.SendConnectionContext(ctx, sidecarGrpcAddress, connCtx)
+	err = r.WorkerRouterClient.SendConnectionContext(ctx, sidecarGrpcAddress, connCtx)
 	if err != nil {
 		log.Error(err, "Unable to send conn ctx to slice router")
 		return ctrl.Result{RequeueAfter: 10 * time.Second}, nil, true
@@ -666,12 +664,12 @@ func (r *SliceGwReconciler) SyncNetOpConnectionContextAndQos(ctx context.Context
 		debugLog.Info("syncing netop pod", "podName", n.PodName)
 		sidecarGrpcAddress := n.PodIP + ":5000"
 
-		err := netop.SendConnectionContext(ctx, sidecarGrpcAddress, slicegw, sliceGwNodePort)
+		err := r.WorkerNetOpClient.SendConnectionContext(ctx, sidecarGrpcAddress, slicegw, sliceGwNodePort)
 		if err != nil {
 			log.Error(err, "Failed to send conn ctx to netop. PodIp: %v, PodName: %v", n.PodIP, n.PodName)
 			return err
 		}
-		err = netop.UpdateSliceQosProfile(ctx, sidecarGrpcAddress, slice)
+		err = r.WorkerNetOpClient.UpdateSliceQosProfile(ctx, sidecarGrpcAddress, slice)
 		if err != nil {
 			log.Error(err, "Failed to send qos to netop. PodIp: %v, PodName: %v", n.PodIP, n.PodName)
 			return err
