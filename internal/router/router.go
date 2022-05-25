@@ -34,7 +34,6 @@ type SliceRouterConnCtx struct {
 }
 
 type routerSidecarClient struct {
-	client sidecar.SliceRouterSidecarServiceClient
 }
 
 func NewWorkerRouterClientProvider() (*routerSidecarClient, error) {
@@ -47,8 +46,8 @@ func (worker routerSidecarClient) GetClientConnectionInfo(ctx context.Context, a
 		return nil, err
 	}
 	defer conn.Close()
-	worker.client = sidecar.NewSliceRouterSidecarServiceClient(conn)
-	info, err := worker.client.GetSliceRouterClientConnectionInfo(ctx, &emptypb.Empty{})
+	client := sidecar.NewSliceRouterSidecarServiceClient(conn)
+	info, err := client.GetSliceRouterClientConnectionInfo(ctx, &emptypb.Empty{})
 	if err != nil {
 		return nil, err
 	}
@@ -79,9 +78,9 @@ func (worker routerSidecarClient) SendConnectionContext(ctx context.Context, ser
 		LocalNsmGwPeerIP:       sliceRouterConnCtx.LocalNsmGwPeerIP,
 	}
 
-	worker.client = sidecar.NewSliceRouterSidecarServiceClient(conn)
+	client := sidecar.NewSliceRouterSidecarServiceClient(conn)
 
-	_, err = worker.client.UpdateSliceGwConnectionContext(ctx, msg)
+	_, err = client.UpdateSliceGwConnectionContext(ctx, msg)
 
 	return err
 }

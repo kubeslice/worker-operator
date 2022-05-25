@@ -52,7 +52,6 @@ type GwConnectionContext struct {
 }
 
 type gwSidecarClient struct {
-	Client sidecar.GwSidecarServiceClient
 }
 
 func NewWorkerGWSidecarClientProvider() (*gwSidecarClient, error) {
@@ -66,8 +65,9 @@ func (worker gwSidecarClient) GetStatus(ctx context.Context, serverAddr string) 
 		return nil, err
 	}
 	defer conn.Close()
-	worker.Client = sidecar.NewGwSidecarServiceClient(conn)
-	res, err := worker.Client.GetStatus(ctx, &empty.Empty{})
+	client := sidecar.NewGwSidecarServiceClient(conn)
+
+	res, err := client.GetStatus(ctx, &empty.Empty{})
 	if err != nil {
 		return nil, err
 	}
@@ -99,14 +99,14 @@ func (worker gwSidecarClient) SendConnectionContext(ctx context.Context, serverA
 	}
 	defer conn.Close()
 
-	worker.Client = sidecar.NewGwSidecarServiceClient(conn)
+	client := sidecar.NewGwSidecarServiceClient(conn)
 
 	msg := &sidecar.SliceGwConnectionContext{
 		RemoteSliceGwVpnIP:     gwConnCtx.RemoteSliceGwVpnIP,
 		RemoteSliceGwNsmSubnet: gwConnCtx.RemoteSliceGwNsmSubnet,
 	}
 
-	_, err = worker.Client.UpdateConnectionContext(ctx, msg)
+	_, err = client.UpdateConnectionContext(ctx, msg)
 
 	return err
 }

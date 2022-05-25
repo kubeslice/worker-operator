@@ -38,7 +38,6 @@ const (
 )
 
 type netopSidecarClient struct {
-	Client sidecar.NetOpsServiceClient
 }
 
 func NewWorkerNetOpClientProvider() (*netopSidecarClient, error) {
