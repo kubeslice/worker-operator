@@ -156,14 +156,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		log.Info("serviceimport updated with availableendpoints")
 	}
 
-	res, err, requeue := r.reconcileDNSEntries(ctx, serviceimport)
-	if requeue {
-		log.Info("DNS entries reconciled")
-		debugLog.Info("requeuing after DNS reconcile", "res", res, "er", err)
-		return res, err
-	}
-
-	res, err, requeue = r.reconcileIstio(ctx, serviceimport)
+	res, err, requeue := r.reconcileIstio(ctx, serviceimport)
 	if requeue {
 		log.Info("reconciled istio resources")
 		debugLog.Info("requeuing after Istio reconcile", "res", res, "er", err)
