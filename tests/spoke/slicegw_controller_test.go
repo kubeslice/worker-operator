@@ -119,7 +119,7 @@ var _ = Describe("Spoke SlicegwController", func() {
 			})
 		})
 
-		It("should create a gw nodeport service if gw type is Server", func() {
+		PIt("should create a gw nodeport service if gw type is Server", func() {
 			ctx := context.Background()
 			Expect(k8sClient.Create(ctx, slice)).Should(Succeed())
 			Expect(k8sClient.Create(ctx, vl3ServiceEndpoint)).Should(Succeed())
@@ -161,7 +161,7 @@ var _ = Describe("Spoke SlicegwController", func() {
 			}, time.Second*30, time.Millisecond*250).Should(BeTrue())
 		})
 
-		It("Should create a deployment for gw server", func() {
+		PIt("Should create a deployment for gw server", func() {
 			ctx := context.Background()
 			Expect(k8sClient.Create(ctx, slice)).Should(Succeed())
 			Expect(k8sClient.Create(ctx, vl3ServiceEndpoint)).Should(Succeed())
@@ -216,7 +216,7 @@ var _ = Describe("Spoke SlicegwController", func() {
 			Expect(founddepl.Spec.Template.Spec.Containers[1].Name).Should(Equal("avesha-openvpn-server"))
 		})
 
-		It("Should create a finalizer for the slicegw cr created", func() {
+		PIt("Should create a finalizer for the slicegw cr created", func() {
 			ctx := context.Background()
 
 			Eventually(func() bool {
@@ -265,7 +265,7 @@ var _ = Describe("Spoke SlicegwController", func() {
 			}, time.Second*30, time.Millisecond*250).Should(BeTrue())
 		})
 
-		It("Should create a deployment for gw client", func() {
+		PIt("Should create a deployment for gw client", func() {
 			ctx := context.Background()
 			Expect(k8sClient.Create(ctx, slice)).Should(Succeed())
 			Expect(k8sClient.Create(ctx, vl3ServiceEndpoint)).Should(Succeed())
@@ -384,7 +384,7 @@ var _ = Describe("Spoke SlicegwController", func() {
 			}
 		})
 
-		It("Should Delete All the dependent resources", func() {
+		PIt("Should Delete All the dependent resources", func() {
 			ctx := context.Background()
 			Expect(k8sClient.Create(ctx, slice)).Should(Succeed())
 			Expect(k8sClient.Create(ctx, vl3ServiceEndpoint)).Should(Succeed())
