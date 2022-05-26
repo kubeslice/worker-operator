@@ -149,35 +149,6 @@ func updateClusterInfoToHub(ctx context.Context, spokeclient client.Client, hubC
 
 func UpdateNamespaceInfoToHub(ctx context.Context, hubClient client.Client, onboardNamespace, sliceName string) error {
 	hubCluster := &hubv1alpha1.Cluster{}
-	err := hubClient.Get(ctx, types.NamespacedName{
-		Name:      os.Getenv("CLUSTER_NAME"),
-		Namespace: os.Getenv("HUB_PROJECT_NAMESPACE"),
-	}, hubCluster)
-	if err != nil {
-		return err
-	}
-	nsIndex, nsInfo := getNamespaceInfo(onboardNamespace, hubCluster.Status.Namespaces)
-	if nsInfo != nil && nsInfo.SliceName != sliceName {
-		// update the existing namespace
-		hubCluster.Status.Namespaces[nsIndex] = hubv1alpha1.NamespacesConfig{
-			Name:      onboardNamespace,
-			SliceName: sliceName,
-		}
-		log.Info("Updating namespace on hub cluster", "cluster", ClusterName, "namespace", onboardNamespace)
-		return updateNamespaceInfoToHub(hubClient, ctx, hubCluster, onboardNamespace, sliceName)
-	} else if nsIndex == -1 {
-		hubCluster.Status.Namespaces = append(hubCluster.Status.Namespaces, hubv1alpha1.NamespacesConfig{
-			Name:      onboardNamespace,
-			SliceName: sliceName,
-		})
-		log.Info("Adding namespace on hub cluster", "cluster", ClusterName, "namespace", onboardNamespace)
-		return updateNamespaceInfoToHub(hubClient, ctx, hubCluster, onboardNamespace, sliceName)
-	}
-	return nil
-}
-
-func updateNamespaceInfoToHub(hubClient client.Client, ctx context.Context,
-	hubCluster *hubv1alpha1.Cluster, onboardNamespace, sliceName string) error {
 	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		err := hubClient.Get(ctx, types.NamespacedName{
 			Name:      os.Getenv("CLUSTER_NAME"),
@@ -186,11 +157,21 @@ func updateNamespaceInfoToHub(hubClient client.Client, ctx context.Context,
 		if err != nil {
 			return err
 		}
-		hubCluster.Status.Namespaces = append(hubCluster.Status.Namespaces, hubv1alpha1.NamespacesConfig{
-			Name:      onboardNamespace,
-			SliceName: sliceName,
-		})
-		log.Info(" Retrying adding namespace on hub cluster", "cluster", os.Getenv("CLUSTER_NAME"), "namespace", onboardNamespace)
+		nsIndex, nsInfo := getNamespaceInfo(onboardNamespace, hubCluster.Status.Namespaces)
+		if nsInfo != nil && nsInfo.SliceName != sliceName {
+			// update the existing namespace
+			hubCluster.Status.Namespaces[nsIndex] = hubv1alpha1.NamespacesConfig{
+				Name:      onboardNamespace,
+				SliceName: sliceName,
+			}
+			log.Info("Updating namespace on hub cluster", "cluster", ClusterName, "namespace", onboardNamespace)
+		} else if nsIndex == -1 {
+			hubCluster.Status.Namespaces = append(hubCluster.Status.Namespaces, hubv1alpha1.NamespacesConfig{
+				Name:      onboardNamespace,
+				SliceName: sliceName,
+			})
+			log.Info("Adding namespace on hub cluster", "cluster", ClusterName, "namespace", onboardNamespace)
+		}
 		return hubClient.Status().Update(ctx, hubCluster)
 	})
 	if err != nil {
@@ -212,25 +193,6 @@ func indexOf(onboardNamespace string, ns []hubv1alpha1.NamespacesConfig) int {
 
 func DeleteNamespaceInfoFromHub(ctx context.Context, hubClient client.Client, onboardNamespace string) error {
 	hubCluster := &hubv1alpha1.Cluster{}
-	err := hubClient.Get(ctx, types.NamespacedName{
-		Name:      os.Getenv("CLUSTER_NAME"),
-		Namespace: os.Getenv("HUB_PROJECT_NAMESPACE"),
-	}, hubCluster)
-	if err != nil {
-		return err
-	}
-	toDeleteNs := indexOf(onboardNamespace, hubCluster.Status.Namespaces)
-	if toDeleteNs == -1 {
-		return nil
-	}
-	hubCluster.Status.Namespaces = append(hubCluster.Status.Namespaces[:toDeleteNs],
-		hubCluster.Status.Namespaces[toDeleteNs+1:]...)
-	log.Info("Deleting namespace on hub cluster", "cluster", ClusterName, "namespace", onboardNamespace)
-	return deleteNamespaceInfoToHub(hubClient, ctx, hubCluster, onboardNamespace)
-}
-
-func deleteNamespaceInfoToHub(hubClient client.Client, ctx context.Context,
-	hubCluster *hubv1alpha1.Cluster, onboardNamespace string) error {
 	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		err := hubClient.Get(ctx, types.NamespacedName{
 			Name:      os.Getenv("CLUSTER_NAME"),
@@ -243,9 +205,9 @@ func deleteNamespaceInfoToHub(hubClient client.Client, ctx context.Context,
 		if toDeleteNs == -1 {
 			return nil
 		}
+		log.Info("Deleting namespace on hub cluster", "cluster", ClusterName, "namespace", onboardNamespace)
 		hubCluster.Status.Namespaces = append(hubCluster.Status.Namespaces[:toDeleteNs],
 			hubCluster.Status.Namespaces[toDeleteNs+1:]...)
-		log.Info(" Retrying deleting namespace on hub cluster", "cluster", os.Getenv("CLUSTER_NAME"), "namespace", onboardNamespace)
 		return hubClient.Status().Update(ctx, hubCluster)
 	})
 	if err != nil {
