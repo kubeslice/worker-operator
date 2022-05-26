@@ -31,7 +31,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 )
 
-var _ = |PDescribe("Hub SlicegwController", func() {
+var _ = Describe("Hub SlicegwController", func() {
 	Context("With SpokeSliceGW created in hub", func() {
 		var hubSlice *workerv1alpha1.WorkerSliceConfig
 		var createdSlice *kubeslicev1beta1.Slice
@@ -173,7 +173,7 @@ var _ = |PDescribe("Hub SlicegwController", func() {
 			Expect(createdSliceGwOnSpoke.ObjectMeta.OwnerReferences[0].Name).Should(Equal("test-slice"))
 		})
 
-		|PIt("Should set slice as owner of slicegw", func() {
+		It("Should set slice as owner of slicegw", func() {
 			Expect(k8sClient.Create(ctx, hubSlice)).Should(Succeed())
 			Expect(k8sClient.Create(ctx, hubSliceGw)).Should(Succeed())
 			Expect(k8sClient.Create(ctx, hubSecret)).Should(Succeed())
