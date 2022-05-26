@@ -107,6 +107,15 @@ spec:
               secretName:
                 description: SecretName is the name of the secret for the worker cluster.
                 type: string
+              namespaces:
+                  type: array
+                  items:
+                    properties:
+                      name:
+                        type: string
+                      sliceName:
+                        type: string
+                    type: object
             type: object
         type: object
     served: true
