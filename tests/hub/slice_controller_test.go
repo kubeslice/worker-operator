@@ -33,7 +33,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 )
 
-var _ = Describe("Hub SliceController", func() {
+var _ = PDescribe("Hub SliceController", func() {
 
 	Context("With Slice CR created in hub", func() {
 
