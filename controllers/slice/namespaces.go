@@ -2,6 +2,7 @@ package slice
 
 import (
 	"context"
+
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
 	"github.com/kubeslice/worker-operator/controllers"
 	"github.com/kubeslice/worker-operator/internal/logger"
@@ -142,7 +143,7 @@ func (r *SliceReconciler) reconcileAppNamespaces(ctx context.Context, slice *kub
 		//TODO:
 		//post changes to workersliceconfig
 		sliceConfigName := slice.Name + "-" + controllers.ClusterName
-		err = r.HubClient.UpdateAppNamesapces(ctx, sliceConfigName, labeledAppNsList)
+		err = r.HubClient.UpdateAppNamespaces(ctx, sliceConfigName, labeledAppNsList)
 		if err != nil {
 			log.Error(err, "Failed to update workerslice status in controller cluster")
 			return ctrl.Result{}, err, true
@@ -256,10 +257,6 @@ func (r *SliceReconciler) unbindAppNamespace(ctx context.Context, slice *kubesli
 	if !ok {
 		debuglog.Info("NS unbind: slice label not found", "namespace", appNs)
 	} else {
-		// TBD: For now, we are just deleting the Avesha label from the namespace resource so that it becomes
-		// unreachable (due to the network policy) over the CNI network from other namespaces that are still part of
-		// the slice. But the namespace would still be reachable over the NSM network. We need to block the NSM
-		// network as well.
 		delete(nsLabels, ApplicationNamespaceSelectorLabelKey)
 
 		namespace.ObjectMeta.SetLabels(nsLabels)

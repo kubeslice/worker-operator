@@ -19,6 +19,7 @@ func NewWebhookClient() *webhookClient {
 func (w *webhookClient) SliceAppNamespaceConfigured(ctx context.Context, slice string, namespace string) (bool, error) {
 	return controllers.SliceAppNamespaceConfigured(ctx, slice, namespace)
 }
+
 func (w *webhookClient) GetNamespaceLabels(ctx context.Context, client client.Client, namespace string) (map[string]string, error) {
 
 	nS := &corev1.Namespace{}

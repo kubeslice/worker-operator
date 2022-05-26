@@ -129,6 +129,7 @@ spec:
                           type: string
                         type: array
                       isolationEnabled:
+                        default: false
                         description: Enable Namespace Isolation in the slice
                         type: boolean
                     type: object

@@ -20,6 +20,7 @@ package hubclient
 
 import (
 	"context"
+
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
 	"github.com/stretchr/testify/mock"
 )
@@ -52,7 +53,7 @@ func (hubClientEmulator *HubClientEmulator) DeleteServiceExport(
 	return nil
 }
 
-func (hubClientEmulator *HubClientEmulator) UpdateAppNamesapces(ctx context.Context, sliceConfigName string, onboardedNamespaces []string) error {
+func (hubClientEmulator *HubClientEmulator) UpdateAppNamespaces(ctx context.Context, sliceConfigName string, onboardedNamespaces []string) error {
 	return nil
 }
 func (hubClientEmulator *HubClientEmulator) UpdateAppPodsList(
