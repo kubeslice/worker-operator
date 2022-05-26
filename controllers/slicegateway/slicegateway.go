@@ -128,7 +128,7 @@ func (r *SliceGwReconciler) deploymentForGatewayServer(g *kubeslicev1beta1.Slice
 							RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
 								NodeSelectorTerms: []corev1.NodeSelectorTerm{{
 									MatchExpressions: []corev1.NodeSelectorRequirement{{
-										Key:      "avesha/node-type",
+										Key:      "kubeslice/node-type",
 										Operator: corev1.NodeSelectorOpIn,
 										Values:   []string{"gateway"},
 									}},
@@ -277,12 +277,12 @@ func (r *SliceGwReconciler) deploymentForGatewayServer(g *kubeslicev1beta1.Slice
 						},
 					},
 					Tolerations: []corev1.Toleration{{
-						Key:      "avesha/node-type",
+						Key:      "kubeslice/node-type",
 						Operator: "Equal",
 						Effect:   "NoSchedule",
 						Value:    "gateway",
 					}, {
-						Key:      "avesha/node-type",
+						Key:      "kubeslice/node-type",
 						Operator: "Equal",
 						Effect:   "NoExecute",
 						Value:    "gateway",
@@ -385,7 +385,7 @@ func (r *SliceGwReconciler) deploymentForGatewayClient(g *kubeslicev1beta1.Slice
 							RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
 								NodeSelectorTerms: []corev1.NodeSelectorTerm{{
 									MatchExpressions: []corev1.NodeSelectorRequirement{{
-										Key:      "avesha/node-type",
+										Key:      "kubeslice/node-type",
 										Operator: corev1.NodeSelectorOpIn,
 										Values:   []string{"gateway"},
 									}},
@@ -500,12 +500,12 @@ func (r *SliceGwReconciler) deploymentForGatewayClient(g *kubeslicev1beta1.Slice
 						},
 					}},
 					Tolerations: []corev1.Toleration{{
-						Key:      "avesha/node-type",
+						Key:      "kubeslice/node-type",
 						Operator: "Equal",
 						Effect:   "NoSchedule",
 						Value:    "gateway",
 					}, {
-						Key:      "avesha/node-type",
+						Key:      "kubeslice/node-type",
 						Operator: "Equal",
 						Effect:   "NoExecute",
 						Value:    "gateway",

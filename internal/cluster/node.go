@@ -42,7 +42,7 @@ type NodeInfo struct {
 	sync.Mutex
 }
 
-//GetNodeExternalIpList gets the list of External Node IPs of avesha-gateway nodes
+//GetNodeExternalIpList gets the list of External Node IPs of kubeslice-gateway nodes
 
 func (n *NodeInfo) getNodeExternalIpList(client client.Client) ([]string, error) {
 	// If node IP is set as an env variable, we use that as the only
@@ -69,7 +69,7 @@ func (n *NodeInfo) getNodeExternalIpList(client client.Client) ([]string, error)
 func (n *NodeInfo) populateNodeIpList() error {
 	ctx := context.Background()
 	nodeList := corev1.NodeList{}
-	labels := map[string]string{"avesha/node-type": "gateway"}
+	labels := map[string]string{"kubeslice/node-type": "gateway"}
 	listOptions := []client.ListOption{
 		client.MatchingLabels(labels),
 	}

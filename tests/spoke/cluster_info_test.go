@@ -43,7 +43,7 @@ var _ = Describe("ClusterInfoUpdate", func() {
 					Name: "test-node",
 					Labels: map[string]string{
 						"topology.kubernetes.io/region": "us-east-1",
-						"avesha/node-type":              "gateway",
+						"kubeslice/node-type":           "gateway",
 					},
 				},
 				Spec: corev1.NodeSpec{

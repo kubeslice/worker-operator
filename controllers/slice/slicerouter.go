@@ -285,7 +285,7 @@ func (r *SliceReconciler) deploymentForSliceRouter(s *kubeslicev1beta1.Slice, ip
 							RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
 								NodeSelectorTerms: []corev1.NodeSelectorTerm{{
 									MatchExpressions: []corev1.NodeSelectorRequirement{{
-										Key:      "avesha/node-type",
+										Key:      "kubeslice/node-type",
 										Operator: corev1.NodeSelectorOpIn,
 										Values:   []string{"gateway"},
 									}},
@@ -300,12 +300,12 @@ func (r *SliceReconciler) deploymentForSliceRouter(s *kubeslicev1beta1.Slice, ip
 					},
 					Volumes: r.getVolumeSpecForSliceRouter(s, dataplane),
 					Tolerations: []corev1.Toleration{{
-						Key:      "avesha/node-type",
+						Key:      "kubeslice/node-type",
 						Operator: "Equal",
 						Effect:   "NoSchedule",
 						Value:    "gateway",
 					}, {
-						Key:      "avesha/node-type",
+						Key:      "kubeslice/node-type",
 						Operator: "Equal",
 						Effect:   "NoExecute",
 						Value:    "gateway",
