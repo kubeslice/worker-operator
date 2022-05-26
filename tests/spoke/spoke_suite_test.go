@@ -44,6 +44,7 @@ import (
 	"github.com/kubeslice/worker-operator/controllers/slicegateway"
 	hub "github.com/kubeslice/worker-operator/internal/hub/hubclient"
 	namespace "github.com/kubeslice/worker-operator/internal/namespace/controllers"
+	"github.com/kubeslice/worker-operator/internal/networkpolicy"
 	"github.com/kubeslice/worker-operator/pkg/events"
 	hce "github.com/kubeslice/worker-operator/tests/emulator/hubclient"
 	workernetop "github.com/kubeslice/worker-operator/tests/emulator/workerclient/netop"
@@ -145,7 +146,8 @@ var _ = BeforeSuite(func() {
 	}).SetupWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())
 
-	err = (&slicegateway.SliceGwReconciler{
+	
+	err = (&serviceexport.Reconciler{
 		Client:    k8sManager.GetClient(),
 		Scheme:    k8sManager.GetScheme(),
 		Log:       ctrl.Log.WithName("SliceGwTest"),
@@ -201,6 +203,15 @@ var _ = BeforeSuite(func() {
 		Hubclient: &hub.HubClientConfig{
 			Client: k8sClient,
 		},
+	}).SetupWithManager(k8sManager)
+	Expect(err).ToNot(HaveOccurred())
+
+	netpolEventRecorder := events.NewEventRecorder(k8sManager.GetEventRecorderFor("networkpolicy-controller"))
+	err = (&networkpolicy.NetpolReconciler{
+		Client:        k8sManager.GetClient(),
+		Log:           ctrl.Log.WithName("controllers").WithName("networkpolicy"),
+		Scheme:        k8sManager.GetScheme(),
+		EventRecorder: netpolEventRecorder,
 	}).SetupWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())
 

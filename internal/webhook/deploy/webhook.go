@@ -32,17 +32,26 @@ import (
 )
 
 const (
-	admissionWebhookAnnotationInjectKey = "avesha.io/slice"
-	admissionWebhookAnnotationStatusKey = "avesha.io/status"
+	admissionWebhookAnnotationInjectKey       = "avesha.io/slice"
+	admissionWebhookAnnotationStatusKey       = "avesha.io/status"
+	podInjectLabelKey                         = "avesha.io/pod-type"
+	admissionWebhookSliceNamespaceSelectorKey = "kubeslice.io/slice"
+	controlPlaneNamespace                     = "kubeslice-system"
+	nsmInjectAnnotaionKey                     = "ns.networkservicemesh.io"
 )
 
 var (
 	log = logger.NewLogger().WithName("Webhook").V(1)
 )
 
+type SliceInfoProvider interface {
+	SliceAppNamespaceConfigured(ctx context.Context, slice string, namespace string) (bool, error)
+	GetNamespaceLabels(ctx context.Context, client client.Client, namespace string) (map[string]string, error)
+}
 type WebhookServer struct {
-	Client  client.Client
-	decoder *admission.Decoder
+	Client          client.Client
+	decoder         *admission.Decoder
+	SliceInfoClient SliceInfoProvider
 }
 
 func (wh *WebhookServer) Handle(ctx context.Context, req admission.Request) admission.Response {
@@ -53,12 +62,11 @@ func (wh *WebhookServer) Handle(ctx context.Context, req admission.Request) admi
 	}
 	log := logger.FromContext(ctx)
 
-	if !MutationRequired(deploy.ObjectMeta) {
+	if mutate, sliceName := wh.MutationRequired(deploy.ObjectMeta); !mutate {
 		log.Info("mutation not required", "pod metadata", deploy.Spec.Template.ObjectMeta)
 	} else {
 		log.Info("mutating deploy", "pod metadata", deploy.Spec.Template.ObjectMeta)
-		slice := deploy.ObjectMeta.Annotations[admissionWebhookAnnotationInjectKey]
-		deploy = Mutate(deploy, slice)
+		deploy = Mutate(deploy, sliceName)
 		log.Info("mutated deploy", "pod metadata", deploy.Spec.Template.ObjectMeta)
 	}
 
@@ -84,36 +92,61 @@ func Mutate(deploy *appsv1.Deployment, sliceName string) *appsv1.Deployment {
 
 	// Add vl3 annotation to pod template
 	annotations := deploy.Spec.Template.ObjectMeta.Annotations
-	annotations["ns.networkservicemesh.io"] = "vl3-service-" + sliceName
+	annotations[nsmInjectAnnotaionKey] = "vl3-service-" + sliceName
 
 	// Add slice identifier labels to pod template
 	labels := deploy.Spec.Template.ObjectMeta.Labels
-	labels["avesha.io/pod-type"] = "app"
-	labels["avesha.io/slice"] = sliceName
+	labels[podInjectLabelKey] = "app"
+	labels[admissionWebhookAnnotationInjectKey] = sliceName
 
 	return deploy
 }
 
-func MutationRequired(metadata metav1.ObjectMeta) bool {
+func (wh *WebhookServer) MutationRequired(metadata metav1.ObjectMeta) (bool, string) {
 	annotations := metadata.GetAnnotations()
-
-	// no annotations available for the object, skip mutation
-	if annotations == nil {
-		return false
+	//early exit if metadata in nil
+	//we allow empty annotation, but namespace should not be empty
+	if metadata.GetNamespace() == "" {
+		return false, ""
 	}
-
-	if metadata.GetAnnotations()[admissionWebhookAnnotationStatusKey] == "injected" {
+	// do not inject if it is already injected
+	//TODO(rahulsawra): need better way to define injected status
+	if annotations[admissionWebhookAnnotationStatusKey] == "injected" {
 		log.Info("Deployment is already injected")
-		return false
+		return false, ""
 	}
 
-	if metadata.GetLabels()["avesha.io/pod-type"] == "app" {
-		log.Info("Pod is already injected")
-		return false
+	// Do not auto onboard control plane namespace. Ideally, we should not have any deployment/pod in the control plane ns connect to a slice
+	if metadata.Namespace == controlPlaneNamespace {
+		return false, ""
 	}
 
-	// TODO namespace isolation policy
+	nsLabels, err := wh.SliceInfoClient.GetNamespaceLabels(context.Background(), wh.Client, metadata.Namespace)
+	if err != nil {
+		log.Error(err, "Error getting namespace labels")
+		return false, ""
+	}
+	if nsLabels == nil {
+		log.Info("Namespace has no labels")
+		return false, ""
+	}
 
-	// The annotation avesha.io/slice:SLICENAME is present, enable mutation
-	return annotations[admissionWebhookAnnotationInjectKey] != ""
+	sliceNameInNs, sliceLabelPresent := nsLabels[admissionWebhookSliceNamespaceSelectorKey]
+	if !sliceLabelPresent {
+		log.Info("Namespace has no slice labels")
+		return false, ""
+	}
+
+	nsConfigured, err := wh.SliceInfoClient.SliceAppNamespaceConfigured(context.Background(), sliceNameInNs, metadata.Namespace)
+	if err != nil {
+		log.Error(err, "Failed to get app namespace info for slice",
+			"slice", sliceNameInNs, "namespace", metadata.Namespace)
+		return false, ""
+	}
+	if !nsConfigured {
+		log.Info("Namespace not part of slice", "namespace", metadata.Namespace, "slice", sliceNameInNs)
+		return false, ""
+	}
+	// The annotation kubeslice.io/slice:SLICENAME is present, enable mutation
+	return true, sliceNameInNs
 }

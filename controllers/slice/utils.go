@@ -28,6 +28,9 @@ import (
 
 func (r *SliceReconciler) cleanupSliceResources(ctx context.Context, slice *kubeslicev1beta1.Slice) {
 	r.Log.Info("Cleaning the slice resources!!")
+	//cleanup slice namespaces label and netpol
+	r.cleanupSliceNamespaces(ctx, slice)
+	//cleanup slice router network service
 	r.cleanupSliceRouter(ctx, slice.Name)
 	//cleanup Service Discovery objects - serviceimport and export objects that belong to this slice
 	r.cleanupServiceDiscoveryObjects(ctx, slice.Name)
