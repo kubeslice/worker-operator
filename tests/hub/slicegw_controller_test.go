@@ -31,7 +31,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 )
 
-var _ = Describe("Hub SlicegwController", func() {
+var _ = |PDescribe("Hub SlicegwController", func() {
 	Context("With SpokeSliceGW created in hub", func() {
 		var hubSlice *workerv1alpha1.WorkerSliceConfig
 		var createdSlice *kubeslicev1beta1.Slice
