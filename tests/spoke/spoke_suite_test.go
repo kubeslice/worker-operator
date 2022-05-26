@@ -123,6 +123,15 @@ var _ = BeforeSuite(func() {
 	})
 	Expect(err).ToNot(HaveOccurred())
 
+	workerClientSidecarGwEmulator, err = workergw.NewClientEmulator()
+	Expect(err).ToNot(HaveOccurred())
+
+	workerClientRouterEmulator, err = workerrouter.NewClientEmulator()
+	Expect(err).ToNot(HaveOccurred())
+
+	workerClientNetopEmulator, err = workernetop.NewClientEmulator()
+	Expect(err).ToNot(HaveOccurred())
+
 	err = (&slice.SliceReconciler{
 		Client: k8sManager.GetClient(),
 		Scheme: k8sManager.GetScheme(),
@@ -130,7 +139,9 @@ var _ = BeforeSuite(func() {
 		EventRecorder: &events.EventRecorder{
 			Recorder: &record.FakeRecorder{},
 		},
-		HubClient: hubClientEmulator,
+		HubClient:          hubClientEmulator,
+		WorkerRouterClient: workerClientRouterEmulator,
+		WorkerNetOpClient:  workerClientNetopEmulator,
 	}).SetupWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())
 
@@ -146,15 +157,6 @@ var _ = BeforeSuite(func() {
 	Expect(err).ToNot(HaveOccurred())
 
 	testSvcExEventRecorder := events.NewEventRecorder(k8sManager.GetEventRecorderFor("test-SvcEx-controller"))
-
-	workerClientSidecarGwEmulator, err = workergw.NewClientEmulator()
-	Expect(err).ToNot(HaveOccurred())
-
-	workerClientRouterEmulator, err = workerrouter.NewClientEmulator()
-	Expect(err).ToNot(HaveOccurred())
-
-	workerClientNetopEmulator, err = workernetop.NewClientEmulator()
-	Expect(err).ToNot(HaveOccurred())
 
 	err = (&slicegateway.SliceGwReconciler{
 		Client: k8sManager.GetClient(),
