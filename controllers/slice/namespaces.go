@@ -247,6 +247,10 @@ func (r *SliceReconciler) unbindAppNamespace(ctx context.Context, slice *kubesli
 	debuglog := log.V(1)
 	namespace := &corev1.Namespace{}
 	err := r.Get(ctx, types.NamespacedName{Name: appNs}, namespace)
+	//namespace might be deleted by user/admin
+	if errors.IsNotFound(err){
+		return nil
+	}
 	if err != nil {
 		log.Error(err, "NS unbind: Failed to find namespace", "namespace", appNs)
 		return err
@@ -258,9 +262,7 @@ func (r *SliceReconciler) unbindAppNamespace(ctx context.Context, slice *kubesli
 		debuglog.Info("NS unbind: slice label not found", "namespace", appNs)
 	} else {
 		delete(nsLabels, ApplicationNamespaceSelectorLabelKey)
-
 		namespace.ObjectMeta.SetLabels(nsLabels)
-
 		err = r.Update(ctx, namespace)
 		if err != nil {
 			log.Error(err, "NS unbind: Failed to remove slice label", "namespace", appNs)
