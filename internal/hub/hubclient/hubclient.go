@@ -110,41 +110,43 @@ func PostClusterInfoToHub(ctx context.Context, spokeclient client.Client, hubCli
 
 func updateClusterInfoToHub(ctx context.Context, spokeclient client.Client, hubClient client.Client, clusterName, nodeIP string, namespace string) error {
 	hubCluster := &hubv1alpha1.Cluster{}
-	err := hubClient.Get(ctx, types.NamespacedName{
-		Name:      clusterName,
-		Namespace: namespace,
-	}, hubCluster)
-	if err != nil {
-		return err
-	}
+	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		err := hubClient.Get(ctx, types.NamespacedName{
+			Name:      clusterName,
+			Namespace: namespace,
+		}, hubCluster)
+		if err != nil {
+			return err
+		}
 
-	c := cluster.NewCluster(spokeclient, clusterName)
-	//get geographical info
-	clusterInfo, err := c.GetClusterInfo(ctx)
-	if err != nil {
-		log.Error(err, "Error getting clusterInfo")
-		return err
-	}
-	cniSubnet, err := c.GetNsmExcludedPrefix(ctx, "nsm-config", "kubeslice-system")
-	if err != nil {
-		log.Error(err, "Error getting cni Subnet")
-		return err
-	}
-	log.Info("cniSubnet", "cniSubnet", cniSubnet)
-	hubCluster.Spec.ClusterProperty.GeoLocation.CloudRegion = clusterInfo.ClusterProperty.GeoLocation.CloudRegion
-	hubCluster.Spec.ClusterProperty.GeoLocation.CloudProvider = clusterInfo.ClusterProperty.GeoLocation.CloudProvider
-	hubCluster.Spec.NodeIP = nodeIP
-	hubCluster.Status.CniSubnet = cniSubnet
-	if err := hubClient.Update(ctx, hubCluster); err != nil {
-		log.Error(err, "Error updating to cluster spec on hub cluster")
-		return err
-	}
-	hubCluster.Status.CniSubnet = cniSubnet
-	if err := hubClient.Status().Update(ctx, hubCluster); err != nil {
-		log.Error(err, "Error updating cniSubnet to cluster status on hub cluster")
-		return err
-	}
-	return nil
+		c := cluster.NewCluster(spokeclient, clusterName)
+		//get geographical info
+		clusterInfo, err := c.GetClusterInfo(ctx)
+		if err != nil {
+			log.Error(err, "Error getting clusterInfo")
+			return err
+		}
+		cniSubnet, err := c.GetNsmExcludedPrefix(ctx, "nsm-config", "kubeslice-system")
+		if err != nil {
+			log.Error(err, "Error getting cni Subnet")
+			return err
+		}
+		log.Info("cniSubnet", "cniSubnet", cniSubnet)
+		hubCluster.Spec.ClusterProperty.GeoLocation.CloudRegion = clusterInfo.ClusterProperty.GeoLocation.CloudRegion
+		hubCluster.Spec.ClusterProperty.GeoLocation.CloudProvider = clusterInfo.ClusterProperty.GeoLocation.CloudProvider
+		hubCluster.Spec.NodeIP = nodeIP
+		if err := hubClient.Update(ctx, hubCluster); err != nil {
+			log.Error(err, "Error updating to cluster spec on hub cluster")
+			return err
+		}
+		hubCluster.Status.CniSubnet = cniSubnet
+		if err := hubClient.Status().Update(ctx, hubCluster); err != nil {
+			log.Error(err, "Error updating cniSubnet to cluster status on hub cluster")
+			return err
+		}
+		return nil
+	})
+	return err
 }
 
 func UpdateNamespaceInfoToHub(ctx context.Context, hubClient client.Client, onboardNamespace, sliceName string) error {
