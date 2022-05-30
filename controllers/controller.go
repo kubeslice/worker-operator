@@ -23,10 +23,20 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/go-logr/logr"
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
+	"github.com/kubeslice/worker-operator/internal/logger"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
+	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
+	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+)
+
+var (
+	log logr.Logger = logger.NewLogger()
 )
 
 // GetSlice returns slice object by slice name
@@ -91,4 +101,31 @@ func GetSliceRouterPodNameAndIP(ctx context.Context, c client.Client, sliceName 
 	}
 
 	return "", "", nil
+}
+
+// SliceAppNamespaceConfigured returns true if the namespace is present in the application namespace list
+// configured for the slice
+func SliceAppNamespaceConfigured(ctx context.Context, slice string, namespace string) (bool, error) {
+	scheme := runtime.NewScheme()
+	utilruntime.Must(kubeslicev1beta1.AddToScheme(scheme))
+	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
+	c, err := client.New(ctrl.GetConfigOrDie(), client.Options{
+		Scheme: scheme,
+	})
+	if err != nil {
+		log.Error(err, "Creating new client for webhook call->SliceAppNamespaceConfigured")
+		return false, err
+	}
+
+	s, err := GetSlice(ctx, c, slice)
+	if err != nil {
+		return false, err
+	}
+
+	for _, ns := range s.Status.SliceConfig.NamespaceIsolationProfile.ApplicationNamespaces {
+		if ns == namespace {
+			return true, nil
+		}
+	}
+	return false, nil
 }

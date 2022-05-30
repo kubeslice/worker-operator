@@ -19,76 +19,64 @@
 package deploy_test
 
 import (
+	"context"
+
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/kubeslice/worker-operator/internal/webhook/deploy"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+type fakeWebhookClient struct{}
+
+func (f fakeWebhookClient) UpdateSliceApplicationNamespaces(ctx context.Context, slice string, namespace string) error {
+	return nil
+}
+
+func (f fakeWebhookClient) SliceAppNamespaceConfigured(ctx context.Context, slice string, namespace string) (bool, error) {
+	return true, nil
+}
+func (f fakeWebhookClient) GetNamespaceLabels(ctx context.Context, client client.Client, namespace string) (map[string]string, error) {
+	return map[string]string{"kubeslice.io/slice": "green"}, nil
+}
+
 var _ = Describe("Deploy Webhook", func() {
-
+	fakeWhClient := new(fakeWebhookClient)
+	webhookServer := deploy.WebhookServer{
+		SliceInfoClient: fakeWhClient,
+	}
 	Describe("MutationRequired", func() {
-		Context("New deployment without proper annotation", func() {
-
-			table := []metav1.ObjectMeta{
-				{}, // with empty meta
-				{
-					Annotations: map[string]string{}, // with empty annotations
-				},
-				{
-					Annotations: map[string]string{
-						"avesha.io/status": "",
-					}, // with empty value for status key
-				},
-				{
-					Annotations: map[string]string{
-						"avesha.io/slice": "",
-					}, // with empty value for slice key
-				},
-				{
-					Annotations: map[string]string{
-						"avesha.io/status": "not injected",
-					}, // with different value for status key
-				},
-			}
-
-			It("should not enable injection", func() {
-
-				for _, meta := range table {
-					is := deploy.MutationRequired(meta)
-					Expect(is).To(BeFalse())
-				}
-
-			})
-		})
-
 		Context("New deployment with proper annotation", func() {
 
 			table := []metav1.ObjectMeta{
 				{
 					Annotations: map[string]string{
-						"avesha.io/slice": "green",
+						"kubeslice.io/slice": "green",
 					}, // with proper annotations
+					Namespace: "test-ns",
 				},
 				{
 					Annotations: map[string]string{
-						"avesha.io/slice":  "green",
-						"avesha.io/status": "",
+						"kubeslice.io/slice": "green",
+						"avesha.io/status":   "",
 					}, // with empty value for status key
+					Namespace: "test-ns",
 				},
 				{
 					Annotations: map[string]string{
-						"avesha.io/slice":  "green",
-						"avesha.io/status": "not injected",
+						"kubeslice.io/slice": "green",
+						"avesha.io/status":   "not injected",
 					}, // with different value for status key
+					Namespace: "test-ns",
 				},
 			}
 
 			It("should enable injection", func() {
 
 				for _, meta := range table {
-					is := deploy.MutationRequired(meta)
+					is, _ := webhookServer.MutationRequired(meta)
 					Expect(is).To(BeTrue())
 				}
 
@@ -102,19 +90,7 @@ var _ = Describe("Deploy Webhook", func() {
 					Annotations: map[string]string{
 						"avesha.io/status": "injected",
 					}, // with injection status
-				},
-				{
-					Labels: map[string]string{
-						"avesha.io/pod-type": "app",
-					}, // with pod type set
-				},
-				{
-					Annotations: map[string]string{
-						"avesha.io/status": "injected",
-					}, // with injection status
-					Labels: map[string]string{
-						"avesha.io/pod-type": "app",
-					}, // with pod type set
+					Namespace: "test-ns",
 				},
 				{
 					Namespace: "kubeslice-system",
@@ -123,10 +99,24 @@ var _ = Describe("Deploy Webhook", func() {
 			It("Should skip injection", func() {
 
 				for _, meta := range table {
-					is := deploy.MutationRequired(meta)
+					is, _ := webhookServer.MutationRequired(meta)
 					Expect(is).To(BeFalse())
 				}
 
+			})
+		})
+		Context("Empty annotations,but namespace is part of slice->auto netpol", func() {
+			table := []metav1.ObjectMeta{
+				{
+					Annotations: map[string]string{}, //empty
+					Namespace:   "test-namespace",
+				},
+			}
+			It("should enable injection", func() {
+				for _, meta := range table {
+					is, _ := webhookServer.MutationRequired(meta)
+					Expect(is).To(BeTrue())
+				}
 			})
 		})
 	})

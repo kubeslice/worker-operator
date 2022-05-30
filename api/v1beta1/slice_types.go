@@ -65,6 +65,19 @@ type SliceConfig struct {
 	SliceIpam SliceIpamConfig `json:"sliceIpam"`
 	// ExternalGatewayConfig determines istio ingress/egress configuration
 	ExternalGatewayConfig *ExternalGatewayConfig `json:"externalGatewayConfig,omitempty"`
+	// Namespace Isolation profile contains fields related to namespace binding to slice
+	NamespaceIsolationProfile *NamespaceIsolationProfile `json:"namespaceIsolationProfile,omitempty"`
+}
+
+// NamespaceIsolationProfile defines the namespace isolation policy for the slice
+type NamespaceIsolationProfile struct {
+	// Enable Namespace Isolation in the slice
+	// +kubebuilder:default:=false
+	IsolationEnabled bool `json:"isolationEnabled,omitempty"`
+	//Application namespaces is a list of namespaces that are bound to the slice
+	ApplicationNamespaces []string `json:"applicationNamespaces,omitempty"`
+	//Allowed namespaces is a list of namespaces that can send and receive traffic to app namespaces
+	AllowedNamespaces []string `json:"allowedNamespaces,omitempty"`
 }
 
 // ExternalGatewayConfig determines istio ingress/egress configuration
@@ -105,6 +118,13 @@ type SliceStatus struct {
 	AppPods []AppPod `json:"appPods,omitempty"`
 	// AppPodsUpdatedOn is the time when app pods list was updated
 	AppPodsUpdatedOn int64 `json:"appPodsUpdatedOn,omitempty"`
+	// NetworkPoliciesInstalled defines whether the netpol are installed in atleast one applicationNamespace
+	// +kubebuilder:default:=false
+	NetworkPoliciesInstalled bool `json:"networkPoliciesInstalled,omitempty"`
+	// Slice Application Namespace list
+	ApplicationNamespaces []string `json:"applicationNamespaces,omitempty"`
+	// Slice Allowed Namespace list
+	AllowedNamespaces []string `json:"allowedNamespaces,omitempty"`
 }
 
 //+kubebuilder:object:root=true
