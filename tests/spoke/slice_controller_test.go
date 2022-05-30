@@ -45,7 +45,7 @@ var _ = Describe("SliceController", func() {
 		var svc *corev1.Service
 		BeforeEach(func() {
 
-			// Prepare k8s objects for slice and mesh-dns service
+			// Prepare k8s objects for slice and kubeslice-dns service
 			slice = &kubeslicev1beta1.Slice{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "test-slice",
@@ -82,7 +82,7 @@ var _ = Describe("SliceController", func() {
 		It("Should update slice status with DNS IP", func() {
 			ctx := context.Background()
 
-			// Create slice and mesh-dns service
+			// Create slice and kubeslice-dns service
 			Expect(k8sClient.Create(ctx, slice)).Should(Succeed())
 			Expect(k8sClient.Create(ctx, svc)).Should(Succeed())
 

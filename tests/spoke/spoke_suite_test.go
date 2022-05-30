@@ -158,6 +158,15 @@ var _ = BeforeSuite(func() {
 
 	testSvcExEventRecorder := events.NewEventRecorder(k8sManager.GetEventRecorderFor("test-SvcEx-controller"))
 
+	workerClientSidecarGwEmulator, err = workergw.NewClientEmulator()
+	Expect(err).ToNot(HaveOccurred())
+
+	workerClientRouterEmulator, err = workerrouter.NewClientEmulator()
+	Expect(err).ToNot(HaveOccurred())
+
+	workerClientNetopEmulator, err = workernetop.NewClientEmulator()
+	Expect(err).ToNot(HaveOccurred())
+
 	err = (&slicegateway.SliceGwReconciler{
 		Client: k8sManager.GetClient(),
 		Scheme: k8sManager.GetScheme(),

@@ -69,7 +69,7 @@ func (n *NodeInfo) getNodeExternalIpList(client client.Client) ([]string, error)
 func (n *NodeInfo) populateNodeIpList() error {
 	ctx := context.Background()
 	nodeList := corev1.NodeList{}
-	labels := map[string]string{"kubeslice/node-type": "gateway"}
+	labels := map[string]string{"kubeslice.io/node-type": "gateway"}
 	listOptions := []client.ListOption{
 		client.MatchingLabels(labels),
 	}
