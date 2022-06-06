@@ -39,7 +39,7 @@ var sliceGwFinalizer = []string{
 	"mesh.kubeslice.io/slicegw-finalizer"}
 
 
-var _ = PDescribe("Spoke SlicegwController", func() {
+var _ = Describe("Spoke SlicegwController", func() {
 
 
 	var sliceGw *kubeslicev1beta1.SliceGateway
@@ -160,7 +160,7 @@ var _ = PDescribe("Spoke SlicegwController", func() {
 			})
 		})
 
-		PIt("should create a gw nodeport service if gw type is Server", func() {
+		It("should create a gw nodeport service if gw type is Server", func() {
 			ctx := context.Background()
 			Expect(k8sClient.Create(ctx, slice)).Should(Succeed())
 			Expect(k8sClient.Create(ctx, vl3ServiceEndpoint)).Should(Succeed())
@@ -202,7 +202,7 @@ var _ = PDescribe("Spoke SlicegwController", func() {
 			}, time.Second*30, time.Millisecond*250).Should(BeTrue())
 		})
 
-		PIt("Should create a deployment for gw server", func() {
+		It("Should create a deployment for gw server", func() {
 			ctx := context.Background()
 			Expect(k8sClient.Create(ctx, slice)).Should(Succeed())
 			Expect(k8sClient.Create(ctx, vl3ServiceEndpoint)).Should(Succeed())
@@ -258,7 +258,7 @@ var _ = PDescribe("Spoke SlicegwController", func() {
 			Expect(founddepl.Spec.Template.Spec.Containers[1].Name).Should(Equal("avesha-openvpn-server"))
 		})
 
-		PIt("Should create a finalizer for the slicegw cr created", func() {
+		It("Should create a finalizer for the slicegw cr created", func() {
 			ctx := context.Background()
 
 			Eventually(func() bool {
@@ -315,7 +315,7 @@ var _ = PDescribe("Spoke SlicegwController", func() {
 			}, time.Second*10, time.Millisecond*250).Should(BeTrue())
 		})
 
-		PIt("Should create a deployment for gw client", func() {
+		It("Should create a deployment for gw client", func() {
 			ctx := context.Background()
 			Expect(k8sClient.Create(ctx, slice)).Should(Succeed())
 			Expect(k8sClient.Create(ctx, vl3ServiceEndpoint)).Should(Succeed())
@@ -435,7 +435,7 @@ var _ = PDescribe("Spoke SlicegwController", func() {
 			}
 		})
 
-		PIt("Should Delete All the dependent resources", func() {
+		It("Should Delete All the dependent resources", func() {
 			ctx := context.Background()
 			Expect(k8sClient.Create(ctx, slice)).Should(Succeed())
 			Expect(k8sClient.Create(ctx, vl3ServiceEndpoint)).Should(Succeed())
