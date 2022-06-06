@@ -278,11 +278,16 @@ var _ = Describe("ServiceExportController", func() {
 				return err == nil
 			}, time.Second*10, time.Millisecond*250).Should(BeTrue())
 
-			for _, event := range events.Items {
-				if event.Source.Component == "test-SvcEx-controller" && event.InvolvedObject.Kind == "ServiceExport" {
-					Expect(event.Message).To(Equal("Successfully posted serviceexport to kubeslice-controller cluster"))
+			var message string
+
+			Eventually(func() string {
+				for _, event := range events.Items {
+					if event.Source.Component == "test-SvcEx-controller" && event.InvolvedObject.Kind == "ServiceExport" {
+						message = event.Message
+					}
 				}
-			}
+				return message
+			}, time.Second*10, time.Millisecond*250).Should(Equal("Successfully posted serviceexport to kubeslice-controller cluster"))
 		})
 	})
 })
