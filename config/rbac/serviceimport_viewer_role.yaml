@@ -5,7 +5,7 @@ metadata:
   name: serviceimport-viewer-role
 rules:
 - apiGroups:
-  - mesh.avesha.io
+  - networking.kubeslice.io
   resources:
   - serviceimports
   verbs:
@@ -13,7 +13,7 @@ rules:
   - list
   - watch
 - apiGroups:
-  - mesh.avesha.io
+  - networking.kubeslice.io
   resources:
   - serviceimports/status
   verbs:

@@ -46,7 +46,7 @@ var _ = Describe("ClusterInfoUpdate", func() {
 		BeforeEach(func() {
 			ns = &corev1.Namespace{
 				ObjectMeta: metav1.ObjectMeta{
-					Name: "kubeslice-avesha-1",
+					Name: "kubeslice-kubeslice-1",
 				},
 			}
 			os.Setenv("HUB_PROJECT_NAMESPACE", ns.Name)
@@ -62,7 +62,7 @@ var _ = Describe("ClusterInfoUpdate", func() {
 			slice = &kubeslicev1beta1.Slice{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "test-slice",
-					Namespace: "kubeslice-avesha-1",
+					Namespace: "kubeslice-kubeslice-1",
 				},
 				Spec:   kubeslicev1beta1.SliceSpec{},
 				Status: kubeslicev1beta1.SliceStatus{},
@@ -111,7 +111,7 @@ var _ = Describe("ClusterInfoUpdate", func() {
 		BeforeEach(func() {
 			ns = &corev1.Namespace{
 				ObjectMeta: metav1.ObjectMeta{
-					Name: "kubeslice-avesha-3",
+					Name: "kubeslice-kubeslice-3",
 				},
 			}
 			os.Setenv("HUB_PROJECT_NAMESPACE", ns.Name)
@@ -171,7 +171,7 @@ var _ = Describe("ClusterInfoUpdate", func() {
 		BeforeEach(func() {
 			ns = &corev1.Namespace{
 				ObjectMeta: metav1.ObjectMeta{
-					Name: "kubeslice-avesha-2",
+					Name: "kubeslice-kubeslice-2",
 				},
 			}
 			os.Setenv("HUB_PROJECT_NAMESPACE", ns.Name)
@@ -268,7 +268,7 @@ var _ = Describe("ClusterInfoUpdate", func() {
 		BeforeEach(func() {
 			ns = &corev1.Namespace{
 				ObjectMeta: metav1.ObjectMeta{
-					Name: "kubeslice-avesha-4",
+					Name: "kubeslice-kubeslice-4",
 				},
 			}
 			os.Setenv("HUB_PROJECT_NAMESPACE", ns.Name)
@@ -347,7 +347,7 @@ var _ = Describe("ClusterInfoUpdate", func() {
 		BeforeEach(func() {
 			ns = &corev1.Namespace{
 				ObjectMeta: metav1.ObjectMeta{
-					Name: "kubeslice-avesha-5",
+					Name: "kubeslice-kubeslice-5",
 				},
 			}
 			os.Setenv("HUB_PROJECT_NAMESPACE", ns.Name)
@@ -363,7 +363,7 @@ var _ = Describe("ClusterInfoUpdate", func() {
 			slice = &kubeslicev1beta1.Slice{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "test-slice",
-					Namespace: "kubeslice-avesha-5",
+					Namespace: "kubeslice-kubeslice-5",
 				},
 				Spec:   kubeslicev1beta1.SliceSpec{},
 				Status: kubeslicev1beta1.SliceStatus{},

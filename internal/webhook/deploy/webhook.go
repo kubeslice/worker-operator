@@ -32,9 +32,9 @@ import (
 )
 
 const (
-	admissionWebhookAnnotationInjectKey       = "avesha.io/slice"
-	admissionWebhookAnnotationStatusKey       = "avesha.io/status"
-	podInjectLabelKey                         = "avesha.io/pod-type"
+	admissionWebhookAnnotationInjectKey       = "kubeslice.io/slice"
+	admissionWebhookAnnotationStatusKey       = "kubeslice.io/status"
+	podInjectLabelKey                         = "kubeslice.io/pod-type"
 	admissionWebhookSliceNamespaceSelectorKey = "kubeslice.io/slice"
 	controlPlaneNamespace                     = "kubeslice-system"
 	nsmInjectAnnotaionKey                     = "ns.networkservicemesh.io"

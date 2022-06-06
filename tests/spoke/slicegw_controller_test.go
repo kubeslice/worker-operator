@@ -67,7 +67,6 @@ var _ = Describe("Worker SlicegwController", func() {
 				Spec: kubeslicev1beta1.SliceSpec{},
 			}
 			labels := map[string]string{
-				"avesha.io/slice":            "test-slice-4",
 				"kubeslice.io/slice":         "test-slice-4",
 				"kubeslice.io/pod-type":      "slicegateway",
 				"networkservicemesh.io/app":  "test-slicegw",
@@ -253,7 +252,7 @@ var _ = Describe("Worker SlicegwController", func() {
 				return true
 			}, time.Second*40, time.Millisecond*250).Should(BeTrue())
 
-			Expect(founddepl.Spec.Template.Spec.Containers[1].Name).Should(Equal("avesha-openvpn-server"))
+			Expect(founddepl.Spec.Template.Spec.Containers[1].Name).Should(Equal("kubeslice-openvpn-server"))
 		})
 
 		It("Should create a finalizer for the slicegw cr created", func() {
@@ -387,7 +386,7 @@ var _ = Describe("Worker SlicegwController", func() {
 				return true
 			}, time.Second*40, time.Millisecond*250).Should(BeTrue())
 
-			Expect(founddepl.Spec.Template.Spec.Containers[1].Name).Should(Equal("avesha-openvpn-client"))
+			Expect(founddepl.Spec.Template.Spec.Containers[1].Name).Should(Equal("kubeslice-openvpn-client"))
 		})
 	})
 

@@ -671,11 +671,11 @@ var _ = Describe("SliceNetpol", func() {
 				}
 				labels := createdDeploy.Spec.Template.ObjectMeta.Labels
 				fmt.Println(labels)
-				_, ok := labels["avesha.io/pod-type"]
+				_, ok := labels["kubeslice.io/pod-type"]
 				if ok {
 					return false
 				}
-				_, ok = labels["avesha.io/slice"]
+				_, ok = labels["kubeslice.io/slice"]
 				if ok {
 					return false
 				}
@@ -725,7 +725,7 @@ func getDeploy() *appsv1.Deployment {
 				"app": "iperf-sleep",
 			},
 			Annotations: map[string]string{
-				"avesha.io/status": "injected",
+				"kubeslice.io/status": "injected",
 			},
 		},
 		Spec: appsv1.DeploymentSpec{
@@ -737,9 +737,9 @@ func getDeploy() *appsv1.Deployment {
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{
-						"app":                "iperf-sleep",
-						"avesha.io/pod-type": "app",
-						"avesha.io/slice":    "test-slice-netpol",
+						"app":                   "iperf-sleep",
+						"kubeslice.io/pod-type": "app",
+						"kubeslice.io/slice":    "test-slice-netpol",
 					},
 					Annotations: map[string]string{
 						"ns.networkservicemesh.io": "vl3-service-test-slice-netpol",

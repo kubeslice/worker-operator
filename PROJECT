@@ -1,31 +1,31 @@
-domain: avesha.io
+domain: kubeslice.io
 layout:
 - go.kubebuilder.io/v3
 plugins:
   manifests.sdk.operatorframework.io/v2: {}
   scorecard.sdk.operatorframework.io/v2: {}
 projectName: kubeslice-operator
-repo: bitbucket.org/realtimeai/kubeslice-operator
+repo: github.com/kubeslice/worker-operator
 resources:
 - api:
     crdVersion: v1
     namespaced: true
   controller: true
-  domain: avesha.io
-  group: mesh
+  domain: kubeslice.io
+  group: networking
   kind: Slice
-  path: bitbucket.org/realtimeai/kubeslice-operator/api/v1beta1
+  path: github.com/kubeslice/worker-operator/api/v1beta1
   version: v1beta1
-- domain: avesha.io
-  group: mesh
+- domain: kubeslice.io
+  group: networking
   kind: SliceGateway 
   version: v1beta1
-- domain: avesha.io
-  group: mesh
+- domain: kubeslice.io
+  group: networking
   kind: ServiceExport
   version: v1beta1
-- domain: avesha.io
-  group: mesh
+- domain: kubeslice.io
+  group: networking
   kind: ServiceImport
   version: v1beta1
 version: "3"
