@@ -20,6 +20,11 @@ package slicegateway
 
 import (
 	"context"
+
+	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
+	"github.com/kubeslice/worker-operator/internal/gwsidecar"
+	"github.com/kubeslice/worker-operator/internal/netop"
+	"github.com/kubeslice/worker-operator/internal/router"
 )
 
 // NetOpPod contains details of NetOp Pod running in the cluster
@@ -31,4 +36,18 @@ type NetOpPod struct {
 
 type HubClientProvider interface {
 	UpdateNodePortForSliceGwServer(ctx context.Context, sliceGwNodePort int32, sliceGwName string) error
+}
+type WorkerGWSidecarClientProvider interface {
+	GetStatus(ctx context.Context, serverAddr string) (*gwsidecar.GwStatus, error)
+	SendConnectionContext(ctx context.Context, serverAddr string, gwConnCtx *gwsidecar.GwConnectionContext) error
+}
+
+type WorkerRouterClientProvider interface {
+	GetClientConnectionInfo(ctx context.Context, addr string) ([]kubeslicev1beta1.AppPod, error)
+	SendConnectionContext(ctx context.Context, serverAddr string, sliceRouterConnCtx *router.SliceRouterConnCtx) error
+}
+type WorkerNetOpClientProvider interface {
+	UpdateSliceQosProfile(ctx context.Context, addr string, slice *kubeslicev1beta1.Slice) error
+	SendSliceLifeCycleEventToNetOp(ctx context.Context, addr string, sliceName string, eventType netop.EventType) error
+	SendConnectionContext(ctx context.Context, serverAddr string, gw *kubeslicev1beta1.SliceGateway, sliceGwNodePort int32) error
 }

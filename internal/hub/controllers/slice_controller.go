@@ -20,7 +20,6 @@ package controllers
 
 import (
 	"context"
-
 	"github.com/go-logr/logr"
 	spokev1alpha1 "github.com/kubeslice/apis/pkg/worker/v1alpha1"
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
@@ -154,7 +153,6 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req reconcile.Request) 
 
 			return reconcile.Result{}, nil
 		}
-
 		return reconcile.Result{}, err
 	}
 
@@ -195,6 +193,12 @@ func (r *SliceReconciler) updateSliceConfig(ctx context.Context, meshSlice *kube
 		DscpClass:               spokeSlice.Spec.QosProfileDetails.DscpClass,
 		TcType:                  spokeSlice.Spec.QosProfileDetails.TcType,
 		Priority:                spokeSlice.Spec.QosProfileDetails.Priority,
+	}
+
+	meshSlice.Status.SliceConfig.NamespaceIsolationProfile = &kubeslicev1beta1.NamespaceIsolationProfile{
+		IsolationEnabled:      spokeSlice.Spec.NamespaceIsolationProfile.IsolationEnabled,
+		AllowedNamespaces:     spokeSlice.Spec.NamespaceIsolationProfile.AllowedNamespaces,
+		ApplicationNamespaces: spokeSlice.Spec.NamespaceIsolationProfile.ApplicationNamespaces,
 	}
 
 	extGwCfg := spokeSlice.Spec.ExternalGatewayConfig

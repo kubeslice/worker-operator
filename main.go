@@ -23,11 +23,16 @@ import (
 	"os"
 
 	"github.com/kubeslice/worker-operator/internal/cluster"
+	namespacecontroller "github.com/kubeslice/worker-operator/internal/namespace/controllers"
 	"github.com/kubeslice/worker-operator/pkg/events"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
+
+	sidecar "github.com/kubeslice/worker-operator/internal/gwsidecar"
+	netop "github.com/kubeslice/worker-operator/internal/netop"
+	router "github.com/kubeslice/worker-operator/internal/router"
 
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
@@ -49,6 +54,7 @@ import (
 	hub "github.com/kubeslice/worker-operator/internal/hub/hubclient"
 	"github.com/kubeslice/worker-operator/internal/hub/manager"
 	"github.com/kubeslice/worker-operator/internal/logger"
+	"github.com/kubeslice/worker-operator/internal/networkpolicy"
 	"github.com/kubeslice/worker-operator/internal/utils"
 	deploywh "github.com/kubeslice/worker-operator/internal/webhook/deploy"
 	//+kubebuilder:scaffold:imports
@@ -99,41 +105,60 @@ func main() {
 	if utils.GetEnvOrDefault("ENABLE_WEBHOOKS", "true") == "true" {
 		mgr.GetWebhookServer().Register("/mutate-appsv1-deploy", &webhook.Admission{
 			Handler: &deploywh.WebhookServer{
-				Client: mgr.GetClient(),
+				Client:          mgr.GetClient(),
+				SliceInfoClient: deploywh.NewWebhookClient(),
 			},
 		})
 	}
-
 	if err != nil {
 		setupLog.Error(err, "unable to start manager")
 		os.Exit(1)
 	}
-
 	hubClient, err := hub.NewHubClientConfig()
 	if err != nil {
 		setupLog.Error(err, "could not create hub client for slice gateway reconciler")
 		os.Exit(1)
 	}
+	workerRouterClient, err := router.NewWorkerRouterClientProvider()
+	if err != nil {
+		setupLog.Error(err, "could not create spoke router client for slice gateway reconciler")
+		os.Exit(1)
+	}
 
+	workerNetOPClient, err := netop.NewWorkerNetOpClientProvider()
+	if err != nil {
+		setupLog.Error(err, "could not create spoke netop client for slice gateway reconciler")
+		os.Exit(1)
+	}
 	sliceEventRecorder := events.NewEventRecorder(mgr.GetEventRecorderFor("slice-controller"))
 	if err = (&slice.SliceReconciler{
-		Client:        mgr.GetClient(),
-		Log:           ctrl.Log.WithName("controllers").WithName("Slice"),
-		Scheme:        mgr.GetScheme(),
-		HubClient:     hubClient,
-		EventRecorder: sliceEventRecorder,
+		Client:             mgr.GetClient(),
+		Log:                ctrl.Log.WithName("controllers").WithName("Slice"),
+		Scheme:             mgr.GetScheme(),
+		HubClient:          hubClient,
+		EventRecorder:      sliceEventRecorder,
+		WorkerRouterClient: workerRouterClient,
+		WorkerNetOpClient:  workerNetOPClient,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Slice")
 		os.Exit(1)
 	}
 
 	sliceGwEventRecorder := events.NewEventRecorder(mgr.GetEventRecorderFor("sliceGw-controller"))
+	workerGWClient, err := sidecar.NewWorkerGWSidecarClientProvider()
+	if err != nil {
+		setupLog.Error(err, "could not create spoke sidecar gateway client for slice gateway reconciler")
+		os.Exit(1)
+	}
 	if err = (&slicegateway.SliceGwReconciler{
-		Client:        mgr.GetClient(),
-		Log:           ctrl.Log.WithName("controllers").WithName("SliceGw"),
-		Scheme:        mgr.GetScheme(),
-		HubClient:     hubClient,
-		EventRecorder: sliceGwEventRecorder,
+		Client:                mgr.GetClient(),
+		Log:                   ctrl.Log.WithName("controllers").WithName("SliceGw"),
+		Scheme:                mgr.GetScheme(),
+		HubClient:             hubClient,
+		WorkerGWSidecarClient: workerGWClient,
+		WorkerRouterClient:    workerRouterClient,
+		WorkerNetOpClient:     workerNetOPClient,
+		EventRecorder:         sliceGwEventRecorder,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "SliceGw")
 		os.Exit(1)
@@ -166,6 +191,28 @@ func main() {
 		EventRecorder: serviceImportEventRecorder,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "ServiceImport")
+		os.Exit(1)
+	}
+
+	namespaceEventRecorder := events.NewEventRecorder(mgr.GetEventRecorderFor("namespace-controller"))
+	if err = (&namespacecontroller.Reconciler{
+		Client:        mgr.GetClient(),
+		Log:           ctrl.Log.WithName("controllers").WithName("namespace"),
+		Scheme:        mgr.GetScheme(),
+		EventRecorder: namespaceEventRecorder,
+		Hubclient:     hubClient,
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "namespace")
+		os.Exit(1)
+	}
+	netpolEventRecorder := events.NewEventRecorder(mgr.GetEventRecorderFor("networkpolicy-controller"))
+	if err = (&networkpolicy.NetpolReconciler{
+		Client:        mgr.GetClient(),
+		Log:           ctrl.Log.WithName("controllers").WithName("networkpolicy"),
+		Scheme:        mgr.GetScheme(),
+		EventRecorder: netpolEventRecorder,
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "networkpolicy")
 		os.Exit(1)
 	}
 	//+kubebuilder:scaffold:builder

@@ -149,7 +149,7 @@ var _ = Describe("SliceController", func() {
 
 			svc = &corev1.Service{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "mesh-dns",
+					Name:      "kubeslice-dns",
 					Namespace: "kubeslice-system",
 				},
 				Spec: corev1.ServiceSpec{
@@ -213,7 +213,7 @@ var _ = Describe("SliceController", func() {
 			Expect(k8sClient.Create(ctx, svcexport)).Should(Succeed())
 
 			createdSvc := &corev1.Service{}
-			svcKey := types.NamespacedName{Name: "mesh-dns", Namespace: "kubeslice-system"}
+			svcKey := types.NamespacedName{Name: "kubeslice-dns", Namespace: "kubeslice-system"}
 
 			// Wait until service is created properly
 			Eventually(func() bool {

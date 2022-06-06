@@ -45,11 +45,13 @@ var sliceFinalizer = "mesh.kubeslice.io/slice-finalizer"
 // SliceReconciler reconciles a Slice object
 type SliceReconciler struct {
 	client.Client
-	EventRecorder *events.EventRecorder
-	Scheme        *runtime.Scheme
-	Log           logr.Logger
-	NetOpPods     []NetOpPod
-	HubClient     HubClientProvider
+	EventRecorder      *events.EventRecorder
+	Scheme             *runtime.Scheme
+	Log                logr.Logger
+	NetOpPods          []NetOpPod
+	HubClient          HubClientProvider
+	WorkerRouterClient WorkerRouterClientProvider
+	WorkerNetOpClient  WorkerNetOpClientProvider
 }
 
 //+kubebuilder:rbac:groups=networking.kubeslice.io,resources=slice,verbs=get;list;watch;create;update;patch;delete
@@ -67,6 +69,8 @@ type SliceReconciler struct {
 //+kubebuilder:rbac:groups=networking.istio.io,resources=virtualservices,verbs=get;list;create;update;watch;delete
 //+kubebuilder:webhook:path=/mutate-appsv1-deploy,mutating=true,failurePolicy=fail,groups="apps",resources=deployments,verbs=create;update,versions=v1,name=mdeploy.avesha.io,admissionReviewVersions=v1,sideEffects=NoneOnDryRun
 //+kubebuilder:rbac:groups=core,resources=nodes,verbs=get;list;watch
+//+kubebuilder:rbac:groups=core,resources=namespaces,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=networking.k8s.io,resources=networkpolicies,verbs=get;list;watch;create;update;patch;delete
 
 func (r *SliceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := r.Log.WithValues("slice", req.NamespacedName)
@@ -155,6 +159,12 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 		return ctrl.Result{}, err
 	}
 
+	res, err, requeue := r.ReconcileSliceNamespaces(ctx, slice)
+	if requeue {
+		debugLog.Info("Reconciling SliceNamespaces", "res", res, "err", err)
+		return res, err
+	}
+
 	debugLog.Info("Syncing slice QoS config with NetOp pods")
 	err = r.SyncSliceQosProfileWithNetOp(ctx, slice)
 	if err != nil {
@@ -208,7 +218,7 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 		}
 	}
 
-	res, err, requeue := r.ReconcileSliceRouter(ctx, slice)
+	res, err, requeue = r.ReconcileSliceRouter(ctx, slice)
 	if requeue {
 		return res, err
 	}
