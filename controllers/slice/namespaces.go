@@ -224,13 +224,13 @@ func (r *SliceReconciler) reconcileAllowedNamespaces(ctx context.Context, slice 
 	// annotationApplied will be made true if any new slice Name is appended to a namespace annotation. In that case, we would want to update the status.AllowedNamespaces
 	var annotationApplied bool
 	for _, cfgAllowedNs := range cfgAllowedNsList {
-		if v, exists := existingAllowedNsMap[cfgAllowedNs]; exists{
+		if v, exists := existingAllowedNsMap[cfgAllowedNs]; exists {
 			existingAllowedNsMap[cfgAllowedNs].marked = true
-			if annotationApplied,err = r.annotateNamespace(ctx, slice, &v.ns); err != nil {
+			if annotationApplied, err = r.annotateNamespace(ctx, slice, &v.ns); err != nil {
 				log.Error(err, "Error annotating allowedNamespace", "Namespace", v.ns.Name)
 			}
 			labeledAllowedNsList = append(labeledAllowedNsList, cfgAllowedNs)
-			if annotationApplied{
+			if annotationApplied {
 				statusChanged = true
 			}
 			continue
@@ -271,7 +271,7 @@ func (r *SliceReconciler) reconcileAllowedNamespaces(ctx context.Context, slice 
 				log.Error(err, "Failed to unbind namespace from slice", "namespace", existingAllowedNs)
 				return err
 			}
-			log.Info("unbind allowed namespace success","namespace",existingAllowedNs)
+			log.Info("unbind allowed namespace success", "namespace", existingAllowedNs)
 			statusChanged = true
 		}
 	}
@@ -286,19 +286,19 @@ func (r *SliceReconciler) reconcileAllowedNamespaces(ctx context.Context, slice 
 	return nil
 }
 
-func (r *SliceReconciler) annotateNamespace(ctx context.Context, slice *kubeslicev1beta1.Slice, allowedNamespace *corev1.Namespace) (bool,error) {
+func (r *SliceReconciler) annotateNamespace(ctx context.Context, slice *kubeslicev1beta1.Slice, allowedNamespace *corev1.Namespace) (bool, error) {
 	annotations := allowedNamespace.GetAnnotations()
 	if annotations == nil {
 		//add first annotation
 		annotations = map[string]string{}
 		annotations[AllowedNamespaceAnnotationKey] = slice.Name
 		allowedNamespace.ObjectMeta.Annotations = annotations
-		return true,r.Update(ctx, allowedNamespace)
+		return true, r.Update(ctx, allowedNamespace)
 	} else if _, ok := annotations[AllowedNamespaceAnnotationKey]; !ok {
 		//annotations not nil, but AllowedNamespaceAnnotationKey not present
 		annotations[AllowedNamespaceAnnotationKey] = slice.Name
 		allowedNamespace.ObjectMeta.Annotations = annotations
-		return true,r.Update(ctx, allowedNamespace)
+		return true, r.Update(ctx, allowedNamespace)
 	}
 	// AllowedNamespaceAnnotationKey present, append the comma seperated sliceName to value
 	// eg : kubeslice.io/trafficAllowedToSlices: "slice-1,slice-2,slice-3"
@@ -308,9 +308,9 @@ func (r *SliceReconciler) annotateNamespace(ctx context.Context, slice *kubeslic
 	if !exists(a, slice.Name) {
 		annotations[AllowedNamespaceAnnotationKey] = v + "," + slice.Name
 		allowedNamespace.ObjectMeta.Annotations = annotations
-		return true,r.Update(ctx, allowedNamespace)
+		return true, r.Update(ctx, allowedNamespace)
 	}
-	return false,nil
+	return false, nil
 }
 
 // unbindAllowedNamespace will remove the slice name from annotation
@@ -335,15 +335,15 @@ func (r *SliceReconciler) unbindAllowedNamespace(ctx context.Context, allowedNs,
 	}
 
 	a := strings.Split(v, ",")
-	if len(a) == 1 && exists(a,sliceName){
+	if len(a) == 1 && exists(a, sliceName) {
 		// last slice to offboard
-		delete(annotations,AllowedNamespaceAnnotationKey)
+		delete(annotations, AllowedNamespaceAnnotationKey)
 		namespace.SetAnnotations(annotations)
 		//remove kubeslice allowed namespace label
 		labels := namespace.GetLabels()
-		_,ok := labels[AllowedNamespaceSelectorLabelKey]
-		if ok{
-			delete(labels,AllowedNamespaceSelectorLabelKey)
+		_, ok := labels[AllowedNamespaceSelectorLabelKey]
+		if ok {
+			delete(labels, AllowedNamespaceSelectorLabelKey)
 			namespace.SetLabels(labels)
 		}
 		return r.Update(ctx, namespace)
@@ -614,9 +614,9 @@ func (r *SliceReconciler) cleanupSliceNamespaces(ctx context.Context, slice *kub
 		}
 	}
 	// unbind allowed Namespaces
-	for _,namespace := range slice.Status.AllowedNamespaces {
-		if err := r.unbindAllowedNamespace(ctx,namespace,slice.Name);err!=nil{
-			log.Error(err,"failed to unbind allowedNamespace","namespace",namespace)
+	for _, namespace := range slice.Status.AllowedNamespaces {
+		if err := r.unbindAllowedNamespace(ctx, namespace, slice.Name); err != nil {
+			log.Error(err, "failed to unbind allowedNamespace", "namespace", namespace)
 		}
 	}
 }
