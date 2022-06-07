@@ -273,14 +273,11 @@ var _ = Describe("ServiceExportController", func() {
 			}, time.Second*30, time.Millisecond*250).Should(BeTrue())
 
 			events := corev1.EventList{}
-			Eventually(func() bool {
-				err := k8sClient.List(ctx, &events)
-				return err == nil
-			}, time.Second*10, time.Millisecond*250).Should(BeTrue())
-
 			var message string
-
 			Eventually(func() string {
+
+				_ = k8sClient.List(ctx, &events)
+
 				for _, event := range events.Items {
 					if event.Source.Component == "test-SvcEx-controller" && event.InvolvedObject.Kind == "ServiceExport" {
 						message = event.Message
