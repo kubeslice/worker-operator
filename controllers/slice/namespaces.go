@@ -265,7 +265,7 @@ func (r *SliceReconciler) unbindAppNamespace(ctx context.Context, slice *kubesli
 	namespace := &corev1.Namespace{}
 	err := r.Get(ctx, types.NamespacedName{Name: appNs}, namespace)
 	//namespace might be deleted by user/admin
-	if errors.IsNotFound(err){
+	if errors.IsNotFound(err) {
 		return nil
 	}
 	if err != nil {
