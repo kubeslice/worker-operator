@@ -30,6 +30,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/util/retry"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -44,10 +45,6 @@ func (r *SliceReconciler) ReconcileSliceNamespaces(ctx context.Context, slice *k
 		return res, err, true
 	}
 	err = r.reconcileAllowedNamespaces(ctx, slice)
-	if err != nil {
-		return ctrl.Result{}, err, true
-	}
-	err = r.reconcileSliceNetworkPolicy(ctx, slice)
 	if err != nil {
 		return ctrl.Result{}, err, true
 	}
@@ -152,14 +149,28 @@ func (r *SliceReconciler) reconcileAppNamespaces(ctx context.Context, slice *kub
 		}
 	}
 	if statusChanged {
-		slice.Status.ApplicationNamespaces = labeledAppNsList
-		err := r.Status().Update(ctx, slice)
+		//reconcile networkpolicy
+		err = r.reconcileSliceNetworkPolicy(ctx, slice)
 		if err != nil {
-			log.Error(err, "Failed to update slice status")
 			return ctrl.Result{}, err, true
 		}
-		//TODO:
-		//post changes to workersliceconfig
+		err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+			// fetch the latest slice
+			if getErr := r.Get(ctx, types.NamespacedName{Name: slice.Name,Namespace: controllers.ControlPlaneNamespace}, slice); getErr != nil {
+				return getErr
+			}
+			slice.Status.ApplicationNamespaces = labeledAppNsList
+			err := r.Status().Update(ctx, slice)
+			if err != nil {
+				log.Error(err, "Failed to update Application Namespaces in slice status,retrying")
+				return err
+			}
+			return nil
+		})
+		if err!=nil{
+			return ctrl.Result{}, err, true
+		}
+
 		sliceConfigName := slice.Name + "-" + controllers.ClusterName
 		err = r.HubClient.UpdateAppNamespaces(ctx, sliceConfigName, labeledAppNsList)
 		if err != nil {
@@ -276,10 +287,20 @@ func (r *SliceReconciler) reconcileAllowedNamespaces(ctx context.Context, slice 
 		}
 	}
 	if statusChanged {
-		slice.Status.AllowedNamespaces = labeledAllowedNsList
-		err := r.Status().Update(ctx, slice)
-		if err != nil {
-			log.Error(err, "Failed to update slice status")
+		err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+			// fetch the latest slice
+			if getErr := r.Get(ctx, types.NamespacedName{Name: slice.Name,Namespace: controllers.ControlPlaneNamespace}, slice); getErr != nil {
+				return getErr
+			}
+			slice.Status.AllowedNamespaces = labeledAllowedNsList
+			err := r.Status().Update(ctx, slice)
+			if err != nil {
+				log.Error(err, "Failed to update Allowed Namespaces in slice status,retrying")
+				return err
+			}
+			return nil
+		})
+		if err!=nil{
 			return err
 		}
 	}
