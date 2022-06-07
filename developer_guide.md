@@ -72,8 +72,6 @@ make chart-deploy VALUESFILE=yourvaluesfile.yaml
 ```
 
 
-### Installing Sample Manifests
-
 ### Running test cases
 
 After running the below command, you should see all test cases have passed.
