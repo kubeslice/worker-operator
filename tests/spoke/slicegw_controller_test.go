@@ -39,7 +39,7 @@ var sliceGwFinalizer = []string{
 	"mesh.kubeslice.io/slicegw-finalizer"}
 
 
-var _ = Describe("Spoke SlicegwController", func() {
+var _ = Describe("Worker SlicegwController", func() {
 
 
 	var sliceGw *kubeslicev1beta1.SliceGateway
