@@ -303,7 +303,7 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 }
 
 func getPodType(labels map[string]string) string {
-	podType, found := labels["avesha.io/pod-type"]
+	podType, found := labels["kubeslice.io/pod-type"]
 	if found {
 		return podType
 	}
@@ -324,16 +324,14 @@ func (r *SliceGwReconciler) findSliceGwObjectsToReconcile(pod client.Object) []r
 		return []reconcile.Request{}
 	}
 
-
 	podType := getPodType(podLabels)
 
 	sliceGwList := &kubeslicev1beta1.SliceGatewayList{}
 	var err error
 
-
 	switch podType {
 	case "router":
-		sliceName, found := podLabels["avesha.io/slice"]
+		sliceName, found := podLabels["kubeslice.io/slice"]
 		if !found {
 			return []reconcile.Request{}
 		}
