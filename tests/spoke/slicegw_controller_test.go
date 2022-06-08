@@ -36,7 +36,7 @@ import (
 )
 
 var sliceGwFinalizer = []string{
-	"mesh.kubeslice.io/slicegw-finalizer"}
+	"networking.kubeslice.io/slicegw-finalizer"}
 
 var _ = Describe("Worker SlicegwController", func() {
 

@@ -45,7 +45,7 @@ import (
 	nsmv1alpha1 "github.com/networkservicemesh/networkservicemesh/k8s/pkg/apis/networkservice/v1alpha1"
 )
 
-var sliceGwFinalizer = "mesh.kubeslice.io/slicegw-finalizer"
+var sliceGwFinalizer = "networking.kubeslice.io/slicegw-finalizer"
 
 // SliceReconciler reconciles a Slice object
 type SliceGwReconciler struct {

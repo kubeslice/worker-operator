@@ -35,17 +35,17 @@ import (
 )
 
 var log = logger.NewLogger()
-var sliceFinalizer = "mesh.kubeslice.io/slice-finalizer"
+var sliceFinalizer = "networking.kubeslice.io/slice-finalizer"
 
 var _ = Describe("SliceController", func() {
 
-	Context("With a Slice CR and mesh-dns service created", func() {
+	Context("With a Slice CR and kubeslice-dns service created", func() {
 
 		var slice *kubeslicev1beta1.Slice
 		var svc *corev1.Service
 		BeforeEach(func() {
 
-			// Prepare k8s objects for slice and mesh-dns service
+			// Prepare k8s objects for slice and kubeslice-dns service
 			slice = &kubeslicev1beta1.Slice{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "test-slice",
@@ -82,7 +82,7 @@ var _ = Describe("SliceController", func() {
 		It("Should update slice status with DNS IP", func() {
 			ctx := context.Background()
 
-			// Create slice and mesh-dns service
+			// Create slice and kubeslice-dns service
 			Expect(k8sClient.Create(ctx, slice)).Should(Succeed())
 			Expect(k8sClient.Create(ctx, svc)).Should(Succeed())
 
@@ -110,7 +110,7 @@ var _ = Describe("SliceController", func() {
 		})
 		It("Should create a finalizer for slice CR created", func() {
 			ctx := context.Background()
-			// Create slice and mesh-dns service
+			// Create slice and kubeslice-dns service
 			Eventually(func() bool {
 				err := k8sClient.Create(ctx, slice)
 				return err == nil
@@ -138,7 +138,7 @@ var _ = Describe("SliceController", func() {
 		var svcexport *kubeslicev1beta1.ServiceExport
 		BeforeEach(func() {
 
-			// Prepare k8s objects for slice and mesh-dns service
+			// Prepare k8s objects for slice and kubeslice-dns service
 			slice = &kubeslicev1beta1.Slice{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "test-slice-im",
@@ -249,7 +249,7 @@ var _ = Describe("SliceController", func() {
 		var slice *kubeslicev1beta1.Slice
 		BeforeEach(func() {
 
-			// Prepare k8s objects for slice and mesh-dns service
+			// Prepare k8s objects for slice and kubeslice-dns service
 			slice = &kubeslicev1beta1.Slice{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "test-slice",
@@ -344,7 +344,7 @@ var _ = Describe("SliceController", func() {
 
 		BeforeEach(func() {
 
-			// Prepare k8s objects for slice and mesh-dns service
+			// Prepare k8s objects for slice and kubeslice-dns service
 			slice = &kubeslicev1beta1.Slice{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "test-slice",

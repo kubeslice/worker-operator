@@ -40,7 +40,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
-var sliceFinalizer = "mesh.kubeslice.io/slice-finalizer"
+var sliceFinalizer = "networking.kubeslice.io/slice-finalizer"
 
 // SliceReconciler reconciles a Slice object
 type SliceReconciler struct {

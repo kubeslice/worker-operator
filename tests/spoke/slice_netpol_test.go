@@ -32,7 +32,7 @@ var _ = Describe("SliceNetpol", func() {
 	var allowedNs *corev1.Namespace
 	Context("With slice CR created and application namespaces specified ", func() {
 		BeforeEach(func() {
-			// Prepare k8s objects for slice and mesh-dns service
+			// Prepare k8s objects for slice and kubeslice-dns service
 			slice = &kubeslicev1beta1.Slice{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "test-slice-netpol",
@@ -43,7 +43,7 @@ var _ = Describe("SliceNetpol", func() {
 
 			svc = &corev1.Service{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "mesh-dns",
+					Name:      "kubeslice-dns",
 					Namespace: "kubeslice-system",
 				},
 				Spec: corev1.ServiceSpec{
