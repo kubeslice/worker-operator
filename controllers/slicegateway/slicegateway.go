@@ -331,10 +331,10 @@ func (r *SliceGwReconciler) deploymentForGatewayClient(g *kubeslicev1beta1.Slice
 	var vpnSecretDefaultMode int32 = 0644
 
 	certFileName := "openvpn_client.ovpn"
-	sidecarImg := "nexus.dev.aveshalabslabs.io/kubeslice/gw-sidecar:1.0.0"
+	sidecarImg := "nexus.dev.aveshalabs.io/kubeslice/gw-sidecar:1.0.0"
 	sidecarPullPolicy := corev1.PullAlways
 
-	vpnImg := "nexus.dev.aveshalabslabs.io/kubeslice/openvpn-client.alpine.amd64:1.0.0"
+	vpnImg := "nexus.dev.aveshalabs.io/kubeslice/openvpn-client.alpine.amd64:1.0.0"
 	vpnPullPolicy := corev1.PullAlways
 
 	ls := labelsForSliceGwDeployment(g.Name, g.Spec.SliceName)
