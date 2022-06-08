@@ -39,7 +39,7 @@ var sliceFinalizer = "mesh.kubeslice.io/slice-finalizer"
 
 var _ = Describe("SliceController", func() {
 
-	Context("With a Slice CR and mesh-dns service created", func() {
+	Context("With a Slice CR and kubeslice-dns service created", func() {
 
 		var slice *kubeslicev1beta1.Slice
 		var svc *corev1.Service
@@ -344,7 +344,7 @@ var _ = Describe("SliceController", func() {
 
 		BeforeEach(func() {
 
-			// Prepare k8s objects for slice and mesh-dns service
+			// Prepare k8s objects for slice and kubeslice-dns service
 			slice = &kubeslicev1beta1.Slice{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "test-slice",
