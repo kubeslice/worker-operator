@@ -174,10 +174,13 @@ func (r Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resul
 	}
 
 	res, err, requeue := r.ReconcileAppPod(ctx, serviceexport)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
 	if requeue {
 		log.Info("app pods reconciled")
 		debugLog.Info("requeuing after app pod reconcile", "res", res, "er", err)
-		return res, err
+		return res, nil
 	}
 
 	if serviceexport.Status.LastSync == 0 {

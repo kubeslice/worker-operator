@@ -18,6 +18,7 @@ COPY internal/ internal/
 COPY tests/ tests/
 COPY hack/ hack/
 COPY config/ config
+COPY pkg/ pkg/
 
 # Copy manifest files for istio gateways deployment
 COPY files /files

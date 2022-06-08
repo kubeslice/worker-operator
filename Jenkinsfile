@@ -1,8 +1,6 @@
 @Library('jenkins-library@opensource-helm-pipeline') _
-dockerImagePipeline1(
+dockerbuildtestPipeline(
   script: this,
-  service: 'aveshasystems/worker-operator',
-  dockerfile: 'Dockerfile',
-  buildContext: '.',
+  service: 'worker-operator',
   buildArguments: [PLATFORM:"amd64"]
 )

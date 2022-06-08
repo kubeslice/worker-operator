@@ -38,7 +38,9 @@ import (
 var sliceGwFinalizer = []string{
 	"networking.kubeslice.io/slicegw-finalizer"}
 
+
 var _ = Describe("Worker SlicegwController", func() {
+
 
 	var sliceGw *kubeslicev1beta1.SliceGateway
 	var createdSliceGw *kubeslicev1beta1.SliceGateway
