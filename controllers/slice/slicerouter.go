@@ -54,8 +54,8 @@ func labelsForSliceRouterDeployment(name string) map[string]string {
 	return map[string]string{
 		"networkservicemesh.io/app":  "vl3-nse-" + name,
 		"networkservicemesh.io/impl": "vl3-service-" + name,
-		"avesha.io/pod-type":         "router",
-		"avesha.io/slice":            name,
+		"kubeslice.io/pod-type":      "router",
+		"kubeslice.io/slice":         name,
 	}
 }
 
@@ -198,7 +198,7 @@ func (r *SliceReconciler) getContainerSpecForSliceRouterSidecar(dataplane string
 	privileged := true
 
 	sliceRouterSidecarContainer := corev1.Container{
-		Name:            "avesha-vl3-sidecar",
+		Name:            "kubeslice-vl3-sidecar",
 		Image:           vl3SidecarImage,
 		ImagePullPolicy: vl3SidecarImagePullPolicy,
 		Env: []corev1.EnvVar{
@@ -285,7 +285,7 @@ func (r *SliceReconciler) deploymentForSliceRouter(s *kubeslicev1beta1.Slice, ip
 							RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
 								NodeSelectorTerms: []corev1.NodeSelectorTerm{{
 									MatchExpressions: []corev1.NodeSelectorRequirement{{
-										Key:      "avesha/node-type",
+										Key:      "kubeslice.io/node-type",
 										Operator: corev1.NodeSelectorOpIn,
 										Values:   []string{"gateway"},
 									}},
@@ -300,12 +300,12 @@ func (r *SliceReconciler) deploymentForSliceRouter(s *kubeslicev1beta1.Slice, ip
 					},
 					Volumes: r.getVolumeSpecForSliceRouter(s, dataplane),
 					Tolerations: []corev1.Toleration{{
-						Key:      "avesha/node-type",
+						Key:      "kubeslice.io/node-type",
 						Operator: "Equal",
 						Effect:   "NoSchedule",
 						Value:    "gateway",
 					}, {
-						Key:      "avesha/node-type",
+						Key:      "kubeslice.io/node-type",
 						Operator: "Equal",
 						Effect:   "NoExecute",
 						Value:    "gateway",

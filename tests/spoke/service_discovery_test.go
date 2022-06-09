@@ -53,7 +53,7 @@ var _ = Describe("ServiceExportController", func() {
 		var createdSlice *kubeslicev1beta1.Slice
 
 		BeforeEach(func() {
-			// Prepare k8s objects for slice and mesh-dns service
+			// Prepare k8s objects for slice and kubeslice-dns service
 			slice = &kubeslicev1beta1.Slice{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "test-slice-1",
@@ -64,7 +64,7 @@ var _ = Describe("ServiceExportController", func() {
 
 			dnssvc = &corev1.Service{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "mesh-dns",
+					Name:      "kubeslice-dns",
 					Namespace: "kubeslice-system",
 				},
 				Spec: corev1.ServiceSpec{
@@ -74,7 +74,7 @@ var _ = Describe("ServiceExportController", func() {
 				},
 			}
 
-			// Prepare k8s objects for slice and mesh-dns service
+			// Prepare k8s objects for slice and kubeslice-dns service
 			svcex = &kubeslicev1beta1.ServiceExport{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "iperf-server",

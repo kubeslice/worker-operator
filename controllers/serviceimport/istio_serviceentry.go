@@ -128,9 +128,9 @@ func (r *Reconciler) serviceEntryForEndpoint(serviceImport *kubeslicev1beta1.Ser
 
 func labelsForServiceEntry(si *kubeslicev1beta1.ServiceImport) map[string]string {
 	return map[string]string{
-		"avesha-service":    si.Name,
-		"avesha-service-ns": si.Namespace,
-		"avesha-slice":      si.Spec.Slice,
+		"kubeslice-service":    si.Name,
+		"kubeslice-service-ns": si.Namespace,
+		"kubeslice-slice":      si.Spec.Slice,
 	}
 }
 

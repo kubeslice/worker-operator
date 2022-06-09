@@ -179,9 +179,9 @@ func servicesEntriesToDelete(seList []istiov1beta1.ServiceEntry, se *kubeslicev1
 
 func labelsForServiceEntry(se *kubeslicev1beta1.ServiceExport) map[string]string {
 	return map[string]string{
-		"avesha-service":    se.Name,
-		"avesha-service-ns": se.Namespace,
-		"avesha-slice":      se.Spec.Slice,
+		"kubeslice-service":    se.Name,
+		"kubeslice-service-ns": se.Namespace,
+		"kubeslice-slice":      se.Spec.Slice,
 	}
 }
 

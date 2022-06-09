@@ -45,7 +45,7 @@ import (
 	nsmv1alpha1 "github.com/networkservicemesh/networkservicemesh/k8s/pkg/apis/networkservice/v1alpha1"
 )
 
-var sliceGwFinalizer = "mesh.kubeslice.io/slicegw-finalizer"
+var sliceGwFinalizer = "networking.kubeslice.io/slicegw-finalizer"
 
 // SliceReconciler reconciles a Slice object
 type SliceGwReconciler struct {
@@ -303,7 +303,7 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 }
 
 func getPodType(labels map[string]string) string {
-	podType, found := labels["avesha.io/pod-type"]
+	podType, found := labels["kubeslice.io/pod-type"]
 	if found {
 		return podType
 	}
@@ -331,7 +331,7 @@ func (r *SliceGwReconciler) findSliceGwObjectsToReconcile(pod client.Object) []r
 
 	switch podType {
 	case "router":
-		sliceName, found := podLabels["avesha.io/slice"]
+		sliceName, found := podLabels["kubeslice.io/slice"]
 		if !found {
 			return []reconcile.Request{}
 		}
@@ -370,7 +370,7 @@ func (r *SliceGwReconciler) findSliceGwObjectsToReconcile(pod client.Object) []r
 func (r *SliceGwReconciler) findObjectsForSliceRouterUpdate(sliceName string) (*kubeslicev1beta1.SliceGatewayList, error) {
 	sliceGwList := &kubeslicev1beta1.SliceGatewayList{}
 	listOpts := []client.ListOption{
-		client.MatchingLabels(map[string]string{"avesha.io/slice": sliceName}),
+		client.MatchingLabels(map[string]string{"kubeslice.io/slice": sliceName}),
 	}
 	err := r.List(context.Background(), sliceGwList, listOpts...)
 	if err != nil {
@@ -409,13 +409,13 @@ func (r *SliceGwReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	// slice router or the netop pods. This is needed to re-send connection context to the
 	// restarted slice router or netop pods.
 	// We will add a watch on those pods with appropriate label selectors for filtering.
-	labelSelector.MatchLabels = map[string]string{"avesha.io/pod-type": "router"}
+	labelSelector.MatchLabels = map[string]string{"kubeslice.io/pod-type": "router"}
 	slicerouterPredicate, err := predicate.LabelSelectorPredicate(labelSelector)
 	if err != nil {
 		return err
 	}
 
-	labelSelector.MatchLabels = map[string]string{"avesha.io/pod-type": "netop"}
+	labelSelector.MatchLabels = map[string]string{"kubeslice.io/pod-type": "netop"}
 	netopPredicate, err := predicate.LabelSelectorPredicate(labelSelector)
 	if err != nil {
 		return err

@@ -59,15 +59,15 @@ var _ = Describe("Deploy Webhook", func() {
 				},
 				{
 					Annotations: map[string]string{
-						"kubeslice.io/slice": "green",
-						"avesha.io/status":   "",
+						"kubeslice.io/slice":  "green",
+						"kubeslice.io/status": "",
 					}, // with empty value for status key
 					Namespace: "test-ns",
 				},
 				{
 					Annotations: map[string]string{
-						"kubeslice.io/slice": "green",
-						"avesha.io/status":   "not injected",
+						"kubeslice.io/slice":  "green",
+						"kubeslice.io/status": "not injected",
 					}, // with different value for status key
 					Namespace: "test-ns",
 				},
@@ -88,7 +88,7 @@ var _ = Describe("Deploy Webhook", func() {
 			table := []metav1.ObjectMeta{
 				{
 					Annotations: map[string]string{
-						"avesha.io/status": "injected",
+						"kubeslice.io/status": "injected",
 					}, // with injection status
 					Namespace: "test-ns",
 				},

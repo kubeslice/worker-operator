@@ -78,7 +78,7 @@ func (r *SliceGwReconciler) deploymentForGatewayServer(g *kubeslicev1beta1.Slice
 
 	sidecarImg := "nexus.dev.aveshalabs.io/kubeslice/gw-sidecar:1.0.0"
 	sidecarPullPolicy := corev1.PullAlways
-	vpnImg := "nexus.dev.aveshalabs.io/avesha/openvpn-server.ubuntu.18.04:1.0.0"
+	vpnImg := "nexus.dev.aveshalabs.io/kubeslice/openvpn-server.ubuntu.18.04:1.0.0"
 	vpnPullPolicy := corev1.PullAlways
 	baseFileName := os.Getenv("CLUSTER_NAME") + "-" + g.Spec.SliceName + "-" + g.Status.Config.SliceGatewayName + ".vpn.aveshasystems.com"
 
@@ -126,7 +126,7 @@ func (r *SliceGwReconciler) deploymentForGatewayServer(g *kubeslicev1beta1.Slice
 							RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
 								NodeSelectorTerms: []corev1.NodeSelectorTerm{{
 									MatchExpressions: []corev1.NodeSelectorRequirement{{
-										Key:      "avesha/node-type",
+										Key:      "kubeslice.io/node-type",
 										Operator: corev1.NodeSelectorOpIn,
 										Values:   []string{"gateway"},
 									}},
@@ -135,7 +135,7 @@ func (r *SliceGwReconciler) deploymentForGatewayServer(g *kubeslicev1beta1.Slice
 						},
 					},
 					Containers: []corev1.Container{{
-						Name:            "avesha-sidecar",
+						Name:            "kubeslice-sidecar",
 						Image:           sidecarImg,
 						ImagePullPolicy: sidecarPullPolicy,
 						Env: []corev1.EnvVar{
@@ -206,7 +206,7 @@ func (r *SliceGwReconciler) deploymentForGatewayServer(g *kubeslicev1beta1.Slice
 							},
 						},
 					}, {
-						Name:            "avesha-openvpn-server",
+						Name:            "kubeslice-openvpn-server",
 						Image:           vpnImg,
 						ImagePullPolicy: vpnPullPolicy,
 						Command: []string{
@@ -275,12 +275,12 @@ func (r *SliceGwReconciler) deploymentForGatewayServer(g *kubeslicev1beta1.Slice
 						},
 					},
 					Tolerations: []corev1.Toleration{{
-						Key:      "avesha/node-type",
+						Key:      "kubeslice.io/node-type",
 						Operator: "Equal",
 						Effect:   "NoSchedule",
 						Value:    "gateway",
 					}, {
-						Key:      "avesha/node-type",
+						Key:      "kubeslice.io/node-type",
 						Operator: "Equal",
 						Effect:   "NoExecute",
 						Value:    "gateway",
@@ -307,7 +307,7 @@ func (r *SliceGwReconciler) serviceForGateway(g *kubeslicev1beta1.SliceGateway) 
 			Name:      "svc-" + g.Name,
 			Namespace: g.Namespace,
 			Labels: map[string]string{
-				"avesha.io/slice": g.Spec.SliceName,
+				"kubeslice.io/slice": g.Spec.SliceName,
 			},
 		},
 		Spec: corev1.ServiceSpec{
@@ -334,7 +334,7 @@ func (r *SliceGwReconciler) deploymentForGatewayClient(g *kubeslicev1beta1.Slice
 	sidecarImg := "nexus.dev.aveshalabs.io/kubeslice/gw-sidecar:1.0.0"
 	sidecarPullPolicy := corev1.PullAlways
 
-	vpnImg := "nexus.dev.aveshalabs.io/avesha/openvpn-client.alpine.amd64:1.0.0"
+	vpnImg := "nexus.dev.aveshalabs.io/kubeslice/openvpn-client.alpine.amd64:1.0.0"
 	vpnPullPolicy := corev1.PullAlways
 
 	ls := labelsForSliceGwDeployment(g.Name, g.Spec.SliceName)
@@ -383,7 +383,7 @@ func (r *SliceGwReconciler) deploymentForGatewayClient(g *kubeslicev1beta1.Slice
 							RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
 								NodeSelectorTerms: []corev1.NodeSelectorTerm{{
 									MatchExpressions: []corev1.NodeSelectorRequirement{{
-										Key:      "avesha/node-type",
+										Key:      "kubeslice.io/node-type",
 										Operator: corev1.NodeSelectorOpIn,
 										Values:   []string{"gateway"},
 									}},
@@ -392,7 +392,7 @@ func (r *SliceGwReconciler) deploymentForGatewayClient(g *kubeslicev1beta1.Slice
 						},
 					},
 					Containers: []corev1.Container{{
-						Name:            "avesha-sidecar",
+						Name:            "kubeslice-sidecar",
 						Image:           sidecarImg,
 						ImagePullPolicy: sidecarPullPolicy,
 						Env: []corev1.EnvVar{
@@ -449,7 +449,7 @@ func (r *SliceGwReconciler) deploymentForGatewayClient(g *kubeslicev1beta1.Slice
 							},
 						},
 					}, {
-						Name:            "avesha-openvpn-client",
+						Name:            "kubeslice-openvpn-client",
 						Image:           vpnImg,
 						ImagePullPolicy: vpnPullPolicy,
 						Command: []string{
@@ -498,12 +498,12 @@ func (r *SliceGwReconciler) deploymentForGatewayClient(g *kubeslicev1beta1.Slice
 						},
 					}},
 					Tolerations: []corev1.Toleration{{
-						Key:      "avesha/node-type",
+						Key:      "kubeslice.io/node-type",
 						Operator: "Equal",
 						Effect:   "NoSchedule",
 						Value:    "gateway",
 					}, {
-						Key:      "avesha/node-type",
+						Key:      "kubeslice.io/node-type",
 						Operator: "Equal",
 						Effect:   "NoExecute",
 						Value:    "gateway",

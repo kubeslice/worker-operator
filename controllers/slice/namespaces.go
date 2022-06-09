@@ -314,13 +314,13 @@ func (r *SliceReconciler) deleteAnnotationsAndLabels(ctx context.Context, slice 
 	for _, deploy := range deployList.Items {
 		labels := deploy.Spec.Template.ObjectMeta.Labels
 		if labels != nil {
-			_, ok := labels["avesha.io/pod-type"]
+			_, ok := labels["kubeslice.io/pod-type"]
 			if ok {
-				delete(labels, "avesha.io/pod-type")
+				delete(labels, "kubeslice.io/pod-type")
 			}
-			sliceName, ok := labels["avesha.io/slice"]
+			sliceName, ok := labels["kubeslice.io/slice"]
 			if ok && slice.Name == sliceName {
-				delete(labels, "avesha.io/slice")
+				delete(labels, "kubeslice.io/slice")
 			}
 		}
 		podannotations := deploy.Spec.Template.ObjectMeta.Annotations
@@ -332,9 +332,9 @@ func (r *SliceReconciler) deleteAnnotationsAndLabels(ctx context.Context, slice 
 		}
 		deployannotations := deploy.ObjectMeta.GetAnnotations()
 		if deployannotations != nil {
-			_, ok := deployannotations["avesha.io/status"]
+			_, ok := deployannotations["kubeslice.io/status"]
 			if ok {
-				delete(deployannotations, "avesha.io/status")
+				delete(deployannotations, "kubeslice.io/status")
 			}
 		}
 		if err := r.Update(ctx, &deploy); err != nil {
