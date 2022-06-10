@@ -21,6 +21,7 @@ package spoke_test
 import (
 	"context"
 	"os"
+	"reflect"
 	"time"
 
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
@@ -35,7 +36,6 @@ import (
 )
 
 var log = logger.NewLogger()
-var sliceFinalizer = "networking.kubeslice.io/slice-finalizer"
 
 var _ = Describe("SliceController", func() {
 
@@ -110,6 +110,7 @@ var _ = Describe("SliceController", func() {
 		})
 		It("Should create a finalizer for slice CR created", func() {
 			ctx := context.Background()
+			sliceFinalizer := []string{"networking.kubeslice.io/slice-finalizer"}
 			// Create slice and kubeslice-dns service
 			Eventually(func() bool {
 				err := k8sClient.Create(ctx, slice)
@@ -125,9 +126,8 @@ var _ = Describe("SliceController", func() {
 			Eventually(func() bool {
 				sliceKey := types.NamespacedName{Name: "test-slice", Namespace: "kubeslice-system"}
 				err := k8sClient.Get(ctx, sliceKey, createdSlice)
-				return err == nil
+				return err == nil && reflect.DeepEqual(createdSlice.ObjectMeta.Finalizers, sliceFinalizer)
 			}, time.Second*10, time.Millisecond*250).Should(BeTrue())
-			Expect(createdSlice.ObjectMeta.Finalizers[0]).Should(Equal(sliceFinalizer))
 		})
 
 	})
