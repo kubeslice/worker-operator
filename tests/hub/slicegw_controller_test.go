@@ -85,6 +85,10 @@ var _ = Describe("Hub SlicegwController", func() {
 			// Cleanup after each test
 			DeferCleanup(func() {
 				Expect(k8sClient.Delete(ctx, hubSlice)).Should(Succeed())
+				Eventually(func() bool {
+					err := k8sClient.Get(ctx, types.NamespacedName{Namespace: hubSlice.Namespace, Name: hubSlice.Name}, hubSlice)
+					return errors.IsNotFound(err)
+				}, time.Second*10, time.Millisecond*250).Should(BeTrue())
 				Expect(k8sClient.Delete(ctx, hubSliceGw)).Should(Succeed())
 				Expect(k8sClient.Delete(ctx, hubSecret)).Should(Succeed())
 				Eventually(func() bool {

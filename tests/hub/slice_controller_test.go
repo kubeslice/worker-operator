@@ -20,6 +20,7 @@ package hub_test
 
 import (
 	"context"
+	"reflect"
 	"time"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -130,13 +131,12 @@ var _ = Describe("Hub SliceController", func() {
 
 			//get the created hubSlice
 			hubSliceKey := types.NamespacedName{Name: "test-slice-1", Namespace: PROJECT_NS}
-			sliceFinalizer := "controller.kubeslice.io/hubSpokeSlice-finalizer"
+			sliceFinalizer := []string{"controller.kubeslice.io/hubSpokeSlice-finalizer"}
 
 			Eventually(func() bool {
 				err := k8sClient.Get(ctx, hubSliceKey, hubSlice)
-				return err == nil
+				return err == nil && reflect.DeepEqual(hubSlice.ObjectMeta.Finalizers, sliceFinalizer)
 			}, time.Second*10, time.Millisecond*250).Should(BeTrue())
-			Expect(hubSlice.ObjectMeta.Finalizers[0]).Should(Equal(sliceFinalizer))
 		})
 
 	})
