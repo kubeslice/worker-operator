@@ -67,7 +67,7 @@ var _ = Describe("Hub SliceController", func() {
 			DeferCleanup(func() {
 				Expect(k8sClient.Delete(ctx, hubSlice)).Should(Succeed())
 				Eventually(func() bool {
-					err := k8sClient.Get(ctx, types.NamespacedName{Namespace: "kubeslice-system", Name: createdSlice.Name}, createdSlice)
+					err := k8sClient.Get(ctx, types.NamespacedName{Namespace: hubSlice.Namespace, Name: hubSlice.Name}, hubSlice)
 					return errors.IsNotFound(err)
 				}, time.Second*10, time.Millisecond*250).Should(BeTrue())
 			})
@@ -226,7 +226,7 @@ var _ = Describe("Hub SliceController", func() {
 			DeferCleanup(func() {
 				Expect(k8sClient.Delete(ctx, hubSlice)).Should(Succeed())
 				Eventually(func() bool {
-					err := k8sClient.Get(ctx, types.NamespacedName{Namespace: "kubeslice-system", Name: createdSlice.Name}, createdSlice)
+					err := k8sClient.Get(ctx, types.NamespacedName{Namespace: hubSlice.Namespace, Name: hubSlice.Name}, hubSlice)
 					return errors.IsNotFound(err)
 				}, time.Second*10, time.Millisecond*250).Should(BeTrue())
 			})
