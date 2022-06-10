@@ -322,68 +322,29 @@ var _ = Describe("Worker SlicegwController", func() {
 			sliceKey := types.NamespacedName{Name: "test-slice-4", Namespace: CONTROL_PLANE_NS}
 			Eventually(func() bool {
 				err := k8sClient.Get(ctx, sliceKey, createdSlice)
-				if err != nil {
-					return false
-				}
-				return true
+				return err == nil
 			}, time.Second*10, time.Millisecond*250).Should(BeTrue())
 
 			slicegwkey := types.NamespacedName{Name: "test-slicegw", Namespace: CONTROL_PLANE_NS}
 			Eventually(func() bool {
 				err := k8sClient.Get(ctx, slicegwkey, createdSliceGw)
-				if err != nil {
-					return false
-				}
-				return true
+				return err == nil
 			}, time.Second*10, time.Millisecond*250).Should(BeTrue())
 
 			createdSliceGw.Status.Config.SliceGatewayHostType = "Client"
-
-			Eventually(func() bool {
-				err := k8sClient.Status().Update(ctx, createdSliceGw)
-				if err != nil {
-					return false
-				}
-				return true
-			}, time.Second*30, time.Millisecond*250).Should(BeTrue())
-
 			createdSliceGw.Status.Config.SliceGatewayRemoteNodeIP = "192.168.1.1"
-
-			Eventually(func() bool {
-				err := k8sClient.Status().Update(ctx, createdSliceGw)
-				if err != nil {
-					return false
-				}
-				return true
-			}, time.Second*30, time.Millisecond*250).Should(BeTrue())
-
 			createdSliceGw.Status.Config.SliceGatewayRemoteNodePort = 8080
-
-			Eventually(func() bool {
-				err := k8sClient.Status().Update(ctx, createdSliceGw)
-				if err != nil {
-					return false
-				}
-				return true
-			}, time.Second*30, time.Millisecond*250).Should(BeTrue())
-
+			Expect(k8sClient.Status().Update(ctx, createdSliceGw)).Should(Succeed())
 			Eventually(func() bool {
 				err := k8sClient.Get(ctx, slicegwkey, createdSliceGw)
-				if err != nil {
-					return false
-				}
-				return true
+				return err == nil
 			}, time.Second*10, time.Millisecond*250).Should(BeTrue())
-
 			founddepl := &appsv1.Deployment{}
 			deplKey := types.NamespacedName{Name: "test-slicegw", Namespace: CONTROL_PLANE_NS}
 
 			Eventually(func() bool {
 				err := k8sClient.Get(ctx, deplKey, founddepl)
-				if err != nil {
-					return false
-				}
-				return true
+				return err == nil
 			}, time.Second*40, time.Millisecond*250).Should(BeTrue())
 
 			Expect(founddepl.Spec.Template.Spec.Containers[1].Name).Should(Equal("kubeslice-openvpn-client"))
