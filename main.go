@@ -28,6 +28,7 @@ import (
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
+
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
 	sidecar "github.com/kubeslice/worker-operator/pkg/gwsidecar"
@@ -250,6 +251,13 @@ func main() {
 	if err != nil {
 		setupLog.Error(err, "could not post Cluster Info to Hub")
 	}
+
+	//post dashboard creds cluster CR on Hub cluster
+	err = hub.PostDashboardCredsToHub(ctx, clientForHubMgr, hubClient)
+	if err != nil {
+		setupLog.Error(err, "could not post Dasboard Creds to Hub")
+	}
+
 	setupLog.Info("starting manager")
 	if err := mgr.Start(ctx); err != nil {
 		setupLog.Error(err, "problem running manager")
