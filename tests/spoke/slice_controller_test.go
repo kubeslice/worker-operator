@@ -25,7 +25,7 @@ import (
 	"time"
 
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
-	"github.com/kubeslice/worker-operator/internal/logger"
+	"github.com/kubeslice/worker-operator/pkg/logger"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"

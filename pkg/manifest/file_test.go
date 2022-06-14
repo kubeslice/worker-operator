@@ -22,7 +22,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
-	"github.com/kubeslice/worker-operator/internal/manifest"
+	"github.com/kubeslice/worker-operator/pkg/manifest"
 	appsv1 "k8s.io/api/apps/v1"
 )
 

@@ -25,7 +25,7 @@ import (
 	. "github.com/onsi/gomega"
 
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
-	"github.com/kubeslice/worker-operator/internal/manifest"
+	"github.com/kubeslice/worker-operator/pkg/manifest"
 	istiov1beta1 "istio.io/client-go/pkg/apis/networking/v1beta1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"

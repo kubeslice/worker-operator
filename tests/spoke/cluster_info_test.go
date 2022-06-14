@@ -22,8 +22,8 @@ import (
 	"time"
 
 	hubv1alpha1 "github.com/kubeslice/apis/pkg/controller/v1alpha1"
-	clusterpkg "github.com/kubeslice/worker-operator/internal/cluster"
-	hub "github.com/kubeslice/worker-operator/internal/hub/hubclient"
+	clusterpkg "github.com/kubeslice/worker-operator/pkg/cluster"
+	hub "github.com/kubeslice/worker-operator/pkg/hub/hubclient"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"

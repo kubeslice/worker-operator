@@ -22,7 +22,7 @@ import (
 	"context"
 
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
-	"github.com/kubeslice/worker-operator/internal/hub/controllers"
+	"github.com/kubeslice/worker-operator/pkg/hub/controllers"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )

@@ -21,7 +21,7 @@ package manager
 import (
 	"os"
 
-	"github.com/kubeslice/worker-operator/internal/utils"
+	"github.com/kubeslice/worker-operator/pkg/utils"
 )
 
 var (

@@ -22,9 +22,9 @@ import (
 	"context"
 
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
-	"github.com/kubeslice/worker-operator/internal/gwsidecar"
-	"github.com/kubeslice/worker-operator/internal/netop"
-	"github.com/kubeslice/worker-operator/internal/router"
+	"github.com/kubeslice/worker-operator/pkg/gwsidecar"
+	"github.com/kubeslice/worker-operator/pkg/netop"
+	"github.com/kubeslice/worker-operator/pkg/router"
 )
 
 // NetOpPod contains details of NetOp Pod running in the cluster
