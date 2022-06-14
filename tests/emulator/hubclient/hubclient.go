@@ -33,6 +33,10 @@ func NewHubClientEmulator() (*HubClientEmulator, error) {
 	return new(HubClientEmulator), nil
 }
 
+func (hubClientEmulator *HubClientEmulator) UpdateNodeIpInCluster(ctx context.Context, clusterName, nodeIP, namespace string) error {
+	return nil
+}
+
 func (hubClientEmulator *HubClientEmulator) UpdateNodePortForSliceGwServer(
 	ctx context.Context, sliceGwNodePort int32, sliceGwName string) error {
 	return nil

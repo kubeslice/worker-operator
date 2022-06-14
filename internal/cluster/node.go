@@ -30,6 +30,9 @@ import (
 
 var log = logger.NewLogger().WithValues("type", "hub")
 
+// Global variable to store the list of kubeslice gateway nodes IP's in the cluster
+var nodeInfo *NodeInfo
+
 const (
 	NodeExternalIP corev1.NodeAddressType = "ExternalIP"
 )
@@ -44,7 +47,7 @@ type NodeInfo struct {
 
 //GetNodeExternalIpList gets the list of External Node IPs of kubeslice-gateway nodes
 
-func (n *NodeInfo) getNodeExternalIpList(client client.Client) ([]string, error) {
+func (n *NodeInfo) getNodeExternalIpList() ([]string, error) {
 	// If node IP is set as an env variable, we use that as the only
 	// node IP available to us. Early exit from here, and there is no need
 	// spawn the node watcher thread.
@@ -78,6 +81,10 @@ func (n *NodeInfo) populateNodeIpList() error {
 		return fmt.Errorf("can't fetch node list: %+v ", err)
 	}
 
+	if len(nodeList.Items) == 0 {
+		return fmt.Errorf("can't fetch node list: %+v ", err)
+	}
+
 	nodeIpArr := []corev1.NodeAddress{}
 	for i := 0; i < len(nodeList.Items); i++ {
 		nodeIpArr = append(nodeIpArr, nodeList.Items[i].Status.Addresses...)
@@ -91,15 +98,20 @@ func (n *NodeInfo) populateNodeIpList() error {
 }
 
 func GetNodeIP(client client.Client) (string, error) {
-	nodeInfo := &NodeInfo{
-		Client: client,
-	}
-	nodeIPs, err := nodeInfo.getNodeExternalIpList(client)
-	if err != nil {
+	nodeInfo.Client = client
+	nodeIPs, err := nodeInfo.getNodeExternalIpList()
+	if err != nil || len(nodeIPs) == 0 {
 		log.Error(err, "Getting NodeIP From kube-api-server")
 		os.Exit(1)
 	}
+
 	nodeIP := nodeIPs[0]
 	log.Info("nodeIP selected", "nodeIP ", nodeIP)
 	return nodeIP, err
+}
+
+func GetNodeExternalIpList() []string {
+	nodeInfo.Lock()
+	defer nodeInfo.Unlock()
+	return nodeInfo.ExternalIP
 }

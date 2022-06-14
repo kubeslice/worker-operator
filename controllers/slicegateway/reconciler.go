@@ -20,8 +20,6 @@ package slicegateway
 
 import (
 	"context"
-	"time"
-
 	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -37,6 +35,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
+	"time"
 
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
 	"github.com/kubeslice/worker-operator/controllers"
@@ -58,6 +57,7 @@ type SliceGwReconciler struct {
 	WorkerGWSidecarClient WorkerGWSidecarClientProvider
 	NetOpPods             []NetOpPod
 	EventRecorder         *events.EventRecorder
+	NodeIP                string
 }
 
 func readyToDeployGwClient(sliceGw *kubeslicev1beta1.SliceGateway) bool {
@@ -78,7 +78,7 @@ func readyToDeployGwClient(sliceGw *kubeslicev1beta1.SliceGateway) bool {
 func (r *SliceGwReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	var sliceGwNodePort int32
 	log := r.Log.WithValues("slicegateway", req.NamespacedName)
-
+	debugLog := log.V(1)
 	sliceGw := &kubeslicev1beta1.SliceGateway{}
 	err := r.Get(ctx, req.NamespacedName, sliceGw)
 	if err != nil {
@@ -191,6 +191,74 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 				},
 			)
 			return ctrl.Result{}, err
+		}
+		//reconcile the available nodes
+		if err := r.reconcileNodes(ctx, sliceGw); err != nil {
+			return ctrl.Result{}, err
+		}
+	}
+
+	isClient := sliceGw.Status.Config.SliceGatewayHostType == "Client"
+	if isClient {
+		//check if SliceGatewayRemoteGatewayID is populated , else requeue
+		if sliceGw.Status.Config.SliceGatewayRemoteNodeIP == "" || sliceGw.Status.Config.SliceGatewayRemoteGatewayID == "" {
+			log.Info("slicegateway waiting for SliceGatewayRemoteGatewayID to get populate from controller")
+			return ctrl.Result{
+				RequeueAfter: time.Duration(10) * time.Second,
+			}, nil
+		}
+		//create a headless service and an endpoint for DNS Query on OpenVPN Client
+		serviceFound := corev1.Service{}
+		err = r.Get(ctx, types.NamespacedName{Namespace: sliceGw.Namespace, Name: sliceGw.Status.Config.SliceGatewayRemoteGatewayID}, &serviceFound)
+		if err != nil {
+			if errors.IsNotFound(err) {
+				// Create a new service with same name as SliceGatewayRemoteGatewayID , because --remote flag of openvpn client is populated with same name. So it would call this svc to get a server IP(through endpoint)
+				svc := r.createHeadlessServiceForGwServer(sliceGw)
+				log.Info("Creating a new Headless Service")
+				if err := r.Create(ctx, svc); err != nil {
+					log.Error(err, "Failed to create a new headless service", "Name", svc.Name)
+					return ctrl.Result{}, err
+				}
+				log.Info("Created a headless service")
+				return ctrl.Result{Requeue: true}, nil
+			} else {
+				log.Error(err, "Failed to Get Headless service")
+				return ctrl.Result{}, err
+			}
+		}
+		//create an endpoint if not exists
+		endpointFound := corev1.Endpoints{}
+		err := r.Get(ctx, types.NamespacedName{Namespace: sliceGw.Namespace, Name: sliceGw.Status.Config.SliceGatewayRemoteGatewayID}, &endpointFound)
+		if err != nil {
+			if errors.IsNotFound(err) {
+				//Create a new endpoint with same name as RemoteGatewayID
+				endpoint := r.createEndpointForGatewayServer(sliceGw)
+				log.Info("Creating a new Endpoint for Headless Service")
+				if err := r.Create(ctx, endpoint); err != nil {
+					log.Error(err, "Failed to create an Endpoint", "Name", endpoint.Name)
+					return ctrl.Result{}, err
+				}
+				log.Info("Created a new Endpoint")
+				return ctrl.Result{Requeue: true}, nil
+			} else {
+				log.Error(err, "Failed to get an endpoint")
+				return ctrl.Result{}, err
+			}
+		}
+		debugLog.Info("SliceGatewayRemoteNodeIP", "SliceGatewayRemoteNodeIP", sliceGw.Status.Config.SliceGatewayRemoteNodeIP)
+		debugLog.Info("from endpointFound", "from endpointFound", endpointFound.Subsets[0].Addresses[0].IP)
+		// endpoint already exists , check if sliceGatewayRemoteNodeIp is changed then update the endpoint
+		if endpointFound.Subsets[0].Addresses[0].IP != sliceGw.Status.Config.SliceGatewayRemoteNodeIP {
+			debugLog.Info("Updating the Endpoint, since sliceGatewayRemoteNodeIp has changed")
+			endpointFound.Subsets[0].Addresses[0].IP = sliceGw.Status.Config.SliceGatewayRemoteNodeIP
+			err := r.Update(ctx, &endpointFound)
+			if err != nil {
+				log.Error(err, "Error updating Endpoint")
+				return ctrl.Result{}, err
+			}
+			debugLog.Info("Updated Endpoint to use new sliceGatewayRemoteNodeIp")
+		} else {
+			debugLog.Info("sliceGatewayRemoteNodeIp is same")
 		}
 	}
 

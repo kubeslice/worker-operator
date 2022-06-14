@@ -20,6 +20,7 @@ package slicegateway
 
 import (
 	"context"
+	"errors"
 	"os"
 	"strconv"
 	"time"
@@ -34,6 +35,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
+	"github.com/kubeslice/worker-operator/internal/cluster"
 	"github.com/kubeslice/worker-operator/internal/gwsidecar"
 	"github.com/kubeslice/worker-operator/internal/logger"
 	"github.com/kubeslice/worker-operator/internal/router"
@@ -460,7 +462,7 @@ func (r *SliceGwReconciler) deploymentForGatewayClient(g *kubeslicev1beta1.Slice
 							"90",
 							"openvpn",
 							"--remote",
-							g.Status.Config.SliceGatewayRemoteNodeIP,
+							g.Status.Config.SliceGatewayRemoteGatewayID,
 							"--port",
 							strconv.Itoa(g.Status.Config.SliceGatewayRemoteNodePort),
 							"--proto",
@@ -677,4 +679,70 @@ func (r *SliceGwReconciler) SyncNetOpConnectionContextAndQos(ctx context.Context
 	}
 	debugLog.Info("netop pods sync complete", "pods", r.NetOpPods)
 	return nil
+}
+
+func (r *SliceGwReconciler) createHeadlessServiceForGwServer(slicegateway *kubeslicev1beta1.SliceGateway) *corev1.Service {
+	svc := &corev1.Service{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      slicegateway.Status.Config.SliceGatewayRemoteGatewayID,
+			Namespace: slicegateway.Namespace,
+		},
+		Spec: corev1.ServiceSpec{
+			Ports:     nil,
+			Selector:  nil,
+			ClusterIP: "None",
+		},
+	}
+	ctrl.SetControllerReference(slicegateway, svc, r.Scheme)
+	return svc
+}
+
+func (r *SliceGwReconciler) createEndpointForGatewayServer(slicegateway *kubeslicev1beta1.SliceGateway) *corev1.Endpoints {
+	e := &corev1.Endpoints{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      slicegateway.Status.Config.SliceGatewayRemoteGatewayID,
+			Namespace: slicegateway.Namespace,
+		},
+		Subsets: []corev1.EndpointSubset{
+			{
+				Addresses: []corev1.EndpointAddress{
+					{
+						IP: slicegateway.Status.Config.SliceGatewayRemoteNodeIP,
+					},
+				},
+			},
+		},
+	}
+	ctrl.SetControllerReference(slicegateway, e, r.Scheme)
+	return e
+}
+
+func (r *SliceGwReconciler) reconcileNodes(ctx context.Context, slicegateway *kubeslicev1beta1.SliceGateway) error {
+	log := r.Log
+	//TODO:fetch currentNodeIP from controller cluster CR?
+	currentNodeIP := r.NodeIP
+	nodeIpList := cluster.GetNodeExternalIpList()
+	if len(nodeIpList) == 0 {
+		err := errors.New("node IP list is empty")
+		return err
+	}
+	if !contains(nodeIpList, currentNodeIP) {
+		//nodeIP updated , update the cluster CR
+		log.Info("Mismatch in node IP", "IP in use", currentNodeIP, "IP to be used", r.NodeIP)
+		err := r.HubClient.UpdateNodeIpInCluster(ctx, os.Getenv("CLUSTER_NAME"), nodeIpList[0], os.Getenv("HUB_PROJECT_NAMESPACE"))
+		if err != nil {
+			return err
+		}
+		r.NodeIP = nodeIpList[0]
+	}
+	return nil
+}
+
+func contains(s []string, e string) bool {
+	for _, a := range s {
+		if a == e {
+			return true
+		}
+	}
+	return false
 }
