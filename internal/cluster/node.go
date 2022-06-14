@@ -30,8 +30,12 @@ import (
 
 var log = logger.NewLogger().WithValues("type", "hub")
 
-// Global variable to store the list of kubeslice gateway nodes IP's in the cluster
 var nodeInfo *NodeInfo
+
+func init() {
+	// Global variable to store the list of kubeslice gateway nodes IP's in the cluster
+	nodeInfo = &NodeInfo{}
+}
 
 const (
 	NodeExternalIP corev1.NodeAddressType = "ExternalIP"

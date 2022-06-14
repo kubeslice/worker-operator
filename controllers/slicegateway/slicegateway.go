@@ -20,7 +20,7 @@ package slicegateway
 
 import (
 	"context"
-	"errors"
+	_"errors"
 	"os"
 	"strconv"
 	"time"
@@ -723,8 +723,8 @@ func (r *SliceGwReconciler) reconcileNodes(ctx context.Context, slicegateway *ku
 	currentNodeIP := r.NodeIP
 	nodeIpList := cluster.GetNodeExternalIpList()
 	if len(nodeIpList) == 0 {
-		err := errors.New("node IP list is empty")
-		return err
+		//err := errors.New("node IP list is empty")
+		return nil
 	}
 	if !contains(nodeIpList, currentNodeIP) {
 		//nodeIP updated , update the cluster CR

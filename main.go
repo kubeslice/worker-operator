@@ -175,8 +175,8 @@ func main() {
 	}
 	if err := (&cluster.NodeReconciler{
 		Client: mgr.GetClient(),
-		Log: ctrl.Log.WithName("controllers").WithName("node reconciller"),
-	}).SetupWithManager(mgr);err != nil {
+		Log:    ctrl.Log.WithName("controllers").WithName("node reconciller"),
+	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "node")
 		//os.Exit(1)
 	}
