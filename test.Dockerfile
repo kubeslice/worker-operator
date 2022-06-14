@@ -14,7 +14,6 @@ RUN make controller-gen
 # Copy the go source
 COPY api/ api/
 COPY controllers/ controllers/
-COPY internal/ internal/
 COPY tests/ tests/
 COPY hack/ hack/
 COPY config/ config
