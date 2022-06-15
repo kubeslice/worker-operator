@@ -32,14 +32,14 @@ cd worker-operator
 make docker-build
 ```
 
-3. Loading kubeslice-worker Image Into Your Kind Cluster ([`link`](https://kind.sigs.k8s.io/docs/user/quick-start/#loading-an-image-into-your-cluster))
+3. Loading kubeslice-worker Image into your Kind cluster ([`link`](https://kind.sigs.k8s.io/docs/user/quick-start/#loading-an-image-into-your-cluster)).
    If needed, replace `aveshasystems/worker-operator` with your locally built image name in the previous step.
-   [See loading an image into your cluster](https://kind.sigs.k8s.io/docs/user/quick-start/#loading-an-image-into-your-cluster)
+   [See loading an image into your cluster](https://kind.sigs.k8s.io/docs/user/quick-start/#loading-an-image-into-your-cluster).
 ```bash
 kind load docker-image aveshasystems/worker-operator --name kind
 ```
 
-4. Check the loaded image in the cluster. Modify node name if required.
+4. Check the loaded image in the cluster. Modify the node name if required.
 ```bash
 docker exec -it kind-control-plane crictl images
 ```
@@ -74,7 +74,7 @@ make chart-deploy VALUESFILE=yourvaluesfile.yaml
 
 ### Running test cases
 
-After running the below command, you should see all test cases have passed.
+After running the below command, you should see that all test cases have passed.
 
 ```bash
 make test
