@@ -5,7 +5,7 @@ metadata:
   name: serviceimport-editor-role
 rules:
 - apiGroups:
-  - mesh.avesha.io
+  - networking.kubeslice.io
   resources:
   - serviceimports
   verbs:
@@ -17,7 +17,7 @@ rules:
   - update
   - watch
 - apiGroups:
-  - mesh.avesha.io
+  - networking.kubeslice.io
   resources:
   - serviceimports/status
   verbs:

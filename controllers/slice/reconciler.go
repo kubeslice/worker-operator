@@ -34,13 +34,13 @@ import (
 
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
 	"github.com/kubeslice/worker-operator/controllers"
-	"github.com/kubeslice/worker-operator/internal/logger"
-	"github.com/kubeslice/worker-operator/internal/manifest"
 	"github.com/kubeslice/worker-operator/pkg/events"
+	"github.com/kubeslice/worker-operator/pkg/logger"
+	"github.com/kubeslice/worker-operator/pkg/manifest"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
-var sliceFinalizer = "mesh.kubeslice.io/slice-finalizer"
+var sliceFinalizer = "networking.kubeslice.io/slice-finalizer"
 
 // SliceReconciler reconciles a Slice object
 type SliceReconciler struct {
@@ -67,7 +67,7 @@ type SliceReconciler struct {
 //+kubebuilder:rbac:groups=networking.istio.io,resources=gateways,verbs=get;list;create;update;watch;delete
 //+kubebuilder:rbac:groups=networking.istio.io,resources=serviceentries,verbs=get;list;create;update;watch;delete
 //+kubebuilder:rbac:groups=networking.istio.io,resources=virtualservices,verbs=get;list;create;update;watch;delete
-//+kubebuilder:webhook:path=/mutate-appsv1-deploy,mutating=true,failurePolicy=fail,groups="apps",resources=deployments,verbs=create;update,versions=v1,name=mdeploy.avesha.io,admissionReviewVersions=v1,sideEffects=NoneOnDryRun
+//+kubebuilder:webhook:path=/mutate-appsv1-deploy,mutating=true,failurePolicy=fail,groups="apps",resources=deployments,verbs=create;update,versions=v1,name=mdeploy.kubeslice.io,admissionReviewVersions=v1,sideEffects=NoneOnDryRun
 //+kubebuilder:rbac:groups=core,resources=nodes,verbs=get;list;watch
 //+kubebuilder:rbac:groups=core,resources=namespaces,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=networking.k8s.io,resources=networkpolicies,verbs=get;list;watch;create;update;patch;delete

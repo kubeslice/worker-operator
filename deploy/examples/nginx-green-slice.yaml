@@ -6,7 +6,7 @@ metadata:
   labels:
     app: nginx
   annotations:
-    avesha.io/slice: "green"
+    kubeslice.io/slice: "green"
 spec:
   replicas: 2
   selector:

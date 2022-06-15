@@ -53,7 +53,7 @@ var _ = Describe("ServiceExportController", func() {
 		var createdSlice *kubeslicev1beta1.Slice
 
 		BeforeEach(func() {
-			// Prepare k8s objects for slice and mesh-dns service
+			// Prepare k8s objects for slice and kubeslice-dns service
 			slice = &kubeslicev1beta1.Slice{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "test-slice-1",
@@ -64,7 +64,7 @@ var _ = Describe("ServiceExportController", func() {
 
 			dnssvc = &corev1.Service{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "mesh-dns",
+					Name:      "kubeslice-dns",
 					Namespace: "kubeslice-system",
 				},
 				Spec: corev1.ServiceSpec{
@@ -74,7 +74,7 @@ var _ = Describe("ServiceExportController", func() {
 				},
 			}
 
-			// Prepare k8s objects for slice and mesh-dns service
+			// Prepare k8s objects for slice and kubeslice-dns service
 			svcex = &kubeslicev1beta1.ServiceExport{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "iperf-server",
@@ -273,16 +273,18 @@ var _ = Describe("ServiceExportController", func() {
 			}, time.Second*30, time.Millisecond*250).Should(BeTrue())
 
 			events := corev1.EventList{}
-			Eventually(func() bool {
-				err := k8sClient.List(ctx, &events)
-				return err == nil
-			}, time.Second*10, time.Millisecond*250).Should(BeTrue())
+			var message string
+			Eventually(func() string {
 
-			for _, event := range events.Items {
-				if event.Source.Component == "test-SvcEx-controller" && event.InvolvedObject.Kind == "ServiceExport" {
-					Expect(event.Message).To(Equal("Successfully posted serviceexport to kubeslice-controller cluster"))
+				_ = k8sClient.List(ctx, &events)
+
+				for _, event := range events.Items {
+					if event.Source.Component == "test-SvcEx-controller" && event.InvolvedObject.Kind == "ServiceExport" {
+						message = event.Message
+					}
 				}
-			}
+				return message
+			}, time.Second*10, time.Millisecond*250).Should(Equal("Successfully posted serviceexport to kubeslice-controller cluster"))
 		})
 	})
 })

@@ -22,7 +22,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/kubeslice/worker-operator/internal/utils"
+	"github.com/kubeslice/worker-operator/pkg/utils"
 )
 
 var (
@@ -30,13 +30,13 @@ var (
 	ControlPlaneNamespace = "kubeslice-system"
 	// DNSDeploymentName is the name of coredns deployment running in the cluster
 	DNSDeploymentName            = "kubeslice-dns"
-	NSMIPLabelSelectorKey string = "avesha.io/nsmIP"
+	NSMIPLabelSelectorKey string = "kubeslice.io/nsmIP"
 
 	ClusterName = os.Getenv("CLUSTER_NAME")
 
 	NodeIP = os.Getenv("NODE_IP")
 
-	ImagePullSecretName = utils.GetEnvOrDefault("IMAGE_PULL_SECRET_NAME", "avesha-nexus")
+	ImagePullSecretName = utils.GetEnvOrDefault("IMAGE_PULL_SECRET_NAME", "kubeslice-nexus")
 
 	ReconcileInterval = 10 * time.Second
 )

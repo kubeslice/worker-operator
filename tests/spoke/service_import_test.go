@@ -40,7 +40,7 @@ var _ = Describe("ServiceImportController", func() {
 		var svcim *kubeslicev1beta1.ServiceImport
 		var createdSlice *kubeslicev1beta1.Slice
 		BeforeEach(func() {
-			// Prepare k8s objects for slice and mesh-dns service
+			// Prepare k8s objects for slice and kubeslice-dns service
 			slice = &kubeslicev1beta1.Slice{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "test-slice-2",
@@ -51,7 +51,7 @@ var _ = Describe("ServiceImportController", func() {
 
 			dnssvc = &corev1.Service{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "mesh-dns",
+					Name:      "kubeslice-dns",
 					Namespace: "kubeslice-system",
 				},
 				Spec: corev1.ServiceSpec{
@@ -64,13 +64,13 @@ var _ = Describe("ServiceImportController", func() {
 
 			dnscm = &corev1.ConfigMap{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "mesh-dns",
+					Name:      "kubeslice-dns",
 					Namespace: "kubeslice-system",
 				},
 				Data: map[string]string{"slice.db": ""},
 			}
 
-			// Prepare k8s objects for slice and mesh-dns service
+			// Prepare k8s objects for slice and kubeslice-dns service
 			svcim = &kubeslicev1beta1.ServiceImport{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "iperf-server",

@@ -40,12 +40,12 @@ import (
 
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
 	"github.com/kubeslice/worker-operator/controllers"
-	"github.com/kubeslice/worker-operator/internal/logger"
 	"github.com/kubeslice/worker-operator/pkg/events"
+	"github.com/kubeslice/worker-operator/pkg/logger"
 	nsmv1alpha1 "github.com/networkservicemesh/networkservicemesh/k8s/pkg/apis/networkservice/v1alpha1"
 )
 
-var sliceGwFinalizer = "mesh.kubeslice.io/slicegw-finalizer"
+var sliceGwFinalizer = "networking.kubeslice.io/slicegw-finalizer"
 
 // SliceReconciler reconciles a Slice object
 type SliceGwReconciler struct {
@@ -302,22 +302,36 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	return ctrl.Result{}, nil
 }
 
+func getPodType(labels map[string]string) string {
+	podType, found := labels["kubeslice.io/pod-type"]
+	if found {
+		return podType
+	}
+
+	nsmLabel, found := labels["app"]
+	if found {
+		if nsmLabel == "nsmgr-daemonset" || nsmLabel == "nsm-kernel-plane" {
+			return "nsm"
+		}
+	}
+
+	return ""
+}
+
 func (r *SliceGwReconciler) findSliceGwObjectsToReconcile(pod client.Object) []reconcile.Request {
 	podLabels := pod.GetLabels()
 	if podLabels == nil {
 		return []reconcile.Request{}
 	}
 
-	podType, found := podLabels["avesha.io/pod-type"]
-	if !found {
-		return []reconcile.Request{}
-	}
+	podType := getPodType(podLabels)
 
 	sliceGwList := &kubeslicev1beta1.SliceGatewayList{}
 	var err error
 
-	if podType == "router" {
-		sliceName, found := podLabels["avesha.io/slice"]
+	switch podType {
+	case "router":
+		sliceName, found := podLabels["kubeslice.io/slice"]
 		if !found {
 			return []reconcile.Request{}
 		}
@@ -326,12 +340,17 @@ func (r *SliceGwReconciler) findSliceGwObjectsToReconcile(pod client.Object) []r
 		if err != nil {
 			return []reconcile.Request{}
 		}
-	} else if podType == "netop" {
+	case "netop":
 		sliceGwList, err = r.findObjectsForNetopUpdate()
 		if err != nil {
 			return []reconcile.Request{}
 		}
-	} else {
+	case "nsm":
+		sliceGwList, err = r.findObjectsForNsmUpdate()
+		if err != nil {
+			return []reconcile.Request{}
+		}
+	default:
 		return []reconcile.Request{}
 	}
 
@@ -351,7 +370,7 @@ func (r *SliceGwReconciler) findSliceGwObjectsToReconcile(pod client.Object) []r
 func (r *SliceGwReconciler) findObjectsForSliceRouterUpdate(sliceName string) (*kubeslicev1beta1.SliceGatewayList, error) {
 	sliceGwList := &kubeslicev1beta1.SliceGatewayList{}
 	listOpts := []client.ListOption{
-		client.MatchingLabels(map[string]string{"avesha.io/slice": sliceName}),
+		client.MatchingLabels(map[string]string{"kubeslice.io/slice": sliceName}),
 	}
 	err := r.List(context.Background(), sliceGwList, listOpts...)
 	if err != nil {
@@ -361,7 +380,7 @@ func (r *SliceGwReconciler) findObjectsForSliceRouterUpdate(sliceName string) (*
 	return sliceGwList, nil
 }
 
-func (r *SliceGwReconciler) findObjectsForNetopUpdate() (*kubeslicev1beta1.SliceGatewayList, error) {
+func (r *SliceGwReconciler) findAllSliceGwObjects() (*kubeslicev1beta1.SliceGatewayList, error) {
 	sliceGwList := &kubeslicev1beta1.SliceGatewayList{}
 	listOpts := []client.ListOption{
 		client.InNamespace(controllers.ControlPlaneNamespace),
@@ -374,6 +393,14 @@ func (r *SliceGwReconciler) findObjectsForNetopUpdate() (*kubeslicev1beta1.Slice
 	return sliceGwList, nil
 }
 
+func (r *SliceGwReconciler) findObjectsForNetopUpdate() (*kubeslicev1beta1.SliceGatewayList, error) {
+	return r.findAllSliceGwObjects()
+}
+
+func (r *SliceGwReconciler) findObjectsForNsmUpdate() (*kubeslicev1beta1.SliceGatewayList, error) {
+	return r.findAllSliceGwObjects()
+}
+
 // SetupWithManager sets up the controller with the Manager.
 func (r *SliceGwReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	var labelSelector metav1.LabelSelector
@@ -382,17 +409,33 @@ func (r *SliceGwReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	// slice router or the netop pods. This is needed to re-send connection context to the
 	// restarted slice router or netop pods.
 	// We will add a watch on those pods with appropriate label selectors for filtering.
-	labelSelector.MatchLabels = map[string]string{"avesha.io/pod-type": "router"}
+	labelSelector.MatchLabels = map[string]string{"kubeslice.io/pod-type": "router"}
 	slicerouterPredicate, err := predicate.LabelSelectorPredicate(labelSelector)
 	if err != nil {
 		return err
 	}
 
-	labelSelector.MatchLabels = map[string]string{"avesha.io/pod-type": "netop"}
+	labelSelector.MatchLabels = map[string]string{"kubeslice.io/pod-type": "netop"}
 	netopPredicate, err := predicate.LabelSelectorPredicate(labelSelector)
 	if err != nil {
 		return err
 	}
+
+	labelSelector.MatchLabels = map[string]string{"app": "nsmgr-daemonset"}
+	nsmgrPredicate, err := predicate.LabelSelectorPredicate(labelSelector)
+	if err != nil {
+		return err
+	}
+
+	labelSelector.MatchLabels = map[string]string{"app": "nsm-kernel-plane"}
+	nsmfwdPredicate, err := predicate.LabelSelectorPredicate(labelSelector)
+	if err != nil {
+		return err
+	}
+
+	sliceGwUpdPredicate := predicate.Or(
+		slicerouterPredicate, netopPredicate, nsmgrPredicate, nsmfwdPredicate,
+	)
 
 	// The mapping function for the slice router pod update should only invoke the reconciler
 	// of the slice gateway objects that belong to the same slice as the restarted slice router.
@@ -405,11 +448,7 @@ func (r *SliceGwReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Owns(&corev1.Service{}).
 		Watches(&source.Kind{Type: &corev1.Pod{}},
 			handler.EnqueueRequestsFromMapFunc(r.findSliceGwObjectsToReconcile),
-			builder.WithPredicates(slicerouterPredicate),
-		).
-		Watches(&source.Kind{Type: &corev1.Pod{}},
-			handler.EnqueueRequestsFromMapFunc(r.findSliceGwObjectsToReconcile),
-			builder.WithPredicates(netopPredicate),
+			builder.WithPredicates(sliceGwUpdPredicate),
 		).
 		Complete(r)
 }

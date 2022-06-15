@@ -24,7 +24,7 @@ import (
 
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
 	"github.com/kubeslice/worker-operator/controllers"
-	"github.com/kubeslice/worker-operator/internal/logger"
+	"github.com/kubeslice/worker-operator/pkg/logger"
 
 	corev1 "k8s.io/api/core/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -67,7 +67,7 @@ func (r *SliceReconciler) getAppPods(ctx context.Context, slice *kubeslicev1beta
 
 // labelsForAppPods returns the labels for App pods
 func labelsForAppPods() map[string]string {
-	return map[string]string{"avesha.io/pod-type": "app"}
+	return map[string]string{"kubeslice.io/pod-type": "app"}
 }
 
 func isAppPodConnectedToSliceRouter(annotations map[string]string, sliceRouter string) bool {

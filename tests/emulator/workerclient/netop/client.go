@@ -5,7 +5,7 @@ import (
 
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
 
-	"github.com/kubeslice/worker-operator/internal/netop"
+	"github.com/kubeslice/worker-operator/pkg/netop"
 	"github.com/stretchr/testify/mock"
 )
 

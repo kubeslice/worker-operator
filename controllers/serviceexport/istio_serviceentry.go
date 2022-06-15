@@ -23,7 +23,7 @@ import (
 
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
 	"github.com/kubeslice/worker-operator/controllers"
-	"github.com/kubeslice/worker-operator/internal/logger"
+	"github.com/kubeslice/worker-operator/pkg/logger"
 	networkingv1beta1 "istio.io/api/networking/v1beta1"
 	istiov1beta1 "istio.io/client-go/pkg/apis/networking/v1beta1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -45,7 +45,8 @@ func (r *Reconciler) ReconcileServiceEntries(ctx context.Context, serviceexport 
 	}
 
 	for _, endpoint := range serviceexport.Status.Pods {
-		if !serviceEntryExists(entries, endpoint) {
+		seFound := serviceEntryExists(entries, endpoint)
+		if seFound == nil {
 			log.Info("serviceentry resource not found; creating", "serviceexport", serviceexport)
 			se := createServiceEntryForEndpoint(serviceexport, &endpoint)
 			err := r.Create(ctx, se)
@@ -55,6 +56,18 @@ func (r *Reconciler) ReconcileServiceEntries(ctx context.Context, serviceexport 
 			}
 			ctrl.SetControllerReference(serviceexport, se, r.Scheme)
 			log.Info("serviceentry resource created for endpoint", "endpoint", endpoint)
+			return ctrl.Result{Requeue: true}, nil, true
+		}
+
+		// Check if the endpoint IP address in the service entry matches the pod's nsm IP
+		if endpoint.NsmIP != "" && seFound.Spec.Endpoints[0].Address != endpoint.NsmIP {
+			seFound.Spec.Endpoints[0].Address = endpoint.NsmIP
+			err := r.Update(ctx, seFound)
+			if err != nil {
+				log.Error(err, "Failed to create serviceentry for", "endpoint", endpoint)
+				return ctrl.Result{}, err, true
+			}
+			log.Info("serviceentry updated for endpoint", "endpoint", endpoint)
 			return ctrl.Result{Requeue: true}, nil, true
 		}
 	}
@@ -166,20 +179,20 @@ func servicesEntriesToDelete(seList []istiov1beta1.ServiceEntry, se *kubeslicev1
 
 func labelsForServiceEntry(se *kubeslicev1beta1.ServiceExport) map[string]string {
 	return map[string]string{
-		"avesha-service":    se.Name,
-		"avesha-service-ns": se.Namespace,
-		"avesha-slice":      se.Spec.Slice,
+		"kubeslice-service":    se.Name,
+		"kubeslice-service-ns": se.Namespace,
+		"kubeslice-slice":      se.Spec.Slice,
 	}
 }
 
-func serviceEntryExists(seList []istiov1beta1.ServiceEntry, e kubeslicev1beta1.ServicePod) bool {
+func serviceEntryExists(seList []istiov1beta1.ServiceEntry, e kubeslicev1beta1.ServicePod) *istiov1beta1.ServiceEntry {
 	for _, se := range seList {
 		if len(se.Spec.Hosts) > 0 && se.Spec.Hosts[0] == e.DNSName {
-			return true
+			return &se
 		}
 	}
 
-	return false
+	return nil
 }
 
 func (r *Reconciler) DeleteIstioServiceEntries(ctx context.Context, serviceexport *kubeslicev1beta1.ServiceExport) error {

@@ -5,7 +5,7 @@ import (
 
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
 
-	"github.com/kubeslice/worker-operator/internal/router"
+	"github.com/kubeslice/worker-operator/pkg/router"
 	"github.com/stretchr/testify/mock"
 )
 
