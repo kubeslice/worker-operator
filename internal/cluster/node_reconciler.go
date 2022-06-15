@@ -25,7 +25,6 @@ import (
 	"reflect"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/predicate"
 )
 
 type NodeReconciler struct {
@@ -62,8 +61,10 @@ func (r *NodeReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 	defer nodeInfo.Unlock()
 
 	if !reflect.DeepEqual(nodeInfo.ExternalIP, externalIPs) {
+		log.Info("IPs changed-> available gateway IPs",externalIPs)
 		nodeInfo.ExternalIP = externalIPs
 	}
+	log.Info("nodeInfo.ExternalIP","nodeInfo.ExternalIP",nodeInfo.ExternalIP)
 	return ctrl.Result{}, nil
 }
 
@@ -71,8 +72,5 @@ func (r *NodeReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 func (r *NodeReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&corev1.Node{}).
-		WithEventFilter(predicate.NewPredicateFuncs(func(object client.Object) bool {
-			return object.GetLabels()["kubeslice.io/node-type"] == "gateway"
-		})).
 		Complete(r)
 }
