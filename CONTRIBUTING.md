@@ -38,7 +38,7 @@ Pull Requests are welcome. In general, we follow the "fork-and-pull" Git workflo
 4. **Push** your work back up to your fork.
 5. Submit a **Pull request** so that we can review your changes.
 
-NOTE: Be sure to merge the latest from "upstream" before making a pull request!
+NOTE: Be sure to merge the latest from **upstream** before making a pull request!
 
 ## Filing Issues
 If you encounter a bug, please file an issue in the Github repository. Please provide as much information as possible to help fix the issue. Please file the issue under the appropriate repo.
