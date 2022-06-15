@@ -25,7 +25,7 @@ import (
 	. "github.com/onsi/gomega"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/kubeslice/worker-operator/internal/webhook/deploy"
+	"github.com/kubeslice/worker-operator/pkg/webhook/deploy"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 

@@ -22,7 +22,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/kubeslice/worker-operator/internal/utils"
+	"github.com/kubeslice/worker-operator/pkg/utils"
 )
 
 var (

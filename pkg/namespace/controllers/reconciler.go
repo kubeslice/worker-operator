@@ -21,9 +21,9 @@ import (
 	"context"
 
 	"github.com/go-logr/logr"
-	hub "github.com/kubeslice/worker-operator/internal/hub/hubclient"
-	"github.com/kubeslice/worker-operator/internal/logger"
 	"github.com/kubeslice/worker-operator/pkg/events"
+	hub "github.com/kubeslice/worker-operator/pkg/hub/hubclient"
+	"github.com/kubeslice/worker-operator/pkg/logger"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
