@@ -7,9 +7,9 @@ kubeslice-worker operator uses Kubebuilder, a framework for building Kubernetes 
 ## Getting Started
 It is strongly recommended to use a released version.
 
-For information on installing KubeSlice on kind clusters, see [getting started with kind clusters](https://docs.avesha.io/opensource/getting-started-with-kind-clusters) or try out the example script in [kind-based example](https://github.com/kubeslice/examples/tree/master/kind).
+For information on installing KubeSlice on kind clusters, see [getting started with kind clusters](https://docs.avesha.io/documentation/open-source/0.2.0/getting-started-with-kind-clusters) or try out the example script in [kind-based example](https://github.com/kubeslice/examples/tree/master/kind).
 
-For information on installing KubeSlice on cloud clusters, see [getting started with cloud clusters](https://docs.avesha.io/opensource/getting-started-with-cloud-clusters). 
+For information on installing KubeSlice on cloud clusters, see [getting started with cloud clusters](https://docs.avesha.io/documentation/open-source/0.2.0/getting-started-with-cloud-clusters). 
 
 
 ## Installing `kubeslice-worker` in Kind Cluster
@@ -154,7 +154,7 @@ prefix-service-76bd89c44f-2p6dw          1/1     Running   0          48s
 
 ### Uninstalling the worker-operator
 
-For more information, see [deregistering the worker cluster](https://docs.avesha.io/opensource/de-registering-the-worker-cluster).
+For more information, see [deregistering the worker cluster](https://docs.avesha.io/documentation/open-source/0.2.0/getting-started-with-cloud-clusters/uninstalling-kubeslice/deregistering-the-worker-cluster).
 
 ```console
 helm uninstall kubeslice-worker -n kubeslice-system
