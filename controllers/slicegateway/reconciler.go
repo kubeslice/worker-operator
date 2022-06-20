@@ -209,7 +209,7 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		}
 		//create a headless service and an endpoint for DNS Query on OpenVPN Client
 		serviceFound := corev1.Service{}
-		err = r.Get(ctx, types.NamespacedName{Namespace: sliceGw.Namespace, Name: sliceGw.Spec.SliceName + "-" + sliceGw.Status.Config.SliceGatewayRemoteGatewayID}, &serviceFound)
+		err = r.Get(ctx, types.NamespacedName{Namespace: sliceGw.Namespace, Name: sliceGw.Status.Config.SliceGatewayRemoteGatewayID}, &serviceFound)
 		if err != nil {
 			if errors.IsNotFound(err) {
 				// Create a new service with same name as SliceGatewayRemoteGatewayID , because --remote flag of openvpn client is populated with same name. So it would call this svc to get a server IP(through endpoint)
@@ -228,7 +228,9 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		}
 		//create an endpoint if not exists
 		endpointFound := corev1.Endpoints{}
-		err := r.Get(ctx, types.NamespacedName{Namespace: sliceGw.Namespace, Name: sliceGw.Spec.SliceName + "-" + sliceGw.Status.Config.SliceGatewayRemoteGatewayID}, &endpointFound)
+		err := r.Get(ctx, types.NamespacedName{
+			Namespace: sliceGw.Namespace, 
+			Name: sliceGw.Status.Config.SliceGatewayRemoteGatewayID}, &endpointFound)
 		if err != nil {
 			if errors.IsNotFound(err) {
 				//Create a new endpoint with same name as RemoteGatewayID

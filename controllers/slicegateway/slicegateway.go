@@ -461,7 +461,7 @@ func (r *SliceGwReconciler) deploymentForGatewayClient(g *kubeslicev1beta1.Slice
 							"90",
 							"openvpn",
 							"--remote",
-							g.Spec.SliceName + "-" + g.Status.Config.SliceGatewayRemoteGatewayID,
+							g.Status.Config.SliceGatewayRemoteGatewayID,
 							"--port",
 							strconv.Itoa(g.Status.Config.SliceGatewayRemoteNodePort),
 							"--ping-restart",
@@ -685,7 +685,7 @@ func (r *SliceGwReconciler) SyncNetOpConnectionContextAndQos(ctx context.Context
 func (r *SliceGwReconciler) createHeadlessServiceForGwServer(slicegateway *kubeslicev1beta1.SliceGateway) *corev1.Service {
 	svc := &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      slicegateway.Spec.SliceName + "-" + slicegateway.Status.Config.SliceGatewayRemoteGatewayID,
+			Name:      slicegateway.Status.Config.SliceGatewayRemoteGatewayID,
 			Namespace: slicegateway.Namespace,
 		},
 		Spec: corev1.ServiceSpec{
@@ -701,7 +701,7 @@ func (r *SliceGwReconciler) createHeadlessServiceForGwServer(slicegateway *kubes
 func (r *SliceGwReconciler) createEndpointForGatewayServer(slicegateway *kubeslicev1beta1.SliceGateway) *corev1.Endpoints {
 	e := &corev1.Endpoints{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      slicegateway.Spec.SliceName + "-" + slicegateway.Status.Config.SliceGatewayRemoteGatewayID,
+			Name:      slicegateway.Status.Config.SliceGatewayRemoteGatewayID,
 			Namespace: slicegateway.Namespace,
 		},
 		Subsets: []corev1.EndpointSubset{
