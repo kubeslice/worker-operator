@@ -305,46 +305,26 @@ func (r *SliceGwReconciler) deploymentForGatewayServer(g *kubeslicev1beta1.Slice
 }
 
 func (r *SliceGwReconciler) serviceForGateway(g *kubeslicev1beta1.SliceGateway) *corev1.Service {
-	var svc *corev1.Service
-	if g.Status.Config.SliceGatewayNodePort == 0 {
-		svc = &corev1.Service{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "svc-" + g.Name,
-				Namespace: g.Namespace,
-				Labels: map[string]string{
-					"kubeslice.io/slice": g.Spec.SliceName,
-				},
+	svc := &corev1.Service{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "svc-" + g.Name,
+			Namespace: g.Namespace,
+			Labels: map[string]string{
+				"kubeslice.io/slice": g.Spec.SliceName,
 			},
-			Spec: corev1.ServiceSpec{
-				Type:     "NodePort",
-				Selector: labelsForSliceGwDeployment(g.Name, g.Spec.SliceName),
-				Ports: []corev1.ServicePort{{
-					Port:       11194,
-					Protocol:   corev1.ProtocolUDP,
-					TargetPort: intstr.FromInt(11194),
-				}},
-			},
-		}
-	} else {
-		svc = &corev1.Service{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "svc-" + g.Name,
-				Namespace: g.Namespace,
-				Labels: map[string]string{
-					"kubeslice.io/slice": g.Spec.SliceName,
-				},
-			},
-			Spec: corev1.ServiceSpec{
-				Type:     "NodePort",
-				Selector: labelsForSliceGwDeployment(g.Name, g.Spec.SliceName),
-				Ports: []corev1.ServicePort{{
-					Port:       11194,
-					Protocol:   corev1.ProtocolUDP,
-					TargetPort: intstr.FromInt(11194),
-					NodePort:   int32(g.Status.Config.SliceGatewayNodePort),
-				}},
-			},
-		}
+		},
+		Spec: corev1.ServiceSpec{
+			Type:     "NodePort",
+			Selector: labelsForSliceGwDeployment(g.Name, g.Spec.SliceName),
+			Ports: []corev1.ServicePort{{
+				Port:       11194,
+				Protocol:   corev1.ProtocolUDP,
+				TargetPort: intstr.FromInt(11194),
+			}},
+		},
+	}
+	if g.Status.Config.SliceGatewayNodePort >= 30000 && g.Status.Config.SliceGatewayNodePort <= 33000 {
+		svc.Spec.Ports[0].NodePort = int32(g.Status.Config.SliceGatewayNodePort)
 	}
 	ctrl.SetControllerReference(g, svc, r.Scheme)
 	return svc
