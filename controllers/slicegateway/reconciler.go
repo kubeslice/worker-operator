@@ -431,7 +431,23 @@ func (r *SliceGwReconciler) findSliceGwObjectsToReconcile(pod client.Object) []r
 			},
 		}
 	}
+	return requests
+}
 
+func (r *SliceGwReconciler) sliceGwObjectsToReconcileForNodeRestart(node client.Object) []reconcile.Request {
+	sliceGwList, err := r.findAllSliceGwObjects()
+	if err != nil {
+		return []reconcile.Request{}
+	}
+	requests := make([]reconcile.Request, len(sliceGwList.Items))
+	for i, item := range sliceGwList.Items {
+		requests[i] = reconcile.Request{
+			NamespacedName: types.NamespacedName{
+				Name:      item.GetName(),
+				Namespace: item.GetNamespace(),
+			},
+		}
+	}
 	return requests
 }
 
@@ -504,11 +520,19 @@ func (r *SliceGwReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		slicerouterPredicate, netopPredicate, nsmgrPredicate, nsmfwdPredicate,
 	)
 
+	// The slice gateway reconciler needs to be invoked whenever there is an update to the
+	// kubeslice gateway nodes
 	labelSelector.MatchLabels = map[string]string{"kubeslice.io/node-type": "gateway"}
 	nodePredicate, err := predicate.LabelSelectorPredicate(labelSelector)
 	if err != nil {
 		return err
 	}
+
+	//labelSelector.MatchLabels = map[string]string{"kubeslice.io/node-type": "gateway"}
+	//nodePredicate, err := predicate.LabelSelectorPredicate(labelSelector)
+	// if err != nil {
+	// 	return err
+	// }
 	// The mapping function for the slice router pod update should only invoke the reconciler
 	// of the slice gateway objects that belong to the same slice as the restarted slice router.
 	// The netop pods are slice agnostic. Hence, all slice gateway objects belonging to every slice
@@ -516,12 +540,16 @@ func (r *SliceGwReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	// gateway objects in the control plane namespace.
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&kubeslicev1beta1.SliceGateway{}).
-		For(&corev1.Node{}, builder.WithPredicates(nodePredicate)).
+		//For(&corev1.Node{}, builder.WithPredicates(nodePredicate)).
 		Owns(&appsv1.Deployment{}).
 		Owns(&corev1.Service{}).
 		Watches(&source.Kind{Type: &corev1.Pod{}},
 			handler.EnqueueRequestsFromMapFunc(r.findSliceGwObjectsToReconcile),
 			builder.WithPredicates(sliceGwUpdPredicate),
+		).
+		Watches(&source.Kind{Type: &corev1.Node{}},
+			handler.EnqueueRequestsFromMapFunc(r.sliceGwObjectsToReconcileForNodeRestart),
+			builder.WithPredicates(nodePredicate),
 		).
 		Complete(r)
 }
