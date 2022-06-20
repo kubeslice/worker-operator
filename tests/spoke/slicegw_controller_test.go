@@ -388,7 +388,7 @@ var _ = Describe("Worker SlicegwController", func() {
 
 			Expect(founddepl.Spec.Template.Spec.Containers[1].Name).Should(Equal("kubeslice-openvpn-client"))
 		})
-		It("Should create a headless service and endpoint for openvpn-client remote resolution",func ()  {
+		It("Should create a headless service and endpoint for openvpn-client remote resolution", func() {
 			// test-case
 		})
 	})

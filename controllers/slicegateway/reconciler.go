@@ -229,8 +229,8 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		//create an endpoint if not exists
 		endpointFound := corev1.Endpoints{}
 		err := r.Get(ctx, types.NamespacedName{
-			Namespace: sliceGw.Namespace, 
-			Name: sliceGw.Status.Config.SliceGatewayRemoteGatewayID}, &endpointFound)
+			Namespace: sliceGw.Namespace,
+			Name:      sliceGw.Status.Config.SliceGatewayRemoteGatewayID}, &endpointFound)
 		if err != nil {
 			if errors.IsNotFound(err) {
 				//Create a new endpoint with same name as RemoteGatewayID
@@ -533,7 +533,6 @@ func (r *SliceGwReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	// gateway objects in the control plane namespace.
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&kubeslicev1beta1.SliceGateway{}).
-		//For(&corev1.Node{}, builder.WithPredicates(nodePredicate)).
 		Owns(&appsv1.Deployment{}).
 		Owns(&corev1.Service{}).
 		Watches(&source.Kind{Type: &corev1.Pod{}},
