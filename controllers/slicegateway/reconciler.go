@@ -526,12 +526,6 @@ func (r *SliceGwReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	if err != nil {
 		return err
 	}
-
-	//labelSelector.MatchLabels = map[string]string{"kubeslice.io/node-type": "gateway"}
-	//nodePredicate, err := predicate.LabelSelectorPredicate(labelSelector)
-	// if err != nil {
-	// 	return err
-	// }
 	// The mapping function for the slice router pod update should only invoke the reconciler
 	// of the slice gateway objects that belong to the same slice as the restarted slice router.
 	// The netop pods are slice agnostic. Hence, all slice gateway objects belonging to every slice
