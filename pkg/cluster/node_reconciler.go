@@ -60,11 +60,11 @@ func (r *NodeReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 	nodeInfo.Lock()
 	defer nodeInfo.Unlock()
 
-	if !reflect.DeepEqual(nodeInfo.ExternalIP, externalIPs) {
+	if !reflect.DeepEqual(nodeInfo.ExternalIPList, externalIPs) {
 		log.Info("IPs changed-> available gateway IPs", externalIPs)
-		nodeInfo.ExternalIP = externalIPs
+		nodeInfo.ExternalIPList = externalIPs
 	}
-	log.Info("nodeInfo.ExternalIP", "nodeInfo.ExternalIP", nodeInfo.ExternalIP)
+	log.Info("nodeInfo.ExternalIP", "nodeInfo.ExternalIP", nodeInfo.ExternalIPList)
 	return ctrl.Result{}, nil
 }
 

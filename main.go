@@ -177,7 +177,7 @@ func main() {
 		Log:    ctrl.Log.WithName("controllers").WithName("node reconciller"),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "node")
-		//os.Exit(1)
+		os.Exit(1)
 	}
 
 	//+kubebuilder:scaffold:builder
