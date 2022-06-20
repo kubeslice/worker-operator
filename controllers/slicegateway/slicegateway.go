@@ -464,6 +464,8 @@ func (r *SliceGwReconciler) deploymentForGatewayClient(g *kubeslicev1beta1.Slice
 							g.Status.Config.SliceGatewayRemoteGatewayID,
 							"--port",
 							strconv.Itoa(g.Status.Config.SliceGatewayRemoteNodePort),
+							"--ping-restart",
+							"30",
 							"--proto",
 							"udp",
 							"--config",
