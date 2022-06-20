@@ -444,7 +444,6 @@ func (r *SliceGwReconciler) findObjectsForSliceRouterUpdate(sliceName string) (*
 	if err != nil {
 		return nil, err
 	}
-
 	return sliceGwList, nil
 }
 
@@ -505,6 +504,11 @@ func (r *SliceGwReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		slicerouterPredicate, netopPredicate, nsmgrPredicate, nsmfwdPredicate,
 	)
 
+	labelSelector.MatchLabels = map[string]string{"kubeslice.io/node-type": "gateway"}
+	nodePredicate, err := predicate.LabelSelectorPredicate(labelSelector)
+	if err != nil {
+		return err
+	}
 	// The mapping function for the slice router pod update should only invoke the reconciler
 	// of the slice gateway objects that belong to the same slice as the restarted slice router.
 	// The netop pods are slice agnostic. Hence, all slice gateway objects belonging to every slice
@@ -512,6 +516,7 @@ func (r *SliceGwReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	// gateway objects in the control plane namespace.
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&kubeslicev1beta1.SliceGateway{}).
+		For(&corev1.Node{}, builder.WithPredicates(nodePredicate)).
 		Owns(&appsv1.Deployment{}).
 		Owns(&corev1.Service{}).
 		Watches(&source.Kind{Type: &corev1.Pod{}},
@@ -538,6 +543,5 @@ func FindSliceRouterService(ctx context.Context, c client.Client, sliceName stri
 	if len(vl3NseEpList.Items) == 0 {
 		return false, nil
 	}
-
 	return true, nil
 }

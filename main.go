@@ -20,7 +20,6 @@ package main
 
 import (
 	"flag"
-	"fmt"
 	"os"
 
 	"github.com/kubeslice/worker-operator/internal/cluster"
@@ -91,7 +90,6 @@ func main() {
 	flag.Parse()
 
 	ctrl.SetLogger(logger.NewLogger())
-	fmt.Println("enableLeaderElection",enableLeaderElection)
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Scheme:                 scheme,
 		MetricsBindAddress:     metricsAddr,

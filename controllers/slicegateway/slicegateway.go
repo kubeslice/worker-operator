@@ -20,7 +20,7 @@ package slicegateway
 
 import (
 	"context"
-	_"errors"
+	_ "errors"
 	"os"
 	"strconv"
 	"time"
@@ -297,7 +297,6 @@ func (r *SliceGwReconciler) deploymentForGatewayServer(g *kubeslicev1beta1.Slice
 			Name: controllers.ImagePullSecretName,
 		}}
 	}
-
 	// Set SliceGateway instance as the owner and controller
 	ctrl.SetControllerReference(g, dep, r.Scheme)
 	return dep
@@ -719,8 +718,11 @@ func (r *SliceGwReconciler) createEndpointForGatewayServer(slicegateway *kubesli
 
 func (r *SliceGwReconciler) reconcileNodes(ctx context.Context, slicegateway *kubeslicev1beta1.SliceGateway) error {
 	log := r.Log
-	//TODO:fetch currentNodeIP from controller cluster CR?
-	currentNodeIP := r.NodeIP
+	//currentNodeIP and nodeIpList would be same in case of operator restart because it is set at the start of operator in main.go, hence it is better to fetch the nodeIP in use from controller cluster CR!
+	currentNodeIP, err := r.HubClient.GetClusterNodeIP(ctx, os.Getenv("CLUSTER_NAME"), os.Getenv("HUB_PROJECT_NAMESPACE"))
+	if err != nil {
+		return err
+	}
 	nodeIpList := cluster.GetNodeExternalIpList()
 	if len(nodeIpList) == 0 {
 		//err := errors.New("node IP list is empty")

@@ -174,6 +174,18 @@ func updateClusterInfoToHub(ctx context.Context, spokeclient client.Client, hubC
 	return err
 }
 
+func (hubClient *HubClientConfig) GetClusterNodeIP(ctx context.Context, clusterName, namespace string) (string, error) {
+	cluster := &hubv1alpha1.Cluster{}
+	err := hubClient.Get(ctx, types.NamespacedName{
+		Name:      clusterName,
+		Namespace: namespace,
+	}, cluster)
+	if err != nil {
+		return "", err
+	}
+	return cluster.Spec.NodeIP, nil
+}
+
 func UpdateNamespaceInfoToHub(ctx context.Context, hubClient client.Client, onboardNamespace, sliceName string) error {
 	hubCluster := &hubv1alpha1.Cluster{}
 	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {

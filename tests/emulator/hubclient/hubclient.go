@@ -71,3 +71,7 @@ func (hubClientEmulator *HubClientEmulator) UpdateAppPodsList(
 func (hubClientEmulator *HubClientEmulator) UpdateAppNamesapces(ctx context.Context, sliceConfigName string, onboardedNamespaces []string) error {
 	return nil
 }
+
+func (hubClientEmulator *HubClientEmulator) GetClusterNodeIP(ctx context.Context, clusterName, namespace string) (string, error) {
+	return "", nil
+}
