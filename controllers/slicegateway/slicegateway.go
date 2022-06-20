@@ -719,6 +719,7 @@ func (r *SliceGwReconciler) createEndpointForGatewayServer(slicegateway *kubesli
 func (r *SliceGwReconciler) reconcileNodes(ctx context.Context, slicegateway *kubeslicev1beta1.SliceGateway) error {
 	log := r.Log
 	//currentNodeIP and nodeIpList would be same in case of operator restart because it is set at the start of operator in main.go, hence it is better to fetch the nodeIP in use from controller cluster CR!
+	//TODO: can we store nodeIP in slicegw?
 	currentNodeIP, err := r.HubClient.GetClusterNodeIP(ctx, os.Getenv("CLUSTER_NAME"), os.Getenv("HUB_PROJECT_NAMESPACE"))
 	if err != nil {
 		return err
@@ -730,7 +731,7 @@ func (r *SliceGwReconciler) reconcileNodes(ctx context.Context, slicegateway *ku
 	}
 	if !contains(nodeIpList, currentNodeIP) {
 		//nodeIP updated , update the cluster CR
-		log.Info("Mismatch in node IP", "IP in use", currentNodeIP, "IP to be used", r.NodeIP)
+		log.Info("Mismatch in node IP", "IP in use", currentNodeIP, "IP to be used", nodeIpList[0])
 		err := r.HubClient.UpdateNodeIpInCluster(ctx, os.Getenv("CLUSTER_NAME"), nodeIpList[0], os.Getenv("HUB_PROJECT_NAMESPACE"))
 		if err != nil {
 			return err
