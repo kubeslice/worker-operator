@@ -22,17 +22,17 @@ import (
 	"flag"
 	"os"
 
-	"github.com/kubeslice/worker-operator/internal/cluster"
-	namespacecontroller "github.com/kubeslice/worker-operator/internal/namespace/controllers"
+	"github.com/kubeslice/worker-operator/pkg/cluster"
 	"github.com/kubeslice/worker-operator/pkg/events"
+	namespacecontroller "github.com/kubeslice/worker-operator/pkg/namespace/controllers"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
-	sidecar "github.com/kubeslice/worker-operator/internal/gwsidecar"
-	netop "github.com/kubeslice/worker-operator/internal/netop"
-	router "github.com/kubeslice/worker-operator/internal/router"
+	sidecar "github.com/kubeslice/worker-operator/pkg/gwsidecar"
+	netop "github.com/kubeslice/worker-operator/pkg/netop"
+	router "github.com/kubeslice/worker-operator/pkg/router"
 
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
@@ -51,12 +51,12 @@ import (
 	"github.com/kubeslice/worker-operator/controllers/serviceimport"
 	"github.com/kubeslice/worker-operator/controllers/slice"
 	"github.com/kubeslice/worker-operator/controllers/slicegateway"
-	hub "github.com/kubeslice/worker-operator/internal/hub/hubclient"
-	"github.com/kubeslice/worker-operator/internal/hub/manager"
-	"github.com/kubeslice/worker-operator/internal/logger"
-	"github.com/kubeslice/worker-operator/internal/networkpolicy"
-	"github.com/kubeslice/worker-operator/internal/utils"
-	deploywh "github.com/kubeslice/worker-operator/internal/webhook/deploy"
+	hub "github.com/kubeslice/worker-operator/pkg/hub/hubclient"
+	"github.com/kubeslice/worker-operator/pkg/hub/manager"
+	"github.com/kubeslice/worker-operator/pkg/logger"
+	"github.com/kubeslice/worker-operator/pkg/networkpolicy"
+	"github.com/kubeslice/worker-operator/pkg/utils"
+	deploywh "github.com/kubeslice/worker-operator/pkg/webhook/deploy"
 	//+kubebuilder:scaffold:imports
 )
 

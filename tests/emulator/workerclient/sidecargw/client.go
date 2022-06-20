@@ -3,7 +3,7 @@ package sidecargw
 import (
 	"context"
 
-	"github.com/kubeslice/worker-operator/internal/gwsidecar"
+	"github.com/kubeslice/worker-operator/pkg/gwsidecar"
 	"github.com/stretchr/testify/mock"
 )
 

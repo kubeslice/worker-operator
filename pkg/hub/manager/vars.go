@@ -16,37 +16,18 @@
  *  limitations under the License.
  */
 
-package manifest_test
+package manager
 
 import (
-	. "github.com/onsi/ginkgo/v2"
-	. "github.com/onsi/gomega"
+	"os"
 
-	"github.com/kubeslice/worker-operator/internal/manifest"
-	appsv1 "k8s.io/api/apps/v1"
+	"github.com/kubeslice/worker-operator/pkg/utils"
 )
 
-var _ = Describe("Manifest File", func() {
-
-	Context("With k8s deployment manifest", func() {
-
-		f := "egress-deploy"
-
-		It("Should parse file into k8s deployment in the slice", func() {
-
-			m := manifest.NewManifest(f, "green")
-
-			Expect(m).ToNot(BeNil())
-
-			deploy := &appsv1.Deployment{}
-			err := m.Parse(deploy)
-			Expect(err).NotTo(HaveOccurred())
-			Expect(deploy).ToNot(BeNil())
-
-			Expect(deploy.ObjectMeta.Name).Should(Equal("green-istio-egressgateway"))
-
-		})
-
-	})
-
-})
+var (
+	ProjectNamespace = os.Getenv("HUB_PROJECT_NAMESPACE")
+	HubEndpoint      = os.Getenv("HUB_HOST_ENDPOINT")
+	HubTokenFile     = utils.GetEnvOrDefault("HUB_TOKEN_FILE", "/var/run/secrets/kubernetes.io/hub-serviceaccount/token")
+	HubCAFile        = utils.GetEnvOrDefault("HUB_CA_FILE", "/var/run/secrets/kubernetes.io/hub-serviceaccount/ca.crt")
+	ClusterName      = os.Getenv("CLUSTER_NAME")
+)

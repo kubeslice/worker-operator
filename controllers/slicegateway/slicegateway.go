@@ -35,10 +35,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
-	"github.com/kubeslice/worker-operator/internal/cluster"
-	"github.com/kubeslice/worker-operator/internal/gwsidecar"
-	"github.com/kubeslice/worker-operator/internal/logger"
-	"github.com/kubeslice/worker-operator/internal/router"
+	"github.com/kubeslice/worker-operator/pkg/gwsidecar"
+	"github.com/kubeslice/worker-operator/pkg/logger"
+	"github.com/kubeslice/worker-operator/pkg/router"
+	"github.com/kubeslice/worker-operator/pkg/cluster"
 )
 
 var (
