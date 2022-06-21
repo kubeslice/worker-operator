@@ -54,31 +54,31 @@ func GetSlice(ctx context.Context, c client.Client, slice string) (*kubeslicev1b
 	return s, nil
 }
 
-func GetSliceIngressGwPod(ctx context.Context, c client.Client, sliceName string) (*kubeslicev1beta1.AppPod, error) {
+func GetSliceIngressGwPod(ctx context.Context, c client.Client, sliceName string) (bool, *kubeslicev1beta1.AppPod, error) {
 	slice, err := GetSlice(ctx, c, sliceName)
 	if err != nil {
-		return nil, err
+		return false, nil, err
 	}
 
 	if slice.Status.SliceConfig == nil {
 		err := fmt.Errorf("sliceconfig is not reconciled from hub")
-		return nil, err
+		return false, nil, err
 	}
 
 	if slice.Status.SliceConfig.ExternalGatewayConfig == nil ||
 		slice.Status.SliceConfig.ExternalGatewayConfig.Ingress == nil ||
 		!slice.Status.SliceConfig.ExternalGatewayConfig.Ingress.Enabled {
-		return nil, nil
+		return false, nil, nil
 	}
 
 	for i := range slice.Status.AppPods {
 		pod := &slice.Status.AppPods[i]
 		if strings.Contains(pod.PodName, "ingressgateway") && pod.PodNamespace == ControlPlaneNamespace && pod.NsmIP != "" {
-			return pod, nil
+			return true, pod, nil
 		}
 	}
 
-	return nil, nil
+	return true, nil, nil
 }
 
 func GetSliceRouterPodNameAndIP(ctx context.Context, c client.Client, sliceName string) (string, string, error) {

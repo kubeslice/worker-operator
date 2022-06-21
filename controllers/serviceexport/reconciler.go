@@ -20,7 +20,6 @@ package serviceexport
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -30,7 +29,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
-	"github.com/kubeslice/worker-operator/controllers"
 	"github.com/kubeslice/worker-operator/pkg/events"
 	"github.com/kubeslice/worker-operator/pkg/logger"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -183,55 +181,24 @@ func (r Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resul
 		return res, nil
 	}
 
-	if serviceexport.Status.LastSync == 0 {
-		ingressGwPod, err := controllers.GetSliceIngressGwPod(ctx, r.Client, serviceexport.Spec.Slice)
-		if err != nil {
-			log.Error(err, "Failed to get ingress gw pod info")
-			return ctrl.Result{}, err
-		}
+	res, err, requeue = r.ReconcileIngressGwPod(ctx, serviceexport)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+	if requeue {
+		log.Info("ingress gw pod reconciled")
+		debugLog.Info("requeuing after ingress gw pod reconcile", "res", res, "er", err)
+		return res, nil
+	}
 
-		if ingressGwPod != nil {
-			ep := &kubeslicev1beta1.ServicePod{
-				Name:  fmt.Sprintf("%s-%s-ingress", serviceexport.Name, serviceexport.ObjectMeta.Namespace),
-				NsmIP: ingressGwPod.NsmIP,
-				DNSName: fmt.Sprintf("%s-ingress.%s.%s.svc.slice.local",
-					serviceexport.Name, controllers.ClusterName, serviceexport.Namespace),
-			}
-			err = r.HubClient.UpdateServiceExportEndpointForIngressGw(ctx, serviceexport, ep)
-		} else {
-			err = r.HubClient.UpdateServiceExport(ctx, serviceexport)
-		}
-		if err != nil {
-			log.Error(err, "Failed to post serviceexport")
-			serviceexport.Status.ExportStatus = kubeslicev1beta1.ExportStatusError
-			r.Status().Update(ctx, serviceexport)
-			//post event to service export
-			r.EventRecorder.Record(
-				&events.Event{
-					Object:    serviceexport,
-					EventType: events.EventTypeWarning,
-					Reason:    "Error",
-					Message:   "Failed to post serviceexport to kubeslice-controller cluster",
-				})
-			return ctrl.Result{}, err
-		}
-		log.Info("serviceexport sync success")
-		//post event to service export
-		r.EventRecorder.Record(
-			&events.Event{
-				Object:    serviceexport,
-				EventType: events.EventTypeNormal,
-				Reason:    "Success",
-				Message:   "Successfully posted serviceexport to kubeslice-controller cluster",
-			})
-		currentTime := time.Now().Unix()
-		serviceexport.Status.LastSync = currentTime
-		err = r.Status().Update(ctx, serviceexport)
-		if err != nil {
-			log.Error(err, "Failed to update serviceexport sync time")
-			return ctrl.Result{}, err
-		}
-		return ctrl.Result{Requeue: true}, nil
+	res, err, requeue = r.SyncSvcExportStatus(ctx, serviceexport)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+	if requeue {
+		log.Info("synched serviceexport status")
+		debugLog.Info("requeuing after serviceexport sync", "res", res, "er", err)
+		return res, nil
 	}
 
 	res, err, requeue = r.ReconcileIstio(ctx, serviceexport)

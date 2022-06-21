@@ -20,9 +20,12 @@ package serviceexport
 
 import (
 	"context"
+	"fmt"
+	"time"
 
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
 	"github.com/kubeslice/worker-operator/controllers"
+	"github.com/kubeslice/worker-operator/pkg/events"
 	"github.com/kubeslice/worker-operator/pkg/logger"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -103,6 +106,48 @@ func (r *Reconciler) getAppPods(ctx context.Context, serviceexport *kubeslicev1b
 	return appPods, nil
 }
 
+func (r *Reconciler) ReconcileIngressGwPod(
+	ctx context.Context, serviceexport *kubeslicev1beta1.ServiceExport) (ctrl.Result, error, bool) {
+	log := logger.FromContext(ctx).WithValues("type", "ingress gw pod")
+	debugLog := log.V(1)
+
+	ingressEnabled, ingressGwPod, err := controllers.GetSliceIngressGwPod(ctx, r.Client, serviceexport.Spec.Slice)
+	if err != nil {
+		log.Error(err, "Failed to get ingress gw pod info")
+		return ctrl.Result{}, err, true
+	}
+
+	if !ingressEnabled {
+		return ctrl.Result{}, nil, false
+	}
+
+	if ingressGwPod != nil {
+		debugLog.Info("Ingress gw pod not available yet, requeueing...")
+		return ctrl.Result{
+			RequeueAfter: 30 * time.Second,
+		}, nil, true
+	}
+
+	if ingressGwPod.PodName != serviceexport.Status.IngressGwPod.Name ||
+		ingressGwPod.NsmIP != serviceexport.Status.IngressGwPod.NsmIP {
+		debugLog.Info("ingress gw info change", "old", serviceexport.Status.IngressGwPod, "new", ingressGwPod)
+		serviceexport.Status.LastSync = 0
+		serviceexport.Status.ExportStatus = kubeslicev1beta1.ExportStatusPending
+		serviceexport.Status.IngressGwEnabled = true
+		serviceexport.Status.IngressGwPod.Name = ingressGwPod.PodName
+		serviceexport.Status.IngressGwPod.NsmIP = ingressGwPod.NsmIP
+		err = r.Status().Update(ctx, serviceexport)
+		if err != nil {
+			log.Error(err, "Failed to update ServiceExport status for ingress gw")
+			return ctrl.Result{}, err, true
+		}
+		log.Info("ingress gw status updated in serviceexport")
+		return ctrl.Result{Requeue: true}, nil, true
+	}
+
+	return ctrl.Result{}, nil, false
+}
+
 func (r *Reconciler) DeleteServiceExportResources(ctx context.Context, serviceexport *kubeslicev1beta1.ServiceExport) error {
 	log := logger.FromContext(ctx)
 	slice, err := controllers.GetSlice(ctx, r.Client, serviceexport.Spec.Slice)
@@ -119,4 +164,60 @@ func (r *Reconciler) DeleteServiceExportResources(ctx context.Context, serviceex
 	}
 
 	return r.DeleteIstioResources(ctx, serviceexport, slice)
+}
+
+func (r *Reconciler) SyncSvcExportStatus(ctx context.Context, serviceexport *kubeslicev1beta1.ServiceExport) (ctrl.Result, error, bool) {
+	log := logger.FromContext(ctx)
+
+	if serviceexport.Status.LastSync != 0 {
+		return ctrl.Result{}, nil, false
+	}
+
+	var err error
+	if serviceexport.Status.IngressGwEnabled {
+		ep := &kubeslicev1beta1.ServicePod{
+			Name:  fmt.Sprintf("%s-%s-ingress", serviceexport.Name, serviceexport.ObjectMeta.Namespace),
+			NsmIP: serviceexport.Status.IngressGwPod.NsmIP,
+			DNSName: fmt.Sprintf("%s-ingress.%s.%s.svc.slice.local",
+				serviceexport.Name, controllers.ClusterName, serviceexport.Namespace),
+		}
+		err = r.HubClient.UpdateServiceExportEndpointForIngressGw(ctx, serviceexport, ep)
+	} else {
+		err = r.HubClient.UpdateServiceExport(ctx, serviceexport)
+	}
+
+	if err != nil {
+		log.Error(err, "Failed to post serviceexport")
+		serviceexport.Status.ExportStatus = kubeslicev1beta1.ExportStatusError
+		r.Status().Update(ctx, serviceexport)
+		//post event to service export
+		r.EventRecorder.Record(
+			&events.Event{
+				Object:    serviceexport,
+				EventType: events.EventTypeWarning,
+				Reason:    "Error",
+				Message:   "Failed to post serviceexport to kubeslice-controller cluster",
+			})
+		return ctrl.Result{}, err, true
+	}
+
+	log.Info("serviceexport sync success")
+	//post event to service export
+	r.EventRecorder.Record(
+		&events.Event{
+			Object:    serviceexport,
+			EventType: events.EventTypeNormal,
+			Reason:    "Success",
+			Message:   "Successfully posted serviceexport to kubeslice-controller cluster",
+		})
+
+	currentTime := time.Now().Unix()
+	serviceexport.Status.LastSync = currentTime
+	err = r.Status().Update(ctx, serviceexport)
+	if err != nil {
+		log.Error(err, "Failed to update serviceexport sync time")
+		return ctrl.Result{}, err, true
+	}
+
+	return ctrl.Result{Requeue: true}, nil, true
 }
