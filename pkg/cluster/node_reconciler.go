@@ -22,7 +22,6 @@ import (
 	"context"
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
-	"reflect"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -45,7 +44,10 @@ func (r *NodeReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 		log.Error(err, "Error getting kubeslice nodeList")
 		return ctrl.Result{}, err
 	}
-
+	if len(nodeList.Items) == 0 {
+		// no gateway nodes found
+		return ctrl.Result{}, nil
+	}
 	nodeIpArr := []corev1.NodeAddress{}
 	for i := 0; i < len(nodeList.Items); i++ {
 		nodeIpArr = append(nodeIpArr, nodeList.Items[i].Status.Addresses...)
@@ -57,15 +59,43 @@ func (r *NodeReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 			externalIPs = append(externalIPs, nodeIpArr[i].Address)
 		}
 	}
+	if len(externalIPs) == 0 {
+		// no nodes with ExternalIPs , return and don't requeue
+		// this condition will hold true for on-premise and kind clusters
+		return ctrl.Result{}, nil
+	}
 	nodeInfo.Lock()
 	defer nodeInfo.Unlock()
 
-	if !reflect.DeepEqual(nodeInfo.ExternalIPList, externalIPs) {
-		log.Info("IPs changed-> available gateway IPs", externalIPs)
+	if !sameStringSlice(nodeInfo.ExternalIPList, externalIPs) {
+		log.Info("IPs changed,available gateway IPs", externalIPs)
 		nodeInfo.ExternalIPList = externalIPs
 	}
 	log.Info("nodeInfo.ExternalIP", "nodeInfo.ExternalIP", nodeInfo.ExternalIPList)
 	return ctrl.Result{}, nil
+}
+
+func sameStringSlice(x, y []string) bool {
+	if len(x) != len(y) {
+		return false
+	}
+	// create a map of string -> int
+	diff := make(map[string]int, len(x))
+	for _, _x := range x {
+		// 0 value for int is 0, so just increment a counter for the string
+		diff[_x]++
+	}
+	for _, _y := range y {
+		// If the string _y is not in diff bail out early
+		if _, ok := diff[_y]; !ok {
+			return false
+		}
+		diff[_y] -= 1
+		if diff[_y] == 0 {
+			delete(diff, _y)
+		}
+	}
+	return len(diff) == 0
 }
 
 // SetupWithManager sets up the controller with the Manager.

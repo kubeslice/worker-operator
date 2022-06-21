@@ -718,6 +718,9 @@ func (r *SliceGwReconciler) createEndpointForGatewayServer(slicegateway *kubesli
 	return e
 }
 
+// reconcileNodes gets the current nodeIP in use from controlle cluster CR and compares it with
+// the current nodeIpList (nodeIpList contains list of externalIPs or a single nodeIP if provided by user)
+// if the nodeIP is no longer available , we update the cluster CR on controller cluster
 func (r *SliceGwReconciler) reconcileNodes(ctx context.Context, slicegateway *kubeslicev1beta1.SliceGateway) error {
 	log := r.Log
 	//currentNodeIP and nodeIpList would be same in case of operator restart because it is set at the start of operator in main.go, hence it is better to fetch the nodeIP in use from controller cluster CR!

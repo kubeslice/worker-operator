@@ -108,7 +108,6 @@ func GetNodeIP(client client.Client) (string, error) {
 		log.Error(err, "Getting NodeIP From kube-api-server")
 		os.Exit(1)
 	}
-
 	nodeIP := nodeIPs[0]
 	log.Info("nodeIP selected", "nodeIP ", nodeIP)
 	return nodeIP, err

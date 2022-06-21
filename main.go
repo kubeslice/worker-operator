@@ -172,12 +172,16 @@ func main() {
 		setupLog.Error(err, "unable to create controller", "controller", "SliceGw")
 		os.Exit(1)
 	}
-	if err := (&cluster.NodeReconciler{
-		Client: mgr.GetClient(),
-		Log:    ctrl.Log.WithName("controllers").WithName("node reconciller"),
-	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "node")
-		os.Exit(1)
+
+	// only start node reconciler if NODE_IP is not provided
+	if utils.GetEnvOrDefault("NODE_IP", "") != "" {
+		if err := (&cluster.NodeReconciler{
+			Client: mgr.GetClient(),
+			Log:    ctrl.Log.WithName("controllers").WithName("node reconciller"),
+		}).SetupWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create controller", "controller", "node")
+			os.Exit(1)
+		}
 	}
 
 	//+kubebuilder:scaffold:builder
