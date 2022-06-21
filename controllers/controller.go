@@ -54,6 +54,8 @@ func GetSlice(ctx context.Context, c client.Client, slice string) (*kubeslicev1b
 	return s, nil
 }
 
+// GetSliceIngressGwPod returns a bool to indicate if ingress gateway is enabled for the slice,  a struct of type AppPod that
+// contains info on the ingress gw pod and an error var to indicate if an error was encountered while executing the func.
 func GetSliceIngressGwPod(ctx context.Context, c client.Client, sliceName string) (bool, *kubeslicev1beta1.AppPod, error) {
 	slice, err := GetSlice(ctx, c, sliceName)
 	if err != nil {

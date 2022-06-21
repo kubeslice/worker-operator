@@ -465,6 +465,8 @@ func (r *SliceGwReconciler) deploymentForGatewayClient(g *kubeslicev1beta1.Slice
 							strconv.Itoa(g.Status.Config.SliceGatewayRemoteNodePort),
 							"--proto",
 							"udp",
+							"--txqueuelen",
+							"5000",
 							"--config",
 							"/vpnclient/" + certFileName,
 						},

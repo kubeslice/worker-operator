@@ -121,7 +121,7 @@ func (r *Reconciler) ReconcileIngressGwPod(
 		return ctrl.Result{}, nil, false
 	}
 
-	if ingressGwPod != nil {
+	if ingressGwPod == nil {
 		debugLog.Info("Ingress gw pod not available yet, requeueing...")
 		return ctrl.Result{
 			RequeueAfter: 30 * time.Second,
