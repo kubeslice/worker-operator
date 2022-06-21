@@ -174,7 +174,7 @@ func main() {
 	}
 
 	// only start node reconciler if NODE_IP is not provided
-	if os.Getenv("NODE_IP") != "" {
+	if os.Getenv("NODE_IP") == "" {
 		if err := (&cluster.NodeReconciler{
 			Client: mgr.GetClient(),
 			Log:    ctrl.Log.WithName("controllers").WithName("node reconciller"),
