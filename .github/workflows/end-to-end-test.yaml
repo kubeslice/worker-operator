@@ -9,5 +9,5 @@ jobs:
       run: |
          chmod +x kind-nodeip.sh
          kind-nodeip.sh
-      shell: bash -ieo pipefail {0}
+      shell: bash -Ieo pipefail {0}
       
