@@ -6,5 +6,8 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - name: determine nodeip
-      run:  kind-nodeip.sh
+      run:  |
+        chmod +x ./kind-nodeip.sh
+        ./kind-nodeip.sh
+      shell: /usr/bin/bash -e {0}
       
