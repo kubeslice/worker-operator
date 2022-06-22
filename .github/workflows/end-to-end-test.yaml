@@ -7,7 +7,7 @@ jobs:
     - uses: actions/checkout@v2
     - name: determine nodeip
       run: |
-         chmod +x ./scripts/kind-nodeip.sh
-         ./scripts/kind-nodeip.sh
+         chmod +x kind-nodeip.sh
+         kind-nodeip.sh
       shell: bash
       
