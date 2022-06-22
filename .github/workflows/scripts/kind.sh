@@ -1,12 +1,12 @@
 #!/bin/bash
 
 # Setup kind multicluster
-HUB=("controller")
-SPOKES=("worker-1" "worker-2")
+HUB="controller"
+SPOKES=["worker-1" "worker-2"]
 PREFIX="kind-"
 
-CLUSTERS=($HUB)
-CLUSTERS+=(${SPOKES[*]})
+CLUSTERS=$HUB
+CLUSTERS+=${SPOKES[*]}
 
 # Create kind clusters
 echo kind create cluster --name $HUB --config hub-cluster.yaml
