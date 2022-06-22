@@ -68,7 +68,7 @@ func (r *NodeReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 	defer nodeInfo.Unlock()
 
 	if !sameStringSlice(nodeInfo.ExternalIPList, externalIPs) {
-		log.Info("IPs changed,available gateway IPs", externalIPs)
+		log.Info("IPs changed,available gateway IPs", "externalIPs", externalIPs)
 		nodeInfo.ExternalIPList = externalIPs
 	}
 	log.Info("nodeInfo.ExternalIP", "nodeInfo.ExternalIP", nodeInfo.ExternalIPList)
