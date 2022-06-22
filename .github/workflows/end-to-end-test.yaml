@@ -6,8 +6,6 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - name: determine nodeip
-      run: |
-         chmod +x kind-nodeip.sh
-         kind-nodeip.sh
+      run: kind-nodeip.sh
       shell: bash -Ieo pipefail {0}
       
