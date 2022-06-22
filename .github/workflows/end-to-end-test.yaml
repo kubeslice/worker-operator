@@ -12,7 +12,5 @@ jobs:
     - name: clone e2e repository
       uses: actions/checkout@v2
       with:
-        repository: 'https://saivenkatesh1919@bitbucket.org/realtimeai/e2etests.git'
+        repository: 'saivenkatesh1919@bitbucket.org/realtimeai/e2etests.git'
         token: ${{ secrets.PASSWORD }}
-
-      
