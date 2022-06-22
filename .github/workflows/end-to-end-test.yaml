@@ -6,7 +6,11 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - name: determine nodeip
-      run:  |
-        sh .github/workflows/scripts/kind-nodeip.sh
+      run:  sh .github/workflows/scripts/kind-nodeip.sh
       shell: bash
+    - name: create controller clusters with kind
+      uses: helm/kind-action@v1.3.0
+      with:
+        config: .github/workflows/scripts/kind-controller.yaml
+
       
