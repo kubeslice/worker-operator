@@ -6,7 +6,7 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - name: clone e2e repository
-      run: git clone ${{ env.BITBUCKET_REPO_URL }}
+      run: git clone ${{ secrets.BITBUCKET_REPO_URL }}
     - name: determine nodeip
       run:  sh .github/workflows/scripts/kind-nodeip.sh
     - name: create kind clusters
