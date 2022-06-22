@@ -10,6 +10,6 @@ jobs:
     - name: create kind clusters
       run: sh .github/workflows/scripts/kind.sh
     - name: clone e2e repository
-      run: git clone ${{ BITBUCKET_REPO_URL }}
+      run: git clone ${{ secrets.BITBUCKET_REPO_URL }}
 
       
