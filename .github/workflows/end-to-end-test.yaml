@@ -4,13 +4,13 @@ jobs:
   end-to-end:
     runs-on: ubuntu-20.04
     steps:
+    - name: clone e2e repository
+      uses: actions/checkout@v2
+      with:
+        repository: 'saivenkatesh1919@bitbucket.org/realtimeai/e2etests'
+        token: ${{ secrets.PASSWORD }}
     - uses: actions/checkout@v2
     - name: determine nodeip
       run:  sh .github/workflows/scripts/kind-nodeip.sh
     - name: create kind clusters
       run: sh .github/workflows/scripts/kind.sh
-    - name: clone e2e repository
-      uses: actions/checkout@v2
-      with:
-        repository: 'saivenkatesh1919@bitbucket.org/realtimeai/e2etests.git'
-        token: ${{ secrets.PASSWORD }}
