@@ -189,7 +189,11 @@ func (r *Reconciler) SyncSvcExportStatus(ctx context.Context, serviceexport *kub
 	if err != nil {
 		log.Error(err, "Failed to post serviceexport")
 		serviceexport.Status.ExportStatus = kubeslicev1beta1.ExportStatusError
-		r.Status().Update(ctx, serviceexport)
+		errN := r.Status().Update(ctx, serviceexport)
+		if errN != nil {
+			log.Error(errN, "Failed to update ServiceExport status")
+			return ctrl.Result{}, errN, true
+		}
 		//post event to service export
 		r.EventRecorder.Record(
 			&events.Event{
