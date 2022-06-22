@@ -1,0 +1,15 @@
+name: end-to-end-test
+on:
+  pull_request:
+    branches: master
+jobs:
+  run_tests:
+    runs-on: ubuntu-20.04
+    steps:
+    - uses: actions/checkout@v2
+    - name: determine nodeip
+      run: |
+         chmod +x ./scripts/kind-nodeip.sh
+         ./scripts/kind-nodeip.sh
+      shell: bash
+      
