@@ -217,7 +217,6 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 			return res, err
 		}
 	}
-
 	// Check if the deployment already exists, if not create a new one
 	found := &appsv1.Deployment{}
 	err = r.Get(ctx, types.NamespacedName{Name: sliceGwName, Namespace: controllers.ControlPlaneNamespace}, found)

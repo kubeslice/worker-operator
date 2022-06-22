@@ -137,6 +137,7 @@ func main() {
 	nodeIP, err := cluster.GetNodeIP(clientForHubMgr)
 	if err != nil {
 		setupLog.Error(err, "Error Getting nodeIP")
+		os.Exit(1)
 	}
 	sliceEventRecorder := events.NewEventRecorder(mgr.GetEventRecorderFor("slice-controller"))
 	if err = (&slice.SliceReconciler{
