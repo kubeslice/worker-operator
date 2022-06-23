@@ -19,6 +19,7 @@
 package spoke_test
 
 import (
+	"os"
 	"time"
 
 	hubv1alpha1 "github.com/kubeslice/apis/pkg/controller/v1alpha1"
@@ -104,6 +105,78 @@ prefixes:
 			Expect(cluster.Status.CniSubnet).Should(Equal([]string{"192.168.0.0/16", "10.96.0.0/12"}))
 		})
 	})
+
+	Context("With Cluster CR Created at controller cluster", func() {
+		var ns *corev1.Namespace
+		var cluster *hubv1alpha1.Cluster
+		var operatorSecret *corev1.Secret
+		hostname := "127.0.0.1:6443"
+
+		BeforeEach(func() {
+			ns = &corev1.Namespace{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: PROJECT_NS,
+				},
+			}
+			os.Setenv("HUB_PROJECT_NAMESPACE", ns.Name)
+			cluster = &hubv1alpha1.Cluster{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "cluster-2",
+					Namespace: PROJECT_NS,
+				},
+				Spec:   hubv1alpha1.ClusterSpec{},
+				Status: hubv1alpha1.ClusterStatus{},
+			}
+			os.Setenv("CLUSTER_NAME", cluster.Name)
+			operatorSecret = getSecret("kubeslice-kubernetes-dashboard", CONTROL_PLANE_NS)
+
+		})
+		It("should create secret in controller's project namespace", func() {
+			os.Setenv("CLUSTER_ENDPOINT", hostname)
+			Expect(k8sClient.Create(ctx, cluster)).Should(Succeed())
+			Expect(k8sClient.Create(ctx, operatorSecret)).Should(Succeed())
+
+			//get the created operator secret
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, types.NamespacedName{Name: operatorSecret.Name,
+					Namespace: operatorSecret.Namespace}, operatorSecret)
+				return err == nil
+			}, time.Second*10, time.Millisecond*250).Should(BeTrue())
+
+			err := hub.PostCredsToHub(ctx, k8sClient, k8sClient, operatorSecret)
+			Expect(err).To(BeNil())
+
+			//get the secret on controller
+			Eventually(func() bool {
+				hubSecret := &corev1.Secret{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      cluster.Name + hub.HubSecretSuffix,
+						Namespace: PROJECT_NS,
+					}}
+				err := k8sClient.Get(ctx, types.NamespacedName{Name: hubSecret.Name, Namespace: hubSecret.Namespace}, hubSecret)
+				return err == nil
+			}, time.Second*10, time.Millisecond*250).Should(BeTrue())
+		})
+		It("Should update cluster CR with secret info", func() {
+			//get the cluster object
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, types.NamespacedName{Name: cluster.Name, Namespace: cluster.Namespace}, cluster)
+				return err == nil
+			}, time.Second*10, time.Millisecond*250).Should(BeTrue())
+
+			Expect(cluster.Spec.ClusterProperty.Monitoring.KubernetesDashboard.AccessToken).
+				Should(Equal(cluster.Name + hub.HubSecretSuffix))
+		})
+		It("Should update cluster CR with cluster URL", func() {
+			//get the cluster object
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, types.NamespacedName{Name: cluster.Name, Namespace: cluster.Namespace}, cluster)
+				return err == nil
+			}, time.Second*10, time.Millisecond*250).Should(BeTrue())
+			Expect(cluster.Spec.ClusterProperty.Monitoring.KubernetesDashboard.Endpoint).
+				Should(Equal(hostname))
+		})
+	})
 })
 
 func configMap(name, namespace, data string) *corev1.ConfigMap {
@@ -121,4 +194,22 @@ func configMap(name, namespace, data string) *corev1.ConfigMap {
 		Data: configMapData,
 	}
 	return &configMap
+}
+
+func getSecret(name, namespace string) *corev1.Secret {
+	secretData := make(map[string][]byte)
+	secretData["token"] = []byte("my-token")
+	secretData["ca.crt"] = []byte("my-ca-cert")
+	secret := corev1.Secret{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Secret",
+			APIVersion: "v1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+		},
+		Data: secretData,
+	}
+	return &secret
 }
