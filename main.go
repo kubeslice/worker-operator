@@ -90,7 +90,6 @@ func main() {
 	flag.Parse()
 
 	ctrl.SetLogger(logger.NewLogger())
-
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Scheme:                 scheme,
 		MetricsBindAddress:     metricsAddr,
@@ -130,6 +129,16 @@ func main() {
 		setupLog.Error(err, "could not create spoke netop client for slice gateway reconciler")
 		os.Exit(1)
 	}
+
+	clientForHubMgr, err := client.New(ctrl.GetConfigOrDie(), client.Options{
+		Scheme: scheme,
+	})
+	//check if user has provided NODE_IP as env variable, if not fetch the ExternalIP from gateway nodes
+	nodeIP, err := cluster.GetNodeIP(clientForHubMgr)
+	if err != nil {
+		setupLog.Error(err, "Error Getting nodeIP")
+		os.Exit(1)
+	}
 	sliceEventRecorder := events.NewEventRecorder(mgr.GetEventRecorderFor("slice-controller"))
 	if err = (&slice.SliceReconciler{
 		Client:             mgr.GetClient(),
@@ -159,9 +168,21 @@ func main() {
 		WorkerRouterClient:    workerRouterClient,
 		WorkerNetOpClient:     workerNetOPClient,
 		EventRecorder:         sliceGwEventRecorder,
+		NodeIP:                nodeIP,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "SliceGw")
 		os.Exit(1)
+	}
+
+	// only start node reconciler if NODE_IP is not provided
+	if os.Getenv("NODE_IP") == "" {
+		if err := (&cluster.NodeReconciler{
+			Client: mgr.GetClient(),
+			Log:    ctrl.Log.WithName("controllers").WithName("node reconciller"),
+		}).SetupWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create controller", "controller", "node")
+			os.Exit(1)
+		}
 	}
 
 	//+kubebuilder:scaffold:builder
@@ -227,9 +248,6 @@ func main() {
 	}
 	ctx := ctrl.SetupSignalHandler()
 
-	clientForHubMgr, err := client.New(ctrl.GetConfigOrDie(), client.Options{
-		Scheme: scheme,
-	})
 	if err != nil {
 		setupLog.Error(err, "unable to create kube client for hub manager")
 		os.Exit(1)
@@ -238,12 +256,6 @@ func main() {
 		setupLog.Info("starting hub manager")
 		manager.Start(clientForHubMgr, ctx)
 	}()
-
-	//check if user has provided NODE_IP as env variable, if not fetch the ExternalIP from gateway nodes
-	nodeIP, err := cluster.GetNodeIP(clientForHubMgr)
-	if err != nil {
-		setupLog.Error(err, "Error Getting nodeIP")
-	}
 
 	//post GeoLocation and other metadata to cluster CR on Hub cluster
 	err = hub.PostClusterInfoToHub(ctx, clientForHubMgr, hubClient, os.Getenv("CLUSTER_NAME"), nodeIP, os.Getenv("HUB_PROJECT_NAMESPACE"))
