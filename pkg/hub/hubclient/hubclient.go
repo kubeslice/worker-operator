@@ -443,19 +443,22 @@ func (hubClient *HubClientConfig) UpdateAppPodsList(ctx context.Context, sliceCo
 }
 func (hubClient *HubClientConfig) UpdateAppNamespaces(ctx context.Context, sliceConfigName string, onboardedNamespaces []string) error {
 	log.Info("updating onboardedNamespaces to workersliceconfig", "onboardedNamespaces", onboardedNamespaces)
-	workerSliceConfig := &spokev1alpha1.WorkerSliceConfig{}
-	err := hubClient.Get(ctx, types.NamespacedName{
-		Name:      sliceConfigName,
-		Namespace: ProjectNamespace,
-	}, workerSliceConfig)
-	if err != nil {
-		return err
-	}
-	workerSliceConfig.Status.OnboardedAppNamespaces = []spokev1alpha1.NamespaceConfig{}
-	o := make([]spokev1alpha1.NamespaceConfig, len(onboardedNamespaces))
-	for i, ns := range onboardedNamespaces {
-		o[i].Name = ns
-	}
-	workerSliceConfig.Status.OnboardedAppNamespaces = o
-	return hubClient.Status().Update(ctx, workerSliceConfig)
+	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		workerSliceConfig := &spokev1alpha1.WorkerSliceConfig{}
+		err := hubClient.Get(ctx, types.NamespacedName{
+			Name:      sliceConfigName,
+			Namespace: ProjectNamespace,
+		}, workerSliceConfig)
+		if err != nil {
+			return err
+		}
+		workerSliceConfig.Status.OnboardedAppNamespaces = []spokev1alpha1.NamespaceConfig{}
+		o := make([]spokev1alpha1.NamespaceConfig, len(onboardedNamespaces))
+		for i, ns := range onboardedNamespaces {
+			o[i].Name = ns
+		}
+		workerSliceConfig.Status.OnboardedAppNamespaces = o
+		return hubClient.Status().Update(ctx, workerSliceConfig)
+	})
+	return err
 }
