@@ -3,6 +3,7 @@ module github.com/kubeslice/worker-operator
 go 1.16
 
 require (
+	contrib.go.opencensus.io/exporter/prometheus v0.4.1
 	github.com/go-logr/logr v1.2.0
 	github.com/go-logr/zapr v1.2.0
 	github.com/golang/protobuf v1.5.2
@@ -14,7 +15,9 @@ require (
 	github.com/networkservicemesh/networkservicemesh/k8s/pkg/apis v0.0.0-20211028170547-e58ac1200f18
 	github.com/onsi/ginkgo/v2 v2.1.3
 	github.com/onsi/gomega v1.18.1
+	github.com/prometheus/client_golang v1.12.1
 	github.com/stretchr/testify v1.7.0
+	go.opencensus.io v0.23.0
 	go.uber.org/zap v1.21.0
 	golang.org/x/net v0.0.0-20220225172249-27dd8689420f // indirect
 	golang.org/x/sys v0.0.0-20220227234510-4e6760a101f9 // indirect
@@ -22,7 +25,7 @@ require (
 	google.golang.org/grpc v1.45.0
 	google.golang.org/protobuf v1.27.1
 	gopkg.in/yaml.v2 v2.4.0
-	istio.io/api v0.0.0-20210204223132-d90b2f705958
+	istio.io/api v0.0.0-20210226184957-53be27d8195b
 	istio.io/client-go v1.9.0
 	k8s.io/api v0.23.5
 	k8s.io/apimachinery v0.23.5

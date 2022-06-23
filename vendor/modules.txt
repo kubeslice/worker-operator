@@ -1,5 +1,8 @@
 # cloud.google.com/go v0.81.0
 cloud.google.com/go/compute/metadata
+# contrib.go.opencensus.io/exporter/prometheus v0.4.1
+## explicit
+contrib.go.opencensus.io/exporter/prometheus
 # github.com/Azure/go-autorest v14.2.0+incompatible
 github.com/Azure/go-autorest
 # github.com/Azure/go-autorest/autorest v0.11.18
@@ -25,6 +28,11 @@ github.com/evanphx/json-patch
 github.com/form3tech-oss/jwt-go
 # github.com/fsnotify/fsnotify v1.5.1
 github.com/fsnotify/fsnotify
+# github.com/go-kit/log v0.1.0
+github.com/go-kit/log
+github.com/go-kit/log/level
+# github.com/go-logfmt/logfmt v0.5.0
+github.com/go-logfmt/logfmt
 # github.com/go-logr/logr v1.2.0
 ## explicit
 github.com/go-logr/logr
@@ -130,6 +138,7 @@ github.com/pkg/errors
 # github.com/pmezard/go-difflib v1.0.0
 github.com/pmezard/go-difflib/difflib
 # github.com/prometheus/client_golang v1.12.1
+## explicit
 github.com/prometheus/client_golang/prometheus
 github.com/prometheus/client_golang/prometheus/collectors
 github.com/prometheus/client_golang/prometheus/internal
@@ -144,9 +153,12 @@ github.com/prometheus/common/model
 github.com/prometheus/procfs
 github.com/prometheus/procfs/internal/fs
 github.com/prometheus/procfs/internal/util
+# github.com/prometheus/statsd_exporter v0.21.0
+github.com/prometheus/statsd_exporter/pkg/mapper
+github.com/prometheus/statsd_exporter/pkg/mapper/fsm
 # github.com/spf13/pflag v1.0.5
 github.com/spf13/pflag
-# github.com/stretchr/objx v0.1.1
+# github.com/stretchr/objx v0.2.0
 github.com/stretchr/objx
 # github.com/stretchr/testify v1.7.0
 ## explicit
@@ -157,6 +169,23 @@ github.com/vishvananda/netlink
 github.com/vishvananda/netlink/nl
 # github.com/vishvananda/netns v0.0.0-20191106174202-0a2b9b5464df
 github.com/vishvananda/netns
+# go.opencensus.io v0.23.0
+## explicit
+go.opencensus.io
+go.opencensus.io/internal
+go.opencensus.io/internal/tagencoding
+go.opencensus.io/metric
+go.opencensus.io/metric/metricdata
+go.opencensus.io/metric/metricexport
+go.opencensus.io/metric/metricproducer
+go.opencensus.io/resource
+go.opencensus.io/stats
+go.opencensus.io/stats/internal
+go.opencensus.io/stats/view
+go.opencensus.io/tag
+go.opencensus.io/trace
+go.opencensus.io/trace/internal
+go.opencensus.io/trace/tracestate
 # go.uber.org/atomic v1.7.0
 go.uber.org/atomic
 # go.uber.org/multierr v1.6.0
@@ -335,7 +364,7 @@ gopkg.in/inf.v0
 gopkg.in/yaml.v2
 # gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b
 gopkg.in/yaml.v3
-# istio.io/api v0.0.0-20210204223132-d90b2f705958
+# istio.io/api v0.0.0-20210226184957-53be27d8195b
 ## explicit
 istio.io/api/analysis/v1alpha1
 istio.io/api/meta/v1alpha1
@@ -343,7 +372,7 @@ istio.io/api/networking/v1beta1
 # istio.io/client-go v1.9.0
 ## explicit
 istio.io/client-go/pkg/apis/networking/v1beta1
-# istio.io/gogo-genproto v0.0.0-20190930162913-45029607206a
+# istio.io/gogo-genproto v0.0.0-20210113155706-4daf5697332f
 istio.io/gogo-genproto/googleapis/google/api
 # k8s.io/api v0.23.5
 ## explicit

@@ -37,6 +37,7 @@ import (
 	"github.com/kubeslice/worker-operator/pkg/events"
 	"github.com/kubeslice/worker-operator/pkg/logger"
 	"github.com/kubeslice/worker-operator/pkg/manifest"
+	"github.com/kubeslice/worker-operator/pkg/metrics"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
@@ -230,9 +231,23 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 	if isAppPodStatusChanged(appPods, slice.Status.AppPods) {
 		log.Info("App pod status changed")
 
+		// this extra check is needed when current app pods are zero and slice status has old app pods
+		// then it doesn't goes to app pods loop hence it don't update the app pods metrics zount to zero
+		if len(appPods) == 0 && len(slice.Status.AppPods) > 0 {
+			for _, appPod := range slice.Status.AppPods {
+				metrics.RecordAppPodsCount(0, controllers.ClusterName, slice.Name, appPod.PodNamespace)
+			}
+		}
+		mapAppPodsPerNamespace := make(map[string][]kubeslicev1beta1.AppPod)
+		for _, appPod := range appPods {
+			mapAppPodsPerNamespace[appPod.PodNamespace] = append(mapAppPodsPerNamespace[appPod.PodNamespace], appPod)
+		}
+		// Set no. of app pods in prometheus metrics
+		for namespace, pods := range mapAppPodsPerNamespace {
+			metrics.RecordAppPodsCount(len(pods), controllers.ClusterName, slice.Name, namespace)
+		}
 		slice.Status.AppPods = appPods
 		slice.Status.AppPodsUpdatedOn = time.Now().Unix()
-
 		err = r.Status().Update(ctx, slice)
 		if err != nil {
 			log.Error(err, "Failed to update Slice status for app pods")
