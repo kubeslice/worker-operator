@@ -126,7 +126,7 @@ func PostDashboardCredsToHub(ctx context.Context, spokeclient, hubClient client.
 
 	secret := &corev1.Secret{}
 	err := spokeclient.Get(ctx, types.NamespacedName{Name: sa.Secrets[0].Name, Namespace: controllers.ControlPlaneNamespace}, secret)
-	if err != nil || apierrors.IsNotFound(err) {
+	if err != nil {
 		log.Error(err, "Error getting service account's secret")
 		return err
 	}
