@@ -46,6 +46,14 @@ type ServicePod struct {
 	DNSName string `json:"dnsName"`
 }
 
+// IngressGwPod contains ingress gw pod information
+type IngressGwPod struct {
+	// Name of the pod
+	Name string `json:"name"`
+	// NsmIP of the pod which is reachable within slice
+	NsmIP string `json:"nsmIp,omitempty"`
+}
+
 // ServiceExportSpec defines the desired state of ServiceExport
 type ServiceExportSpec struct {
 	// Slice denotes the slice which the app is part of
@@ -97,6 +105,10 @@ type ServiceExportStatus struct {
 	ExposedPorts string `json:"exposedPorts,omitempty"`
 	// AvailableEndpoints shows the number of available endpoints
 	AvailableEndpoints int `json:"availableEndpoints,omitempty"`
+	// IngressGwEnabled denotes ingress gw is enabled for the serviceexport
+	IngressGwEnabled bool `json:"ingressGwEnabled,omitempty"`
+	// IngressGwPod contains ingress gateway pod info
+	IngressGwPod IngressGwPod `json:"ingressGwPod,omitempty"`
 }
 
 // +kubebuilder:object:root=true

@@ -492,7 +492,7 @@ var _ = Describe("SliceNetpol", func() {
 					client.InNamespace(slice.Namespace),
 				}
 				err = k8sClient.List(ctx, &eventList, opts...)
-				return len(eventList.Items) > 0
+				return len(eventList.Items) > 1
 			}, timeout, interval).Should(BeTrue())
 			Expect(eventList.Items[1].InvolvedObject.Kind).Should(Equal("Slice"))
 			Expect(eventList.Items[1].Reason).Should(Equal("Scope widened with reason - IPBlock violation"))

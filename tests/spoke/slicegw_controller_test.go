@@ -338,7 +338,7 @@ var _ = Describe("Worker SlicegwController", func() {
 			}, time.Second*10, time.Millisecond*250).Should(BeTrue())
 
 			createdSliceGw.Status.Config.SliceGatewayHostType = "Client"
-
+			createdSliceGw.Status.Config.SliceGatewayRemoteGatewayID = "remote-gateway-id"
 			Eventually(func() bool {
 				err := k8sClient.Status().Update(ctx, createdSliceGw)
 				if err != nil {

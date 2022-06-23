@@ -25,6 +25,8 @@ import (
 	"github.com/kubeslice/worker-operator/pkg/cluster"
 	"github.com/kubeslice/worker-operator/pkg/events"
 	namespacecontroller "github.com/kubeslice/worker-operator/pkg/namespace/controllers"
+	"github.com/prometheus/client_golang/prometheus"
+	"go.opencensus.io/stats/view"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
@@ -45,6 +47,9 @@ import (
 
 	nsmv1alpha1 "github.com/networkservicemesh/networkservicemesh/k8s/pkg/apis/networkservice/v1alpha1"
 	istiov1beta1 "istio.io/client-go/pkg/apis/networking/v1beta1"
+
+	ocprom "contrib.go.opencensus.io/exporter/prometheus"
+	ctrlmetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
 
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
 	"github.com/kubeslice/worker-operator/controllers/serviceexport"
@@ -90,7 +95,6 @@ func main() {
 	flag.Parse()
 
 	ctrl.SetLogger(logger.NewLogger())
-
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Scheme:                 scheme,
 		MetricsBindAddress:     metricsAddr,
@@ -114,6 +118,18 @@ func main() {
 		setupLog.Error(err, "unable to start manager")
 		os.Exit(1)
 	}
+
+	setupLog.Info("Creating operator metrics exporter")
+	exporter, err := ocprom.NewExporter(ocprom.Options{
+		Registry: ctrlmetrics.Registry.(*prometheus.Registry),
+	})
+	if err != nil {
+		setupLog.Error(err, "Error while building exporter ..")
+	} else {
+		view.RegisterExporter(exporter)
+		// It helps you to setup customize reporting period to push gateway
+		//view.SetReportingPeriod(10 * time.Millisecond)
+	}
 	hubClient, err := hub.NewHubClientConfig()
 	if err != nil {
 		setupLog.Error(err, "could not create hub client for slice gateway reconciler")
@@ -128,6 +144,16 @@ func main() {
 	workerNetOPClient, err := netop.NewWorkerNetOpClientProvider()
 	if err != nil {
 		setupLog.Error(err, "could not create spoke netop client for slice gateway reconciler")
+		os.Exit(1)
+	}
+
+	clientForHubMgr, err := client.New(ctrl.GetConfigOrDie(), client.Options{
+		Scheme: scheme,
+	})
+	//check if user has provided NODE_IP as env variable, if not fetch the ExternalIP from gateway nodes
+	nodeIP, err := cluster.GetNodeIP(clientForHubMgr)
+	if err != nil {
+		setupLog.Error(err, "Error Getting nodeIP")
 		os.Exit(1)
 	}
 	sliceEventRecorder := events.NewEventRecorder(mgr.GetEventRecorderFor("slice-controller"))
@@ -159,9 +185,21 @@ func main() {
 		WorkerRouterClient:    workerRouterClient,
 		WorkerNetOpClient:     workerNetOPClient,
 		EventRecorder:         sliceGwEventRecorder,
+		NodeIP:                nodeIP,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "SliceGw")
 		os.Exit(1)
+	}
+
+	// only start node reconciler if NODE_IP is not provided
+	if os.Getenv("NODE_IP") == "" {
+		if err := (&cluster.NodeReconciler{
+			Client: mgr.GetClient(),
+			Log:    ctrl.Log.WithName("controllers").WithName("node reconciller"),
+		}).SetupWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create controller", "controller", "node")
+			os.Exit(1)
+		}
 	}
 
 	//+kubebuilder:scaffold:builder
@@ -227,9 +265,6 @@ func main() {
 	}
 	ctx := ctrl.SetupSignalHandler()
 
-	clientForHubMgr, err := client.New(ctrl.GetConfigOrDie(), client.Options{
-		Scheme: scheme,
-	})
 	if err != nil {
 		setupLog.Error(err, "unable to create kube client for hub manager")
 		os.Exit(1)
@@ -238,12 +273,6 @@ func main() {
 		setupLog.Info("starting hub manager")
 		manager.Start(clientForHubMgr, ctx)
 	}()
-
-	//check if user has provided NODE_IP as env variable, if not fetch the ExternalIP from gateway nodes
-	nodeIP, err := cluster.GetNodeIP(clientForHubMgr)
-	if err != nil {
-		setupLog.Error(err, "Error Getting nodeIP")
-	}
 
 	//post GeoLocation and other metadata to cluster CR on Hub cluster
 	err = hub.PostClusterInfoToHub(ctx, clientForHubMgr, hubClient, os.Getenv("CLUSTER_NAME"), nodeIP, os.Getenv("HUB_PROJECT_NAMESPACE"))

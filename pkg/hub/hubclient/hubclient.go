@@ -60,6 +60,7 @@ type HubClientRpc interface {
 	UpdateServiceExportEndpointForIngressGw(ctx context.Context, serviceexport *kubeslicev1beta1.ServiceExport,
 		ep *kubeslicev1beta1.ServicePod) error
 	UpdateAppNamespaces(ctx context.Context, sliceConfigName string, onboardedNamespaces []string) error
+	UpdateNodeIpInCluster(ctx context.Context, clusterName, nodeIP, namespace string) error
 }
 
 func NewHubClientConfig() (*HubClientConfig, error) {
@@ -77,6 +78,29 @@ func NewHubClientConfig() (*HubClientConfig, error) {
 	return &HubClientConfig{
 		Client: hubClient,
 	}, err
+}
+
+func (hubClient *HubClientConfig) UpdateNodeIpInCluster(ctx context.Context, clusterName, nodeIP, namespace string) error {
+	cluster := &hubv1alpha1.Cluster{}
+	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		err := hubClient.Get(ctx, types.NamespacedName{
+			Name:      clusterName,
+			Namespace: namespace,
+		}, cluster)
+		if err != nil {
+			return err
+		}
+		cluster.Spec.NodeIP = nodeIP
+		if err := hubClient.Update(ctx, cluster); err != nil {
+			log.Error(err, "Error updating to cluster spec on controller cluster")
+			return err
+		}
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (hubClient *HubClientConfig) UpdateNodePortForSliceGwServer(ctx context.Context, sliceGwNodePort int32, sliceGwName string) error {
@@ -148,6 +172,18 @@ func updateClusterInfoToHub(ctx context.Context, spokeclient client.Client, hubC
 		return nil
 	})
 	return err
+}
+
+func (hubClient *HubClientConfig) GetClusterNodeIP(ctx context.Context, clusterName, namespace string) (string, error) {
+	cluster := &hubv1alpha1.Cluster{}
+	err := hubClient.Get(ctx, types.NamespacedName{
+		Name:      clusterName,
+		Namespace: namespace,
+	}, cluster)
+	if err != nil {
+		return "", err
+	}
+	return cluster.Spec.NodeIP, nil
 }
 
 func UpdateNamespaceInfoToHub(ctx context.Context, hubClient client.Client, onboardNamespace, sliceName string) error {
