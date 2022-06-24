@@ -18,9 +18,7 @@
 package logger
 
 import (
-	"fmt"
 	"os"
-	"path/filepath"
 
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -94,7 +92,6 @@ func NewLogger() *Logger {
 	if logLevel == "" {
 		logLevel = "INFO"
 	}
-	logPath := "avesha-sidecar.log"
 
 	logLevelMap := map[string]zapcore.Level{
 		"DEBUG": zapcore.DebugLevel,
@@ -104,25 +101,14 @@ func NewLogger() *Logger {
 		"FATAL": zapcore.FatalLevel,
 		"PANIC": zapcore.PanicLevel}
 
-	// Open the Log file
-	logFileHandle, err := os.OpenFile(filepath.Clean(logPath), os.O_CREATE|os.O_APPEND|os.O_RDWR, 0600)
-	if err != nil {
-		fmt.Println("Failed to open the %s File with error %v", logPath, err)
-	}
-
 	logLvl := logLevelMap[logLevel]
-
-	// Get the Write Syncer
-	writerSyncer := zapcore.AddSync(logFileHandle)
 
 	encoderConfig := zap.NewProductionEncoderConfig()
 	encoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
 	encoderConfig.EncodeLevel = zapcore.CapitalLevelEncoder
 
-	logEncoder := zapcore.NewConsoleEncoder(encoderConfig)
 	consoleEncoder := zapcore.NewConsoleEncoder(encoderConfig)
 	core := zapcore.NewTee(
-		zapcore.NewCore(logEncoder, writerSyncer, logLvl),
 		zapcore.NewCore(consoleEncoder, zapcore.AddSync(os.Stdout), logLvl),
 	)
 	logger := zap.New(core, zap.AddCaller(), zap.AddCallerSkip(1)).Sugar()

@@ -20,8 +20,6 @@ package slicegateway
 
 import (
 	"context"
-	"time"
-
 	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -37,6 +35,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
+	"time"
 
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
 	"github.com/kubeslice/worker-operator/controllers"
@@ -58,10 +57,11 @@ type SliceGwReconciler struct {
 	WorkerGWSidecarClient WorkerGWSidecarClientProvider
 	NetOpPods             []NetOpPod
 	EventRecorder         *events.EventRecorder
+	NodeIP                string
 }
 
 func readyToDeployGwClient(sliceGw *kubeslicev1beta1.SliceGateway) bool {
-	return sliceGw.Status.Config.SliceGatewayRemoteNodeIP != "" && sliceGw.Status.Config.SliceGatewayRemoteNodePort != 0
+	return sliceGw.Status.Config.SliceGatewayRemoteNodeIP != "" && sliceGw.Status.Config.SliceGatewayRemoteNodePort != 0 && sliceGw.Status.Config.SliceGatewayRemoteGatewayID != ""
 }
 
 //+kubebuilder:rbac:groups=networking.kubeslice.io,resources=slicegateways,verbs=get;list;watch;create;update;patch;delete
@@ -78,7 +78,6 @@ func readyToDeployGwClient(sliceGw *kubeslicev1beta1.SliceGateway) bool {
 func (r *SliceGwReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	var sliceGwNodePort int32
 	log := r.Log.WithValues("slicegateway", req.NamespacedName)
-
 	sliceGw := &kubeslicev1beta1.SliceGateway{}
 	err := r.Get(ctx, req.NamespacedName, sliceGw)
 	if err != nil {
@@ -192,9 +191,12 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 			)
 			return ctrl.Result{}, err
 		}
+		//reconcile the available nodes
+		if err := r.reconcileNodes(ctx, sliceGw); err != nil {
+			return ctrl.Result{}, err
+		}
 	}
-
-	// client can be deployed only if remoteNodeIp is present
+	// client can be deployed only if remoteNodeIp,SliceGatewayRemoteNodePort abd SliceGatewayRemoteGatewayID is present
 	canDeployGw := isServer || readyToDeployGwClient(sliceGw)
 	if !canDeployGw {
 		// no need to deploy gateway deployment or service
@@ -203,7 +205,18 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 			RequeueAfter: 10 * time.Second,
 		}, nil
 	}
-
+	isClient := sliceGw.Status.Config.SliceGatewayHostType == "Client"
+	if isClient {
+		//reconcile headless service and endpoint for DNS Query by OpenVPN Client
+		if err := r.reconcileGatewayHeadlessService(ctx, sliceGw); err != nil {
+			return ctrl.Result{}, err
+		}
+		//create an endpoint if not exists
+		requeue, res, err := r.reconcileGatewayEndpoint(ctx, sliceGw)
+		if requeue {
+			return res, err
+		}
+	}
 	// Check if the deployment already exists, if not create a new one
 	found := &appsv1.Deployment{}
 	err = r.Get(ctx, types.NamespacedName{Name: sliceGwName, Namespace: controllers.ControlPlaneNamespace}, found)
@@ -363,7 +376,23 @@ func (r *SliceGwReconciler) findSliceGwObjectsToReconcile(pod client.Object) []r
 			},
 		}
 	}
+	return requests
+}
 
+func (r *SliceGwReconciler) sliceGwObjectsToReconcileForNodeRestart(node client.Object) []reconcile.Request {
+	sliceGwList, err := r.findAllSliceGwObjects()
+	if err != nil {
+		return []reconcile.Request{}
+	}
+	requests := make([]reconcile.Request, len(sliceGwList.Items))
+	for i, item := range sliceGwList.Items {
+		requests[i] = reconcile.Request{
+			NamespacedName: types.NamespacedName{
+				Name:      item.GetName(),
+				Namespace: item.GetNamespace(),
+			},
+		}
+	}
 	return requests
 }
 
@@ -376,7 +405,6 @@ func (r *SliceGwReconciler) findObjectsForSliceRouterUpdate(sliceName string) (*
 	if err != nil {
 		return nil, err
 	}
-
 	return sliceGwList, nil
 }
 
@@ -437,6 +465,13 @@ func (r *SliceGwReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		slicerouterPredicate, netopPredicate, nsmgrPredicate, nsmfwdPredicate,
 	)
 
+	// The slice gateway reconciler needs to be invoked whenever there is an update to the
+	// kubeslice gateway nodes
+	labelSelector.MatchLabels = map[string]string{"kubeslice.io/node-type": "gateway"}
+	nodePredicate, err := predicate.LabelSelectorPredicate(labelSelector)
+	if err != nil {
+		return err
+	}
 	// The mapping function for the slice router pod update should only invoke the reconciler
 	// of the slice gateway objects that belong to the same slice as the restarted slice router.
 	// The netop pods are slice agnostic. Hence, all slice gateway objects belonging to every slice
@@ -449,6 +484,10 @@ func (r *SliceGwReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Watches(&source.Kind{Type: &corev1.Pod{}},
 			handler.EnqueueRequestsFromMapFunc(r.findSliceGwObjectsToReconcile),
 			builder.WithPredicates(sliceGwUpdPredicate),
+		).
+		Watches(&source.Kind{Type: &corev1.Node{}},
+			handler.EnqueueRequestsFromMapFunc(r.sliceGwObjectsToReconcileForNodeRestart),
+			builder.WithPredicates(nodePredicate),
 		).
 		Complete(r)
 }
@@ -470,6 +509,5 @@ func FindSliceRouterService(ctx context.Context, c client.Client, sliceName stri
 	if len(vl3NseEpList.Items) == 0 {
 		return false, nil
 	}
-
 	return true, nil
 }
