@@ -140,7 +140,7 @@ func (r *SliceReconciler) reconcileAppNamespaces(ctx context.Context, slice *kub
 		statusChanged = true
 	}
 	// Sweep the existing namespaces again to unbind any namespace that was not found in the configured list
-	for existingAppNs, _ := range existingAppNsMap {
+	for existingAppNs := range existingAppNsMap {
 		if !existingAppNsMap[existingAppNs].marked {
 			err := r.unbindAppNamespace(ctx, slice, existingAppNs)
 			if err != nil {
@@ -422,9 +422,9 @@ func (r *SliceReconciler) installSliceNetworkPolicyInAppNs(ctx context.Context, 
 				networkingv1.PolicyTypeEgress,
 			},
 			Ingress: []networkingv1.NetworkPolicyIngressRule{
-				networkingv1.NetworkPolicyIngressRule{
+				{
 					From: []networkingv1.NetworkPolicyPeer{
-						networkingv1.NetworkPolicyPeer{
+						{
 							NamespaceSelector: &metav1.LabelSelector{
 								MatchLabels: map[string]string{ApplicationNamespaceSelectorLabelKey: slice.Name},
 							},
@@ -433,9 +433,9 @@ func (r *SliceReconciler) installSliceNetworkPolicyInAppNs(ctx context.Context, 
 				},
 			},
 			Egress: []networkingv1.NetworkPolicyEgressRule{
-				networkingv1.NetworkPolicyEgressRule{
+				{
 					To: []networkingv1.NetworkPolicyPeer{
-						networkingv1.NetworkPolicyPeer{
+						{
 							NamespaceSelector: &metav1.LabelSelector{
 								MatchLabels: map[string]string{ApplicationNamespaceSelectorLabelKey: slice.Name},
 							},

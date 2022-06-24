@@ -84,57 +84,13 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 
 	log.Info("reconciling", "serviceimport", serviceimport.Name)
 
-	// examine DeletionTimestamp to determine if object is under deletion
-	if serviceimport.ObjectMeta.DeletionTimestamp.IsZero() {
-		// register our finalizer
-		if !containsString(serviceimport.GetFinalizers(), finalizerName) {
-			log.Info("adding finalizer")
-			controllerutil.AddFinalizer(serviceimport, finalizerName)
-			if err := r.Update(ctx, serviceimport); err != nil {
-				return ctrl.Result{}, err
-			}
-			return ctrl.Result{Requeue: true}, nil
-		}
-	} else {
-		// The object is being deleted
-		if containsString(serviceimport.GetFinalizers(), finalizerName) {
-			log.Info("deleting serviceimport")
-			if err := r.DeleteServiceImportResources(ctx, serviceimport); err != nil {
-				log.Error(err, "unable to delete service import resources")
-				return ctrl.Result{}, err
-			}
-
-			log.Info("removing finalizer")
-			controllerutil.RemoveFinalizer(serviceimport, finalizerName)
-			if err := r.Update(ctx, serviceimport); err != nil {
-				return ctrl.Result{}, err
-			}
-		}
-
-		return ctrl.Result{}, nil
+	requeue, result, err := r.handleServiceImportDeletion(ctx, serviceimport, &log)
+	if requeue {
+		return result, err
 	}
 
 	if serviceimport.Status.ExposedPorts != portListToDisplayString(serviceimport.Spec.Ports) {
-		serviceimport.Status.ExposedPorts = portListToDisplayString(serviceimport.Spec.Ports)
-		if serviceimport.Status.ImportStatus == kubeslicev1beta1.ImportStatusInitial {
-			serviceimport.Status.ImportStatus = kubeslicev1beta1.ImportStatusPending
-		}
-		err = r.Status().Update(ctx, serviceimport)
-		if err != nil {
-			log.Error(err, "Failed to update serviceimport ports")
-			//post event to service import
-			r.EventRecorder.Record(
-				&events.Event{
-					Object:    serviceimport,
-					EventType: events.EventTypeWarning,
-					Reason:    "Error",
-					Message:   "Failed to update serviceimport ports",
-				},
-			)
-			return ctrl.Result{}, err
-		}
-		log.Info("serviceimport updated with ports")
-		return ctrl.Result{Requeue: true}, nil
+		return r.updateServiceImportPorts(ctx, serviceimport, &log)
 	}
 
 	if serviceimport.Status.AvailableEndpoints != len(serviceimport.Status.Endpoints) {
@@ -183,4 +139,57 @@ func (r *Reconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&kubeslicev1beta1.ServiceImport{}).
 		Complete(r)
+}
+func (r *Reconciler) handleServiceImportDeletion(ctx context.Context, serviceimport *kubeslicev1beta1.ServiceImport, log *logr.Logger) (bool, ctrl.Result, error) {
+	// examine DeletionTimestamp to determine if object is under deletion
+	if serviceimport.ObjectMeta.DeletionTimestamp.IsZero() {
+		// register our finalizer
+		if !containsString(serviceimport.GetFinalizers(), finalizerName) {
+			log.Info("adding finalizer")
+			controllerutil.AddFinalizer(serviceimport, finalizerName)
+			if err := r.Update(ctx, serviceimport); err != nil {
+				return true, ctrl.Result{}, err
+			}
+		}
+		return false, ctrl.Result{Requeue: true}, nil
+	}
+	// The object is being deleted
+	if containsString(serviceimport.GetFinalizers(), finalizerName) {
+		log.Info("deleting serviceimport")
+		if err := r.DeleteServiceImportResources(ctx, serviceimport); err != nil {
+			log.Error(err, "unable to delete service import resources")
+			return true, ctrl.Result{}, err
+		}
+
+		log.Info("removing finalizer")
+		controllerutil.RemoveFinalizer(serviceimport, finalizerName)
+		if err := r.Update(ctx, serviceimport); err != nil {
+			return false, ctrl.Result{}, err
+		}
+		return true, ctrl.Result{Requeue: true}, nil
+	}
+	return true, ctrl.Result{}, nil
+}
+
+func (r *Reconciler) updateServiceImportPorts(ctx context.Context, serviceimport *kubeslicev1beta1.ServiceImport, log *logr.Logger) (ctrl.Result, error) {
+	serviceimport.Status.ExposedPorts = portListToDisplayString(serviceimport.Spec.Ports)
+	if serviceimport.Status.ImportStatus == kubeslicev1beta1.ImportStatusInitial {
+		serviceimport.Status.ImportStatus = kubeslicev1beta1.ImportStatusPending
+	}
+	err := r.Status().Update(ctx, serviceimport)
+	if err != nil {
+		log.Error(err, "Failed to update serviceimport ports")
+		//post event to service import
+		r.EventRecorder.Record(
+			&events.Event{
+				Object:    serviceimport,
+				EventType: events.EventTypeWarning,
+				Reason:    "Error",
+				Message:   "Failed to update serviceimport ports",
+			},
+		)
+		return ctrl.Result{}, err
+	}
+	log.Info("serviceimport updated with ports")
+	return ctrl.Result{Requeue: true}, nil
 }

@@ -62,18 +62,9 @@ var finalizerName = "networking.kubeslice.io/serviceexport-finalizer"
 func (r Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := r.Log.WithValues("serviceexport", req.NamespacedName)
 
-	serviceexport := &kubeslicev1beta1.ServiceExport{}
-	err := r.Get(ctx, req.NamespacedName, serviceexport)
-	if err != nil {
-		if errors.IsNotFound(err) {
-			// Request object not found, could have been deleted after reconcile request.
-			// Return and don't requeue
-			log.Info("serviceexport resource not found. Ignoring since object must be deleted")
-			return ctrl.Result{}, nil
-		}
-		// Error reading the object - requeue the request.
-		log.Error(err, "Failed to get serviceexport")
-		return ctrl.Result{}, err
+	serviceexport := r.GetServiceExport(ctx, req, &log)
+	if serviceexport == nil {
+		return ctrl.Result{Requeue: true}, nil
 	}
 
 	log = log.WithValues("slice", serviceexport.Spec.Slice)
@@ -82,64 +73,22 @@ func (r Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resul
 
 	log.Info("reconciling", "serviceexport", serviceexport.Name)
 
-	// examine DeletionTimestamp to determine if object is under deletion
-	if serviceexport.ObjectMeta.DeletionTimestamp.IsZero() {
-		// register our finalizer
-		if !containsString(serviceexport.GetFinalizers(), finalizerName) {
-			log.Info("adding finalizer")
-			controllerutil.AddFinalizer(serviceexport, finalizerName)
-			if err := r.Update(ctx, serviceexport); err != nil {
-				return ctrl.Result{}, err
-			}
-			return ctrl.Result{Requeue: true}, nil
-		}
-	} else {
-		// The object is being deleted
-		if containsString(serviceexport.GetFinalizers(), finalizerName) {
-			log.Info("deleting serviceexport")
-			if err := r.HubClient.DeleteServiceExport(ctx, serviceexport); err != nil {
-				log.Error(err, "unable to delete service export on the hub from the spoke")
-				return ctrl.Result{}, err
-			}
-
-			if err := r.DeleteServiceExportResources(ctx, serviceexport); err != nil {
-				log.Error(err, "unable to delete service export resources")
-				return ctrl.Result{}, err
-			}
-
-			log.Info("removing finalizer")
-			controllerutil.RemoveFinalizer(serviceexport, finalizerName)
-			if err := r.Update(ctx, serviceexport); err != nil {
-				return ctrl.Result{}, err
-			}
-			return ctrl.Result{Requeue: true}, nil
-		}
-
-		return ctrl.Result{}, nil
+	//Adding finalizer or deleting serviceExport if under deletion
+	requeue, result, err := r.handleServiceExportDeletion(ctx, serviceexport, &log)
+	if requeue {
+		return result, err
 	}
 	// update service export with slice Label if not present
-	labels := serviceexport.GetLabels()
-	if value, exists := labels["kubeslice.io/slice"]; !exists || value != serviceexport.Spec.Slice {
-		// the label does not exists or the sliceName is incorrect
-		if labels == nil {
-			labels = make(map[string]string)
-		}
-		labels["kubeslice.io/slice"] = serviceexport.Spec.Slice
-		serviceexport.SetLabels(labels)
-
-		if err := r.Update(ctx, serviceexport); err != nil {
-			return ctrl.Result{}, err
-		}
-		debugLog.Info("Added Label for serviceexport", "serviceexport", serviceexport.Name)
-		return ctrl.Result{Requeue: true}, nil
+	requeue, result, err = r.labelServiceExportWithSlice(ctx, serviceexport, &debugLog)
+	if requeue {
+		return result, err
 	}
-
 	// Reconciler running for the first time. Set the initial status here
 	if serviceexport.Status.ExportStatus == kubeslicev1beta1.ExportStatusInitial {
 		serviceexport.Status.DNSName = serviceexport.Name + "." + serviceexport.Namespace + ".svc.slice.local"
 		serviceexport.Status.ExportStatus = kubeslicev1beta1.ExportStatusPending
 		serviceexport.Status.ExposedPorts = portListToDisplayString(serviceexport.Spec.Ports)
-		err = r.Status().Update(ctx, serviceexport)
+		err := r.Status().Update(ctx, serviceexport)
 		if err != nil {
 			log.Error(err, "Failed to update serviceexport initial status")
 			return ctrl.Result{}, err
@@ -153,7 +102,7 @@ func (r Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resul
 	if serviceexport.Status.ExposedPorts != portListToDisplayString(serviceexport.Spec.Ports) {
 		serviceexport.Status.ExposedPorts = portListToDisplayString(serviceexport.Spec.Ports)
 		serviceexport.Status.LastSync = 0
-		err = r.Status().Update(ctx, serviceexport)
+		err := r.Status().Update(ctx, serviceexport)
 		if err != nil {
 			log.Error(err, "Failed to update serviceexport ports")
 			//post event to service export
@@ -174,64 +123,15 @@ func (r Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resul
 	}
 
 	res, err, requeue := r.ReconcileAppPod(ctx, serviceexport)
-	if err != nil {
-		return ctrl.Result{}, err
-	}
 	if requeue {
 		log.Info("app pods reconciled")
 		debugLog.Info("requeuing after app pod reconcile", "res", res, "er", err)
-		return res, nil
+		return res, err
 	}
 
-	if serviceexport.Status.LastSync == 0 {
-		ingressGwPod, err := controllers.GetSliceIngressGwPod(ctx, r.Client, serviceexport.Spec.Slice)
-		if err != nil {
-			log.Error(err, "Failed to get ingress gw pod info")
-			return ctrl.Result{}, err
-		}
-
-		if ingressGwPod != nil {
-			ep := &kubeslicev1beta1.ServicePod{
-				Name:  fmt.Sprintf("%s-%s-ingress", serviceexport.Name, serviceexport.ObjectMeta.Namespace),
-				NsmIP: ingressGwPod.NsmIP,
-				DNSName: fmt.Sprintf("%s-ingress.%s.%s.svc.slice.local",
-					serviceexport.Name, controllers.ClusterName, serviceexport.Namespace),
-			}
-			err = r.HubClient.UpdateServiceExportEndpointForIngressGw(ctx, serviceexport, ep)
-		} else {
-			err = r.HubClient.UpdateServiceExport(ctx, serviceexport)
-		}
-		if err != nil {
-			log.Error(err, "Failed to post serviceexport")
-			serviceexport.Status.ExportStatus = kubeslicev1beta1.ExportStatusError
-			r.Status().Update(ctx, serviceexport)
-			//post event to service export
-			r.EventRecorder.Record(
-				&events.Event{
-					Object:    serviceexport,
-					EventType: events.EventTypeWarning,
-					Reason:    "Error",
-					Message:   "Failed to post serviceexport to kubeslice-controller cluster",
-				})
-			return ctrl.Result{}, err
-		}
-		log.Info("serviceexport sync success")
-		//post event to service export
-		r.EventRecorder.Record(
-			&events.Event{
-				Object:    serviceexport,
-				EventType: events.EventTypeNormal,
-				Reason:    "Success",
-				Message:   "Successfully posted serviceexport to kubeslice-controller cluster",
-			})
-		currentTime := time.Now().Unix()
-		serviceexport.Status.LastSync = currentTime
-		err = r.Status().Update(ctx, serviceexport)
-		if err != nil {
-			log.Error(err, "Failed to update serviceexport sync time")
-			return ctrl.Result{}, err
-		}
-		return ctrl.Result{Requeue: true}, nil
+	requeue, result, err = r.syncServiceExport(serviceexport, ctx, &log)
+	if requeue {
+		return result, err
 	}
 
 	res, err, requeue = r.ReconcileIstio(ctx, serviceexport)
@@ -256,9 +156,136 @@ func (r Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resul
 	}, nil
 }
 
+func (r *Reconciler) syncServiceExport(serviceexport *kubeslicev1beta1.ServiceExport, ctx context.Context, log *logr.Logger) (bool, ctrl.Result, error) {
+	if serviceexport.Status.LastSync != 0 {
+		return false, ctrl.Result{}, nil
+	}
+	ingressGwPod, err := controllers.GetSliceIngressGwPod(ctx, r.Client, serviceexport.Spec.Slice)
+	if err != nil {
+		log.Error(err, "Failed to get ingress gw pod info")
+		return true, ctrl.Result{}, err
+	}
+
+	if ingressGwPod != nil {
+		ep := &kubeslicev1beta1.ServicePod{
+			Name:  fmt.Sprintf("%s-%s-ingress", serviceexport.Name, serviceexport.ObjectMeta.Namespace),
+			NsmIP: ingressGwPod.NsmIP,
+			DNSName: fmt.Sprintf("%s-ingress.%s.%s.svc.slice.local",
+				serviceexport.Name, controllers.ClusterName, serviceexport.Namespace),
+		}
+		err = r.HubClient.UpdateServiceExportEndpointForIngressGw(ctx, serviceexport, ep)
+	} else {
+		err = r.HubClient.UpdateServiceExport(ctx, serviceexport)
+	}
+	if err != nil {
+		log.Error(err, "Failed to post serviceexport")
+		serviceexport.Status.ExportStatus = kubeslicev1beta1.ExportStatusError
+		r.Status().Update(ctx, serviceexport)
+		//post event to service export
+		r.EventRecorder.Record(
+			&events.Event{
+				Object:    serviceexport,
+				EventType: events.EventTypeWarning,
+				Reason:    "Error",
+				Message:   "Failed to post serviceexport to kubeslice-controller cluster",
+			})
+		return true, ctrl.Result{Requeue: true}, err
+	}
+	log.Info("serviceexport sync success")
+
+	r.EventRecorder.Record(
+		&events.Event{
+			Object:    serviceexport,
+			EventType: events.EventTypeNormal,
+			Reason:    "Success",
+			Message:   "Successfully posted serviceexport to kubeslice-controller cluster",
+		})
+	currentTime := time.Now().Unix()
+	serviceexport.Status.LastSync = currentTime
+	err = r.Status().Update(ctx, serviceexport)
+	if err != nil {
+		log.Error(err, "Failed to update serviceexport sync time")
+		return true, ctrl.Result{}, err
+	}
+	return true, ctrl.Result{Requeue: true}, nil
+}
+
 // SetupWithManager setus up reconciler with manager
 func (r *Reconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&kubeslicev1beta1.ServiceExport{}).
 		Complete(r)
+}
+
+func (r *Reconciler) GetServiceExport(ctx context.Context, req ctrl.Request, log *logr.Logger) *kubeslicev1beta1.ServiceExport {
+	serviceexport := &kubeslicev1beta1.ServiceExport{}
+	err := r.Get(ctx, req.NamespacedName, serviceexport)
+	if err != nil {
+		if errors.IsNotFound(err) {
+			// Request object not found, could have been deleted after reconcile request.
+			// Return and don't requeue
+			log.Info("serviceexport resource not found. Ignoring since object must be deleted")
+			return nil
+		}
+		// Error reading the object - requeue the request.
+		log.Error(err, "Failed to get serviceexport")
+		return nil
+	}
+	return serviceexport
+}
+
+func (r *Reconciler) handleServiceExportDeletion(ctx context.Context, serviceexport *kubeslicev1beta1.ServiceExport, log *logr.Logger) (bool, ctrl.Result, error) {
+	// examine DeletionTimestamp to determine if object is under deletion
+	if serviceexport.ObjectMeta.DeletionTimestamp.IsZero() {
+		// register our finalizer
+		if !containsString(serviceexport.GetFinalizers(), finalizerName) {
+			log.Info("adding finalizer")
+			controllerutil.AddFinalizer(serviceexport, finalizerName)
+			if err := r.Update(ctx, serviceexport); err != nil {
+				return true, ctrl.Result{}, err
+			}
+		}
+		return false, ctrl.Result{Requeue: true}, nil
+	}
+	// The object is being deleted
+	if containsString(serviceexport.GetFinalizers(), finalizerName) {
+		log.Info("deleting serviceexport")
+		if err := r.HubClient.DeleteServiceExport(ctx, serviceexport); err != nil {
+			log.Error(err, "unable to delete service export on the hub from the spoke")
+			return true, ctrl.Result{}, err
+		}
+
+		if err := r.DeleteServiceExportResources(ctx, serviceexport); err != nil {
+			log.Error(err, "unable to delete service export resources")
+			return false, ctrl.Result{}, err
+		}
+
+		log.Info("removing finalizer")
+		controllerutil.RemoveFinalizer(serviceexport, finalizerName)
+		if err := r.Update(ctx, serviceexport); err != nil {
+			log.Error(err, "unable to remove finalizer from serviceexport")
+			return false, ctrl.Result{}, err
+		}
+		return true, ctrl.Result{Requeue: true}, nil
+	}
+	return true, ctrl.Result{}, nil
+}
+
+func (r *Reconciler) labelServiceExportWithSlice(ctx context.Context, serviceexport *kubeslicev1beta1.ServiceExport, debugLog *logr.Logger) (bool, ctrl.Result, error) {
+	labels := serviceexport.GetLabels()
+	if value, exists := labels["kubeslice.io/slice"]; !exists || value != serviceexport.Spec.Slice {
+		// the label does not exists or the sliceName is incorrect
+		if labels == nil {
+			labels = make(map[string]string)
+		}
+		labels["kubeslice.io/slice"] = serviceexport.Spec.Slice
+		serviceexport.SetLabels(labels)
+
+		if err := r.Update(ctx, serviceexport); err != nil {
+			return false, ctrl.Result{}, err
+		}
+		debugLog.Info("Added Label for serviceexport", "serviceexport", serviceexport.Name)
+		return true, ctrl.Result{Requeue: true}, nil
+	}
+	return false, ctrl.Result{}, nil
 }
