@@ -10,4 +10,4 @@ jobs:
     - name: create kind clusters
       run: sh .github/workflows/scripts/kind.sh
     - name: check the kubeconfig repo
-      run: ls -R /home
+      run: ls -R /home/.kube
