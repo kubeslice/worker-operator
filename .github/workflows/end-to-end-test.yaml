@@ -1,7 +1,5 @@
 name: end-to-end-test
-on:
-  pull_request:
-    branches: master
+on: push
 jobs:
   end-to-end:
     runs-on: ubuntu-20.04
