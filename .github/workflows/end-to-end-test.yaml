@@ -10,9 +10,9 @@ jobs:
     - name: create kind clusters
       run: sh .github/workflows/scripts/kind.sh
     - name: clone the e2e repo
-      uses: actions/checkout@v2 
+      uses: actions/checkout@v3 
       with:
         repository: saivenkatesh1909/kubeslice-e2e
         token: ${{ secrets.PAT }}
     - name: check the e2e path
-      run: pwd    
+      run: pwd && ls -ltr    
