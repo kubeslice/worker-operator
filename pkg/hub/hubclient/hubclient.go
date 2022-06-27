@@ -218,6 +218,7 @@ func updateClusterCredsToHub(ctx context.Context, spokeclient client.Client, hub
 		}
 		hubCluster.Spec.ClusterProperty.Monitoring.KubernetesDashboard.Endpoint = os.Getenv("CLUSTER_ENDPOINT")
 		hubCluster.Spec.ClusterProperty.Monitoring.KubernetesDashboard.AccessToken = secretName
+		hubCluster.Spec.ClusterProperty.Monitoring.KubernetesDashboard.Enabled = true
 		log.Info("Posting cluster creds to hub cluster", "cluster", os.Getenv("CLUSTER_NAME"))
 		return hubClient.Update(ctx, hubCluster)
 	})
