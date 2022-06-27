@@ -6,7 +6,7 @@ jobs:
     steps:
     - name: checkout the repo
       uses: actions/checkout@v3
-    - name: determine nodeip
+    - name: determine node-ip
       run:  sh .github/workflows/scripts/kind-nodeip.sh
     - name: create kind clusters
       run: sh .github/workflows/scripts/kind.sh
@@ -23,7 +23,8 @@ jobs:
     - name: run the e2e
       uses: docker/build-push-action@v2
       with:
-        file: /home/runner/work/worker-operator/worker-operator/kubeslice-e2e/test-prod.Dockerfile
+        context: ./kubeslice-e2e
+        file: kubeslice-e2e/test-prod.Dockerfile
         build-args: |
           PROFILE=profile_kind_two
         tags: end-to-end:latest
