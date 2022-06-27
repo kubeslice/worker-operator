@@ -33,6 +33,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
+type nsMarker struct {
+	ns     *corev1.Namespace
+	marked bool
+}
+
 var (
 	allowedNamespacesByDefault = []string{"kubeslice-system", "kube-system", "istio-system"}
 )
@@ -61,14 +66,8 @@ func (r *SliceReconciler) reconcileAppNamespaces(ctx context.Context, slice *kub
 		return ctrl.Result{}, nil, false
 	}
 	//cfgAppNsList = list of all app namespaces in slice CR
-	var cfgAppNsList []string
-	for _, qualifiedAppNs := range slice.Status.SliceConfig.NamespaceIsolationProfile.ApplicationNamespaces {
-		// Ignore control plane namespace if it appears in the app namespace list
-		if qualifiedAppNs == ControlPlaneNamespace {
-			continue
-		}
-		cfgAppNsList = append(cfgAppNsList, qualifiedAppNs)
-	}
+	//var cfgAppNsList []string
+	cfgAppNsList := buildAppNamespacesList(slice)
 	debugLog.Info("reconciling", "applicationNamespaces", cfgAppNsList)
 
 	// Get the list of existing namespaces that are tagged with the kubeslice label
@@ -87,10 +86,6 @@ func (r *SliceReconciler) reconcileAppNamespaces(ctx context.Context, slice *kub
 	log.Info("reconciling", "existingAppNsList", existingAppNsList)
 	// Convert the list into a map for faster lookups. Will come in handy when we compare
 	// existing namespaces against configured namespaces.
-	type nsMarker struct {
-		ns     *corev1.Namespace
-		marked bool
-	}
 	existingAppNsMap := make(map[string]*nsMarker)
 
 	for _, existingAppNsObj := range existingAppNsList.Items {
@@ -104,40 +99,9 @@ func (r *SliceReconciler) reconcileAppNamespaces(ctx context.Context, slice *kub
 	// label the namespace.
 	// If a namespace is found in the existing list, mark it to indicate that it has been verified
 	// to be valid as it is present in the configured list as well.
-	labeledAppNsList := []string{}
-	statusChanged := false
-	for _, cfgAppNs := range cfgAppNsList {
-		if _, exists := existingAppNsMap[cfgAppNs]; exists {
-			existingAppNsMap[cfgAppNs].marked = true
-			labeledAppNsList = append(labeledAppNsList, cfgAppNs)
-			continue
-		}
-		// label does not exists on namespace
-		namespace := &corev1.Namespace{}
-		err := r.Get(ctx, types.NamespacedName{Name: cfgAppNs}, namespace)
-		if err != nil {
-			log.Error(err, "Failed to find namespace", "namespace", cfgAppNs)
-			continue
-		}
-		// A namespace might not have any labels attached to it. Directly accessing the label map
-		// leads to a crash for such namespaces.
-		// If the label map is nil, create one and use the setter api to attach it to the namespace.
-		nsLabels := namespace.ObjectMeta.GetLabels()
-		if nsLabels == nil {
-			nsLabels = make(map[string]string)
-		}
-		nsLabels[ApplicationNamespaceSelectorLabelKey] = slice.Name
-		namespace.ObjectMeta.SetLabels(nsLabels)
-
-		err = r.Update(ctx, namespace)
-		if err != nil {
-			log.Error(err, "Failed to label namespace", "Namespace", cfgAppNs)
-			return ctrl.Result{}, err, true
-		}
-		log.Info("Labeled namespace successfully", "namespace", cfgAppNs)
-
-		labeledAppNsList = append(labeledAppNsList, cfgAppNs)
-		statusChanged = true
+	labeledAppNsList, statusChanged, err := r.labelAppNamespaces(ctx, cfgAppNsList, existingAppNsMap, slice)
+	if err != nil {
+		return ctrl.Result{}, err, true
 	}
 	// Sweep the existing namespaces again to unbind any namespace that was not found in the configured list
 	for existingAppNs := range existingAppNsMap {
@@ -510,4 +474,55 @@ func exists(i []string, o string) bool {
 		}
 	}
 	return false
+}
+
+func buildAppNamespacesList(slice *kubeslicev1beta1.Slice) []string {
+	var cfgAppNsList []string
+	for _, qualifiedAppNs := range slice.Status.SliceConfig.NamespaceIsolationProfile.ApplicationNamespaces {
+		// Ignore control plane namespace if it appears in the app namespace list
+		if qualifiedAppNs == ControlPlaneNamespace {
+			continue
+		}
+		cfgAppNsList = append(cfgAppNsList, qualifiedAppNs)
+	}
+	return cfgAppNsList
+}
+func (r *SliceReconciler) labelAppNamespaces(ctx context.Context, cfgAppNsList []string, existingAppNsMap map[string]*nsMarker, slice *kubeslicev1beta1.Slice) ([]string, bool, error) {
+	labeledAppNsList := []string{}
+	statusChanged := false
+	log := logger.FromContext(ctx).WithValues("type", "appNamespaces")
+	for _, cfgAppNs := range cfgAppNsList {
+		if _, exists := existingAppNsMap[cfgAppNs]; exists {
+			existingAppNsMap[cfgAppNs].marked = true
+			labeledAppNsList = append(labeledAppNsList, cfgAppNs)
+			continue
+		}
+		// label does not exists on namespace
+		namespace := &corev1.Namespace{}
+		err := r.Get(ctx, types.NamespacedName{Name: cfgAppNs}, namespace)
+		if err != nil {
+			log.Error(err, "Failed to find namespace", "namespace", cfgAppNs)
+			continue
+		}
+		// A namespace might not have any labels attached to it. Directly accessing the label map
+		// leads to a crash for such namespaces.
+		// If the label map is nil, create one and use the setter api to attach it to the namespace.
+		nsLabels := namespace.ObjectMeta.GetLabels()
+		if nsLabels == nil {
+			nsLabels = make(map[string]string)
+		}
+		nsLabels[ApplicationNamespaceSelectorLabelKey] = slice.Name
+		namespace.ObjectMeta.SetLabels(nsLabels)
+
+		err = r.Update(ctx, namespace)
+		if err != nil {
+			log.Error(err, "Failed to label namespace", "Namespace", cfgAppNs)
+			return nil, false, err
+		}
+		log.Info("Labeled namespace successfully", "namespace", cfgAppNs)
+
+		labeledAppNsList = append(labeledAppNsList, cfgAppNs)
+		statusChanged = true
+	}
+	return labeledAppNsList, statusChanged, nil
 }

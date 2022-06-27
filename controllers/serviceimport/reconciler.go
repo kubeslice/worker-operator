@@ -84,13 +84,13 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 
 	log.Info("reconciling", "serviceimport", serviceimport.Name)
 
-	requeue, result, err := r.handleServiceImportDeletion(ctx, serviceimport, &log)
+	requeue, result, err := r.handleServiceImportDeletion(ctx, serviceimport)
 	if requeue {
 		return result, err
 	}
 
 	if serviceimport.Status.ExposedPorts != portListToDisplayString(serviceimport.Spec.Ports) {
-		return r.updateServiceImportPorts(ctx, serviceimport, &log)
+		return r.updateServiceImportPorts(ctx, serviceimport)
 	}
 
 	if serviceimport.Status.AvailableEndpoints != len(serviceimport.Status.Endpoints) {
@@ -140,7 +140,8 @@ func (r *Reconciler) SetupWithManager(mgr ctrl.Manager) error {
 		For(&kubeslicev1beta1.ServiceImport{}).
 		Complete(r)
 }
-func (r *Reconciler) handleServiceImportDeletion(ctx context.Context, serviceimport *kubeslicev1beta1.ServiceImport, log *logr.Logger) (bool, ctrl.Result, error) {
+func (r *Reconciler) handleServiceImportDeletion(ctx context.Context, serviceimport *kubeslicev1beta1.ServiceImport) (bool, ctrl.Result, error) {
+	log := logger.FromContext(ctx)
 	// examine DeletionTimestamp to determine if object is under deletion
 	if serviceimport.ObjectMeta.DeletionTimestamp.IsZero() {
 		// register our finalizer
@@ -171,7 +172,8 @@ func (r *Reconciler) handleServiceImportDeletion(ctx context.Context, serviceimp
 	return true, ctrl.Result{}, nil
 }
 
-func (r *Reconciler) updateServiceImportPorts(ctx context.Context, serviceimport *kubeslicev1beta1.ServiceImport, log *logr.Logger) (ctrl.Result, error) {
+func (r *Reconciler) updateServiceImportPorts(ctx context.Context, serviceimport *kubeslicev1beta1.ServiceImport) (ctrl.Result, error) {
+	log := logger.FromContext(ctx)
 	serviceimport.Status.ExposedPorts = portListToDisplayString(serviceimport.Spec.Ports)
 	if serviceimport.Status.ImportStatus == kubeslicev1beta1.ImportStatusInitial {
 		serviceimport.Status.ImportStatus = kubeslicev1beta1.ImportStatusPending

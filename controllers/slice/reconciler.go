@@ -31,6 +31,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
 	"github.com/kubeslice/worker-operator/controllers"
@@ -96,61 +97,22 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 	log.Info("reconciling", "slice", slice.Name)
 
 	// Examine DeletionTimestamp to determine if object is under deletion
-	if slice.ObjectMeta.DeletionTimestamp.IsZero() {
-		// The object is not being deleted, so if it does not have our finalizer,
-		// then lets add the finalizer and update the object. This is equivalent
-		// registering our finalizer.
-		if !controllerutil.ContainsFinalizer(slice, sliceFinalizer) {
-			controllerutil.AddFinalizer(slice, sliceFinalizer)
-			if err := r.Update(ctx, slice); err != nil {
-				return ctrl.Result{}, err
-			}
-		}
-	} else {
-		// The object is being deleted
-		if controllerutil.ContainsFinalizer(slice, sliceFinalizer) {
-			log.Info("Deleting slice", "slice", slice.Name)
-			// send slice deletion event to netops
-			err = r.SendSliceDeletionEventToNetOp(ctx, req.NamespacedName.Name, req.NamespacedName.Namespace)
-			if err != nil {
-				log.Error(err, "Failed to send slice deletetion event to netop")
-			}
-			//cleanup slice resources
-			r.cleanupSliceResources(ctx, slice)
-			controllerutil.RemoveFinalizer(slice, sliceFinalizer)
-			if err := r.Update(ctx, slice); err != nil {
-				return ctrl.Result{}, err
-			}
-		}
-		// Stop reconciliation as the item is being deleted
-		return ctrl.Result{}, nil
+	// The object is not being deleted, so if it does not have our finalizer,
+	// then lets add the finalizer and update the object. This is equivalent
+	// registering our finalizer.
+	// The object is being deleted
+	// send slice deletion event to netops
+	//cleanup slice resources
+	// Stop reconciliation as the item is being deleted
+	requeue, result, err := r.handleSliceDeletion(slice, ctx, req)
+	if requeue {
+		return result, err
 	}
 
 	if slice.Status.DNSIP == "" {
-		log.Info("Finding DNS IP")
-		svc := &corev1.Service{}
-		err = r.Get(ctx, types.NamespacedName{
-			Namespace: controllers.ControlPlaneNamespace,
-			Name:      controllers.DNSDeploymentName,
-		}, svc)
-
-		if err != nil {
-			if errors.IsNotFound(err) {
-				log.Error(err, "dns not found")
-				log.Info("DNS service not found in the cluster, probably coredns is not deployed; continuing")
-			} else {
-				log.Error(err, "Unable to find DNS Service")
-				return ctrl.Result{}, err
-			}
-		} else {
-			debugLog.Info("got dns service", "svc", svc)
-			slice.Status.DNSIP = svc.Spec.ClusterIP
-			err = r.Status().Update(ctx, slice)
-			if err != nil {
-				log.Error(err, "Failed to update Slice status for dns")
-				return ctrl.Result{}, err
-			}
-			return ctrl.Result{}, nil
+		requeue, result, err := r.handleDnsSvc(ctx, slice)
+		if requeue {
+			return result, err
 		}
 	}
 
@@ -183,7 +145,7 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 
 	log.Info("ExternalGatewayConfig", "egw", slice.Status.SliceConfig)
 
-	if slice.Status.SliceConfig.ExternalGatewayConfig != nil && slice.Status.SliceConfig.ExternalGatewayConfig.Egress.Enabled {
+	if isEgressConfigured(slice) {
 		debugLog.Info("Installing egress")
 		err = manifest.InstallEgress(ctx, r.Client, slice)
 		if err != nil {
@@ -201,7 +163,7 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 		}
 	}
 
-	if slice.Status.SliceConfig.ExternalGatewayConfig != nil && slice.Status.SliceConfig.ExternalGatewayConfig.Ingress.Enabled {
+	if isIngressConfigured(slice) {
 		debugLog.Info("Installing ingress")
 		err = manifest.InstallIngress(ctx, r.Client, slice)
 		if err != nil {
@@ -230,32 +192,7 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 
 	if isAppPodStatusChanged(appPods, slice.Status.AppPods) {
 		log.Info("App pod status changed")
-
-		// this extra check is needed when current app pods are zero and slice status has old app pods
-		// then it doesn't goes to app pods loop hence it don't update the app pods metrics zount to zero
-		if len(appPods) == 0 && len(slice.Status.AppPods) > 0 {
-			for _, appPod := range slice.Status.AppPods {
-				metrics.RecordAppPodsCount(0, controllers.ClusterName, slice.Name, appPod.PodNamespace)
-			}
-		}
-		mapAppPodsPerNamespace := make(map[string][]kubeslicev1beta1.AppPod)
-		for _, appPod := range appPods {
-			mapAppPodsPerNamespace[appPod.PodNamespace] = append(mapAppPodsPerNamespace[appPod.PodNamespace], appPod)
-		}
-		// Set no. of app pods in prometheus metrics
-		for namespace, pods := range mapAppPodsPerNamespace {
-			metrics.RecordAppPodsCount(len(pods), controllers.ClusterName, slice.Name, namespace)
-		}
-		slice.Status.AppPods = appPods
-		slice.Status.AppPodsUpdatedOn = time.Now().Unix()
-		err = r.Status().Update(ctx, slice)
-		if err != nil {
-			log.Error(err, "Failed to update Slice status for app pods")
-			return ctrl.Result{}, err
-		}
-		log.Info("App pod status updated in slice")
-
-		return ctrl.Result{Requeue: true}, nil
+		return r.handleAppPodStatusChange(appPods, slice, ctx)
 	}
 
 	debugLog.Info("reconciling app pods")
@@ -294,6 +231,108 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 	return ctrl.Result{
 		RequeueAfter: controllers.ReconcileInterval,
 	}, nil
+}
+
+func (r *SliceReconciler) handleAppPodStatusChange(appPods []kubeslicev1beta1.AppPod, slice *kubeslicev1beta1.Slice, ctx context.Context) (reconcile.Result, error) {
+	log := logger.FromContext(ctx).WithName("app-pod-update")
+	// this extra check is needed when current app pods are zero and slice status has old app pods
+	// then it doesn't goes to app pods loop hence it don't update the app pods metrics count to zero
+	// Set no. of app pods in prometheus metrics
+	if len(appPods) == 0 && len(slice.Status.AppPods) > 0 {
+		for _, appPod := range slice.Status.AppPods {
+			metrics.RecordAppPodsCount(0, controllers.ClusterName, slice.Name, appPod.PodNamespace)
+		}
+	}
+	mapAppPodsPerNamespace := make(map[string][]kubeslicev1beta1.AppPod)
+	for _, appPod := range appPods {
+		mapAppPodsPerNamespace[appPod.PodNamespace] = append(mapAppPodsPerNamespace[appPod.PodNamespace], appPod)
+	}
+
+	for namespace, pods := range mapAppPodsPerNamespace {
+		metrics.RecordAppPodsCount(len(pods), controllers.ClusterName, slice.Name, namespace)
+	}
+	slice.Status.AppPods = appPods
+	slice.Status.AppPodsUpdatedOn = time.Now().Unix()
+	err := r.Status().Update(ctx, slice)
+	if err != nil {
+		log.Error(err, "Failed to update Slice status for app pods")
+		return ctrl.Result{}, err
+	}
+	log.Info("App pod status updated in slice")
+
+	return ctrl.Result{Requeue: true}, nil
+}
+
+func isEgressConfigured(slice *kubeslicev1beta1.Slice) bool {
+	return slice.Status.SliceConfig.ExternalGatewayConfig != nil && slice.Status.SliceConfig.ExternalGatewayConfig.Egress.Enabled
+}
+func isIngressConfigured(slice *kubeslicev1beta1.Slice) bool {
+	return slice.Status.SliceConfig.ExternalGatewayConfig != nil && slice.Status.SliceConfig.ExternalGatewayConfig.Ingress.Enabled
+}
+func (r *SliceReconciler) handleDnsSvc(ctx context.Context, slice *kubeslicev1beta1.Slice) (bool, reconcile.Result, error) {
+	log := logger.FromContext(ctx).WithName("slice-dns-svc")
+	debugLog := log.V(1)
+	log.Info("Finding DNS IP")
+	svc := &corev1.Service{}
+	err := r.Get(ctx, types.NamespacedName{
+		Namespace: controllers.ControlPlaneNamespace,
+		Name:      controllers.DNSDeploymentName,
+	}, svc)
+
+	if err != nil {
+		if errors.IsNotFound(err) {
+			log.Error(err, "dns not found")
+			log.Info("DNS service not found in the cluster, probably coredns is not deployed; continuing")
+		} else {
+			log.Error(err, "Unable to find DNS Service")
+			return true, ctrl.Result{}, err
+		}
+	} else {
+		debugLog.Info("got dns service", "svc", svc)
+		slice.Status.DNSIP = svc.Spec.ClusterIP
+		err = r.Status().Update(ctx, slice)
+		if err != nil {
+			log.Error(err, "Failed to update Slice status for dns")
+			return true, ctrl.Result{}, err
+		}
+		return true, ctrl.Result{}, nil
+	}
+	return false, reconcile.Result{}, nil
+}
+
+func (r *SliceReconciler) handleSliceDeletion(slice *kubeslicev1beta1.Slice, ctx context.Context, req reconcile.Request) (bool, reconcile.Result, error) {
+	log := logger.FromContext(ctx).WithName("slice-deletion")
+	// Examine DeletionTimestamp to determine if object is under deletion
+	// The object is not being deleted, so if it does not have our finalizer,
+	// then lets add the finalizer and update the object. This is equivalent
+	// registering our finalizer.
+	// The object is being deleted
+	// send slice deletion event to netops
+	//cleanup slice resources
+	// Stop reconciliation as the item is being deleted
+	if slice.ObjectMeta.DeletionTimestamp.IsZero() {
+		if !controllerutil.ContainsFinalizer(slice, sliceFinalizer) {
+			controllerutil.AddFinalizer(slice, sliceFinalizer)
+			if err := r.Update(ctx, slice); err != nil {
+				return true, ctrl.Result{}, err
+			}
+		}
+	} else {
+		if controllerutil.ContainsFinalizer(slice, sliceFinalizer) {
+			log.Info("Deleting slice", "slice", slice.Name)
+			err := r.SendSliceDeletionEventToNetOp(ctx, req.NamespacedName.Name, req.NamespacedName.Namespace)
+			if err != nil {
+				log.Error(err, "Failed to send slice deletetion event to netop")
+			}
+			r.cleanupSliceResources(ctx, slice)
+			controllerutil.RemoveFinalizer(slice, sliceFinalizer)
+			if err := r.Update(ctx, slice); err != nil {
+				return true, ctrl.Result{}, err
+			}
+		}
+		return true, ctrl.Result{}, nil
+	}
+	return false, reconcile.Result{}, nil
 }
 
 func isAppPodStatusChanged(current []kubeslicev1beta1.AppPod, old []kubeslicev1beta1.AppPod) bool {
