@@ -9,6 +9,8 @@ jobs:
       run:  sh .github/workflows/scripts/kind-nodeip.sh
     - name: create kind clusters
       run: sh .github/workflows/scripts/kind.sh
+    - name: check the kubeconfig 
+      run: ls -R -ltra
     - name: clone the e2e repo
       uses: actions/checkout@v2 
       with:
