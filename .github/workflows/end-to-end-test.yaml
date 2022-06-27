@@ -14,5 +14,6 @@ jobs:
       with:
         repository: saivenkatesh1909/kubeslice-e2e
         token: ${{ secrets.PAT }}
+        path: kubeslice-e2e
     - name: check the e2e path
       run: pwd && ls -ltr    
