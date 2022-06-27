@@ -9,10 +9,10 @@ jobs:
       run:  sh .github/workflows/scripts/kind-nodeip.sh
     - name: create kind clusters
       run: sh .github/workflows/scripts/kind.sh
-    - name: search
-      run: cat /home/runner/.kube/config
     - name: clone the e2e repo
       uses: actions/checkout@v2 
       with:
         repository: saivenkatesh1909/kubeslice-e2e
         token: ${{ secrets.PAT }}
+    - name: check the e2e path
+      run: pwd    
