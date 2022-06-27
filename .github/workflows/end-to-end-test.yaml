@@ -18,13 +18,12 @@ jobs:
         path: kubeslice-e2e
     - name: copy the kubeconfig
       run:  cp -r /home/runner/.kube/config /home/runner/work/worker-operator/worker-operator/kubeslice-e2e/assets/kubeconfig/config
-    - name: check the pwd
-      run: pwd
+    - name: check the config
+      run: cat /home/runner/work/worker-operator/worker-operator/kubeslice-e2e/assets/kubeconfig/config
     - name: run the e2e
       uses: docker/build-push-action@v2
       with:
         context: ./kubeslice-e2e
         file: kubeslice-e2e/test-prod.Dockerfile
-        build-args: |
-          PROFILE=profile_kind_two
+        build-args: PROFILE=profile_kind_two
         tags: end-to-end:latest
