@@ -17,9 +17,9 @@ jobs:
         token: ${{ secrets.PAT }}
         path: kubeslice-e2e
     - name: check the path
-      run: ls -R -ltar /home/runner/work/worker-operator/
+      run: ls -R -ltar /home/runner/work/worker-operator/worker-operator/kubeslice-e2e
     - name: copy the kubeconfig
-      run:  cp -r /home/runner/.kube/config /home/runner/work/worker-operator/kubeslice-e2e/assests/kubeconfig/config
+      run:  cp -r /home/runner/.kube/config /home/runner/work/worker-operator/worker-operator/kubeslice-e2e/assests/kubeconfig/config
     - name: run the e2e
       uses: docker/build-push-action@v2
       with:
