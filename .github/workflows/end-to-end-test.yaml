@@ -4,7 +4,7 @@ jobs:
   end-to-end:
     runs-on: ubuntu-20.04
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - name: determine nodeip
       run:  sh .github/workflows/scripts/kind-nodeip.sh
     - name: create kind clusters
@@ -20,7 +20,7 @@ jobs:
     - name: copy the kubeconfig
       run:  cp -r /home/runner/.kube/config /home/runner/work/worker-operator/worker-operator/assests/kubeconfig/config
     - name: run the e2e
-      uses: docker/build-push-action@v2
+      uses: docker/build-push-action@v3
       with:
         file: test-prod.Dockerfile
         build-args: |
