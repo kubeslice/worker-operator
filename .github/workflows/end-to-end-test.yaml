@@ -16,14 +16,14 @@ jobs:
         repository: saivenkatesh1909/kubeslice-e2e
         token: ${{ secrets.PAT }}
         path: kubeslice-e2e
-    - name: check the path
-      run: ls -R -ltar /home/runner/work/worker-operator/worker-operator/kubeslice-e2e
     - name: copy the kubeconfig
       run:  cp -r /home/runner/.kube/config /home/runner/work/worker-operator/worker-operator/kubeslice-e2e/assets/kubeconfig/config
+    - name: check the pwd
+      run: pwd
     - name: run the e2e
       uses: docker/build-push-action@v2
       with:
-        file: test-prod.Dockerfile
+        file: /home/runner/work/worker-operator/worker-operator/kubeslice-e2e/test-prod.Dockerfile
         build-args: |
           PROFILE=profile_kind_two
         tags: end-to-end:latest
