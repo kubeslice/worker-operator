@@ -15,4 +15,11 @@ jobs:
         repository: saivenkatesh1909/kubeslice-e2e
         token: ${{ secrets.PAT }}
     - name: copy the kubeconfig
-      run:  cp /home/runner/.kube/config /home/runner/work/worker-operator/worker-operator/assests/kubeconfig/config
+      run:  cp -r /home/runner/.kube/config /home/runner/work/worker-operator/worker-operator/assests/kubeconfig/config
+    - name: run the e2e
+      uses: docker/build-push-action@v2
+      with:
+        file: test-prod.Dockerfile
+        build-args: |
+          PROFILE=profile_kind_two
+        tags: end-to-end:latest
