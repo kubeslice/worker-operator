@@ -27,3 +27,21 @@ jobs:
         file: kubeslice-e2e/test-prod.Dockerfile
         build-args: PROFILE=profile_kind_two
         tags: end-to-end:latest
+    - name: Docker Extract
+      uses: shrink/actions-docker-extract@v1
+      id: extract
+      with:
+        image: 'end-to-end:latest'
+        path: 'build/allure_results/.'
+    - name: Allure Report with history
+      uses: simple-elf/allure-report-action@v1.6
+      with:
+        allure_results: ${{ steps.extract.outputs.destination }}
+        allure_report: allure-report
+        gh_pages: gh-pages
+        keep_reports: 20
+        github_run_num: ${{ github.run_number }}
+        github_run_id: ${{ github.run_id }}
+        github_repo: ${{ github.repository }}
+        github_repo_owner: ${{ github.repository_owner }}
+        report_url: https://redesigned-waffle-199de3ac.pages.github.io
