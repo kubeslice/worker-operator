@@ -11,3 +11,8 @@ jobs:
       run: sh .github/workflows/scripts/kind.sh
     - name: check the kubeconfig repo
       run: ls -R /home/.kube
+    - name: clone the e2e repo
+      uses: actions/checkout@v1  
+      with:
+        repository: saivenkatesh1909/kubeslice-e2e
+        token: ${{ secrets.PAT }}
