@@ -27,6 +27,8 @@ jobs:
         file: kubeslice-e2e/test-prod.Dockerfile
         build-args: PROFILE=profile_kind_two
         tags: end-to-end:latest
+    - name: docker image list
+      run: docker images
     - name: Docker Extract
       uses: shrink/actions-docker-extract@v1
       id: extract
