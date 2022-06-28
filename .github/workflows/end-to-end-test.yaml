@@ -6,15 +6,15 @@ jobs:
     steps:
     - name: checkout the repo
       uses: actions/checkout@v3
-    - name: build the worker-operator
-      uses: docker/build-push-action@v2
-      with:
-        tags: worker-operator:latest
-        push: false
-    - name: determine node-ip
-      run:  sh .github/workflows/scripts/kind-nodeip.sh
-    - name: create kind clusters
-      run: sh .github/workflows/scripts/kind.sh
+#    - name: build the worker-operator
+#      uses: docker/build-push-action@v2
+#      with:
+#        tags: worker-operator:latest
+#        push: false
+#    - name: determine node-ip
+#      run:  sh .github/workflows/scripts/kind-nodeip.sh
+#    - name: create kind clusters
+#      run: sh .github/workflows/scripts/kind.sh
     - name: clone the e2e repo
       uses: actions/checkout@v3 
       with:
@@ -24,7 +24,7 @@ jobs:
     - name: copy the kubeconfig
       run:  cp -r /home/runner/.kube/config /home/runner/work/worker-operator/worker-operator/kubeslice-e2e/assets/kubeconfig/config
     - name: tag replace to the e2e suite worker-operator
-      run: sed -r 's/\(.*\)tag:.*/\tag:latest/' kubeslice-e2e/profile/profile_kind_two.yaml
+      run: sed -r 's/\(.*\)Tag:.*/\Tag:latest/' kubeslice-e2e/profile/profile_kind_two.yaml
 #    - name: run the e2e using the worker-operator image
 #      uses: docker/build-push-action@v2
 #      with:
