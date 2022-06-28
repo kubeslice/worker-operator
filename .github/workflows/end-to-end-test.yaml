@@ -6,6 +6,11 @@ jobs:
     steps:
     - name: checkout the repo
       uses: actions/checkout@v3
+    - name: build the worker-operator
+      uses: docker/build-push-action@v2
+      with:
+        tags: worker-operator:latest
+        push: false
     - name: determine node-ip
       run:  sh .github/workflows/scripts/kind-nodeip.sh
     - name: create kind clusters
@@ -18,32 +23,31 @@ jobs:
         path: kubeslice-e2e
     - name: copy the kubeconfig
       run:  cp -r /home/runner/.kube/config /home/runner/work/worker-operator/worker-operator/kubeslice-e2e/assets/kubeconfig/config
-    - name: check the config
-      run: cat /home/runner/work/worker-operator/worker-operator/kubeslice-e2e/assets/kubeconfig/config
-    - name: run the e2e
-      uses: docker/build-push-action@v2
-      with:
-        context: ./kubeslice-e2e
-        file: kubeslice-e2e/test-prod.Dockerfile
-        build-args: PROFILE=profile_kind_two
-        tags: end-to-end:latest
-    - name: docker image list
-      run: docker images
-    - name: Docker Extract
-      uses: shrink/actions-docker-extract@v1
-      id: extract
-      with:
-        image: 'end-to-end:latest'
-        path: 'build/allure_results/.'
-    - name: Allure Report with history
-      uses: simple-elf/allure-report-action@v1.6
-      with:
-        allure_results: ${{ steps.extract.outputs.destination }}
-        allure_report: allure-report
-        gh_pages: gh-pages
-        keep_reports: 20
-        github_run_num: ${{ github.run_number }}
-        github_run_id: ${{ github.run_id }}
-        github_repo: ${{ github.repository }}
-        github_repo_owner: ${{ github.repository_owner }}
-        report_url: https://redesigned-waffle-199de3ac.pages.github.io
+    - name: tag replace to the e2e suite worker-operator
+      run: sed 's/\(.*\)tag:.*/\tag: latest/'
+#    - name: run the e2e using the worker-operator image
+#      uses: docker/build-push-action@v2
+#      with:
+#        context: ./kubeslice-e2e
+#        file: kubeslice-e2e/test-prod.Dockerfile
+#        build-args: PROFILE=profile_kind_two
+#        tags: end-to-end:latest
+#        push: fasle
+#    - name: Docker Extract
+#      uses: shrink/actions-docker-extract@v1
+#      id: extract
+#      with:
+#        image: 'end-to-end:latest'
+#        path: 'build/allure_results/.'
+#    - name: Allure Report with history
+#      uses: simple-elf/allure-report-action@v1.6
+#      with:
+#        allure_results: ${{ steps.extract.outputs.destination }}
+#        allure_report: allure-report
+#        gh_pages: gh-pages
+#        keep_reports: 20
+#        github_run_num: ${{ github.run_number }}
+#        github_run_id: ${{ github.run_id }}
+#        github_repo: ${{ github.repository }}
+#        github_repo_owner: ${{ github.repository_owner }}
+#        report_url: https://redesigned-waffle-199de3ac.pages.github.io
