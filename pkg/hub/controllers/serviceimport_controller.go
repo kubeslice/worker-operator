@@ -103,46 +103,24 @@ func getMeshServiceImportObj(svcim *spokev1alpha1.WorkerServiceImport) *kubeslic
 func (r *ServiceImportReconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
 	log := logger.FromContext(ctx)
 
-	svcim := &spokev1alpha1.WorkerServiceImport{}
-	err := r.Get(ctx, req.NamespacedName, svcim)
-	if err != nil {
-		if errors.IsNotFound(err) {
-			// Request object not found, could have been deleted after reconcile request.
-			// Return and don't requeue
-			log.Info("spoke service import resource not found in hub. Ignoring since object must be deleted")
-			return reconcile.Result{}, nil
-		}
+	svcim, err := r.getServiceImport(ctx, req)
+	if svcim == nil {
 		return reconcile.Result{}, err
 	}
 
 	log.Info("got service import from hub", "serviceimport", svcim)
 
 	// examine DeletionTimestamp to determine if object is under deletion
-	if svcim.ObjectMeta.DeletionTimestamp.IsZero() {
-		// Register finalizer.
-		if !controllerutil.ContainsFinalizer(svcim, svcimFinalizer) {
-			controllerutil.AddFinalizer(svcim, svcimFinalizer)
-			if err := r.Update(ctx, svcim); err != nil {
-				return reconcile.Result{}, err
-			}
-		}
-	} else {
-		// The object is being deleted
-		if controllerutil.ContainsFinalizer(svcim, svcimFinalizer) {
-			// our finalizer is present, so lets handle any external dependency
-			if err := r.DeleteServiceImportOnSpoke(ctx, svcim); err != nil {
-				// if fail to delete the external dependency here, return with error
-				// so that it can be retried
-				return reconcile.Result{}, err
-			}
-			// remove our finalizer from the list and update it.
-			controllerutil.RemoveFinalizer(svcim, svcimFinalizer)
-			if err := r.Update(ctx, svcim); err != nil {
-				return reconcile.Result{}, err
-			}
-		}
-		// Stop reconciliation as the item is being deleted
-		return reconcile.Result{}, nil
+	// Register finalizer.
+	// The object is being deleted
+	// our finalizer is present, so lets handle any external dependency
+	// if fail to delete the external dependency here, return with error
+	// so that it can be retried
+	// remove our finalizer from the list and update it.
+	// Stop reconciliation as the item is being deleted
+	requeue, result, err := r.handleSvcimDeletion(svcim, ctx)
+	if requeue {
+		return result, err
 	}
 
 	sliceName := svcim.Spec.SliceName
@@ -160,47 +138,8 @@ func (r *ServiceImportReconciler) Reconcile(ctx context.Context, req reconcile.R
 		}, nil
 	}
 
-	meshSvcIm := &kubeslicev1beta1.ServiceImport{}
-	err = r.MeshClient.Get(ctx, client.ObjectKey{
-		Name:      svcim.Spec.ServiceName,
-		Namespace: svcim.Spec.ServiceNamespace,
-	}, meshSvcIm)
-	if err != nil {
-		if errors.IsNotFound(err) {
-			meshSvcIm = getMeshServiceImportObj(svcim)
-			err = r.MeshClient.Create(ctx, meshSvcIm)
-			if err != nil {
-				log.Error(err, "unable to create service import in spoke cluster", "serviceimport", svcim.Name)
-				//post event to spokeserviceimport
-				r.EventRecorder.Record(
-					&events.Event{
-						Object:    svcim,
-						EventType: events.EventTypeWarning,
-						Reason:    "Error",
-						Message:   "Error creating service import on spoke cluster , svc import " + svcim.Spec.ServiceName + " cluster " + clusterName,
-					},
-				)
-				return reconcile.Result{}, err
-			}
-
-			//post event to spokeserviceimport
-			r.EventRecorder.Record(
-				&events.Event{
-					Object:    svcim,
-					EventType: events.EventTypeNormal,
-					Reason:    "Created",
-					Message:   "Successfully created service import on spoke cluster , svc import " + svcim.Spec.ServiceName + " cluster " + clusterName,
-				},
-			)
-
-			meshSvcIm.Status.Endpoints = getMeshServiceImportEpList(svcim)
-			err = r.MeshClient.Status().Update(ctx, meshSvcIm)
-			if err != nil {
-				log.Error(err, "unable to update service import in spoke cluster", "serviceimport", svcim.Name)
-				return reconcile.Result{}, err
-			}
-			return reconcile.Result{}, nil
-		}
+	meshSvcIm, err := r.getMeshServiceImport(ctx, svcim)
+	if meshSvcIm == nil {
 		return reconcile.Result{}, err
 	}
 
@@ -219,7 +158,6 @@ func (r *ServiceImportReconciler) Reconcile(ctx context.Context, req reconcile.R
 		)
 		return reconcile.Result{}, err
 	}
-
 	meshSvcIm.Status.Endpoints = getMeshServiceImportEpList(svcim)
 	err = r.MeshClient.Status().Update(ctx, meshSvcIm)
 	if err != nil {
@@ -236,6 +174,108 @@ func (r *ServiceImportReconciler) Reconcile(ctx context.Context, req reconcile.R
 	}
 
 	return reconcile.Result{}, nil
+}
+
+func (r *ServiceImportReconciler) getMeshServiceImport(ctx context.Context, svcim *spokev1alpha1.WorkerServiceImport) (*kubeslicev1beta1.ServiceImport, error) {
+	log := logger.FromContext(ctx)
+	meshSvcIm := &kubeslicev1beta1.ServiceImport{}
+	err := r.MeshClient.Get(ctx, client.ObjectKey{
+		Name:      svcim.Spec.ServiceName,
+		Namespace: svcim.Spec.ServiceNamespace,
+	}, meshSvcIm)
+	if err != nil {
+		if errors.IsNotFound(err) {
+			meshSvcIm = getMeshServiceImportObj(svcim)
+			err = r.MeshClient.Create(ctx, meshSvcIm)
+			if err != nil {
+				log.Error(err, "unable to create service import in spoke cluster", "serviceimport", svcim.Name)
+				//post event to spokeserviceimport
+				r.EventRecorder.Record(
+					&events.Event{
+						Object:    svcim,
+						EventType: events.EventTypeWarning,
+						Reason:    "Error",
+						Message:   "Error creating service import on spoke cluster , svc import " + svcim.Spec.ServiceName + " cluster " + clusterName,
+					},
+				)
+				return nil, err
+			}
+			//post event to spokeserviceimport
+			r.EventRecorder.Record(
+				&events.Event{
+					Object:    svcim,
+					EventType: events.EventTypeNormal,
+					Reason:    "Created",
+					Message:   "Successfully created service import on spoke cluster , svc import " + svcim.Spec.ServiceName + " cluster " + clusterName,
+				},
+			)
+
+			meshSvcIm.Status.Endpoints = getMeshServiceImportEpList(svcim)
+			err = r.MeshClient.Status().Update(ctx, meshSvcIm)
+			if err != nil {
+				log.Error(err, "unable to update service import in spoke cluster", "serviceimport", svcim.Name)
+				return nil, err
+			}
+			return nil, nil
+		}
+		return nil, err
+	}
+	return meshSvcIm, nil
+
+}
+
+func (r *ServiceImportReconciler) getServiceImport(ctx context.Context, req reconcile.Request) (*spokev1alpha1.WorkerServiceImport, error) {
+	log := logger.FromContext(ctx)
+	svcim := &spokev1alpha1.WorkerServiceImport{}
+	err := r.Get(ctx, req.NamespacedName, svcim)
+	// Request object not found, could have been deleted after reconcile request.
+	if err != nil {
+		if errors.IsNotFound(err) {
+			// Return and don't requeue
+			log.Info("spoke service import resource not found in hub. Ignoring since object must be deleted")
+			return nil, nil
+		}
+		return nil, err
+	}
+	return svcim, nil
+}
+
+func (r *ServiceImportReconciler) handleSvcimDeletion(svcim *spokev1alpha1.WorkerServiceImport, ctx context.Context) (bool, reconcile.Result, error) {
+	log := logger.FromContext(ctx)
+	// examine DeletionTimestamp to determine if object is under deletion
+	if svcim.ObjectMeta.DeletionTimestamp.IsZero() {
+		// Register finalizer.
+		// The object is being deleted
+		if !controllerutil.ContainsFinalizer(svcim, svcimFinalizer) {
+			log.Info("adding finalizer")
+			controllerutil.AddFinalizer(svcim, svcimFinalizer)
+			if err := r.Update(ctx, svcim); err != nil {
+				return true, reconcile.Result{}, err
+			}
+		}
+	} else {
+
+		if controllerutil.ContainsFinalizer(svcim, svcimFinalizer) {
+			log.Info("deleting serviceimport")
+			// our finalizer is present, so lets handle any external dependency
+			if err := r.DeleteServiceImportOnSpoke(ctx, svcim); err != nil {
+				// if fail to delete the external dependency here, return with error
+				// so that it can be retried
+				log.Error(err, "unable to delete service import on spoke")
+				return true, reconcile.Result{}, err
+			}
+			log.Info("removing serviceimport finalizer")
+			// remove our finalizer from the list and update it.
+			// Stop reconciliation as the item is being deleted
+			controllerutil.RemoveFinalizer(svcim, svcimFinalizer)
+			if err := r.Update(ctx, svcim); err != nil {
+				return true, reconcile.Result{}, err
+			}
+		}
+
+		return true, reconcile.Result{}, nil
+	}
+	return false, reconcile.Result{}, nil
 }
 
 func (r *ServiceImportReconciler) DeleteServiceImportOnSpoke(ctx context.Context, svcim *spokev1alpha1.WorkerServiceImport) error {
