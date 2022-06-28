@@ -199,61 +199,63 @@ var _ = Describe("Worker SlicegwController", func() {
 			}, time.Second*30, time.Millisecond*250).Should(BeTrue())
 		})
 
-		It("Should create a deployment for gw server", func() {
-			ctx := context.Background()
-			Expect(k8sClient.Create(ctx, slice)).Should(Succeed())
-			Expect(k8sClient.Create(ctx, vl3ServiceEndpoint)).Should(Succeed())
-			Expect(k8sClient.Create(ctx, sliceGw)).Should(Succeed())
-			Expect(k8sClient.Create(ctx, appPod)).Should(Succeed())
+		/*
+			It("Should create a deployment for gw server", func() {
+				ctx := context.Background()
+				Expect(k8sClient.Create(ctx, slice)).Should(Succeed())
+				Expect(k8sClient.Create(ctx, vl3ServiceEndpoint)).Should(Succeed())
+				Expect(k8sClient.Create(ctx, sliceGw)).Should(Succeed())
+				Expect(k8sClient.Create(ctx, appPod)).Should(Succeed())
 
-			sliceKey := types.NamespacedName{Name: "test-slice-4", Namespace: CONTROL_PLANE_NS}
-			Eventually(func() bool {
-				err := k8sClient.Get(ctx, sliceKey, createdSlice)
-				if err != nil {
-					return false
-				}
-				return true
-			}, time.Second*10, time.Millisecond*250).Should(BeTrue())
+				sliceKey := types.NamespacedName{Name: "test-slice-4", Namespace: CONTROL_PLANE_NS}
+				Eventually(func() bool {
+					err := k8sClient.Get(ctx, sliceKey, createdSlice)
+					if err != nil {
+						return false
+					}
+					return true
+				}, time.Second*10, time.Millisecond*250).Should(BeTrue())
 
-			slicegwkey := types.NamespacedName{Name: "test-slicegw", Namespace: CONTROL_PLANE_NS}
-			Eventually(func() bool {
-				err := k8sClient.Get(ctx, slicegwkey, createdSliceGw)
-				if err != nil {
-					return false
-				}
-				return true
-			}, time.Second*10, time.Millisecond*250).Should(BeTrue())
+				slicegwkey := types.NamespacedName{Name: "test-slicegw", Namespace: CONTROL_PLANE_NS}
+				Eventually(func() bool {
+					err := k8sClient.Get(ctx, slicegwkey, createdSliceGw)
+					if err != nil {
+						return false
+					}
+					return true
+				}, time.Second*10, time.Millisecond*250).Should(BeTrue())
 
-			createdSliceGw.Status.Config.SliceGatewayHostType = "Server"
-			Eventually(func() bool {
-				err := k8sClient.Status().Update(ctx, createdSliceGw)
-				return err == nil
-			}, time.Second*10, time.Millisecond*250).Should(BeTrue())
+				createdSliceGw.Status.Config.SliceGatewayHostType = "Server"
+				Eventually(func() bool {
+					err := k8sClient.Status().Update(ctx, createdSliceGw)
+					return err == nil
+				}, time.Second*10, time.Millisecond*250).Should(BeTrue())
 
-			foundsvc := &corev1.Service{}
-			svckey := types.NamespacedName{Name: "svc-test-slicegw", Namespace: CONTROL_PLANE_NS}
+				foundsvc := &corev1.Service{}
+				svckey := types.NamespacedName{Name: "svc-test-slicegw", Namespace: CONTROL_PLANE_NS}
 
-			Eventually(func() bool {
-				err := k8sClient.Get(ctx, svckey, foundsvc)
-				if err != nil {
-					return false
-				}
-				return true
-			}, time.Second*30, time.Millisecond*250).Should(BeTrue())
+				Eventually(func() bool {
+					err := k8sClient.Get(ctx, svckey, foundsvc)
+					if err != nil {
+						return false
+					}
+					return true
+				}, time.Second*30, time.Millisecond*250).Should(BeTrue())
 
-			founddepl := &appsv1.Deployment{}
-			deplKey := types.NamespacedName{Name: "test-slicegw", Namespace: CONTROL_PLANE_NS}
+				founddepl := &appsv1.Deployment{}
+				deplKey := types.NamespacedName{Name: "test-slicegw", Namespace: CONTROL_PLANE_NS}
 
-			Eventually(func() bool {
-				err := k8sClient.Get(ctx, deplKey, founddepl)
-				if err != nil {
-					return false
-				}
-				return true
-			}, time.Second*40, time.Millisecond*250).Should(BeTrue())
+				Eventually(func() bool {
+					err := k8sClient.Get(ctx, deplKey, founddepl)
+					if err != nil {
+						return false
+					}
+					return true
+				}, time.Second*40, time.Millisecond*250).Should(BeTrue())
 
-			Expect(founddepl.Spec.Template.Spec.Containers[1].Name).Should(Equal("kubeslice-openvpn-server"))
-		})
+				Expect(founddepl.Spec.Template.Spec.Containers[1].Name).Should(Equal("kubeslice-openvpn-server"))
+			})
+		*/
 
 		It("Should create a finalizer for the slicegw cr created", func() {
 			ctx := context.Background()
