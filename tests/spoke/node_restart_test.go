@@ -20,16 +20,21 @@ package spoke_test
 
 import (
 	"context"
+	"os"
 	"time"
 
 	hubv1alpha1 "github.com/kubeslice/apis/pkg/controller/v1alpha1"
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
+	clusterpkg "github.com/kubeslice/worker-operator/pkg/cluster"
+	hub "github.com/kubeslice/worker-operator/pkg/hub/hubclient"
 	nsmv1alpha1 "github.com/networkservicemesh/networkservicemesh/k8s/pkg/apis/networkservice/v1alpha1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/util/retry"
 )
 
 var _ = Describe("NodeRestart Test Suite", func() {
@@ -40,6 +45,7 @@ var _ = Describe("NodeRestart Test Suite", func() {
 	var node1, node2 *corev1.Node
 	var ns *corev1.Namespace
 	var cluster *hubv1alpha1.Cluster
+	var nsmconfig *corev1.ConfigMap
 
 	Context("With kubeslice node restarting", func() {
 		BeforeEach(func() {
@@ -85,18 +91,20 @@ var _ = Describe("NodeRestart Test Suite", func() {
 					},
 				},
 			}
-			Expect(k8sClient.Create(ctx, node2)).Should(Succeed())
 			// create project namespace (simulate controller cluster behaviour)
 			ns = &corev1.Namespace{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: PROJECT_NS,
 				},
 			}
-			Expect(k8sClient.Create(ctx, ns)).Should(Succeed())
+			err := k8sClient.Get(ctx, types.NamespacedName{Name: ns.Name}, ns)
+			if errors.IsNotFound(err) {
+				Expect(k8sClient.Create(ctx, ns)).Should(Succeed())
+			}
 			// create cluster CR under project namespace
 			cluster = &hubv1alpha1.Cluster{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "cluster-1",
+					Name:      "cluster-node",
 					Namespace: PROJECT_NS,
 				},
 				Spec:   hubv1alpha1.ClusterSpec{},
@@ -110,13 +118,13 @@ var _ = Describe("NodeRestart Test Suite", func() {
 					Namespace: CONTROL_PLANE_NS,
 				},
 				Spec: kubeslicev1beta1.SliceGatewaySpec{
-					SliceName: "test-slice-4",
+					SliceName: "test-slice-node",
 				},
 			}
 
 			slice = &kubeslicev1beta1.Slice{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "test-slice-4",
+					Name:      "test-slice-node",
 					Namespace: CONTROL_PLANE_NS,
 				},
 				Spec: kubeslicev1beta1.SliceSpec{},
@@ -127,34 +135,92 @@ var _ = Describe("NodeRestart Test Suite", func() {
 					Kind:       "NetworkServiceEndpoint",
 				},
 				ObjectMeta: metav1.ObjectMeta{
-					GenerateName: "vl3-service-" + "test-slice-4",
+					GenerateName: "vl3-service-" + "test-slice-node",
 					Namespace:    "kubeslice-system",
 					Labels: map[string]string{
-						"app":                "vl3-nse-" + "test-slice-4",
-						"networkservicename": "vl3-service-" + "test-slice-4",
+						"app":                "vl3-nse-" + "test-slice-node",
+						"networkservicename": "vl3-service-" + "test-slice-node",
 					},
 				},
 				Spec: nsmv1alpha1.NetworkServiceEndpointSpec{
-					NetworkServiceName: "vl3-service-" + "test-slice-4",
+					NetworkServiceName: "vl3-service-" + "test-slice-node",
 					Payload:            "IP",
 					NsmName:            "test-node",
 				},
 			}
+			nsmconfig = configMap("nsm-config", "kubeslice-system", `
+prefixes:
+- 192.168.0.0/16
+- 10.96.0.0/12`)
+			err = k8sClient.Get(ctx, types.NamespacedName{Name: nsmconfig.Name, Namespace: nsmconfig.Namespace}, nsmconfig)
+			if errors.IsNotFound(err) {
+				Expect(k8sClient.Create(ctx, nsmconfig)).Should(Succeed())
+			}
 			createdSliceGw = &kubeslicev1beta1.SliceGateway{}
+
+			DeferCleanup(func() {
+				Eventually(func() bool {
+					err := k8sClient.Delete(ctx, node1)
+					return errors.IsNotFound(err)
+				}, time.Second*10, time.Millisecond*250).Should(BeTrue())
+				Eventually(func() bool {
+					err := k8sClient.Delete(ctx, node2)
+					return errors.IsNotFound(err)
+				}, time.Second*10, time.Millisecond*250).Should(BeTrue())
+			})
 		})
 		It("should update cluster CR with new node IP", func() {
+			os.Setenv("CLUSTER_NAME", cluster.Name)
+			os.Setenv("HUB_PROJECT_NAMESPACE", PROJECT_NS)
 			ctx := context.Background()
+			nodeIP, err := clusterpkg.GetNodeIP(k8sClient)
+			Expect(err).To(BeNil())
+			//post GeoLocation and other metadata to cluster CR on Hub cluster
+			err = hub.PostClusterInfoToHub(ctx, k8sClient, k8sClient, "cluster-node", nodeIP, "kubeslice-cisco")
+			Expect(err).To(BeNil())
+			//get the cluster object
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, types.NamespacedName{Name: cluster.Name, Namespace: cluster.Namespace}, cluster)
+				return err == nil
+			}, time.Second*10, time.Millisecond*250).Should(BeTrue())
+			Expect(cluster.Spec.NodeIP).Should(Equal(nodeIP))
+
+			// start the reconcilers
 			Expect(k8sClient.Create(ctx, slice)).Should(Succeed())
 			Expect(k8sClient.Create(ctx, vl3ServiceEndpoint)).Should(Succeed())
 			Expect(k8sClient.Create(ctx, sliceGwServer)).Should(Succeed())
 			slicegwkey := types.NamespacedName{Name: "test-slicegw-server", Namespace: CONTROL_PLANE_NS}
 			Eventually(func() bool {
 				err := k8sClient.Get(ctx, slicegwkey, createdSliceGw)
+				return err == nil
+			}, time.Second*10, time.Millisecond*250).Should(BeTrue())
+
+			createdSliceGw.Status.Config.SliceGatewayHostType = "Server"
+			err = retry.RetryOnConflict(retry.DefaultRetry, func() error {
+				err := k8sClient.Get(ctx, slicegwkey, createdSliceGw)
+				if err != nil {
+					return err
+				}
+				createdSliceGw.Status.Config.SliceGatewayHostType = "Server"
+				err = k8sClient.Status().Update(ctx, createdSliceGw)
+				if err != nil {
+					return err
+				}
+				return nil
+			})
+			Expect(err).To(BeNil())
+			//create another kubeslice node
+			Expect(k8sClient.Create(ctx, node2)).Should(Succeed())
+			// delete the node whose IP was selected to replicate node failure
+			Expect(k8sClient.Delete(ctx, node1)).Should(Succeed())
+			// verify if new node IP is updated on cluster CR
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, types.NamespacedName{Name: cluster.Name, Namespace: cluster.Namespace}, cluster)
 				if err != nil {
 					return false
 				}
-				return true
-			}, time.Second*10, time.Millisecond*250).Should(BeTrue())
+				return cluster.Spec.NodeIP == "35.235.10.2"
+			}, time.Second*60, time.Millisecond*250).Should(BeTrue())
 		})
 	})
 })
