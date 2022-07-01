@@ -34,7 +34,7 @@ jobs:
         file: kubeslice-e2e/test-prod.Dockerfile
         build-args: PROFILE=profile_kind_two
         tags: end-to-end:latest
-        push: fasle
+        push: false
     - name: Docker Extract
       uses: shrink/actions-docker-extract@v1
       id: extract
