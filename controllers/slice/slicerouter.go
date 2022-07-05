@@ -94,10 +94,44 @@ func (r *SliceReconciler) getNsmDataplaneMode(ctx context.Context, slice *kubesl
 	return nsmDataplaneKernel, nil
 }
 
+//intPow compute a**b using binary powering algorithm
+func intPow(a, b int) int {
+	p := 1
+	for b > 0 {
+		if b&1 != 0 {
+			p *= a
+		}
+		b >>= 1
+		a *= a
+	}
+	return p
+}
+
+//subnetOctetDiff calculates the controlling octet of the subnet along with the difference factor of the octet from cidr
+//for eg: a cidr of /20 means 3rd octet controls the subnet and has a difference of 16 (3, 16)
+// returns -1, -1 for invalid cidr
+func subnetOctetDiff(cidr int) (int, int) {
+	if cidr <= 24 && cidr > 0 {
+		cidrDiv := 32 / cidr
+		return 4 - cidrDiv, intPow(2, 32-cidr) / (256 * cidrDiv)
+	} else if cidr > 24 && cidr <= 32 {
+		return 4, intPow(2, 32-cidr)
+	}
+	return -1, -1
+}
+
 func getClusterPrefixPool(sliceSubnet string, ipamOctet string) string {
 	octetList := strings.Split(sliceSubnet, ".")
-	octetList[2] = ipamOctet
-	octetList[3] = "0/24"
+	subnetCidr := 20
+	controlOctet, controlOctetDiff := subnetOctetDiff(subnetCidr)
+	ipamInt, _ := strconv.Atoi(ipamOctet)
+	ipamInt *= controlOctetDiff
+	ipamOctet = strconv.Itoa(ipamInt)
+	octetList[controlOctet-1] = ipamOctet
+	for i := controlOctet; i <= 3; i++ {
+		octetList[i] = "0"
+	}
+	octetList[3] += fmt.Sprintf("/%d", subnetCidr)
 	return strings.Join(octetList, ".")
 }
 
