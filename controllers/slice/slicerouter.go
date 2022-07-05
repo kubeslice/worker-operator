@@ -21,6 +21,8 @@ package slice
 import (
 	"context"
 	"fmt"
+	"github.com/kubeslice/worker-operator/pkg/events"
+	"github.com/kubeslice/worker-operator/pkg/utils"
 	"os"
 	"strconv"
 	"strings"
@@ -94,28 +96,15 @@ func (r *SliceReconciler) getNsmDataplaneMode(ctx context.Context, slice *kubesl
 	return nsmDataplaneKernel, nil
 }
 
-//intPow compute a**b using binary powering algorithm
-func intPow(a, b int) int {
-	p := 1
-	for b > 0 {
-		if b&1 != 0 {
-			p *= a
-		}
-		b >>= 1
-		a *= a
-	}
-	return p
-}
-
 //subnetOctetDiff calculates the controlling octet of the subnet along with the difference factor of the octet from cidr
 //for eg: a cidr of /20 means 3rd octet controls the subnet and has a difference of 16 (3, 16)
 // returns -1, -1 for invalid cidr
 func subnetOctetDiff(cidr int) (int, int) {
 	if cidr <= 24 && cidr > 0 {
 		cidrDiv := 32 / cidr
-		return 4 - cidrDiv, intPow(2, 32-cidr) / (256 * cidrDiv)
+		return 4 - cidrDiv, utils.IntPow(2, 32-cidr) / (256 * cidrDiv)
 	} else if cidr > 24 && cidr <= 32 {
-		return 4, intPow(2, 32-cidr)
+		return 4, utils.IntPow(2, 32-cidr)
 	}
 	return -1, -1
 }
