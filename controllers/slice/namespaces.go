@@ -23,6 +23,7 @@ import (
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
 	"github.com/kubeslice/worker-operator/controllers"
 	"github.com/kubeslice/worker-operator/pkg/logger"
+	webhook "github.com/kubeslice/worker-operator/pkg/webhook/deploy"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
@@ -75,7 +76,7 @@ func (r *SliceReconciler) reconcileAppNamespaces(ctx context.Context, slice *kub
 	existingAppNsList := &corev1.NamespaceList{}
 	listOpts := []client.ListOption{
 		client.MatchingLabels(map[string]string{
-			ApplicationNamespaceSelectorLabelKey: slice.Name,
+			controllers.ApplicationNamespaceSelectorLabelKey: slice.Name,
 		}),
 	}
 	err := r.List(ctx, existingAppNsList, listOpts...)
@@ -238,11 +239,11 @@ func (r *SliceReconciler) unbindAppNamespace(ctx context.Context, slice *kubesli
 	}
 
 	nsLabels := namespace.ObjectMeta.GetLabels()
-	_, ok := nsLabels[ApplicationNamespaceSelectorLabelKey]
+	_, ok := nsLabels[controllers.ApplicationNamespaceSelectorLabelKey]
 	if !ok {
 		debuglog.Info("NS unbind: slice label not found", "namespace", appNs)
 	} else {
-		delete(nsLabels, ApplicationNamespaceSelectorLabelKey)
+		delete(nsLabels, controllers.ApplicationNamespaceSelectorLabelKey)
 		namespace.ObjectMeta.SetLabels(nsLabels)
 		err = r.Update(ctx, namespace)
 		if err != nil {
@@ -278,13 +279,13 @@ func (r *SliceReconciler) deleteAnnotationsAndLabels(ctx context.Context, slice 
 	for _, deploy := range deployList.Items {
 		labels := deploy.Spec.Template.ObjectMeta.Labels
 		if labels != nil {
-			_, ok := labels["kubeslice.io/pod-type"]
+			_, ok := labels[webhook.PodInjectLabelKey]
 			if ok {
-				delete(labels, "kubeslice.io/pod-type")
+				delete(labels, webhook.PodInjectLabelKey)
 			}
-			sliceName, ok := labels["kubeslice.io/slice"]
+			sliceName, ok := labels[controllers.ApplicationNamespaceSelectorLabelKey]
 			if ok && slice.Name == sliceName {
-				delete(labels, "kubeslice.io/slice")
+				delete(labels, controllers.ApplicationNamespaceSelectorLabelKey)
 			}
 		}
 		podannotations := deploy.Spec.Template.ObjectMeta.Annotations
@@ -350,7 +351,7 @@ func (r *SliceReconciler) reconcileSliceNetworkPolicy(ctx context.Context, slice
 	}
 	appNsList := &corev1.NamespaceList{}
 	listOpts := []client.ListOption{
-		client.MatchingLabels(map[string]string{ApplicationNamespaceSelectorLabelKey: slice.Name}),
+		client.MatchingLabels(map[string]string{controllers.ApplicationNamespaceSelectorLabelKey: slice.Name}),
 	}
 	err := r.List(ctx, appNsList, listOpts...)
 	if err != nil {
@@ -390,7 +391,7 @@ func (r *SliceReconciler) installSliceNetworkPolicyInAppNs(ctx context.Context, 
 					From: []networkingv1.NetworkPolicyPeer{
 						{
 							NamespaceSelector: &metav1.LabelSelector{
-								MatchLabels: map[string]string{ApplicationNamespaceSelectorLabelKey: slice.Name},
+								MatchLabels: map[string]string{controllers.ApplicationNamespaceSelectorLabelKey: slice.Name},
 							},
 						},
 					},
@@ -401,7 +402,7 @@ func (r *SliceReconciler) installSliceNetworkPolicyInAppNs(ctx context.Context, 
 					To: []networkingv1.NetworkPolicyPeer{
 						{
 							NamespaceSelector: &metav1.LabelSelector{
-								MatchLabels: map[string]string{ApplicationNamespaceSelectorLabelKey: slice.Name},
+								MatchLabels: map[string]string{controllers.ApplicationNamespaceSelectorLabelKey: slice.Name},
 							},
 						},
 					},
@@ -452,7 +453,7 @@ func (r *SliceReconciler) cleanupSliceNamespaces(ctx context.Context, slice *kub
 	// Get the list of existing namespaces that are tagged with the kubeslice label
 	existingAppNsList := &corev1.NamespaceList{}
 	listOpts := []client.ListOption{
-		client.MatchingLabels(map[string]string{ApplicationNamespaceSelectorLabelKey: slice.Name}),
+		client.MatchingLabels(map[string]string{controllers.ApplicationNamespaceSelectorLabelKey: slice.Name}),
 	}
 	err := r.List(ctx, existingAppNsList, listOpts...)
 	if err != nil {
@@ -511,7 +512,7 @@ func (r *SliceReconciler) labelAppNamespaces(ctx context.Context, cfgAppNsList [
 		if nsLabels == nil {
 			nsLabels = make(map[string]string)
 		}
-		nsLabels[ApplicationNamespaceSelectorLabelKey] = slice.Name
+		nsLabels[controllers.ApplicationNamespaceSelectorLabelKey] = slice.Name
 		namespace.ObjectMeta.SetLabels(nsLabels)
 
 		err = r.Update(ctx, namespace)

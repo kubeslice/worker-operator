@@ -24,6 +24,7 @@ import (
 	"net/http"
 
 	//	"github.com/kubeslice/worker-operator/controllers"
+	"github.com/kubeslice/worker-operator/controllers"
 	"github.com/kubeslice/worker-operator/pkg/logger"
 	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -32,10 +33,10 @@ import (
 )
 
 const (
-	admissionWebhookAnnotationInjectKey       = "kubeslice.io/slice"
-	admissionWebhookAnnotationStatusKey       = "kubeslice.io/status"
-	podInjectLabelKey                         = "kubeslice.io/pod-type"
-	admissionWebhookSliceNamespaceSelectorKey = "kubeslice.io/slice"
+	admissionWebhookAnnotationInjectKey       = controllers.ApplicationNamespaceSelectorLabelKey
+	AdmissionWebhookAnnotationStatusKey       = "kubeslice.io/status"
+	PodInjectLabelKey                         = "kubeslice.io/pod-type"
+	admissionWebhookSliceNamespaceSelectorKey = controllers.ApplicationNamespaceSelectorLabelKey
 	controlPlaneNamespace                     = "kubeslice-system"
 	nsmInjectAnnotaionKey                     = "ns.networkservicemesh.io"
 )
@@ -84,7 +85,7 @@ func (wh *WebhookServer) InjectDecoder(d *admission.Decoder) error {
 
 func Mutate(deploy *appsv1.Deployment, sliceName string) *appsv1.Deployment {
 	// Add injection status to deployment annotations
-	deploy.Annotations[admissionWebhookAnnotationStatusKey] = "injected"
+	deploy.Annotations[AdmissionWebhookAnnotationStatusKey] = "injected"
 
 	if deploy.Spec.Template.ObjectMeta.Annotations == nil {
 		deploy.Spec.Template.ObjectMeta.Annotations = map[string]string{}
@@ -96,7 +97,7 @@ func Mutate(deploy *appsv1.Deployment, sliceName string) *appsv1.Deployment {
 
 	// Add slice identifier labels to pod template
 	labels := deploy.Spec.Template.ObjectMeta.Labels
-	labels[podInjectLabelKey] = "app"
+	labels[PodInjectLabelKey] = "app"
 	labels[admissionWebhookAnnotationInjectKey] = sliceName
 
 	return deploy
@@ -111,7 +112,7 @@ func (wh *WebhookServer) MutationRequired(metadata metav1.ObjectMeta) (bool, str
 	}
 	// do not inject if it is already injected
 	//TODO(rahulsawra): need better way to define injected status
-	if annotations[admissionWebhookAnnotationStatusKey] == "injected" {
+	if annotations[AdmissionWebhookAnnotationStatusKey] == "injected" {
 		log.Info("Deployment is already injected")
 		return false, ""
 	}

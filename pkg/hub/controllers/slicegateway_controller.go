@@ -25,6 +25,7 @@ import (
 
 	spokev1alpha1 "github.com/kubeslice/apis/pkg/worker/v1alpha1"
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
+	"github.com/kubeslice/worker-operator/controllers"
 	"github.com/kubeslice/worker-operator/pkg/events"
 	"github.com/kubeslice/worker-operator/pkg/logger"
 	corev1 "k8s.io/api/core/v1"
@@ -169,7 +170,7 @@ func (r *SliceGwReconciler) createSliceGwOnSpoke(ctx context.Context, sliceGw *s
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      sliceGwName,
 					Namespace: ControlPlaneNamespace,
-					Labels:    map[string]string{"kubeslice.io/slice": sliceName},
+					Labels:    map[string]string{controllers.ApplicationNamespaceSelectorLabelKey: sliceName},
 				},
 				Spec: kubeslicev1beta1.SliceGatewaySpec{
 					SliceName: sliceName,

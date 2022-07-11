@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
+	webhook "github.com/kubeslice/worker-operator/pkg/webhook/deploy"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -349,7 +350,7 @@ func (r *SliceGwReconciler) handleSliceGwDeletion(sliceGw *kubeslicev1beta1.Slic
 }
 
 func getPodType(labels map[string]string) string {
-	podType, found := labels["kubeslice.io/pod-type"]
+	podType, found := labels[webhook.PodInjectLabelKey]
 	if found {
 		return podType
 	}
@@ -377,7 +378,7 @@ func (r *SliceGwReconciler) findSliceGwObjectsToReconcile(pod client.Object) []r
 
 	switch podType {
 	case "router":
-		sliceName, found := podLabels["kubeslice.io/slice"]
+		sliceName, found := podLabels[controllers.ApplicationNamespaceSelectorLabelKey]
 		if !found {
 			return []reconcile.Request{}
 		}
@@ -432,7 +433,7 @@ func (r *SliceGwReconciler) sliceGwObjectsToReconcileForNodeRestart(node client.
 func (r *SliceGwReconciler) findObjectsForSliceRouterUpdate(sliceName string) (*kubeslicev1beta1.SliceGatewayList, error) {
 	sliceGwList := &kubeslicev1beta1.SliceGatewayList{}
 	listOpts := []client.ListOption{
-		client.MatchingLabels(map[string]string{"kubeslice.io/slice": sliceName}),
+		client.MatchingLabels(map[string]string{controllers.ApplicationNamespaceSelectorLabelKey: sliceName}),
 	}
 	err := r.List(context.Background(), sliceGwList, listOpts...)
 	if err != nil {
@@ -470,13 +471,13 @@ func (r *SliceGwReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	// slice router or the netop pods. This is needed to re-send connection context to the
 	// restarted slice router or netop pods.
 	// We will add a watch on those pods with appropriate label selectors for filtering.
-	labelSelector.MatchLabels = map[string]string{"kubeslice.io/pod-type": "router"}
+	labelSelector.MatchLabels = map[string]string{webhook.PodInjectLabelKey: "router"}
 	slicerouterPredicate, err := predicate.LabelSelectorPredicate(labelSelector)
 	if err != nil {
 		return err
 	}
 
-	labelSelector.MatchLabels = map[string]string{"kubeslice.io/pod-type": "netop"}
+	labelSelector.MatchLabels = map[string]string{webhook.PodInjectLabelKey: "netop"}
 	netopPredicate, err := predicate.LabelSelectorPredicate(labelSelector)
 	if err != nil {
 		return err
@@ -500,7 +501,7 @@ func (r *SliceGwReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
 	// The slice gateway reconciler needs to be invoked whenever there is an update to the
 	// kubeslice gateway nodes
-	labelSelector.MatchLabels = map[string]string{"kubeslice.io/node-type": "gateway"}
+	labelSelector.MatchLabels = map[string]string{controllers.NodeTypeSelectorLabelKey: "gateway"}
 	nodePredicate, err := predicate.LabelSelectorPredicate(labelSelector)
 	if err != nil {
 		return err

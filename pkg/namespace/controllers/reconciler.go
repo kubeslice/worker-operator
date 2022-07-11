@@ -21,6 +21,7 @@ import (
 	"context"
 
 	"github.com/go-logr/logr"
+	"github.com/kubeslice/worker-operator/controllers"
 	"github.com/kubeslice/worker-operator/pkg/events"
 	hub "github.com/kubeslice/worker-operator/pkg/hub/hubclient"
 	"github.com/kubeslice/worker-operator/pkg/logger"
@@ -57,7 +58,7 @@ func (c *Reconciler) getSliceNameFromNs(ns string) (string, error) {
 		return "", nil
 	}
 	// TODO: label should not be hardcoded, it should come as a constant from slice reconciler pkg
-	return namespace.Labels["kubeslice.io/slice"], nil
+	return namespace.Labels[controllers.ApplicationNamespaceSelectorLabelKey], nil
 }
 
 func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {

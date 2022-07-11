@@ -62,9 +62,9 @@ var finalizerName = "networking.kubeslice.io/serviceexport-finalizer"
 func (r Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := r.Log.WithValues("serviceexport", req.NamespacedName)
 
-	serviceexport := r.GetServiceExport(ctx, req, &log)
+	serviceexport, err := r.GetServiceExport(ctx, req, &log)
 	if serviceexport == nil {
-		return ctrl.Result{Requeue: true}, nil
+		return ctrl.Result{Requeue: true}, err
 	}
 
 	log = log.WithValues("slice", serviceexport.Spec.Slice)
@@ -178,7 +178,7 @@ func (r *Reconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Complete(r)
 }
 
-func (r *Reconciler) GetServiceExport(ctx context.Context, req ctrl.Request, log *logr.Logger) *kubeslicev1beta1.ServiceExport {
+func (r *Reconciler) GetServiceExport(ctx context.Context, req ctrl.Request, log *logr.Logger) (*kubeslicev1beta1.ServiceExport, error) {
 	serviceexport := &kubeslicev1beta1.ServiceExport{}
 	err := r.Get(ctx, req.NamespacedName, serviceexport)
 	if err != nil {
@@ -186,13 +186,13 @@ func (r *Reconciler) GetServiceExport(ctx context.Context, req ctrl.Request, log
 			// Request object not found, could have been deleted after reconcile request.
 			// Return and don't requeue
 			log.Info("serviceexport resource not found. Ignoring since object must be deleted")
-			return nil
+			return nil, err
 		}
 		// Error reading the object - requeue the request.
 		log.Error(err, "Failed to get serviceexport")
-		return nil
+		return nil, err
 	}
-	return serviceexport
+	return serviceexport, nil
 }
 
 func (r *Reconciler) handleServiceExportDeletion(ctx context.Context, serviceexport *kubeslicev1beta1.ServiceExport, log *logr.Logger) (bool, ctrl.Result, error) {
@@ -234,12 +234,12 @@ func (r *Reconciler) handleServiceExportDeletion(ctx context.Context, serviceexp
 
 func (r *Reconciler) labelServiceExportWithSlice(ctx context.Context, serviceexport *kubeslicev1beta1.ServiceExport, debugLog *logr.Logger) (bool, ctrl.Result, error) {
 	labels := serviceexport.GetLabels()
-	if value, exists := labels["kubeslice.io/slice"]; !exists || value != serviceexport.Spec.Slice {
+	if value, exists := labels[controllers.ApplicationNamespaceSelectorLabelKey]; !exists || value != serviceexport.Spec.Slice {
 		// the label does not exists or the sliceName is incorrect
 		if labels == nil {
 			labels = make(map[string]string)
 		}
-		labels["kubeslice.io/slice"] = serviceexport.Spec.Slice
+		labels[controllers.ApplicationNamespaceSelectorLabelKey] = serviceexport.Spec.Slice
 		serviceexport.SetLabels(labels)
 
 		if err := r.Update(ctx, serviceexport); err != nil {

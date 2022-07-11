@@ -24,6 +24,7 @@ import (
 
 	spokev1alpha1 "github.com/kubeslice/apis/pkg/worker/v1alpha1"
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
+	"github.com/kubeslice/worker-operator/controllers"
 	"github.com/kubeslice/worker-operator/pkg/events"
 	"github.com/kubeslice/worker-operator/pkg/logger"
 	corev1 "k8s.io/api/core/v1"
@@ -89,7 +90,7 @@ func getMeshServiceImportObj(svcim *spokev1alpha1.WorkerServiceImport) *kubeslic
 			Name:      svcim.Spec.ServiceName,
 			Namespace: svcim.Spec.ServiceNamespace,
 			Labels: map[string]string{
-				"kubeslice.io/slice": svcim.Spec.SliceName,
+				controllers.ApplicationNamespaceSelectorLabelKey: svcim.Spec.SliceName,
 			},
 		},
 		Spec: kubeslicev1beta1.ServiceImportSpec{
@@ -140,6 +141,7 @@ func (r *ServiceImportReconciler) Reconcile(ctx context.Context, req reconcile.R
 
 	meshSvcIm, err := r.getMeshServiceImport(ctx, svcim)
 	if meshSvcIm == nil {
+		log.Error(err, "unable to fetch mesh service import")
 		return reconcile.Result{}, err
 	}
 
