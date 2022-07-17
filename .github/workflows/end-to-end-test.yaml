@@ -44,9 +44,9 @@ jobs:
     - name: Checkout gh-pages repo
       uses: actions/checkout@v3
       with:
-        repository: kubeslice/dev-charts-ent
+        repository: saivenkatesh1909/kubeslice-e2e-automation
         path: gh-pages
-        token: "${{ secrets.TOKEN }}"
+        token: "${{ secrets.PAT }}"
         ref: 'gh-pages'
   
     - name: list directory after cloning gh pages
