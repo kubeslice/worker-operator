@@ -12,7 +12,7 @@ jobs:
       with:
         tags: worker-operator:latest
         push: false
-    
+
     - name: determine node-ip
       run:  sh .github/workflows/scripts/kind-nodeip.sh
     
@@ -33,9 +33,17 @@ jobs:
         make kind-create
         echo "Run Make Docker"
         make docker
-        ls -lrt /home/runner/.kube/config
-        cat /home/runner/.kube/config
-        kubectl get pods
+
+    - name: Docker Run Action
+      uses: addnab/docker-run-action@v3
+      with:
+        image: kubeslice-e2e:latest
+        shell: bash
+        options: -v ${{ github.workspace }}/reports:/e2e/reports -v /home/runner/.kube/config:/e2e/assets/kubeconfig/kind.yaml
+        run: |
+           ls
+           pwd
+           bash run.sh kind  
 
     - name: docker image list
       run: |      
