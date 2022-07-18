@@ -66,8 +66,8 @@ jobs:
         # Keep X last reports
         keep_reports: 20
        #GitHub Actions run id
-        github_run_id: ${{GITHUB_REPOSITORY}}-${{GITHUB_REF_NAME}}-${{ github.run_id }}
-        github_run_num: ${{GITHUB_REPOSITORY}}-${{GITHUB_REF_NAME}}-Kind-${{ github.run_number }}
+        github_run_id: ${{ github.repository }}-${{ github.ref_name }}-${{ github.run_id }}
+        github_run_num: ${{ github.repository }}-${{ github.ref_name }}-Kind-${{ github.run_number }}
         report_url: https://saivenkatesh1909.github.io/worker-operator/
         test_env: Kind
           
