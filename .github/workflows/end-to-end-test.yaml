@@ -30,8 +30,6 @@ jobs:
       run: |
         ls -lrta
         cd kubeslice-e2e-automation
-        make kind-create
-        echo "Run Make Docker"
         make docker
 
     - name: Docker Run Action
@@ -43,7 +41,7 @@ jobs:
         run: |
            ls
            pwd
-           bash run.sh kind  
+           bash run.sh kind  #need to create a profile
 
     - name: docker image list
       run: |      
