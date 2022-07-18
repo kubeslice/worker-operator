@@ -31,13 +31,11 @@ jobs:
         ls -lrta
         cd kubeslice-e2e-automation
         make docker
-    
-    
 
     - name: Docker Run Action
       uses: addnab/docker-run-action@v3
       with:
-        image: kubeslice-e2e:latest
+        image: kubeslice/e2e:latest
         shell: bash
         options: -v ${{ github.workspace }}/reports:/e2e/reports -v /home/runner/.kube/config:/e2e/assets/kubeconfig/kind.yaml
         run: |
