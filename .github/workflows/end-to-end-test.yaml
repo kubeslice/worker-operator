@@ -72,7 +72,7 @@ jobs:
         allure_history: allure-history
         gh_pages: gh-pages
         # Keep X last reports
-        keep_reports: 20
+        keep_reports: 10
        #GitHub Actions run id
         github_run_id: ${{ github.run_id }}
         github_run_num: Kind-${{ github.run_number }}
