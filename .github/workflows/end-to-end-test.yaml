@@ -1,6 +1,7 @@
 name: end-to-end-test
-on: 
-  push:
+on:
+  pull_request:
+    branches: [master]
   workflow_dispatch:
 jobs:
   end-to-end:
@@ -8,6 +9,8 @@ jobs:
     steps:
     - name: checkout the repo
       uses: actions/checkout@v3
+      with:
+        ref: ${{ github.event.pull_request.head.sha }}
     
     - name: build the worker-operator
       uses: docker/build-push-action@v2
@@ -81,5 +84,6 @@ jobs:
       uses: peaceiris/actions-gh-pages@v2
       env:
         PUBLISH_BRANCH: gh-pages
+        PERSONAL_TOKEN: ${{ secrets.TOKEN }}
         PUBLISH_DIR: allure-history
         keep_files: true
