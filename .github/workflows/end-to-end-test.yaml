@@ -48,9 +48,8 @@ jobs:
     - name: Checkout gh-pages repo
       uses: actions/checkout@v3
       with:
-        repository: saivenkatesh1909/kubeslice-e2e-automation
+        repository: saivenkatesh1909/worker-operator
         path: gh-pages
-        token: "${{ secrets.PAT }}"
         ref: 'gh-pages'
   
     - name: list directory after cloning gh pages
