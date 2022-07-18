@@ -31,6 +31,8 @@ jobs:
         ls -lrta
         cd kubeslice-e2e-automation
         make docker
+    
+    
 
     - name: Docker Run Action
       uses: addnab/docker-run-action@v3
