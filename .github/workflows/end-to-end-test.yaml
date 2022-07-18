@@ -33,7 +33,6 @@ jobs:
   
     - name: Execute E2E 
       run: |
-        ls -lrta
         cd kubeslice-e2e-automation
         make docker
 
@@ -44,8 +43,6 @@ jobs:
         shell: bash
         options: -v ${{ github.workspace }}/reports:/e2e/reports -v /home/runner/.kube/config:/e2e/assets/kubeconfig/kind.yaml
         run: |
-           ls
-           pwd
            bash run.sh kubeslice-kind-oss
 
     - name: Checkout gh-pages repo
@@ -54,12 +51,7 @@ jobs:
         repository: saivenkatesh1909/worker-operator
         path: gh-pages
         ref: 'gh-pages'
-  
-    - name: list directory after cloning gh pages
-      run: |
-        ls -lrta kubeslice-e2e-automation
-        ls -lrta
-          
+        
     - name: Allure Report with history
       uses: PavanMudigonda/allure-html-reporter-github-pages@v1.0
       id: Allure_report_with_history
@@ -72,7 +64,7 @@ jobs:
         allure_history: allure-history
         gh_pages: gh-pages
         # Keep X last reports
-        keep_reports: 10
+        keep_reports: 20
        #GitHub Actions run id
         github_run_id: ${{ github.run_id }}
         github_run_num: Kind-${{ github.run_number }}
