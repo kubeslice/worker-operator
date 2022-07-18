@@ -84,6 +84,6 @@ jobs:
       uses: peaceiris/actions-gh-pages@v2
       env:
         PUBLISH_BRANCH: gh-pages
-        PERSONAL_TOKEN: ${{ secrets.TOKEN }}
+        PERSONAL_TOKEN: ${{ secrets.PAT }}
         PUBLISH_DIR: allure-history
         keep_files: true
