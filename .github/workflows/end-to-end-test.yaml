@@ -43,9 +43,6 @@ jobs:
            pwd
            bash run.sh kubeslice-kind-oss
 
-      run: |      
-        docker images
-
     - name: Checkout gh-pages repo
       uses: actions/checkout@v3
       with:
