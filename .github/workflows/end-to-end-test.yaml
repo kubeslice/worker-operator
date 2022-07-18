@@ -41,9 +41,8 @@ jobs:
         run: |
            ls
            pwd
-           bash run.sh kind  #need to create a profile
+           bash run.sh kubeslice-kind-oss
 
-    - name: docker image list
       run: |      
         docker images
 
