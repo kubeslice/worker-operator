@@ -40,10 +40,8 @@ jobs:
       uses: addnab/docker-run-action@v3
       with:
         image: kubeslice/e2e:latest
-        shell: bash
         options: -v ${{ github.workspace }}/reports:/e2e/reports -v /home/runner/.kube/config:/e2e/assets/kubeconfig
         run: |
-          ls -lrt profile
           bash run.sh kubeslice-kind-oss
 
     - name: Checkout gh-pages repo
