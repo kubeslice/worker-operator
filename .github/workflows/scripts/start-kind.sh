@@ -37,6 +37,10 @@ WorkerClusters:
   NodeIP: ${ip1}
 - Context: kind-worker
   NodeIP: ${ip2}
+WorkerChartOptions:
+  SetStrValues:
+    "operator.image": "worker-operator"
+    "operator.tag": "e2e-latest"
 TestSuitesEnabled:
   HubSuite: true
   WorkerSuite: true
