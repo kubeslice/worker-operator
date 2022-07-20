@@ -1,8 +1,5 @@
 #!/bin/bash
 
-set -euo pipefail
-
-
 # Create controller kind cluster if not present
 if [ ! $(kind get clusters | grep controller) ];then
   kind create cluster --name controller --config cluster.yaml --image kindest/node:v1.22.7
