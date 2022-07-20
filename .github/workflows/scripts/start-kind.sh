@@ -2,7 +2,7 @@
 
 # Create controller kind cluster if not present
 if [ ! $(kind get clusters | grep controller) ];then
-  kind create cluster --name controller --config ${pwd}/cluster.yaml --image kindest/node:v1.22.7
+  kind create cluster --name controller --config .github/workflows/scripts/cluster.yaml --image kindest/node:v1.22.7
   ip=$(docker inspect controller-control-plane | jq -r '.[0].NetworkSettings.Networks.kind.IPAddress')
 
   # Replace loopback IP with docker ip
@@ -11,7 +11,7 @@ fi
 
 # Create worker1 kind cluster if not present
 if [ ! $(kind get clusters | grep worker1) ];then
-  kind create cluster --name worker --config ${pwd}/cluster.yaml --image kindest/node:v1.22.7
+  kind create cluster --name worker --config .github/workflows/scripts/cluster.yaml --image kindest/node:v1.22.7
   ip=$(docker inspect worker1-control-plane | jq -r '.[0].NetworkSettings.Networks.kind.IPAddress')
 
   # Replace loopback IP with docker ip
@@ -26,7 +26,7 @@ if [ ! -f profile/kind.yaml ];then
 
   ip2=$(docker inspect worker1-control-plane | jq -r '.[0].NetworkSettings.Networks.kind.IPAddress')
 
-  cat > ${pwd}/profile/kind.yaml << EOF
+  cat > .home/runner/work/worker-operators/worker-operator/profile/kind.yaml << EOF
 Kubeconfig: kinde2e.yaml
 ControllerCluster:
   Context: kind-controller
