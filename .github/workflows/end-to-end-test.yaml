@@ -27,7 +27,7 @@ jobs:
       uses: addnab/docker-run-action@v3
       with:
         image: aveshadev/kubeslice-e2e:latest
-        options: -v ${{ github.workspace }}/reports:/e2e/reports -v /home/runner/.kube:/e2e/assets/kubeconfig -v .home/runner/work/worker-operators/worker-operator/:/e2e/profile
+        options: -v ${{ github.workspace }}/reports:/e2e/reports -v /home/runner/.kube:/e2e/assets/kubeconfig -v ${{GITHUB_WORKSPACE}}:/e2e/profile
         run: |
           bash run.sh kind
 
