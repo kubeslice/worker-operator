@@ -12,7 +12,7 @@ fi
 # Create worker1 kind cluster if not present
 if [ ! $(kind get clusters | grep worker1) ];then
   kind create cluster --name worker --config .github/workflows/scripts/cluster.yaml --image kindest/node:v1.22.7
-  ip=$(docker inspect worker1-control-plane | jq -r '.[0].NetworkSettings.Networks.kind.IPAddress')
+  ip=$(docker inspect worker-control-plane | jq -r '.[0].NetworkSettings.Networks.kind.IPAddress')
 
   # Replace loopback IP with docker ip
   kind get kubeconfig --name worker | sed "s/127.0.0.1.*/$ip:6443/g" > /home/runner/.kube/kind2.yaml
@@ -24,9 +24,9 @@ if [ ! -f profile/kind.yaml ];then
   # Provide correct IP in kind profile, since worker operator cannot detect internal IP as nodeIp
   ip1=$(docker inspect controller-control-plane | jq -r '.[0].NetworkSettings.Networks.kind.IPAddress')
 
-  ip2=$(docker inspect worker1-control-plane | jq -r '.[0].NetworkSettings.Networks.kind.IPAddress')
+  ip2=$(docker inspect worker-control-plane | jq -r '.[0].NetworkSettings.Networks.kind.IPAddress')
 
-  cat > .home/runner/work/worker-operators/worker-operator/profile/kind.yaml << EOF
+  cat > .home/runner/work/worker-operators/worker-operator/kind.yaml << EOF
 Kubeconfig: kinde2e.yaml
 ControllerCluster:
   Context: kind-controller
