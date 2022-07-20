@@ -15,34 +15,19 @@ jobs:
     - name: build the worker-operator
       uses: docker/build-push-action@v2
       with:
-        tags: worker-operator:latest
+        tags: worker-operator:e2e-latest
         push: false
-
-    - name: determine node-ip
-      run:  sh .github/workflows/scripts/kind-nodeip.sh
-   
-    - name: create kind clusters
-      run: sh .github/workflows/scripts/kind.sh
     
-    - name: clone the e2e repo
-      uses: actions/checkout@v3 
-      with:
-        repository: saivenkatesh1909/kubeslice-e2e-automation
-        token: ${{ secrets.PAT }}
-        path: kubeslice-e2e-automation
-  
-    - name: Execute E2E 
-      run: |
-        cd kubeslice-e2e-automation
-        make docker
+    - name: build kind clusters
+      run: sh .github/workflows/scripts/start-kind.sh
 
     - name: Docker Run Action
       uses: addnab/docker-run-action@v3
       with:
         image: kubeslice/e2e:latest
-        options: -v ${{ github.workspace }}/reports:/e2e/reports -v /home/runner/.kube:/e2e/assets/kubeconfig
+        options: -v ${{ github.workspace }}/reports:/e2e/reports -v /home/runner/.kube:/e2e/assets/kubeconfig -v ${pwd}/profile:/e2e/profile
         run: |
-          bash run.sh kubeslice_kind_oss
+          bash run.sh kind
 
     - name: Checkout gh-pages repo
       uses: actions/checkout@v3
