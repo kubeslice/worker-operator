@@ -11,11 +11,11 @@ fi
 
 # Create worker1 kind cluster if not present
 if [ ! $(kind get clusters | grep worker1) ];then
-  kind create cluster --name worker1 --config ${pwd}cluster.yaml --image kindest/node:v1.22.7
+  kind create cluster --name worker --config ${pwd}/cluster.yaml --image kindest/node:v1.22.7
   ip=$(docker inspect worker1-control-plane | jq -r '.[0].NetworkSettings.Networks.kind.IPAddress')
 
   # Replace loopback IP with docker ip
-  kind get kubeconfig --name worker1 | sed "s/127.0.0.1.*/$ip:6443/g" > /home/runner/.kube/kind2.yaml
+  kind get kubeconfig --name worker | sed "s/127.0.0.1.*/$ip:6443/g" > /home/runner/.kube/kind2.yaml
 fi
 
 KUBECONFIG=/home/runner/.kube/kind1.yaml:/home/runner/.kube/kind2.yaml kubectl config view --raw  > /home/runner/.kube/kinde2e.yaml
@@ -33,7 +33,7 @@ ControllerCluster:
 WorkerClusters:
 - Context: kind-controller
   NodeIP: ${ip1}
-- Context: kind-worker1
+- Context: kind-worker
   NodeIP: ${ip2}
 TestSuitesEnabled:
   HubSuite: true

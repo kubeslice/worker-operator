@@ -19,7 +19,9 @@ jobs:
         push: false
     
     - name: build kind clusters
-      run: sh .github/workflows/scripts/start-kind.sh
+      run: |
+        pwd
+        sh .github/workflows/scripts/start-kind.sh
 
     - name: Docker Run Action
       uses: addnab/docker-run-action@v3
