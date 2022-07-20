@@ -26,7 +26,7 @@ if [ ! -f profile/kind.yaml ];then
 
   ip2=$(docker inspect worker-control-plane | jq -r '.[0].NetworkSettings.Networks.kind.IPAddress')
 
-  cat > .home/runner/work/worker-operators/worker-operator/kind.yaml << EOF
+  cat > kind.yaml << EOF
 Kubeconfig: kinde2e.yaml
 ControllerCluster:
   Context: kind-controller
