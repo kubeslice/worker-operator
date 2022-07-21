@@ -29,6 +29,8 @@ jobs:
         image: aveshadev/kubeslice-e2e:latest
         options: -v ${{ github.workspace }}/reports:/e2e/reports -v /home/runner/.kube:/e2e/assets/kubeconfig -v ${{ github.workspace }}:/e2e/profile
         run: |
+          ls -altr
+          pwd
           bash run.sh kind
 
     - name: Checkout gh-pages repo
