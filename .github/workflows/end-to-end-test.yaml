@@ -21,7 +21,6 @@ jobs:
     - name: build kind clusters
       run: |
         pwd
-        sh .github/workflows/scripts/kind-nodeip.sh
         sh .github/workflows/scripts/start-kind.sh
 
     - name: Docker Run Action
