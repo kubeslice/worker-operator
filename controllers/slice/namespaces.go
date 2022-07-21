@@ -48,6 +48,11 @@ func (r *SliceReconciler) ReconcileSliceNamespaces(ctx context.Context, slice *k
 	if err != nil {
 		return ctrl.Result{}, err, true
 	}
+	//reconcile networkpolicy
+	err = r.reconcileSliceNetworkPolicy(ctx, slice)
+	if err != nil {
+		return ctrl.Result{}, err, true
+	}
 	return ctrl.Result{}, nil, false
 }
 
@@ -149,11 +154,6 @@ func (r *SliceReconciler) reconcileAppNamespaces(ctx context.Context, slice *kub
 		}
 	}
 	if statusChanged {
-		//reconcile networkpolicy
-		err = r.reconcileSliceNetworkPolicy(ctx, slice)
-		if err != nil {
-			return ctrl.Result{}, err, true
-		}
 		err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 			// fetch the latest slice
 			if getErr := r.Get(ctx, types.NamespacedName{Name: slice.Name,Namespace: controllers.ControlPlaneNamespace}, slice); getErr != nil {
