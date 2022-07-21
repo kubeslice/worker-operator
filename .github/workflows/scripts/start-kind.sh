@@ -25,7 +25,7 @@ if [ ! -f profile/kind.yaml ];then
   # Provide correct IP in kind profile, since worker operator cannot detect internal IP as nodeIp
   ip1=$(docker inspect controller-control-plane | jq -r '.[0].NetworkSettings.Networks.kind.IPAddress')
 
-  ip2=$(docker inspect worker1-control-plane | jq -r '.[0].NetworkSettings.Networks.kind.IPAddress')
+  ip2=$(docker inspect worker-control-plane | jq -r '.[0].NetworkSettings.Networks.kind.IPAddress')
 
   cat > kind.yaml << EOF
 Kubeconfig: kinde2e.yaml
@@ -34,7 +34,7 @@ ControllerCluster:
 WorkerClusters:
 - Context: kind-controller
   NodeIP: ${ip1}
-- Context: kind-worker1
+- Context: kind-worker
   NodeIP: ${ip2}
 WorkerChartOptions:
   SetStrValues:
