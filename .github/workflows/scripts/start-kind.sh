@@ -11,7 +11,7 @@ if [ ! $(kind get clusters | grep controller) ];then
 #  ip=$(docker inspect controller-control-plane | jq -r '.[0].NetworkSettings.Networks.kind.IPAddress') 
 #  echo $ip
   # Replace loopback IP with docker ip
-  kind get kubeconfig --name controller | sed "s/127.0.0.1.*/$HOST_IP:6443/g" > /home/runner/.kube/kind1.yaml
+  kind get kubeconfig --name kind-controller | sed "s/127.0.0.1.*/$HOST_IP:6443/g" > /home/runner/.kube/kind1.yaml
 fi
 
 # Create worker1 kind cluster if not present
@@ -21,13 +21,15 @@ if [ ! $(kind get clusters | grep worker) ];then
 #  ip=$(docker inspect worker-control-plane | jq -r '.[0].NetworkSettings.Networks.kind.IPAddress')
 #  echo $ip
   # Replace loopback IP with docker ip
-  kind get kubeconfig --name worker | sed "s/127.0.0.1.*/$HOST_IP:7443/g" > /home/runner/.kube/kind2.yaml
+  kind get kubeconfig --name kind-worker | sed "s/127.0.0.1.*/$HOST_IP:7443/g" > /home/runner/.kube/kind2.yaml
 fi
 
 KUBECONFIG=/home/runner/.kube/kind1.yaml:/home/runner/.kube/kind2.yaml kubectl config view --raw  > /home/runner/.kube/kinde2e.yaml
 
 if [ ! -f profile/kind.yaml ];then
   # Provide correct IP in kind profile, since worker operator cannot detect internal IP as nodeIp
+  docker ps
+  kind get clusters
   $HOST_IP1=$(docker inspect controller-control-plane | jq -r '.[0].NetworkSettings.Networks.kind.IPAddress')
   echo $HOST_IP1
   $HOST_IP2=$(docker inspect worker-control-plane | jq -r '.[0].NetworkSettings.Networks.kind.IPAddress')
