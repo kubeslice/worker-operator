@@ -19,7 +19,7 @@ if [ ! $(kind get clusters | grep worker) ];then
   kind get kubeconfig --name worker | sed "s/127.0.0.1.*/$ip:6443/g" > /home/runner/.kube/kind2.yaml
 fi
 
-KUBECONFIG=/home/runner/.kube/kind1.yaml:/home/runner/.kube/kind2.yaml kubectl config view --raw  > /home/runner/.kube/kind.yaml
+KUBECONFIG=/home/runner/.kube/kind1.yaml:/home/runner/.kube/kind2.yaml kubectl config view --raw  > /home/runner/.kube/kinde2e.yaml
 
 if [ ! -f profile/kind.yaml ];then
   # Provide correct IP in kind profile, since worker operator cannot detect internal IP as nodeIp
@@ -27,8 +27,8 @@ if [ ! -f profile/kind.yaml ];then
 
   ip2=$(docker inspect worker1-control-plane | jq -r '.[0].NetworkSettings.Networks.kind.IPAddress')
 
-  cat > profile/kind.yaml << EOF
-Kubeconfig: kind.yaml
+  cat > kind.yaml << EOF
+Kubeconfig: kinde2e.yaml
 ControllerCluster:
   Context: kind-controller
 WorkerClusters:
