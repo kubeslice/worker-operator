@@ -237,7 +237,7 @@ func (r *SliceReconciler) reconcileAllowedNamespaces(ctx context.Context, slice 
 	for _, cfgAllowedNs := range cfgAllowedNsList {
 		if v, exists := existingAllowedNsMap[cfgAllowedNs]; exists {
 			existingAllowedNsMap[cfgAllowedNs].marked = true
-			if annotationApplied, err = r.annotateNamespace(ctx, slice, &v.ns); err != nil {
+			if annotationApplied, err = r.annotateAllowedNamespace(ctx, slice, &v.ns); err != nil {
 				log.Error(err, "Error annotating allowedNamespace", "Namespace", v.ns.Name)
 			}
 			labeledAllowedNsList = append(labeledAllowedNsList, cfgAllowedNs)
@@ -307,23 +307,20 @@ func (r *SliceReconciler) reconcileAllowedNamespaces(ctx context.Context, slice 
 	return nil
 }
 
-func (r *SliceReconciler) annotateNamespace(ctx context.Context, slice *kubeslicev1beta1.Slice, allowedNamespace *corev1.Namespace) (bool, error) {
+func (r *SliceReconciler) annotateAllowedNamespace(ctx context.Context, slice *kubeslicev1beta1.Slice, allowedNamespace *corev1.Namespace) (bool, error) {
 	annotations := allowedNamespace.GetAnnotations()
 	if annotations == nil {
-		//add first annotation
 		annotations = map[string]string{}
-		annotations[AllowedNamespaceAnnotationKey] = slice.Name
-		allowedNamespace.ObjectMeta.Annotations = annotations
-		return true, r.Update(ctx, allowedNamespace)
-	} else if _, ok := annotations[AllowedNamespaceAnnotationKey]; !ok {
-		//annotations not nil, but AllowedNamespaceAnnotationKey not present
+	} 
+	v, ok := annotations[AllowedNamespaceAnnotationKey]
+	if !ok {
+		// AllowedNamespaceAnnotationKey not present
 		annotations[AllowedNamespaceAnnotationKey] = slice.Name
 		allowedNamespace.ObjectMeta.Annotations = annotations
 		return true, r.Update(ctx, allowedNamespace)
 	}
 	// AllowedNamespaceAnnotationKey present, append the comma seperated sliceName to value
 	// eg : kubeslice.io/trafficAllowedToSlices: "slice-1,slice-2,slice-3"
-	v := annotations[AllowedNamespaceAnnotationKey]
 	// create an array of slices and check if the slice name already exists
 	a := strings.Split(v, ",")
 	if !exists(a, slice.Name) {
@@ -350,35 +347,35 @@ func (r *SliceReconciler) unbindAllowedNamespace(ctx context.Context, allowedNs,
 	if annotations == nil {
 		return nil
 	}
-	v := annotations[AllowedNamespaceAnnotationKey]
-	if v == "" {
+	v,present := annotations[AllowedNamespaceAnnotationKey]
+	if !present{
 		return nil
 	}
-
 	a := strings.Split(v, ",")
-	if len(a) == 1 && exists(a, sliceName) {
-		// last slice to offboard
-		delete(annotations, AllowedNamespaceAnnotationKey)
-		namespace.SetAnnotations(annotations)
-		//remove kubeslice allowed namespace label
-		labels := namespace.GetLabels()
-		_, ok := labels[AllowedNamespaceSelectorLabelKey]
-		if ok {
-			delete(labels, AllowedNamespaceSelectorLabelKey)
-			namespace.SetLabels(labels)
-		}
-		return r.Update(ctx, namespace)
-	}
 	if exists(a, sliceName) {
-		//remove the sliceName from annotation
-		toDeleteSlice := indexOf(a, sliceName)
-		if toDeleteSlice == -1 {
-			return nil
+		if len(a) == 1 {
+			// last slice to offboard
+			delete(annotations, AllowedNamespaceAnnotationKey)
+			namespace.SetAnnotations(annotations)
+			//remove kubeslice allowed namespace label
+			labels := namespace.GetLabels()
+			_, ok := labels[AllowedNamespaceSelectorLabelKey]
+			if ok {
+				delete(labels, AllowedNamespaceSelectorLabelKey)
+				namespace.SetLabels(labels)
+			}
+			return r.Update(ctx, namespace)
+		} else {
+			//remove the sliceName from annotation
+			toDeleteSlice := indexOf(a, sliceName)
+			if toDeleteSlice == -1 {
+				return nil
+			}
+			a = append(a[:toDeleteSlice], a[toDeleteSlice+1:]...)
+			annotations[AllowedNamespaceAnnotationKey] = strings.Join(a, ",")
+			namespace.SetAnnotations(annotations)
+			return r.Update(ctx, namespace)
 		}
-		a = append(a[:toDeleteSlice], a[toDeleteSlice+1:]...)
-		annotations[AllowedNamespaceAnnotationKey] = strings.Join(a, ",")
-		namespace.SetAnnotations(annotations)
-		return r.Update(ctx, namespace)
 	}
 	return nil
 }
