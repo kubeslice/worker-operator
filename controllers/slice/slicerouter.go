@@ -55,10 +55,10 @@ const (
 
 func labelsForSliceRouterDeployment(name string) map[string]string {
 	return map[string]string{
-		"networkservicemesh.io/app":  "vl3-nse-" + name,
-		"networkservicemesh.io/impl": "vl3-service-" + name,
-		webhook.PodInjectLabelKey:    "router",
-		"kubeslice.io/slice":         name,
+		"networkservicemesh.io/app":                      "vl3-nse-" + name,
+		"networkservicemesh.io/impl":                     "vl3-service-" + name,
+		webhook.PodInjectLabelKey:                        "router",
+		controllers.ApplicationNamespaceSelectorLabelKey: name,
 	}
 }
 
@@ -288,7 +288,7 @@ func (r *SliceReconciler) deploymentForSliceRouter(s *kubeslicev1beta1.Slice, ip
 							RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
 								NodeSelectorTerms: []corev1.NodeSelectorTerm{{
 									MatchExpressions: []corev1.NodeSelectorRequirement{{
-										Key:      "kubeslice.io/node-type",
+										Key:      controllers.NodeTypeSelectorLabelKey,
 										Operator: corev1.NodeSelectorOpIn,
 										Values:   []string{"gateway"},
 									}},
@@ -303,12 +303,12 @@ func (r *SliceReconciler) deploymentForSliceRouter(s *kubeslicev1beta1.Slice, ip
 					},
 					Volumes: r.getVolumeSpecForSliceRouter(s, dataplane),
 					Tolerations: []corev1.Toleration{{
-						Key:      "kubeslice.io/node-type",
+						Key:      controllers.NodeTypeSelectorLabelKey,
 						Operator: "Equal",
 						Effect:   "NoSchedule",
 						Value:    "gateway",
 					}, {
-						Key:      "kubeslice.io/node-type",
+						Key:      controllers.NodeTypeSelectorLabelKey,
 						Operator: "Equal",
 						Effect:   "NoExecute",
 						Value:    "gateway",

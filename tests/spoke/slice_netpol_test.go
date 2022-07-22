@@ -6,6 +6,7 @@ import (
 	"time"
 
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
+	"github.com/kubeslice/worker-operator/controllers"
 	slicepkg "github.com/kubeslice/worker-operator/controllers/slice"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -119,7 +120,7 @@ var _ = Describe("SliceNetpol", func() {
 				if labels == nil {
 					return false
 				}
-				sliceLabel, ok := labels[slicepkg.ApplicationNamespaceSelectorLabelKey]
+				sliceLabel, ok := labels[controllers.ApplicationNamespaceSelectorLabelKey]
 				if !ok {
 					return false
 				}
@@ -129,7 +130,7 @@ var _ = Describe("SliceNetpol", func() {
 
 			//delete the labels and re-test it
 			labels := appNs.ObjectMeta.GetLabels()
-			delete(labels, slicepkg.ApplicationNamespaceSelectorLabelKey)
+			delete(labels, controllers.ApplicationNamespaceSelectorLabelKey)
 			appNs.ObjectMeta.SetLabels(labels)
 			Expect(k8sClient.Update(ctx, appNs)).Should(Succeed())
 
@@ -142,7 +143,7 @@ var _ = Describe("SliceNetpol", func() {
 				if labels == nil {
 					return false
 				}
-				sliceLabel, ok := labels[slicepkg.ApplicationNamespaceSelectorLabelKey]
+				sliceLabel, ok := labels[controllers.ApplicationNamespaceSelectorLabelKey]
 				if !ok {
 					return false
 				}
@@ -252,7 +253,7 @@ var _ = Describe("SliceNetpol", func() {
 				if labels == nil {
 					return false
 				}
-				sliceLabel, ok := labels[slicepkg.ApplicationNamespaceSelectorLabelKey]
+				sliceLabel, ok := labels[controllers.ApplicationNamespaceSelectorLabelKey]
 				if !ok {
 					return false
 				}
@@ -274,12 +275,12 @@ var _ = Describe("SliceNetpol", func() {
 			ingressRules := netpol.Spec.Ingress
 			ingressRule := ingressRules[0]
 			nsSelectorLabel := ingressRule.From[0].NamespaceSelector.MatchLabels
-			Expect(nsSelectorLabel[slicepkg.ApplicationNamespaceSelectorLabelKey]).To(Equal(slice.Name))
+			Expect(nsSelectorLabel[controllers.ApplicationNamespaceSelectorLabelKey]).To(Equal(slice.Name))
 			//test egress rules
 			egressRules := netpol.Spec.Egress
 			egressRule := egressRules[0]
 			nsSelectorLabel = egressRule.To[0].NamespaceSelector.MatchLabels
-			Expect(nsSelectorLabel[slicepkg.ApplicationNamespaceSelectorLabelKey]).To(Equal(slice.Name))
+			Expect(nsSelectorLabel[controllers.ApplicationNamespaceSelectorLabelKey]).To(Equal(slice.Name))
 		})
 
 		It("Should update network policy to include allowed namespaces", func() {
@@ -340,7 +341,7 @@ var _ = Describe("SliceNetpol", func() {
 				if labels == nil {
 					return false
 				}
-				sliceLabel, ok := labels[slicepkg.ApplicationNamespaceSelectorLabelKey]
+				sliceLabel, ok := labels[controllers.ApplicationNamespaceSelectorLabelKey]
 				if !ok {
 					return false
 				}
@@ -378,7 +379,7 @@ var _ = Describe("SliceNetpol", func() {
 			ingressRule := ingressRules[0]
 			//applicationNamespace ingress rule
 			nsSelectorLabelApp := ingressRule.From[0].NamespaceSelector.MatchLabels
-			Expect(nsSelectorLabelApp[slicepkg.ApplicationNamespaceSelectorLabelKey]).To(Equal(slice.Name))
+			Expect(nsSelectorLabelApp[controllers.ApplicationNamespaceSelectorLabelKey]).To(Equal(slice.Name))
 			//allowedNamespace ingress rule
 			nsSelectorLabelAllowed := ingressRule.From[1].NamespaceSelector.MatchLabels
 			Expect(nsSelectorLabelAllowed[slicepkg.AllowedNamespaceSelectorLabelKey]).To(Equal(allowedNamespace.Name))
@@ -388,7 +389,7 @@ var _ = Describe("SliceNetpol", func() {
 			egressRule := egressRules[0]
 			//applicationNamespace egress rule
 			nsSelectorLabelApp = egressRule.To[0].NamespaceSelector.MatchLabels
-			Expect(nsSelectorLabelApp[slicepkg.ApplicationNamespaceSelectorLabelKey]).To(Equal(slice.Name))
+			Expect(nsSelectorLabelApp[controllers.ApplicationNamespaceSelectorLabelKey]).To(Equal(slice.Name))
 			//allowedNamespace egress rule
 			nsSelectorLabelAllowed = egressRule.To[1].NamespaceSelector.MatchLabels
 			Expect(nsSelectorLabelAllowed[slicepkg.AllowedNamespaceSelectorLabelKey]).To(Equal(allowedNamespace.Name))
@@ -451,7 +452,7 @@ var _ = Describe("SliceNetpol", func() {
 				if labels == nil {
 					return false
 				}
-				sliceLabel, ok := labels[slicepkg.ApplicationNamespaceSelectorLabelKey]
+				sliceLabel, ok := labels[controllers.ApplicationNamespaceSelectorLabelKey]
 				if !ok {
 					return false
 				}
@@ -546,7 +547,7 @@ var _ = Describe("SliceNetpol", func() {
 				if labels == nil {
 					return false
 				}
-				sliceLabel, ok := labels[slicepkg.ApplicationNamespaceSelectorLabelKey]
+				sliceLabel, ok := labels[controllers.ApplicationNamespaceSelectorLabelKey]
 				if !ok {
 					return false
 				}
@@ -638,7 +639,7 @@ var _ = Describe("SliceNetpol", func() {
 				if labels == nil {
 					return false
 				}
-				sliceLabel, ok := labels[slicepkg.ApplicationNamespaceSelectorLabelKey]
+				sliceLabel, ok := labels[controllers.ApplicationNamespaceSelectorLabelKey]
 				if !ok {
 					return false
 				}

@@ -40,3 +40,8 @@ var (
 
 	ReconcileInterval = 10 * time.Second
 )
+
+const (
+	ApplicationNamespaceSelectorLabelKey = "kubeslice.io/slice"
+	NodeTypeSelectorLabelKey             = "kubeslice.io/node-type"
+)

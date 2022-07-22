@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
+	webhook "github.com/kubeslice/worker-operator/pkg/webhook/deploy"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -42,7 +43,6 @@ import (
 	"github.com/kubeslice/worker-operator/controllers"
 	"github.com/kubeslice/worker-operator/pkg/events"
 	"github.com/kubeslice/worker-operator/pkg/logger"
-	webhook "github.com/kubeslice/worker-operator/pkg/webhook/deploy"
 	nsmv1alpha1 "github.com/networkservicemesh/networkservicemesh/k8s/pkg/apis/networkservice/v1alpha1"
 )
 
@@ -378,7 +378,7 @@ func (r *SliceGwReconciler) findSliceGwObjectsToReconcile(pod client.Object) []r
 
 	switch podType {
 	case "router":
-		sliceName, found := podLabels["kubeslice.io/slice"]
+		sliceName, found := podLabels[controllers.ApplicationNamespaceSelectorLabelKey]
 		if !found {
 			return []reconcile.Request{}
 		}
@@ -433,7 +433,7 @@ func (r *SliceGwReconciler) sliceGwObjectsToReconcileForNodeRestart(node client.
 func (r *SliceGwReconciler) findObjectsForSliceRouterUpdate(sliceName string) (*kubeslicev1beta1.SliceGatewayList, error) {
 	sliceGwList := &kubeslicev1beta1.SliceGatewayList{}
 	listOpts := []client.ListOption{
-		client.MatchingLabels(map[string]string{"kubeslice.io/slice": sliceName}),
+		client.MatchingLabels(map[string]string{controllers.ApplicationNamespaceSelectorLabelKey: sliceName}),
 	}
 	err := r.List(context.Background(), sliceGwList, listOpts...)
 	if err != nil {
@@ -501,7 +501,7 @@ func (r *SliceGwReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
 	// The slice gateway reconciler needs to be invoked whenever there is an update to the
 	// kubeslice gateway nodes
-	labelSelector.MatchLabels = map[string]string{"kubeslice.io/node-type": "gateway"}
+	labelSelector.MatchLabels = map[string]string{controllers.NodeTypeSelectorLabelKey: "gateway"}
 	nodePredicate, err := predicate.LabelSelectorPredicate(labelSelector)
 	if err != nil {
 		return err

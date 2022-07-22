@@ -26,6 +26,7 @@ import (
 
 	"github.com/go-logr/logr"
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
+	"github.com/kubeslice/worker-operator/controllers"
 	slicepkg "github.com/kubeslice/worker-operator/controllers/slice"
 	"github.com/kubeslice/worker-operator/pkg/events"
 	corev1 "k8s.io/api/core/v1"
@@ -74,7 +75,7 @@ func (c *NetpolReconciler) getSliceNameFromNsOfNetPol(ns string) (string, error)
 		c.Log.Error(err, "error while retrieving namespace")
 		return "", err
 	}
-	return namespace.Labels[slicepkg.ApplicationNamespaceSelectorLabelKey], nil
+	return namespace.Labels[controllers.ApplicationNamespaceSelectorLabelKey], nil
 }
 
 func (r *NetpolReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
@@ -137,7 +138,7 @@ func (r *NetpolReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 }
 
 func (c *NetpolReconciler) Compare(np *networkingv1.NetworkPolicy, slice *kubeslicev1beta1.Slice) (ctrl.Result, error) {
-	var ApplicationNamespaces, err1 = c.GetAppNamespacesBySliceNameAndLabel(context.Background(), slice.Name, slicepkg.ApplicationNamespaceSelectorLabelKey)
+	var ApplicationNamespaces, err1 = c.GetAppNamespacesBySliceNameAndLabel(context.Background(), slice.Name, controllers.ApplicationNamespaceSelectorLabelKey)
 	if err1 != nil {
 		c.Log.Error(err1, "error while retrieving application namespaces by sliceName")
 		return ctrl.Result{}, err1

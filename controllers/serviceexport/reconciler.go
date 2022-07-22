@@ -238,12 +238,12 @@ func (r *Reconciler) handleServiceExportDeletion(ctx context.Context, serviceexp
 // returns requeue flag (to either requeue or stop requeing), the reconcilation result and error
 func (r *Reconciler) labelServiceExportWithSlice(ctx context.Context, serviceexport *kubeslicev1beta1.ServiceExport, debugLog *logr.Logger) (bool, ctrl.Result, error) {
 	labels := serviceexport.GetLabels()
-	if value, exists := labels["kubeslice.io/slice"]; !exists || value != serviceexport.Spec.Slice {
+	if value, exists := labels[controllers.ApplicationNamespaceSelectorLabelKey]; !exists || value != serviceexport.Spec.Slice {
 		// the label does not exists or the sliceName is incorrect
 		if labels == nil {
 			labels = make(map[string]string)
 		}
-		labels["kubeslice.io/slice"] = serviceexport.Spec.Slice
+		labels[controllers.ApplicationNamespaceSelectorLabelKey] = serviceexport.Spec.Slice
 		serviceexport.SetLabels(labels)
 
 		if err := r.Update(ctx, serviceexport); err != nil {
