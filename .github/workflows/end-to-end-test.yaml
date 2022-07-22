@@ -33,7 +33,7 @@ jobs:
           ls -al /e2e/reports
           ls -al /e2e/profile
           cat /e2e/profile/kind.yaml
-          cat /e2e/assests/kubeconfig/kine2e.yaml
+          cat /e2e/assets/kubeconfig/kine2e.yaml
           bash run.sh kind
 
     - name: Checkout gh-pages repo
