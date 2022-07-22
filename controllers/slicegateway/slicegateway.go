@@ -324,6 +324,9 @@ func (r *SliceGwReconciler) serviceForGateway(g *kubeslicev1beta1.SliceGateway) 
 			}},
 		},
 	}
+	if g.Status.Config.SliceGatewayNodePort != 0 {
+		svc.Spec.Ports[0].NodePort = int32(g.Status.Config.SliceGatewayNodePort)
+	}
 	ctrl.SetControllerReference(g, svc, r.Scheme)
 	return svc
 }
