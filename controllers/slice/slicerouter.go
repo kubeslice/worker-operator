@@ -33,6 +33,7 @@ import (
 
 	"github.com/kubeslice/worker-operator/controllers"
 	"github.com/kubeslice/worker-operator/pkg/logger"
+	webhook "github.com/kubeslice/worker-operator/pkg/webhook/deploy"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -56,7 +57,7 @@ func labelsForSliceRouterDeployment(name string) map[string]string {
 	return map[string]string{
 		"networkservicemesh.io/app":  "vl3-nse-" + name,
 		"networkservicemesh.io/impl": "vl3-service-" + name,
-		"kubeslice.io/pod-type":      "router",
+		webhook.PodInjectLabelKey:    "router",
 		"kubeslice.io/slice":         name,
 	}
 }

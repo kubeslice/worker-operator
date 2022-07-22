@@ -42,6 +42,7 @@ import (
 	"github.com/kubeslice/worker-operator/controllers"
 	"github.com/kubeslice/worker-operator/pkg/events"
 	"github.com/kubeslice/worker-operator/pkg/logger"
+	webhook "github.com/kubeslice/worker-operator/pkg/webhook/deploy"
 	nsmv1alpha1 "github.com/networkservicemesh/networkservicemesh/k8s/pkg/apis/networkservice/v1alpha1"
 )
 
@@ -349,7 +350,7 @@ func (r *SliceGwReconciler) handleSliceGwDeletion(sliceGw *kubeslicev1beta1.Slic
 }
 
 func getPodType(labels map[string]string) string {
-	podType, found := labels["kubeslice.io/pod-type"]
+	podType, found := labels[webhook.PodInjectLabelKey]
 	if found {
 		return podType
 	}
@@ -470,13 +471,13 @@ func (r *SliceGwReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	// slice router or the netop pods. This is needed to re-send connection context to the
 	// restarted slice router or netop pods.
 	// We will add a watch on those pods with appropriate label selectors for filtering.
-	labelSelector.MatchLabels = map[string]string{"kubeslice.io/pod-type": "router"}
+	labelSelector.MatchLabels = map[string]string{webhook.PodInjectLabelKey: "router"}
 	slicerouterPredicate, err := predicate.LabelSelectorPredicate(labelSelector)
 	if err != nil {
 		return err
 	}
 
-	labelSelector.MatchLabels = map[string]string{"kubeslice.io/pod-type": "netop"}
+	labelSelector.MatchLabels = map[string]string{webhook.PodInjectLabelKey: "netop"}
 	netopPredicate, err := predicate.LabelSelectorPredicate(labelSelector)
 	if err != nil {
 		return err

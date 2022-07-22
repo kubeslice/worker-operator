@@ -41,6 +41,7 @@ import (
 	"github.com/kubeslice/worker-operator/pkg/gwsidecar"
 	"github.com/kubeslice/worker-operator/pkg/logger"
 	"github.com/kubeslice/worker-operator/pkg/router"
+	webhook "github.com/kubeslice/worker-operator/pkg/webhook/deploy"
 )
 
 var (
@@ -57,7 +58,7 @@ var (
 func labelsForSliceGwDeployment(name string, slice string) map[string]string {
 	return map[string]string{
 		"networkservicemesh.io/app": name,
-		"kubeslice.io/pod-type":     "slicegateway",
+		webhook.PodInjectLabelKey:   "slicegateway",
 		"kubeslice.io/slice":        slice}
 }
 

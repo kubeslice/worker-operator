@@ -146,13 +146,12 @@ func (r *Reconciler) handleServiceImportDeletion(ctx context.Context, serviceimp
 	if serviceimport.ObjectMeta.DeletionTimestamp.IsZero() {
 		// register our finalizer
 		if !containsString(serviceimport.GetFinalizers(), finalizerName) {
-			log.Info("adding finalizer")
 			controllerutil.AddFinalizer(serviceimport, finalizerName)
 			if err := r.Update(ctx, serviceimport); err != nil {
 				return true, ctrl.Result{}, err
 			}
 		}
-		return false, ctrl.Result{Requeue: true}, nil
+		return false, ctrl.Result{}, nil
 	}
 	// The object is being deleted
 	if containsString(serviceimport.GetFinalizers(), finalizerName) {
@@ -165,11 +164,10 @@ func (r *Reconciler) handleServiceImportDeletion(ctx context.Context, serviceimp
 		log.Info("removing finalizer")
 		controllerutil.RemoveFinalizer(serviceimport, finalizerName)
 		if err := r.Update(ctx, serviceimport); err != nil {
-			return false, ctrl.Result{}, err
+			return true, ctrl.Result{}, err
 		}
-		return true, ctrl.Result{Requeue: true}, nil
 	}
-	return true, ctrl.Result{}, nil
+	return false, ctrl.Result{}, nil
 }
 
 func (r *Reconciler) updateServiceImportPorts(ctx context.Context, serviceimport *kubeslicev1beta1.ServiceImport) (ctrl.Result, error) {

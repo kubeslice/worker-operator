@@ -23,6 +23,7 @@ import (
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
 	"github.com/kubeslice/worker-operator/controllers"
 	"github.com/kubeslice/worker-operator/pkg/logger"
+	webhook "github.com/kubeslice/worker-operator/pkg/webhook/deploy"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
@@ -278,9 +279,9 @@ func (r *SliceReconciler) deleteAnnotationsAndLabels(ctx context.Context, slice 
 	for _, deploy := range deployList.Items {
 		labels := deploy.Spec.Template.ObjectMeta.Labels
 		if labels != nil {
-			_, ok := labels["kubeslice.io/pod-type"]
+			_, ok := labels[webhook.PodInjectLabelKey]
 			if ok {
-				delete(labels, "kubeslice.io/pod-type")
+				delete(labels, webhook.PodInjectLabelKey)
 			}
 			sliceName, ok := labels["kubeslice.io/slice"]
 			if ok && slice.Name == sliceName {

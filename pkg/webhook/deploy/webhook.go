@@ -34,7 +34,7 @@ import (
 const (
 	admissionWebhookAnnotationInjectKey       = "kubeslice.io/slice"
 	admissionWebhookAnnotationStatusKey       = "kubeslice.io/status"
-	podInjectLabelKey                         = "kubeslice.io/pod-type"
+	PodInjectLabelKey                         = "kubeslice.io/pod-type"
 	admissionWebhookSliceNamespaceSelectorKey = "kubeslice.io/slice"
 	controlPlaneNamespace                     = "kubeslice-system"
 	nsmInjectAnnotaionKey                     = "ns.networkservicemesh.io"
@@ -96,7 +96,7 @@ func Mutate(deploy *appsv1.Deployment, sliceName string) *appsv1.Deployment {
 
 	// Add slice identifier labels to pod template
 	labels := deploy.Spec.Template.ObjectMeta.Labels
-	labels[podInjectLabelKey] = "app"
+	labels[PodInjectLabelKey] = "app"
 	labels[admissionWebhookAnnotationInjectKey] = sliceName
 
 	return deploy

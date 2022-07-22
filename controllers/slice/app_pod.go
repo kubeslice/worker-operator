@@ -26,6 +26,7 @@ import (
 	"github.com/kubeslice/worker-operator/controllers"
 	"github.com/kubeslice/worker-operator/pkg/logger"
 
+	webhook "github.com/kubeslice/worker-operator/pkg/webhook/deploy"
 	corev1 "k8s.io/api/core/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -67,7 +68,7 @@ func (r *SliceReconciler) getAppPods(ctx context.Context, slice *kubeslicev1beta
 
 // labelsForAppPods returns the labels for App pods
 func labelsForAppPods() map[string]string {
-	return map[string]string{"kubeslice.io/pod-type": "app"}
+	return map[string]string{webhook.PodInjectLabelKey: "app"}
 }
 
 func isAppPodConnectedToSliceRouter(annotations map[string]string, sliceRouter string) bool {
