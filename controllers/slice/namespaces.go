@@ -48,7 +48,7 @@ func (r *SliceReconciler) ReconcileSliceNamespaces(ctx context.Context, slice *k
 	if err != nil {
 		return ctrl.Result{}, err, true
 	}
-	if !slice.Status.SliceConfig.NamespaceIsolationProfile.IsolationEnabled {
+	if slice.Status.SliceConfig.NamespaceIsolationProfile != nil && !slice.Status.SliceConfig.NamespaceIsolationProfile.IsolationEnabled {
 		// IsolationEnabled is either turned off or toggled off
 		// if NetworkPoliciesInstalled is enabled, this means there are netpol installed in appnamespaces we need to remove
 		if slice.Status.NetworkPoliciesInstalled {
