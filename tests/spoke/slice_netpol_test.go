@@ -25,7 +25,7 @@ const (
 	interval = time.Millisecond * 250
 )
 
-var _ = Describe("SliceNetpol", func() {
+var _ = FDescribe("SliceNetpol", func() {
 	var slice *kubeslicev1beta1.Slice
 	var svc *corev1.Service
 	var createdSlice *kubeslicev1beta1.Slice

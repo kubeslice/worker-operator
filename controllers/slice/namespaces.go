@@ -48,10 +48,16 @@ func (r *SliceReconciler) ReconcileSliceNamespaces(ctx context.Context, slice *k
 	if err != nil {
 		return ctrl.Result{}, err, true
 	}
-	//reconcile networkpolicy
-	err = r.reconcileSliceNetworkPolicy(ctx, slice)
-	if err != nil {
-		return ctrl.Result{}, err, true
+	if !slice.Status.SliceConfig.NamespaceIsolationProfile.IsolationEnabled {
+		// IsolationEnabled is either turned off or toggled off
+		// if NetworkPoliciesInstalled is enabled, this means there are netpol installed in appnamespaces we need to remove
+		if slice.Status.NetworkPoliciesInstalled {
+			//IsolationEnabled toggled off by user/admin , uninstall nepol from app namespaces
+			err = r.uninstallNetworkPolicies(ctx, slice)
+			if err != nil {
+				return ctrl.Result{}, err, true
+			}
+		}
 	}
 	return ctrl.Result{}, nil, false
 }
@@ -154,9 +160,14 @@ func (r *SliceReconciler) reconcileAppNamespaces(ctx context.Context, slice *kub
 		}
 	}
 	if statusChanged {
+		//reconcile networkpolicy
+		err = r.reconcileSliceNetworkPolicy(ctx, slice)
+		if err != nil {
+			return ctrl.Result{}, err, true
+		}
 		err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 			// fetch the latest slice
-			if getErr := r.Get(ctx, types.NamespacedName{Name: slice.Name,Namespace: controllers.ControlPlaneNamespace}, slice); getErr != nil {
+			if getErr := r.Get(ctx, types.NamespacedName{Name: slice.Name, Namespace: controllers.ControlPlaneNamespace}, slice); getErr != nil {
 				return getErr
 			}
 			slice.Status.ApplicationNamespaces = labeledAppNsList
@@ -167,7 +178,7 @@ func (r *SliceReconciler) reconcileAppNamespaces(ctx context.Context, slice *kub
 			}
 			return nil
 		})
-		if err!=nil{
+		if err != nil {
 			return ctrl.Result{}, err, true
 		}
 
@@ -287,9 +298,14 @@ func (r *SliceReconciler) reconcileAllowedNamespaces(ctx context.Context, slice 
 		}
 	}
 	if statusChanged {
+		//reconcile networkpolicy
+		err = r.reconcileSliceNetworkPolicy(ctx, slice)
+		if err != nil {
+			return err
+		}
 		err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 			// fetch the latest slice
-			if getErr := r.Get(ctx, types.NamespacedName{Name: slice.Name,Namespace: controllers.ControlPlaneNamespace}, slice); getErr != nil {
+			if getErr := r.Get(ctx, types.NamespacedName{Name: slice.Name, Namespace: controllers.ControlPlaneNamespace}, slice); getErr != nil {
 				return getErr
 			}
 			slice.Status.AllowedNamespaces = labeledAllowedNsList
@@ -300,7 +316,7 @@ func (r *SliceReconciler) reconcileAllowedNamespaces(ctx context.Context, slice 
 			}
 			return nil
 		})
-		if err!=nil{
+		if err != nil {
 			return err
 		}
 	}
@@ -311,7 +327,7 @@ func (r *SliceReconciler) annotateAllowedNamespace(ctx context.Context, slice *k
 	annotations := allowedNamespace.GetAnnotations()
 	if annotations == nil {
 		annotations = map[string]string{}
-	} 
+	}
 	v, ok := annotations[AllowedNamespaceAnnotationKey]
 	if !ok {
 		// AllowedNamespaceAnnotationKey not present
@@ -347,8 +363,8 @@ func (r *SliceReconciler) unbindAllowedNamespace(ctx context.Context, allowedNs,
 	if annotations == nil {
 		return nil
 	}
-	v,present := annotations[AllowedNamespaceAnnotationKey]
-	if !present{
+	v, present := annotations[AllowedNamespaceAnnotationKey]
+	if !present {
 		return nil
 	}
 	a := strings.Split(v, ",")
@@ -504,16 +520,7 @@ func (r *SliceReconciler) reconcileSliceNetworkPolicy(ctx context.Context, slice
 	if slice.Status.SliceConfig.NamespaceIsolationProfile == nil {
 		return nil
 	}
-	//Early Exit if Isolation is not enabled
-	if !slice.Status.SliceConfig.NamespaceIsolationProfile.IsolationEnabled {
-		// IsolationEnabled is either turned off or toggled off
-		// if NetworkPoliciesInstalled is enabled, this means there are netpol installed in appnamespaces we need to remove
-		if slice.Status.NetworkPoliciesInstalled {
-			//IsolationEnabled toggled off by user/admin , uninstall nepol from app namespaces
-			return r.uninstallNetworkPolicies(ctx, slice)
-		}
-		return nil
-	}
+
 	appNsList := &corev1.NamespaceList{}
 	listOpts := []client.ListOption{
 		client.MatchingLabels(map[string]string{ApplicationNamespaceSelectorLabelKey: slice.Name}),
@@ -540,66 +547,7 @@ func (r *SliceReconciler) reconcileSliceNetworkPolicy(ctx context.Context, slice
 func (r *SliceReconciler) installSliceNetworkPolicyInAppNs(ctx context.Context, slice *kubeslicev1beta1.Slice, appNs string) error {
 	log := r.Log.WithValues("type", "networkPolicy")
 
-	netPolicy := &networkingv1.NetworkPolicy{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      slice.Name + "-" + appNs,
-			Namespace: appNs,
-		},
-		Spec: networkingv1.NetworkPolicySpec{
-			PodSelector: metav1.LabelSelector{},
-			PolicyTypes: []networkingv1.PolicyType{
-				networkingv1.PolicyTypeIngress,
-				networkingv1.PolicyTypeEgress,
-			},
-			Ingress: []networkingv1.NetworkPolicyIngressRule{
-				networkingv1.NetworkPolicyIngressRule{
-					From: []networkingv1.NetworkPolicyPeer{
-						networkingv1.NetworkPolicyPeer{
-							NamespaceSelector: &metav1.LabelSelector{
-								MatchLabels: map[string]string{ApplicationNamespaceSelectorLabelKey: slice.Name},
-							},
-						},
-					},
-				},
-			},
-			Egress: []networkingv1.NetworkPolicyEgressRule{
-				networkingv1.NetworkPolicyEgressRule{
-					To: []networkingv1.NetworkPolicyPeer{
-						networkingv1.NetworkPolicyPeer{
-							NamespaceSelector: &metav1.LabelSelector{
-								MatchLabels: map[string]string{ApplicationNamespaceSelectorLabelKey: slice.Name},
-							},
-						},
-					},
-				},
-			},
-		},
-	}
-
-	var cfgAllowedNsList []string
-	cfgAllowedNsList = slice.Status.SliceConfig.NamespaceIsolationProfile.AllowedNamespaces
-	// traffic from "kubeslice-system","istio-system","kube-system" namespaces is allowed by default
-	for _, v := range allowedNamespacesByDefault {
-		if !exists(cfgAllowedNsList, v) {
-			cfgAllowedNsList = append(cfgAllowedNsList, v)
-		}
-	}
-	for _, allowedNs := range cfgAllowedNsList {
-		ingressRule := networkingv1.NetworkPolicyPeer{
-			NamespaceSelector: &metav1.LabelSelector{
-				MatchLabels: map[string]string{AllowedNamespaceSelectorLabelKey: allowedNs},
-			},
-		}
-		netPolicy.Spec.Ingress[0].From = append(netPolicy.Spec.Ingress[0].From, ingressRule)
-
-		egressRule := networkingv1.NetworkPolicyPeer{
-			NamespaceSelector: &metav1.LabelSelector{
-				MatchLabels: map[string]string{AllowedNamespaceSelectorLabelKey: allowedNs},
-			},
-		}
-		netPolicy.Spec.Egress[0].To = append(netPolicy.Spec.Egress[0].To, egressRule)
-	}
-
+	netPolicy := controllers.ContructNetworkPolicyObject(ctx, slice, appNs)
 	err := r.Update(ctx, netPolicy)
 	if err != nil {
 		if errors.IsNotFound(err) {
