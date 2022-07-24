@@ -15,35 +15,20 @@ jobs:
     - name: build the worker-operator
       uses: docker/build-push-action@v2
       with:
-        tags: worker-operator:latest
+        tags: worker-operator:e2e-latest
         push: false
-
-    - name: determine node-ip
-      run:  sh .github/workflows/scripts/kind-nodeip.sh
     
-    - name: create kind clusters
-      run: sh .github/workflows/scripts/kind.sh
-    
-    - name: clone the e2e repo
-      uses: actions/checkout@v3 
-      with:
-        repository: saivenkatesh1909/kubeslice-e2e-automation
-        token: ${{ secrets.PAT }}
-        path: kubeslice-e2e-automation
-  
-    - name: Execute E2E 
+    - name: build kind clusters
       run: |
-        cd kubeslice-e2e-automation
-        make docker
+        sh .github/workflows/scripts/start-kind.sh
 
     - name: Docker Run Action
       uses: addnab/docker-run-action@v3
       with:
-        image: kubeslice/e2e:latest
-        shell: bash
-        options: -v ${{ github.workspace }}/reports:/e2e/reports -v /home/runner/.kube/config:/e2e/assets/kubeconfig/kind.yaml
+        image: aveshadev/kubeslice-e2e:latest
+        options: -v ${{ github.workspace }}/reports:/e2e/reports -v /home/runner/.kube:/e2e/assets/kubeconfig -v ${{ github.workspace }}:/e2e/profile
         run: |
-           bash run.sh kubeslice-kind-oss
+          bash run.sh kind
 
     - name: Checkout gh-pages repo
       uses: actions/checkout@v3
@@ -51,24 +36,19 @@ jobs:
         repository: saivenkatesh1909/worker-operator
         path: gh-pages
         ref: 'gh-pages'
-        
+
     - name: Allure Report with history
       uses: PavanMudigonda/allure-html-reporter-github-pages@v1.0
       id: Allure_report_with_history
       with:
-        # Allure test result data dir
         allure_results: reports
-        # Allure report target dir
         allure_report: allure_report
-        # allure_history
         allure_history: allure-history
         gh_pages: gh-pages
-        # Keep X last reports
         keep_reports: 20
-       #GitHub Actions run id
-        github_run_id: ${{ github.run_id }}
-        github_run_num: Kind-${{ github.run_number }}
-        report_url: https://saivenkatesh1909.github.io/worker-operator/
+        github_run_id: '${{ github.run_id }}'
+        github_run_num: 'Kind-${{ github.run_number }}'
+        report_url: 'https://saivenkatesh1909.github.io/worker-operator/'
         test_env: Kind
           
     - name: Deploy report to Github Pages
