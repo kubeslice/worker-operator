@@ -1,10 +1,5 @@
 #!/bin/bash
 
-#HOST_IP=$(hostname -i)
-
-#sed -i "s/<NEW_IP>/${HOST_IP}/g" .github/workflows/scripts/kind-controller.yaml
-#sed -i "s/<NEW_IP>/${HOST_IP}/g" .github/workflows/scripts/kind-worker.yaml
-
 # Create controller kind cluster if not present
 if [ ! $(kind get clusters | grep controller) ];then
   kind create cluster --name controller --config .github/workflows/scripts/cluster.yaml --image kindest/node:v1.22.7
@@ -21,7 +16,7 @@ if [ ! $(kind get clusters | grep worker) ];then
   ip=$(docker inspect worker-control-plane | jq -r '.[0].NetworkSettings.Networks.kind.IPAddress')
 #  echo $ip
 # Replace loopback IP with docker ip
-  kind get kubeconfig --name worker | sed "s/127.0.0.1.*/$ip:7443/g" > /home/runner/.kube/kind2.yaml
+  kind get kubeconfig --name worker | sed "s/127.0.0.1.*/$ip:6443/g" > /home/runner/.kube/kind2.yaml
 fi
 
 KUBECONFIG=/home/runner/.kube/kind1.yaml:/home/runner/.kube/kind2.yaml kubectl config view --raw  > /home/runner/.kube/kinde2e.yaml
