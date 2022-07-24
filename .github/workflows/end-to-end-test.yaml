@@ -20,7 +20,6 @@ jobs:
     
     - name: build kind clusters
       run: |
-        pwd
         sh .github/workflows/scripts/start-kind.sh
 
     - name: Docker Run Action
@@ -29,11 +28,6 @@ jobs:
         image: aveshadev/kubeslice-e2e:latest
         options: -v ${{ github.workspace }}/reports:/e2e/reports -v /home/runner/.kube:/e2e/assets/kubeconfig -v ${{ github.workspace }}:/e2e/profile
         run: |
-          ls -al /e2e/assests/kubeconfig
-          ls -al /e2e/reports
-          ls -al /e2e/profile
-          cat /e2e/profile/kind.yaml
-          cat /e2e/assets/kubeconfig/kine2e.yaml
           bash run.sh kind
 
     - name: Checkout gh-pages repo
