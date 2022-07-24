@@ -31,10 +31,10 @@ jobs:
           bash run.sh kind
 
     - name: Checkout gh-pages repo
-      uses: actions/checkout@v3
+      uses: actions/checkout@v2
       with:
         repository: kubeslice/e2e-allure-reports
-        token: "${{ secrets.TOKEN }}"
+        token: ${{ secrets.TOKEN }}
         path: gh-pages
         ref: 'gh-pages'
 
