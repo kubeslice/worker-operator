@@ -3,6 +3,7 @@ package spoke_test
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
@@ -200,8 +201,171 @@ var _ = Describe("SliceNetpol", func() {
 					return false
 				}
 				Expect(sliceLabel).To(Equal(allowedNs.Name))
+
+				annotation := appNs.ObjectMeta.GetAnnotations()
+				sliceAnnotation, ok := annotation[slicepkg.AllowedNamespaceAnnotationKey]
+				if !ok {
+					return false
+				}
+				Expect(sliceAnnotation).To(Equal(slice.Name))
 				return true
 			}, timeout, interval).Should(BeTrue())
+		})
+		It("Should annotate allowed namespace with slice annotation", func() {
+			Expect(k8sClient.Create(ctx, svc)).Should(Succeed())
+			Expect(k8sClient.Create(ctx, slice)).Should(Succeed())
+			slice2 := &kubeslicev1beta1.Slice{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "demoslice-nw",
+					Namespace: "kubeslice-system",
+				},
+				Spec: kubeslicev1beta1.SliceSpec{},
+			}
+			Expect(k8sClient.Create(ctx, slice2)).Should(Succeed())
+
+			//update slice1
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, types.NamespacedName{
+					Name:      "test-slice-netpol",
+					Namespace: "kubeslice-system",
+				}, createdSlice)
+				return err == nil
+			}, timeout, interval).Should(BeTrue())
+
+			err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+				err := k8sClient.Get(ctx, types.NamespacedName{
+					Name:      "test-slice-netpol",
+					Namespace: "kubeslice-system",
+				}, createdSlice)
+				if err != nil {
+					return err
+				}
+				createdSlice.Status.SliceConfig = &kubeslicev1beta1.SliceConfig{
+					NamespaceIsolationProfile: &kubeslicev1beta1.NamespaceIsolationProfile{
+						IsolationEnabled:      true,
+						ApplicationNamespaces: []string{},
+						AllowedNamespaces: []string{
+							"kube-allowed",
+						},
+					},
+				}
+				err = k8sClient.Status().Update(ctx, createdSlice)
+				return err
+			})
+			Expect(err).To(BeNil())
+
+			//update slice2
+			err = retry.RetryOnConflict(retry.DefaultRetry, func() error {
+				err := k8sClient.Get(ctx, types.NamespacedName{
+					Name:      "demoslice-nw",
+					Namespace: "kubeslice-system",
+				}, createdSlice)
+				if err != nil {
+					return err
+				}
+				createdSlice.Status.SliceConfig = &kubeslicev1beta1.SliceConfig{
+					NamespaceIsolationProfile: &kubeslicev1beta1.NamespaceIsolationProfile{
+						IsolationEnabled:      true,
+						ApplicationNamespaces: []string{},
+						AllowedNamespaces: []string{
+							"kube-allowed",
+						},
+					},
+				}
+				err = k8sClient.Status().Update(ctx, createdSlice)
+				return err
+			})
+			Expect(err).To(BeNil())
+
+			//verify if annotation is added on allowedNs
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, types.NamespacedName{Name: "kube-allowed"}, appNs)
+				if err != nil {
+					return false
+				}
+				labels := appNs.ObjectMeta.GetLabels()
+				if labels == nil {
+					return false
+				}
+				sliceLabel, ok := labels[slicepkg.AllowedNamespaceSelectorLabelKey]
+				if !ok {
+					return false
+				}
+				Expect(sliceLabel).To(Equal(allowedNs.Name))
+
+				annotation := appNs.ObjectMeta.GetAnnotations()
+				sliceAnnotation, ok := annotation[slicepkg.AllowedNamespaceAnnotationKey]
+				if !ok {
+					return false
+				}
+				a := strings.Split(sliceAnnotation, ",")
+				if len(a) != 2 {
+					return false
+				}
+				if !exists(a, "demoslice-nw") && !exists(a, "test-slice-netpol") {
+					return false
+				}
+				return true
+			}, timeout, interval).Should(BeTrue())
+
+			//delete slice2 and verify annotation is removed
+			Expect(k8sClient.Delete(ctx, slice2)).Should(Succeed())
+
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, types.NamespacedName{Name: "kube-allowed"}, appNs)
+				if err != nil {
+					return false
+				}
+				labels := appNs.ObjectMeta.GetLabels()
+				if labels == nil {
+					return false
+				}
+				sliceLabel, ok := labels[slicepkg.AllowedNamespaceSelectorLabelKey]
+				if !ok {
+					return false
+				}
+				Expect(sliceLabel).To(Equal(allowedNs.Name))
+
+				annotation := appNs.ObjectMeta.GetAnnotations()
+				sliceAnnotation, ok := annotation[slicepkg.AllowedNamespaceAnnotationKey]
+				if !ok {
+					return false
+				}
+				return sliceAnnotation == slice.Name
+			}, timeout, interval).Should(BeTrue())
+
+			//finally delete the slice and verify it kubeslice-allowedNS label is removed
+			Expect(k8sClient.Delete(ctx, slice)).Should(Succeed())
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, types.NamespacedName{Name: "kube-allowed"}, appNs)
+				if err != nil {
+					return false
+				}
+				labels := appNs.ObjectMeta.GetLabels()
+
+				//expect kubeslice label to be gone
+				if labels == nil {
+					return true
+				}
+				_, ok := labels[slicepkg.AllowedNamespaceSelectorLabelKey]
+				if !ok {
+					return true
+				}
+
+				annotation := appNs.ObjectMeta.GetAnnotations()
+				_, ok = annotation[slicepkg.AllowedNamespaceAnnotationKey]
+				return !ok
+			}, timeout, interval).Should(BeTrue())
+
+			slice = &kubeslicev1beta1.Slice{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-slice-netpol",
+					Namespace: "kubeslice-system",
+				},
+				Spec: kubeslicev1beta1.SliceSpec{},
+			}
+			//re-create it back for defer cleanup to pass
+			Expect(k8sClient.Create(ctx, slice)).Should(Succeed())
 		})
 		It("Should install network policy on application namespaces", func() {
 			Expect(k8sClient.Create(ctx, svc)).Should(Succeed())
@@ -492,7 +656,7 @@ var _ = Describe("SliceNetpol", func() {
 					client.InNamespace(slice.Namespace),
 				}
 				err = k8sClient.List(ctx, &eventList, opts...)
-				return len(eventList.Items) > 0
+				return len(eventList.Items) > 1
 			}, timeout, interval).Should(BeTrue())
 			Expect(eventList.Items[1].InvolvedObject.Kind).Should(Equal("Slice"))
 			Expect(eventList.Items[1].Reason).Should(Equal("Scope widened with reason - IPBlock violation"))
@@ -759,4 +923,13 @@ func getDeploy() *appsv1.Deployment {
 		},
 	}
 	return deploy
+}
+
+func exists(i []string, o string) bool {
+	for _, v := range i {
+		if v == o {
+			return true
+		}
+	}
+	return false
 }

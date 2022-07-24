@@ -33,6 +33,10 @@ func NewHubClientEmulator() (*HubClientEmulator, error) {
 	return new(HubClientEmulator), nil
 }
 
+func (hubClientEmulator *HubClientEmulator) UpdateNodeIpInCluster(ctx context.Context, clusterName, nodeIP, namespace string) error {
+	return nil
+}
+
 func (hubClientEmulator *HubClientEmulator) UpdateNodePortForSliceGwServer(
 	ctx context.Context, sliceGwNodePort int32, sliceGwName string) error {
 	return nil
@@ -66,4 +70,8 @@ func (hubClientEmulator *HubClientEmulator) UpdateAppPodsList(
 }
 func (hubClientEmulator *HubClientEmulator) UpdateAppNamesapces(ctx context.Context, sliceConfigName string, onboardedNamespaces []string) error {
 	return nil
+}
+
+func (hubClientEmulator *HubClientEmulator) GetClusterNodeIP(ctx context.Context, clusterName, namespace string) (string, error) {
+	return "", nil
 }
