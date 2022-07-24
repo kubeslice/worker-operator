@@ -1,7 +1,7 @@
 name: end-to-end-test
 on:
   pull_request:
-    branches: [feature-e2e]
+    branches: [master]
   workflow_dispatch:
 jobs:
   end-to-end:
@@ -33,7 +33,8 @@ jobs:
     - name: Checkout gh-pages repo
       uses: actions/checkout@v3
       with:
-        repository: saivenkatesh1909/worker-operator
+        repository: kubeslice/e2e-allure-reports
+        token: ${{ secrets.TOKEN }}
         path: gh-pages
         ref: 'gh-pages'
 
@@ -47,8 +48,8 @@ jobs:
         gh_pages: gh-pages
         keep_reports: 20
         github_run_id: '${{ github.run_id }}'
-        github_run_num: 'Kind-${{ github.run_number }}'
-        report_url: 'https://saivenkatesh1909.github.io/worker-operator/'
+        github_run_num: 'Kind-${{ github.base_ref }}-${{ github.run_number }}'
+        report_url: 'https://refactored-waffle-d10d0e8c.pages.github.io/'
         test_env: Kind
           
     - name: Deploy report to Github Pages
@@ -56,6 +57,6 @@ jobs:
       uses: peaceiris/actions-gh-pages@v2
       env:
         PUBLISH_BRANCH: gh-pages
-        PERSONAL_TOKEN: ${{ secrets.PAT }}
+        PERSONAL_TOKEN: ${{ secrets.TOKEN }}
         PUBLISH_DIR: allure-history
         keep_files: true
