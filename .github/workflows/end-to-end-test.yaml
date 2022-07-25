@@ -55,9 +55,9 @@ jobs:
     - name: Deploy report to Github Pages
       # if: always()
       uses: peaceiris/actions-gh-pages@v2
-      with:
-        publish_branch: gh-pages
-        personal_token: ${{ secrets.TOKEN }}
-        external_repository: kubeslice/e2e-allure-reports
-        publish_dir: allure-history
+      env:
+        PUBLISH_BRANCH: gh-pages
+        PERSONAL_TOKEN: ${{ secrets.TOKEN }}
+        EXTERNAL_REPOSITORY: kubeslice/e2e-allure-reports
+        PUBLISH_DIR: allure-history
         keep_files: true
