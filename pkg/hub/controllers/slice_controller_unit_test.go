@@ -35,6 +35,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
+var hundred = 100
+
 var controllerSlice = &workerv1alpha1.WorkerSliceConfig{
 	ObjectMeta: metav1.ObjectMeta{
 		Name:      "test-slice",
@@ -49,7 +51,7 @@ var controllerSlice = &workerv1alpha1.WorkerSliceConfig{
 		SliceType:        "Application",
 		SliceSubnet:      "10.0.0.1/16",
 		SliceIpamType:    "Local",
-		IpamClusterOctet: 100,
+		IpamClusterOctet: &hundred,
 	},
 }
 
