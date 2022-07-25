@@ -195,7 +195,7 @@ var _ = Describe("Hub SliceController", func() {
 		var createdSlice *kubeslicev1beta1.Slice
 
 		BeforeEach(func() {
-
+			var ipamOcter = 16
 			// Prepare k8s objects
 			hubSlice = &workerv1alpha1.WorkerSliceConfig{
 				ObjectMeta: metav1.ObjectMeta{
@@ -206,7 +206,8 @@ var _ = Describe("Hub SliceController", func() {
 					},
 				},
 				Spec: workerv1alpha1.WorkerSliceConfigSpec{
-					SliceName: "test-slice-3",
+					SliceName:        "test-slice-3",
+					IpamClusterOctet: &ipamOcter,
 					ExternalGatewayConfig: workerv1alpha1.ExternalGatewayConfig{
 						Ingress: workerv1alpha1.ExternalGatewayConfigOptions{
 							Enabled: true,
