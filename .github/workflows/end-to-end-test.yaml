@@ -34,7 +34,6 @@ jobs:
       uses: actions/checkout@v2
       with:
         repository: kubeslice/e2e-allure-reports
-        token: ${{ secrets.TOKEN }}
         path: gh-pages
         ref: 'gh-pages'
 
