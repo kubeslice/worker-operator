@@ -20,13 +20,14 @@ jobs:
     
     - name: build kind clusters
       run: |
+        mkdir -p ${{ github.workspace }}/profile
         sh .github/workflows/scripts/start-kind.sh
 
     - name: Docker Run Action
       uses: addnab/docker-run-action@v3
       with:
         image: aveshadev/kubeslice-e2e:latest
-        options: -v ${{ github.workspace }}/reports:/e2e/reports -v /home/runner/.kube:/e2e/assets/kubeconfig -v ${{ github.workspace }}:/e2e/profile
+        options: -v ${{ github.workspace }}/reports:/e2e/reports -v /home/runner/.kube:/e2e/assets/kubeconfig -v ${{ github.workspace }}/profile:/e2e/profile --network kind
         run: |
           bash run.sh kind
 
@@ -55,7 +56,8 @@ jobs:
       # if: always()
       uses: peaceiris/actions-gh-pages@v2
       env:
-        PUBLISH_BRANCH: gh-pages
-        PERSONAL_TOKEN: ${{ secrets.TOKEN }}
-        PUBLISH_DIR: allure-history
+        publish_branch: gh-pages
+        personal_token: ${{ secrets.TOKEN }}
+        external_repository: kubeslice/e2e-allure-reports
+        publish_dir: allure-history
         keep_files: true
