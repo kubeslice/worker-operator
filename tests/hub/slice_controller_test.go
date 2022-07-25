@@ -91,8 +91,7 @@ var _ = Describe("Hub SliceController", func() {
 			Expect(createdSlice.Status.SliceConfig.SliceType).To(Equal("Application"))
 			Expect(createdSlice.Status.SliceConfig.SliceIpam.SliceIpamType).To(Equal("Local"))
 			Expect(createdSlice.Status.SliceConfig.SliceIpam.IpamClusterOctet).To(Equal(&ipamOctet))
-			//TODO figure out how to validate this field as the fields is turing into empty string
-			//Expect(createdSlice.Status.SliceConfig.ClusterSubnetCIDR).To(Equal("10.0.16.0/20"))
+			Expect(createdSlice.Status.SliceConfig.ClusterSubnetCIDR).To(Equal("10.0.16.0/20"))
 		})
 
 		It("Should Generate Events", func() {
