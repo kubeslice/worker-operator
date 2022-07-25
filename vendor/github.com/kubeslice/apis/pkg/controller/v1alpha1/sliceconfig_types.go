@@ -1,17 +1,17 @@
 /*
- *  Copyright (c) 2022 Avesha, Inc. All rights reserved. # # SPDX-License-Identifier: Apache-2.0
+ * 	Copyright (c) 2022 Avesha, Inc. All rights reserved. # # SPDX-License-Identifier: Apache-2.0
  *
- *  Licensed under the Apache License, Version 2.0 (the "License");
- *  you may not use this file except in compliance with the License.
- *  You may obtain a copy of the License at
+ * 	Licensed under the Apache License, Version 2.0 (the "License");
+ * 	you may not use this file except in compliance with the License.
+ * 	You may obtain a copy of the License at
  *
- *  http://www.apache.org/licenses/LICENSE-2.0
+ * 	http://www.apache.org/licenses/LICENSE-2.0
  *
- *  Unless required by applicable law or agreed to in writing, software
- *  distributed under the License is distributed on an "AS IS" BASIS,
- *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *  See the License for the specific language governing permissions and
- *  limitations under the License.
+ * 	Unless required by applicable law or agreed to in writing, software
+ * 	distributed under the License is distributed on an "AS IS" BASIS,
+ * 	WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * 	See the License for the specific language governing permissions and
+ * 	limitations under the License.
  */
 
 package v1alpha1
@@ -31,13 +31,17 @@ type SliceConfigSpec struct {
 	// +kubebuilder:validation:Required
 	SliceGatewayProvider WorkerSliceGatewayProvider `json:"sliceGatewayProvider"`
 	//+kubebuilder:default:=Local
-	SliceIpamType string   `json:"sliceIpamType,omitempty"`
-	Clusters      []string `json:"clusters,omitempty"`
-	// +kubebuilder:validation:Required
+	SliceIpamType          string   `json:"sliceIpamType,omitempty"`
+	Clusters               []string `json:"clusters,omitempty"`
+	StandardQosProfileName string   `json:"standardQosProfileName,omitempty"` // FIXME: Add OneOf StandardQosProfileName vs QosProfileDetails
 	// The custom QOS Profile Details
-	QosProfileDetails         QOSProfile                `json:"qosProfileDetails"` // FIXME: Add OneOf StandardQosProfileName vs QosProfileDetails
+	QosProfileDetails         *QOSProfile               `json:"qosProfileDetails,omitempty"` // FIXME: Add OneOf StandardQosProfileName vs QosProfileDetails
 	NamespaceIsolationProfile NamespaceIsolationProfile `json:"namespaceIsolationProfile,omitempty"`
 	ExternalGatewayConfig     []ExternalGatewayConfig   `json:"externalGatewayConfig,omitempty"`
+	//+kubebuilder:default:=16
+	//+kubebuilder:validation:Minimum=2
+	//+kubebuilder:validation:Maximum=32
+	MaxClusters int `json:"maxClusters"`
 }
 
 // ExternalGatewayConfig is the configuration for external gateways like 'istio', etc/
@@ -90,7 +94,9 @@ type QOSProfile struct {
 }
 
 type NamespaceIsolationProfile struct {
-	IsolationEnabled      bool                      `json:"isolationEnabled,omitempty"`
+	//+kubebuilder:default:=false
+	//+kubebuilder:validation:Optional
+	IsolationEnabled      bool                      `json:"isolationEnabled"`
 	ApplicationNamespaces []SliceNamespaceSelection `json:"applicationNamespaces,omitempty"`
 	AllowedNamespaces     []SliceNamespaceSelection `json:"allowedNamespaces,omitempty"`
 }
