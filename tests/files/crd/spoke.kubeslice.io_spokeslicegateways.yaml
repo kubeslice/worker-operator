@@ -49,8 +49,7 @@ spec:
               gatewayNumber:
                 type: integer
               gatewayType:
-                enum:
-                - OpenVPN
+                default: OpenVPN
                 type: string
               localGatewayConfig:
                 properties:
@@ -62,6 +61,10 @@ spec:
                     type: string
                   nodeIp:
                     type: string
+                  nodeIps:
+                    items:
+                      type: string
+                    type: array
                   nodePort:
                     type: integer
                   vpnIp:
@@ -77,6 +80,10 @@ spec:
                     type: string
                   nodeIp:
                     type: string
+                  nodeIps:
+                    items:
+                      type: string
+                    type: array
                   nodePort:
                     type: integer
                   vpnIp:
