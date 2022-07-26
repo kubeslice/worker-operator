@@ -53,7 +53,6 @@ jobs:
         test_env: Kind
           
     - name: Deploy report to Github Pages
-      # if: always()
       uses: peaceiris/actions-gh-pages@v2
       env:
         PUBLISH_BRANCH: gh-pages
