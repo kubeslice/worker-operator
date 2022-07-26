@@ -311,7 +311,6 @@ var _ = Describe("SliceNetpol", func() {
 
 			//delete slice2 and verify annotation is removed
 			Expect(k8sClient.Delete(ctx, slice2)).Should(Succeed())
-
 			Eventually(func() bool {
 				err := k8sClient.Get(ctx, types.NamespacedName{Name: "kube-allowed"}, appNs)
 				if err != nil {
@@ -337,6 +336,10 @@ var _ = Describe("SliceNetpol", func() {
 
 			//finally delete the slice and verify it kubeslice-allowedNS label is removed
 			Expect(k8sClient.Delete(ctx, slice)).Should(Succeed())
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, types.NamespacedName{Name: slice.Name, Namespace: slice.Namespace}, slice)
+				return errors.IsNotFound(err)
+			}, timeout, interval).Should(BeTrue())
 			Eventually(func() bool {
 				err := k8sClient.Get(ctx, types.NamespacedName{Name: "kube-allowed"}, appNs)
 				if err != nil {
