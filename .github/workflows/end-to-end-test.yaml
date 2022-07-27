@@ -1,7 +1,7 @@
 name: end-to-end-test
 on:
-  push:
-    branches: [refactor-code]
+  pull_request:
+    branches: [master]
   workflow_dispatch:
 jobs:
   end-to-end:
@@ -26,7 +26,7 @@ jobs:
     - name: Docker Run Action
       uses: addnab/docker-run-action@v3
       with:
-        image: aveshadev/kubeslice-e2e:feature-test
+        image: aveshadev/kubeslice-e2e:latest
         options: -v ${{ github.workspace }}/reports:/e2e/reports -v /home/runner/.kube:/e2e/assets/kubeconfig -v ${{ github.workspace }}/profile:/e2e/profile --network kind
         run: |
           bash run.sh kind
