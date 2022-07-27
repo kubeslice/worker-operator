@@ -156,7 +156,7 @@ func (r *SliceReconciler) reconcileAppNamespaces(ctx context.Context, slice *kub
 	if statusChanged {
 		err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 			// fetch the latest slice
-			if getErr := r.Get(ctx, types.NamespacedName{Name: slice.Name,Namespace: controllers.ControlPlaneNamespace}, slice); getErr != nil {
+			if getErr := r.Get(ctx, types.NamespacedName{Name: slice.Name, Namespace: controllers.ControlPlaneNamespace}, slice); getErr != nil {
 				return getErr
 			}
 			slice.Status.ApplicationNamespaces = labeledAppNsList
@@ -167,7 +167,7 @@ func (r *SliceReconciler) reconcileAppNamespaces(ctx context.Context, slice *kub
 			}
 			return nil
 		})
-		if err!=nil{
+		if err != nil {
 			return ctrl.Result{}, err, true
 		}
 
@@ -289,7 +289,7 @@ func (r *SliceReconciler) reconcileAllowedNamespaces(ctx context.Context, slice 
 	if statusChanged {
 		err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 			// fetch the latest slice
-			if getErr := r.Get(ctx, types.NamespacedName{Name: slice.Name,Namespace: controllers.ControlPlaneNamespace}, slice); getErr != nil {
+			if getErr := r.Get(ctx, types.NamespacedName{Name: slice.Name, Namespace: controllers.ControlPlaneNamespace}, slice); getErr != nil {
 				return getErr
 			}
 			slice.Status.AllowedNamespaces = labeledAllowedNsList
@@ -300,7 +300,7 @@ func (r *SliceReconciler) reconcileAllowedNamespaces(ctx context.Context, slice 
 			}
 			return nil
 		})
-		if err!=nil{
+		if err != nil {
 			return err
 		}
 	}
@@ -311,7 +311,7 @@ func (r *SliceReconciler) annotateAllowedNamespace(ctx context.Context, slice *k
 	annotations := allowedNamespace.GetAnnotations()
 	if annotations == nil {
 		annotations = map[string]string{}
-	} 
+	}
 	v, ok := annotations[AllowedNamespaceAnnotationKey]
 	if !ok {
 		// AllowedNamespaceAnnotationKey not present
@@ -347,8 +347,8 @@ func (r *SliceReconciler) unbindAllowedNamespace(ctx context.Context, allowedNs,
 	if annotations == nil {
 		return nil
 	}
-	v,present := annotations[AllowedNamespaceAnnotationKey]
-	if !present{
+	v, present := annotations[AllowedNamespaceAnnotationKey]
+	if !present {
 		return nil
 	}
 	a := strings.Split(v, ",")
