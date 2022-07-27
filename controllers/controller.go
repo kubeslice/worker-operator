@@ -43,8 +43,7 @@ var (
 )
 
 const (
-	ApplicationNamespaceSelectorLabelKey = "kubeslice.io/slice"
-	AllowedNamespaceSelectorLabelKey     = "kubeslice.io/namespace"
+	AllowedNamespaceSelectorLabelKey = "kubeslice.io/namespace"
 )
 
 // GetSlice returns slice object by slice name

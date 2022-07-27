@@ -2,7 +2,7 @@ package slice
 
 const (
 	ControlPlaneNamespace                = "kubeslice-system"
-	ApplicationNamespaceSelectorLabelKey = "kubeslice.io/slice"
 	AllowedNamespaceSelectorLabelKey     = "kubeslice.io/namespace"
+	ApplicationNamespaceSelectorLabelKey = "kubeslice.io/slice"
 	AllowedNamespaceAnnotationKey        = "kubeslice.io/trafficAllowedToSlices"
 )

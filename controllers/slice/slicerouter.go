@@ -21,17 +21,19 @@ package slice
 import (
 	"context"
 	"fmt"
-	"github.com/kubeslice/worker-operator/pkg/events"
 	"os"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/kubeslice/worker-operator/pkg/events"
 
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
 	nsmv1alpha1 "github.com/networkservicemesh/networkservicemesh/k8s/pkg/apis/networkservice/v1alpha1"
 
 	"github.com/kubeslice/worker-operator/controllers"
 	"github.com/kubeslice/worker-operator/pkg/logger"
+	webhook "github.com/kubeslice/worker-operator/pkg/webhook/deploy"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -40,6 +42,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
 const (
@@ -52,10 +55,10 @@ const (
 
 func labelsForSliceRouterDeployment(name string) map[string]string {
 	return map[string]string{
-		"networkservicemesh.io/app":  "vl3-nse-" + name,
-		"networkservicemesh.io/impl": "vl3-service-" + name,
-		"kubeslice.io/pod-type":      "router",
-		"kubeslice.io/slice":         name,
+		"networkservicemesh.io/app":                      "vl3-nse-" + name,
+		"networkservicemesh.io/impl":                     "vl3-service-" + name,
+		webhook.PodInjectLabelKey:                        "router",
+		controllers.ApplicationNamespaceSelectorLabelKey: name,
 	}
 }
 
@@ -285,7 +288,7 @@ func (r *SliceReconciler) deploymentForSliceRouter(s *kubeslicev1beta1.Slice, ip
 							RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
 								NodeSelectorTerms: []corev1.NodeSelectorTerm{{
 									MatchExpressions: []corev1.NodeSelectorRequirement{{
-										Key:      "kubeslice.io/node-type",
+										Key:      controllers.NodeTypeSelectorLabelKey,
 										Operator: corev1.NodeSelectorOpIn,
 										Values:   []string{"gateway"},
 									}},
@@ -300,12 +303,12 @@ func (r *SliceReconciler) deploymentForSliceRouter(s *kubeslicev1beta1.Slice, ip
 					},
 					Volumes: r.getVolumeSpecForSliceRouter(s, dataplane),
 					Tolerations: []corev1.Toleration{{
-						Key:      "kubeslice.io/node-type",
+						Key:      controllers.NodeTypeSelectorLabelKey,
 						Operator: "Equal",
 						Effect:   "NoSchedule",
 						Value:    "gateway",
 					}, {
-						Key:      "kubeslice.io/node-type",
+						Key:      controllers.NodeTypeSelectorLabelKey,
 						Operator: "Equal",
 						Effect:   "NoExecute",
 						Value:    "gateway",
@@ -406,22 +409,14 @@ func (r *SliceReconciler) ReconcileSliceRouter(ctx context.Context, slice *kubes
 	err := r.Get(ctx, types.NamespacedName{Name: sliceRouterDeploymentNamePrefix + slice.Name, Namespace: slice.Namespace}, foundSliceRouter)
 	if err != nil {
 		if errors.IsNotFound(err) {
-			if slice.Status.SliceConfig == nil || slice.Status.SliceConfig.SliceSubnet == "" {
+			if !sliceConfigDefined(slice) {
 				log.Info("Slice subnet config not available yet, cannot deploy slice router. Waiting...")
 				return ctrl.Result{
 					RequeueAfter: 10 * time.Second,
 				}, nil, true
 			}
 			// Define and create a new deployment for the slice router
-			err := r.deploySliceRouter(ctx, slice)
-			if err != nil {
-				log.Error(err, "Failed to deploy slice router")
-				return ctrl.Result{}, err, true
-			}
-			log.Info("Creating slice router", "Namespace", slice.Namespace, "Name", "vl3-nse-"+slice.Name)
-			return ctrl.Result{
-				RequeueAfter: 10 * time.Second,
-			}, nil, true
+			return newDeploymentSliceRouter(r, ctx, slice)
 		}
 		return ctrl.Result{}, err, true
 	}
@@ -440,15 +435,7 @@ func (r *SliceReconciler) ReconcileSliceRouter(ctx context.Context, slice *kubes
 				}, nil, true
 			}
 			// Define and create a new service for the slice router
-			err := r.deploySliceRouterSvc(ctx, slice)
-			if err != nil {
-				log.Error(err, "Failed to deploy slice router service")
-				return ctrl.Result{}, err, true
-			}
-			log.Info("Creating slice router", "Namespace svc", slice.Namespace, "Name", "vl3-nse-"+slice.Name)
-			return ctrl.Result{
-				RequeueAfter: 10 * time.Second,
-			}, nil, true
+			return newServiceSliceRouter(r, ctx, slice)
 		}
 		return ctrl.Result{}, err, true
 	}
@@ -456,6 +443,34 @@ func (r *SliceReconciler) ReconcileSliceRouter(ctx context.Context, slice *kubes
 	return ctrl.Result{}, nil, false
 }
 
+func newServiceSliceRouter(r *SliceReconciler, ctx context.Context, slice *kubeslicev1beta1.Slice) (reconcile.Result, error, bool) {
+	log := logger.FromContext(ctx).WithName("slice-router")
+	err := r.deploySliceRouterSvc(ctx, slice)
+	if err != nil {
+		log.Error(err, "Failed to deploy slice router service")
+		return ctrl.Result{}, err, true
+	}
+	log.Info("Creating slice router", "Namespace svc", slice.Namespace, "Name", "vl3-nse-"+slice.Name)
+	return ctrl.Result{
+		RequeueAfter: 10 * time.Second,
+	}, nil, true
+}
+
+func newDeploymentSliceRouter(r *SliceReconciler, ctx context.Context, slice *kubeslicev1beta1.Slice) (reconcile.Result, error, bool) {
+	log := logger.FromContext(ctx).WithName("slice-router")
+	err := r.deploySliceRouter(ctx, slice)
+	if err != nil {
+		log.Error(err, "Failed to deploy slice router")
+		return ctrl.Result{}, err, true
+	}
+	log.Info("Creating slice router", "Namespace", slice.Namespace, "Name", "vl3-nse-"+slice.Name)
+	return ctrl.Result{
+		RequeueAfter: 10 * time.Second,
+	}, nil, true
+}
+func sliceConfigDefined(slice *kubeslicev1beta1.Slice) bool {
+	return slice.Status.SliceConfig != nil && slice.Status.SliceConfig.SliceSubnet != ""
+}
 func (r *SliceReconciler) cleanupSliceRouter(ctx context.Context, sliceName string) error {
 	log := logger.FromContext(ctx)
 

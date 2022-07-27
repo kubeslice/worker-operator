@@ -20,6 +20,7 @@ package controllers
 
 import (
 	"context"
+
 	"github.com/go-logr/logr"
 	spokev1alpha1 "github.com/kubeslice/apis/pkg/worker/v1alpha1"
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
@@ -60,46 +61,9 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req reconcile.Request) 
 
 	log.Info("got slice from hub", "slice", slice.Name)
 	debuglog.Info("got slice from hub", "slice", slice)
-	// examine DeletionTimestamp to determine if object is under deletion
-	if slice.ObjectMeta.DeletionTimestamp.IsZero() {
-		// The object is not being deleted, so if it does not have our finalizer,
-		// then lets add the finalizer and update the object. This is equivalent
-		// registering our finalizer.
-		if !controllerutil.ContainsFinalizer(slice, sliceFinalizer) {
-			controllerutil.AddFinalizer(slice, sliceFinalizer)
-			if err := r.Update(ctx, slice); err != nil {
-				return reconcile.Result{}, err
-			}
-		}
-	} else {
-		// The object is being deleted
-		if controllerutil.ContainsFinalizer(slice, sliceFinalizer) {
-			// our finalizer is present, so lets handle any external dependency
-			if err := r.deleteSliceResourceOnSpoke(ctx, slice); err != nil {
-				// if fail to delete the external dependency here, return with error
-				// so that it can be retried
-				return reconcile.Result{}, err
-			}
-			// remove our finalizer from the spokeslice and update it.
-			// retry on conflict
-			err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-				//fetch the latest spokeslice from hub
-				if getErr := r.Get(ctx, req.NamespacedName, slice); err != nil {
-					return getErr
-				}
-				//remove the finalizer
-				controllerutil.RemoveFinalizer(slice, sliceFinalizer)
-				if err := r.Update(ctx, slice); err != nil {
-					return err
-				}
-				return nil
-			})
-			if err != nil {
-				return reconcile.Result{}, err
-			}
-		}
-		// Stop reconciliation as the item is being deleted
-		return reconcile.Result{}, nil
+	requeue, result, err := r.handleSliceDeletion(slice, ctx, req)
+	if requeue {
+		return result, err
 	}
 
 	sliceName := slice.Spec.SliceName
@@ -239,4 +203,48 @@ func (r *SliceReconciler) deleteSliceResourceOnSpoke(ctx context.Context, slice 
 	}
 	log.Info("Deleted Slice CR on spoke cluster", "slice", sliceOnSpoke.Name)
 	return nil
+}
+
+func (r *SliceReconciler) handleSliceDeletion(slice *spokev1alpha1.WorkerSliceConfig, ctx context.Context, req reconcile.Request) (bool, reconcile.Result, error) {
+	if slice.ObjectMeta.DeletionTimestamp.IsZero() {
+		// The object is not being deleted, so if it does not have our finalizer,
+		// then lets add the finalizer and update the object. This is equivalent
+		// registering our finalizer.
+		if !controllerutil.ContainsFinalizer(slice, sliceFinalizer) {
+			controllerutil.AddFinalizer(slice, sliceFinalizer)
+			if err := r.Update(ctx, slice); err != nil {
+				return true, reconcile.Result{}, err
+			}
+		}
+	} else {
+		// The object is being deleted
+		if controllerutil.ContainsFinalizer(slice, sliceFinalizer) {
+			// our finalizer is present, so lets handle any external dependency
+			if err := r.deleteSliceResourceOnSpoke(ctx, slice); err != nil {
+				// if fail to delete the external dependency here, return with error
+				// so that it can be retried
+				return true, reconcile.Result{}, err
+			}
+			// remove our finalizer from the spokeslice and update it.
+			// retry on conflict
+			err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+				//fetch the latest spokeslice from hub
+				if err := r.Get(ctx, req.NamespacedName, slice); err != nil {
+					return err
+				}
+				//remove the finalizer
+				controllerutil.RemoveFinalizer(slice, sliceFinalizer)
+				if err := r.Update(ctx, slice); err != nil {
+					return err
+				}
+				return nil
+			})
+			if err != nil {
+				return true, reconcile.Result{}, err
+			}
+		}
+		// Stop reconciliation as the item is being deleted
+		return true, reconcile.Result{}, nil
+	}
+	return false, reconcile.Result{}, nil
 }

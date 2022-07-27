@@ -25,6 +25,7 @@ import (
 	. "github.com/onsi/gomega"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/kubeslice/worker-operator/controllers"
 	"github.com/kubeslice/worker-operator/pkg/webhook/deploy"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -39,7 +40,7 @@ func (f fakeWebhookClient) SliceAppNamespaceConfigured(ctx context.Context, slic
 	return true, nil
 }
 func (f fakeWebhookClient) GetNamespaceLabels(ctx context.Context, client client.Client, namespace string) (map[string]string, error) {
-	return map[string]string{"kubeslice.io/slice": "green"}, nil
+	return map[string]string{controllers.ApplicationNamespaceSelectorLabelKey: "green"}, nil
 }
 
 var _ = Describe("Deploy Webhook", func() {
@@ -53,21 +54,21 @@ var _ = Describe("Deploy Webhook", func() {
 			table := []metav1.ObjectMeta{
 				{
 					Annotations: map[string]string{
-						"kubeslice.io/slice": "green",
+						controllers.ApplicationNamespaceSelectorLabelKey: "green",
 					}, // with proper annotations
 					Namespace: "test-ns",
 				},
 				{
 					Annotations: map[string]string{
-						"kubeslice.io/slice":  "green",
-						"kubeslice.io/status": "",
+						controllers.ApplicationNamespaceSelectorLabelKey: "green",
+						deploy.AdmissionWebhookAnnotationStatusKey:       "",
 					}, // with empty value for status key
 					Namespace: "test-ns",
 				},
 				{
 					Annotations: map[string]string{
-						"kubeslice.io/slice":  "green",
-						"kubeslice.io/status": "not injected",
+						controllers.ApplicationNamespaceSelectorLabelKey: "green",
+						deploy.AdmissionWebhookAnnotationStatusKey:       "not injected",
 					}, // with different value for status key
 					Namespace: "test-ns",
 				},
@@ -88,7 +89,7 @@ var _ = Describe("Deploy Webhook", func() {
 			table := []metav1.ObjectMeta{
 				{
 					Annotations: map[string]string{
-						"kubeslice.io/status": "injected",
+						deploy.AdmissionWebhookAnnotationStatusKey: "injected",
 					}, // with injection status
 					Namespace: "test-ns",
 				},

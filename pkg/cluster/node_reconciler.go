@@ -20,7 +20,9 @@ package cluster
 
 import (
 	"context"
+
 	"github.com/go-logr/logr"
+	"github.com/kubeslice/worker-operator/controllers"
 	corev1 "k8s.io/api/core/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -36,7 +38,7 @@ func (r *NodeReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 	log := r.Log.WithValues("node reconciler", req.NamespacedName)
 	// get the list of nodes tagged with kubeslice gateway label
 	nodeList := corev1.NodeList{}
-	labels := map[string]string{"kubeslice.io/node-type": "gateway"}
+	labels := map[string]string{controllers.NodeTypeSelectorLabelKey: "gateway"}
 	listOpts := []client.ListOption{
 		client.MatchingLabels(labels),
 	}
