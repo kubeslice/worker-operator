@@ -39,13 +39,14 @@ func init() {
 
 const (
 	NodeExternalIP corev1.NodeAddressType = "ExternalIP"
+	NodeInternalIP corev1.NodeAddressType = "InternalIP"
 )
 
 // Node info structure.
 // Protected by a mutex and contains information about the kubeslice gateway nodes in the cluster.
 type NodeInfo struct {
 	Client         client.Client
-	ExternalIPList []string
+	NodeIPList []string
 	sync.Mutex
 }
 
@@ -57,20 +58,20 @@ func (n *NodeInfo) getNodeExternalIpList() ([]string, error) {
 	// spawn the node watcher thread.
 	staticNodeIp := os.Getenv("NODE_IP")
 	if staticNodeIp != "" {
-		n.ExternalIPList = append(n.ExternalIPList, staticNodeIp)
-		return n.ExternalIPList, nil
+		n.NodeIPList = append(n.NodeIPList, staticNodeIp)
+		return n.NodeIPList, nil
 	}
 	// Dynamic node IP deduction if there is no static node IP provided
 	n.Lock()
 	defer n.Unlock()
 
-	if len(n.ExternalIPList) == 0 {
+	if len(n.NodeIPList) == 0 {
 		err := n.populateNodeIpList()
 		if err != nil {
 			return nil, err
 		}
 	}
-	return n.ExternalIPList, nil
+	return n.NodeIPList, nil
 }
 
 func (n *NodeInfo) populateNodeIpList() error {
@@ -95,7 +96,15 @@ func (n *NodeInfo) populateNodeIpList() error {
 	}
 	for i := 0; i < len(nodeIpArr); i++ {
 		if nodeIpArr[i].Type == NodeExternalIP {
-			n.ExternalIPList = append(n.ExternalIPList, nodeIpArr[i].Address)
+			n.NodeIPList = append(n.NodeIPList, nodeIpArr[i].Address)
+		}
+	}
+	// if the external IPs are not available , we fetch Internal IPs
+	if len(n.NodeIPList) == 0 {
+		for i := 0; i < len(nodeIpArr); i++ {
+			if nodeIpArr[i].Type == NodeInternalIP {
+				n.NodeIPList = append(n.NodeIPList, nodeIpArr[i].Address)
+			}
 		}
 	}
 	return err
@@ -116,5 +125,5 @@ func GetNodeIP(client client.Client) (string, error) {
 func GetNodeExternalIpList() []string {
 	nodeInfo.Lock()
 	defer nodeInfo.Unlock()
-	return nodeInfo.ExternalIPList
+	return nodeInfo.NodeIPList
 }

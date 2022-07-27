@@ -52,26 +52,32 @@ func (r *NodeReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 	for i := 0; i < len(nodeList.Items); i++ {
 		nodeIpArr = append(nodeIpArr, nodeList.Items[i].Status.Addresses...)
 	}
-	externalIPs := []string{}
-
+	nodeIPs := []string{}
 	for i := 0; i < len(nodeIpArr); i++ {
 		if nodeIpArr[i].Type == NodeExternalIP {
-			externalIPs = append(externalIPs, nodeIpArr[i].Address)
+			nodeIPs = append(nodeIPs, nodeIpArr[i].Address)
 		}
 	}
-	if len(externalIPs) == 0 {
-		// no nodes with ExternalIPs , return and don't requeue
-		// this condition will hold true for on-premise and kind clusters
+	if len(nodeIPs) == 0 {
+		// we look for InteralIps
+		for i := 0; i < len(nodeIpArr); i++ {
+			if nodeIpArr[i].Type == NodeInternalIP {
+				nodeIPs = append(nodeIPs, nodeIpArr[i].Address)
+			}
+		}
+	}
+	if len(nodeIPs) == 0 {
 		return ctrl.Result{}, nil
 	}
+
 	nodeInfo.Lock()
 	defer nodeInfo.Unlock()
 
-	if !sameStringSlice(nodeInfo.ExternalIPList, externalIPs) {
-		log.Info("IPs changed,available gateway IPs", "externalIPs", externalIPs)
-		nodeInfo.ExternalIPList = externalIPs
+	if !sameStringSlice(nodeInfo.NodeIPList, nodeIPs) {
+		log.Info("IPs changed,available gateway IPs", "externalIPs", nodeIPs)
+		nodeInfo.NodeIPList = nodeIPs
 	}
-	log.Info("nodeInfo.ExternalIP", "nodeInfo.ExternalIP", nodeInfo.ExternalIPList)
+	log.Info("nodeInfo.ExternalIP", "nodeInfo.ExternalIP", nodeInfo.NodeIPList)
 	return ctrl.Result{}, nil
 }
 
