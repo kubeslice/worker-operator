@@ -27,6 +27,8 @@ import (
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
 	"github.com/kubeslice/worker-operator/pkg/logger"
 	corev1 "k8s.io/api/core/v1"
+	networkingv1 "k8s.io/api/networking/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
@@ -36,7 +38,12 @@ import (
 )
 
 var (
-	log logr.Logger = logger.NewLogger()
+	log                        logr.Logger = logger.NewLogger()
+	allowedNamespacesByDefault             = []string{"kubeslice-system", "kube-system", "istio-system"}
+)
+
+const (
+	AllowedNamespaceSelectorLabelKey = "kubeslice.io/namespace"
 )
 
 // GetSlice returns slice object by slice name
@@ -130,4 +137,76 @@ func SliceAppNamespaceConfigured(ctx context.Context, slice string, namespace st
 		}
 	}
 	return false, nil
+}
+
+func ContructNetworkPolicyObject(ctx context.Context, slice *kubeslicev1beta1.Slice, appNs string) *networkingv1.NetworkPolicy {
+	netPolicy := &networkingv1.NetworkPolicy{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      slice.Name + "-" + appNs,
+			Namespace: appNs,
+		},
+		Spec: networkingv1.NetworkPolicySpec{
+			PodSelector: metav1.LabelSelector{},
+			PolicyTypes: []networkingv1.PolicyType{
+				networkingv1.PolicyTypeIngress,
+				networkingv1.PolicyTypeEgress,
+			},
+			Ingress: []networkingv1.NetworkPolicyIngressRule{
+				networkingv1.NetworkPolicyIngressRule{
+					From: []networkingv1.NetworkPolicyPeer{
+						networkingv1.NetworkPolicyPeer{
+							NamespaceSelector: &metav1.LabelSelector{
+								MatchLabels: map[string]string{ApplicationNamespaceSelectorLabelKey: slice.Name},
+							},
+						},
+					},
+				},
+			},
+			Egress: []networkingv1.NetworkPolicyEgressRule{
+				networkingv1.NetworkPolicyEgressRule{
+					To: []networkingv1.NetworkPolicyPeer{
+						networkingv1.NetworkPolicyPeer{
+							NamespaceSelector: &metav1.LabelSelector{
+								MatchLabels: map[string]string{ApplicationNamespaceSelectorLabelKey: slice.Name},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	var cfgAllowedNsList []string
+	cfgAllowedNsList = slice.Status.SliceConfig.NamespaceIsolationProfile.AllowedNamespaces
+	// traffic from "kubeslice-system","istio-system","kube-system" namespaces is allowed by default
+	for _, v := range allowedNamespacesByDefault {
+		if !exists(cfgAllowedNsList, v) {
+			cfgAllowedNsList = append(cfgAllowedNsList, v)
+		}
+	}
+	for _, allowedNs := range cfgAllowedNsList {
+		ingressRule := networkingv1.NetworkPolicyPeer{
+			NamespaceSelector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{AllowedNamespaceSelectorLabelKey: allowedNs},
+			},
+		}
+		netPolicy.Spec.Ingress[0].From = append(netPolicy.Spec.Ingress[0].From, ingressRule)
+
+		egressRule := networkingv1.NetworkPolicyPeer{
+			NamespaceSelector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{AllowedNamespaceSelectorLabelKey: allowedNs},
+			},
+		}
+		netPolicy.Spec.Egress[0].To = append(netPolicy.Spec.Egress[0].To, egressRule)
+	}
+	return netPolicy
+}
+
+func exists(i []string, o string) bool {
+	for _, v := range i {
+		if v == o {
+			return true
+		}
+	}
+	return false
 }
