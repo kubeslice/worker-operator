@@ -32,6 +32,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/util/retry"
 	_ "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -316,6 +317,82 @@ var _ = Describe("Worker SlicegwController", func() {
 			}, time.Second*40, time.Millisecond*250).Should(BeTrue())
 
 			Expect(founddepl.Spec.Template.Spec.Containers[1].Name).Should(Equal("kubeslice-openvpn-client"))
+		})
+		It("Should create create headless service for gw client", func() {
+			ctx := context.Background()
+			Expect(k8sClient.Create(ctx, slice)).Should(Succeed())
+			Expect(k8sClient.Create(ctx, vl3ServiceEndpoint)).Should(Succeed())
+			Expect(k8sClient.Create(ctx, sliceGw)).Should(Succeed())
+			Expect(k8sClient.Create(ctx, appPod)).Should(Succeed())
+
+			slicegwkey := types.NamespacedName{Name: "test-slicegw", Namespace: CONTROL_PLANE_NS}
+			err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+				err := k8sClient.Get(ctx, slicegwkey, createdSliceGw)
+				if err != nil {
+					return err
+				}
+				createdSliceGw.Status.Config.SliceGatewayHostType = "Client"
+				createdSliceGw.Status.Config.SliceGatewayRemoteGatewayID = "remote-gateway-id"
+				createdSliceGw.Status.Config.SliceGatewayRemoteNodeIP = "192.168.1.1"
+				createdSliceGw.Status.Config.SliceGatewayRemoteNodePort = 8080
+
+				err = k8sClient.Status().Update(ctx, createdSliceGw)
+				if err != nil {
+					return err
+				}
+				return nil
+			})
+			Expect(err).To(BeNil())
+
+			svcKey := types.NamespacedName{Namespace: CONTROL_PLANE_NS, Name: "remote-gateway-id"}
+			foundSvc := &corev1.Service{}
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, svcKey, foundSvc)
+				if err != nil {
+					return false
+				}
+				return foundSvc != nil
+			}, time.Second*30, time.Millisecond*250).Should(BeTrue())
+			Expect(foundSvc.Name).To(Equal(createdSliceGw.Status.Config.SliceGatewayRemoteGatewayID))
+		})
+		It("Should create create endpoint for gw client", func() {
+			ctx := context.Background()
+			Expect(k8sClient.Create(ctx, slice)).Should(Succeed())
+			Expect(k8sClient.Create(ctx, vl3ServiceEndpoint)).Should(Succeed())
+			Expect(k8sClient.Create(ctx, sliceGw)).Should(Succeed())
+			Expect(k8sClient.Create(ctx, appPod)).Should(Succeed())
+
+			slicegwkey := types.NamespacedName{Name: "test-slicegw", Namespace: CONTROL_PLANE_NS}
+			err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+				err := k8sClient.Get(ctx, slicegwkey, createdSliceGw)
+				if err != nil {
+					return err
+				}
+				createdSliceGw.Status.Config.SliceGatewayHostType = "Client"
+				createdSliceGw.Status.Config.SliceGatewayRemoteGatewayID = "remote-gateway-id"
+				createdSliceGw.Status.Config.SliceGatewayRemoteNodeIP = "192.168.1.1"
+				createdSliceGw.Status.Config.SliceGatewayRemoteNodePort = 8080
+
+				err = k8sClient.Status().Update(ctx, createdSliceGw)
+				if err != nil {
+					return err
+				}
+				return nil
+			})
+			Expect(err).To(BeNil())
+
+			endpointKey := types.NamespacedName{Name: createdSliceGw.Status.Config.SliceGatewayRemoteGatewayID, Namespace: CONTROL_PLANE_NS}
+			endpointFound := &corev1.Endpoints{}
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, endpointKey, endpointFound)
+				if err != nil {
+					return false
+				}
+				return endpointFound != nil
+			}, time.Second*30, time.Millisecond*250).Should(BeTrue())
+			Expect(endpointFound.Name).To(Equal(createdSliceGw.Status.Config.SliceGatewayRemoteGatewayID))
+			//ip should be same as remote node IP
+			Expect(endpointFound.Subsets[0].Addresses[0].IP).To(Equal(createdSliceGw.Status.Config.SliceGatewayRemoteNodeIP))
 		})
 	})
 

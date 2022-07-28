@@ -20,6 +20,7 @@ package spoke_test
 
 import (
 	"context"
+	"os"
 	"path/filepath"
 	"testing"
 	"time"
@@ -42,6 +43,7 @@ import (
 	"github.com/kubeslice/worker-operator/controllers/serviceimport"
 	"github.com/kubeslice/worker-operator/controllers/slice"
 	"github.com/kubeslice/worker-operator/controllers/slicegateway"
+	"github.com/kubeslice/worker-operator/pkg/cluster"
 	"github.com/kubeslice/worker-operator/pkg/events"
 	hub "github.com/kubeslice/worker-operator/pkg/hub/hubclient"
 	namespace "github.com/kubeslice/worker-operator/pkg/namespace/controllers"
@@ -108,7 +110,7 @@ var _ = BeforeSuite(func() {
 	Expect(err).NotTo(HaveOccurred())
 	Expect(k8sClient).NotTo(BeNil())
 
-	hubClientEmulator, err := hce.NewHubClientEmulator()
+	hubClientEmulator, err := hce.NewHubClientEmulator(k8sClient)
 	Expect(err).ToNot(HaveOccurred())
 
 	// Create control plane namespace
@@ -213,6 +215,14 @@ var _ = BeforeSuite(func() {
 		EventRecorder: netpolEventRecorder,
 	}).SetupWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())
+
+	if os.Getenv("NODE_IP") == "" {
+		err = (&cluster.NodeReconciler{
+			Client: k8sManager.GetClient(),
+			Log:    ctrl.Log.WithName("controllers").WithName("node reconciller"),
+		}).SetupWithManager(k8sManager)
+		Expect(err).ToNot(HaveOccurred())
+	}
 
 	go func() {
 		defer GinkgoRecover()
