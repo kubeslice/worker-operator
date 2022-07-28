@@ -25,8 +25,6 @@ import (
 	"os"
 	"time"
 
-	"github.com/kubeslice/worker-operator/pkg/events"
-
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
 	nsmv1alpha1 "github.com/networkservicemesh/networkservicemesh/k8s/pkg/apis/networkservice/v1alpha1"
 
