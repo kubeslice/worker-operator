@@ -80,7 +80,7 @@ func (r *NodeReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 		log.Info("IPs changed,available gateway IPs", "externalIPs", nodeIPs)
 		nodeInfo.NodeIPList = nodeIPs
 	}
-	log.Info("nodeInfo.ExternalIP", "nodeInfo.ExternalIP", nodeInfo.NodeIPList)
+	log.Info("node IPs", "nodeInfo.NodeIPList", nodeInfo.NodeIPList)
 	return ctrl.Result{}, nil
 }
 
