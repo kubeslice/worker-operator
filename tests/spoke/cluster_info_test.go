@@ -28,6 +28,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 )
@@ -78,13 +79,24 @@ prefixes:
 - 192.168.0.0/16
 - 10.96.0.0/12`)
 
+			DeferCleanup(func() {
+				Expect(k8sClient.Delete(ctx, node)).Should(Succeed())
+			})
+
 		})
 
 		It("Should update cluster CR with nodeIP and geographical info", func() {
 			Expect(k8sClient.Create(ctx, node))
-			Expect(k8sClient.Create(ctx, ns)).Should(Succeed())
+			err := k8sClient.Get(ctx, types.NamespacedName{Name: ns.Name}, ns)
+			if errors.IsNotFound(err) {
+				Expect(k8sClient.Create(ctx, ns)).Should(Succeed())
+			}
 			Expect(k8sClient.Create(ctx, cluster)).Should(Succeed())
-			Expect(k8sClient.Create(ctx, nsmconfig)).Should(Succeed())
+
+			err = k8sClient.Get(ctx, types.NamespacedName{Name: nsmconfig.Name, Namespace: nsmconfig.Namespace}, nsmconfig)
+			if errors.IsNotFound(err) {
+				Expect(k8sClient.Create(ctx, nsmconfig)).Should(Succeed())
+			}
 
 			nodeIP, err := clusterpkg.GetNodeIP(k8sClient)
 			Expect(err).To(BeNil())

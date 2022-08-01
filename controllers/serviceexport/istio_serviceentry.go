@@ -60,7 +60,7 @@ func (r *Reconciler) ReconcileServiceEntries(ctx context.Context, serviceexport 
 		}
 
 		// Check if the endpoint IP address in the service entry matches the pod's nsm IP
-		if endpoint.NsmIP != "" && seFound.Spec.Endpoints[0].Address != endpoint.NsmIP {
+		if checkEndpoint(endpoint, *seFound) {
 			seFound.Spec.Endpoints[0].Address = endpoint.NsmIP
 			err := r.Update(ctx, seFound)
 			if err != nil {
@@ -212,4 +212,8 @@ func (r *Reconciler) DeleteIstioServiceEntries(ctx context.Context, serviceexpor
 	}
 
 	return nil
+}
+
+func checkEndpoint(endpoint kubeslicev1beta1.ServicePod, seFound istiov1beta1.ServiceEntry) bool {
+	return endpoint.NsmIP != "" && seFound.Spec.Endpoints[0].Address != endpoint.NsmIP
 }

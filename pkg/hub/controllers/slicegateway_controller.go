@@ -25,6 +25,7 @@ import (
 
 	spokev1alpha1 "github.com/kubeslice/apis/pkg/worker/v1alpha1"
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
+	"github.com/kubeslice/worker-operator/controllers"
 	"github.com/kubeslice/worker-operator/pkg/events"
 	"github.com/kubeslice/worker-operator/pkg/logger"
 	corev1 "k8s.io/api/core/v1"
@@ -66,8 +67,50 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req reconcile.Request
 		return reconcile.Result{}, nil
 	}
 
+	result, err := r.createSliceGwCerts(ctx, sliceGw, req)
+	if err != nil {
+		return result, err
+	}
+
+	sliceGwName := sliceGw.Name
+	meshSliceGw := &kubeslicev1beta1.SliceGateway{}
+
+	err = r.createSliceGwOnSpoke(ctx, sliceGw, meshSliceGw)
+	if err != nil {
+		return reconcile.Result{}, err
+	}
+	meshSliceGw.Status.Config = kubeslicev1beta1.SliceGatewayConfig{
+		SliceName:                   sliceGw.Spec.SliceName,
+		SliceGatewayID:              sliceGw.Spec.LocalGatewayConfig.GatewayName,
+		SliceGatewaySubnet:          sliceGw.Spec.LocalGatewayConfig.GatewaySubnet,
+		SliceGatewayRemoteSubnet:    sliceGw.Spec.RemoteGatewayConfig.GatewaySubnet,
+		SliceGatewayHostType:        sliceGw.Spec.GatewayHostType,
+		SliceGatewayRemoteNodeIP:    sliceGw.Spec.RemoteGatewayConfig.NodeIp,
+		SliceGatewayRemoteNodePort:  sliceGw.Spec.RemoteGatewayConfig.NodePort,
+		SliceGatewayRemoteClusterID: sliceGw.Spec.RemoteGatewayConfig.ClusterName,
+		SliceGatewayRemoteGatewayID: sliceGw.Spec.RemoteGatewayConfig.GatewayName,
+		SliceGatewayLocalVpnIP:      sliceGw.Spec.LocalGatewayConfig.VpnIp,
+		SliceGatewayRemoteVpnIP:     sliceGw.Spec.RemoteGatewayConfig.VpnIp,
+		SliceGatewayName:            strconv.Itoa(sliceGw.Spec.GatewayNumber),
+	}
+	err = r.MeshClient.Status().Update(ctx, meshSliceGw)
+	if err != nil {
+		log.Error(err, "unable to update sliceGw status in spoke cluster", "sliceGw", sliceGwName)
+		return reconcile.Result{}, err
+	}
+
+	return reconcile.Result{}, err
+}
+
+func (r *SliceGwReconciler) InjectClient(c client.Client) error {
+	r.Client = c
+	return nil
+}
+
+func (r *SliceGwReconciler) createSliceGwCerts(ctx context.Context, sliceGw *spokev1alpha1.WorkerSliceGateway, req reconcile.Request) (reconcile.Result, error) {
+	log := logger.FromContext(ctx)
 	meshSliceGwCerts := &corev1.Secret{}
-	err = r.MeshClient.Get(ctx, types.NamespacedName{
+	err := r.MeshClient.Get(ctx, types.NamespacedName{
 		Name:      sliceGw.Name,
 		Namespace: ControlPlaneNamespace,
 	}, meshSliceGwCerts)
@@ -107,18 +150,18 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req reconcile.Request
 			return reconcile.Result{}, err
 		}
 	}
+	return reconcile.Result{}, nil
+}
 
+func (r *SliceGwReconciler) createSliceGwOnSpoke(ctx context.Context, sliceGw *spokev1alpha1.WorkerSliceGateway, meshSliceGw *kubeslicev1beta1.SliceGateway) error {
+	log := logger.FromContext(ctx)
 	sliceGwName := sliceGw.Name
 	sliceName := sliceGw.Spec.SliceName
-
-	meshSliceGw := &kubeslicev1beta1.SliceGateway{}
-
 	sliceGwRef := client.ObjectKey{
 		Name:      sliceGwName,
 		Namespace: ControlPlaneNamespace,
 	}
-
-	err = r.MeshClient.Get(ctx, sliceGwRef, meshSliceGw)
+	err := r.MeshClient.Get(ctx, sliceGwRef, meshSliceGw)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			// Request object not found, create it in the spoke cluster
@@ -127,7 +170,7 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req reconcile.Request
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      sliceGwName,
 					Namespace: ControlPlaneNamespace,
-					Labels:    map[string]string{"kubeslice.io/slice": sliceName},
+					Labels:    map[string]string{controllers.ApplicationNamespaceSelectorLabelKey: sliceName},
 				},
 				Spec: kubeslicev1beta1.SliceGatewaySpec{
 					SliceName: sliceName,
@@ -138,11 +181,11 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req reconcile.Request
 			sliceOnSpoke := &kubeslicev1beta1.Slice{}
 			if err := r.MeshClient.Get(ctx, sliceKey, sliceOnSpoke); err != nil {
 				log.Error(err, "Failed to get Slice CR")
-				return reconcile.Result{}, err
+				return err
 			}
 			if err := controllerutil.SetControllerReference(sliceOnSpoke, meshSliceGw, r.MeshClient.Scheme()); err != nil {
 				log.Error(err, "Failed to set slice as owner of slicegw")
-				return reconcile.Result{}, err
+				return err
 			}
 			//finally create the meshSliceGw object
 			err = r.MeshClient.Create(ctx, meshSliceGw)
@@ -156,7 +199,7 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req reconcile.Request
 						Message:   "Error creating slicegw on spoke cluster , slicegateway " + sliceGw.Name + " cluster " + clusterName,
 					},
 				)
-				return reconcile.Result{}, err
+				return err
 			}
 			log.Info("sliceGw created in spoke cluster", "sliceGw", sliceGwName)
 			//post event to the workerslicegateway
@@ -180,35 +223,8 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req reconcile.Request
 
 		} else {
 			log.Error(err, "unable to fetch sliceGw in spoke cluster", "sliceGw", sliceGwName)
-			return reconcile.Result{}, err
+			return err
 		}
 	}
-
-	meshSliceGw.Status.Config = kubeslicev1beta1.SliceGatewayConfig{
-		SliceName:                   sliceGw.Spec.SliceName,
-		SliceGatewayID:              sliceGw.Spec.LocalGatewayConfig.GatewayName,
-		SliceGatewaySubnet:          sliceGw.Spec.LocalGatewayConfig.GatewaySubnet,
-		SliceGatewayRemoteSubnet:    sliceGw.Spec.RemoteGatewayConfig.GatewaySubnet,
-		SliceGatewayHostType:        sliceGw.Spec.GatewayHostType,
-		SliceGatewayNodePort:        sliceGw.Spec.LocalGatewayConfig.NodePort,
-		SliceGatewayRemoteNodeIP:    sliceGw.Spec.RemoteGatewayConfig.NodeIp,
-		SliceGatewayRemoteNodePort:  sliceGw.Spec.RemoteGatewayConfig.NodePort,
-		SliceGatewayRemoteClusterID: sliceGw.Spec.RemoteGatewayConfig.ClusterName,
-		SliceGatewayRemoteGatewayID: sliceGw.Spec.RemoteGatewayConfig.GatewayName,
-		SliceGatewayLocalVpnIP:      sliceGw.Spec.LocalGatewayConfig.VpnIp,
-		SliceGatewayRemoteVpnIP:     sliceGw.Spec.RemoteGatewayConfig.VpnIp,
-		SliceGatewayName:            strconv.Itoa(sliceGw.Spec.GatewayNumber),
-	}
-	err = r.MeshClient.Status().Update(ctx, meshSliceGw)
-	if err != nil {
-		log.Error(err, "unable to update sliceGw status in spoke cluster", "sliceGw", sliceGwName)
-		return reconcile.Result{}, err
-	}
-
-	return reconcile.Result{}, err
-}
-
-func (r *SliceGwReconciler) InjectClient(c client.Client) error {
-	r.Client = c
 	return nil
 }

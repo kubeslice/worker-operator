@@ -20,7 +20,10 @@ package slicegateway
 
 import (
 	"context"
+	"time"
+
 	"github.com/go-logr/logr"
+	webhook "github.com/kubeslice/worker-operator/pkg/webhook/deploy"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -35,7 +38,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
-	"time"
 
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
 	"github.com/kubeslice/worker-operator/controllers"
@@ -92,36 +94,21 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		return ctrl.Result{}, err
 	}
 	// Examine DeletionTimestamp to determine if object is under deletion
-	if sliceGw.ObjectMeta.DeletionTimestamp.IsZero() {
-		// The object is not being deleted, so if it does not have our finalizer,
-		// then lets add the finalizer and update the object. This is equivalent
-		// registering our finalizer.
-		if !controllerutil.ContainsFinalizer(sliceGw, sliceGwFinalizer) {
-			controllerutil.AddFinalizer(sliceGw, sliceGwFinalizer)
-			if err := r.Update(ctx, sliceGw); err != nil {
-				return ctrl.Result{}, err
-			}
-		}
-	} else {
-		// The object is being deleted
-		if controllerutil.ContainsFinalizer(sliceGw, sliceGwFinalizer) {
-			log.Info("Deleting sliceGW", "sliceGw", sliceGw.Name)
-			//cheanup Gateway related resources
-			r.cleanupSliceGwResources(ctx, sliceGw)
-			controllerutil.RemoveFinalizer(sliceGw, sliceGwFinalizer)
-			if err := r.Update(ctx, sliceGw); err != nil {
-				return ctrl.Result{}, err
-			}
-		}
-		// Stop reconciliation as the item is being deleted
-		return ctrl.Result{}, nil
+	// The object is not being deleted, so if it does not have our finalizer,
+	// then lets add the finalizer and update the object. This is equivalent
+	// registering our finalizer.
+	// The object is being deleted
+	//cheanup Gateway related resources
+	// Stop reconciliation as the item is being deleted
+	reconcile, result, err := r.handleSliceGwDeletion(sliceGw, ctx)
+	if reconcile {
+		return result, err
 	}
 
 	sliceName := sliceGw.Spec.SliceName
 	sliceGwName := sliceGw.Name
 
 	log = log.WithValues("slice", sliceGw.Spec.SliceName)
-	//debugLog := log.V(1)
 	ctx = logger.WithLogger(ctx, log)
 
 	log.Info("reconciling", "slicegateway", sliceGw.Name)
@@ -155,58 +142,22 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	}
 
 	// true if the gateway is openvpn server
-	isServer := sliceGw.Status.Config.SliceGatewayHostType == "Server"
 	// Check if the Gw service already exists, if not create a new one if it is a server
-	if isServer {
-		foundsvc := &corev1.Service{}
-		err = r.Get(ctx, types.NamespacedName{Name: "svc-" + sliceGwName, Namespace: controllers.ControlPlaneNamespace}, foundsvc)
-		if err != nil {
-			if errors.IsNotFound(err) {
-				// Define a new service
-				svc := r.serviceForGateway(sliceGw)
-				log.Info("Creating a new Service", "Namespace", svc.Namespace, "Name", svc.Name)
-				err = r.Create(ctx, svc)
-				if err != nil {
-					log.Error(err, "Failed to create new Service", "Namespace", svc.Namespace, "Name", svc.Name)
-					return ctrl.Result{}, err
-				}
-				return ctrl.Result{Requeue: true}, nil
-			}
-			log.Error(err, "Failed to get Service")
-			return ctrl.Result{}, err
-		}
-
-		sliceGwNodePort = foundsvc.Spec.Ports[0].NodePort
-		err = r.HubClient.UpdateNodePortForSliceGwServer(ctx, sliceGwNodePort, sliceGwName)
-		if err != nil {
-			log.Error(err, "Failed to update NodePort for sliceGw in the hub")
-			//post event to slicegw
-			r.EventRecorder.Record(
-				&events.Event{
-					Object:    sliceGw,
-					EventType: events.EventTypeWarning,
-					Reason:    "Error",
-					Message:   "Unable to post NodePort to kubeslice-controller cluster",
-				},
-			)
-			return ctrl.Result{}, err
-		}
-		//reconcile the available nodes
-		if err := r.reconcileNodes(ctx, sliceGw); err != nil {
-			return ctrl.Result{}, err
+	if isServer(sliceGw) {
+		reconcile, result, err = r.handleSliceGwSvcCreation(ctx, sliceGw, sliceGwNodePort)
+		if reconcile {
+			return result, err
 		}
 	}
 	// client can be deployed only if remoteNodeIp,SliceGatewayRemoteNodePort abd SliceGatewayRemoteGatewayID is present
-	canDeployGw := isServer || readyToDeployGwClient(sliceGw)
-	if !canDeployGw {
+	if !canDeployGw(sliceGw) {
 		// no need to deploy gateway deployment or service
 		log.Info("Unable to deploy slicegateway client, remote info not available, requeuing")
 		return ctrl.Result{
 			RequeueAfter: 10 * time.Second,
 		}, nil
 	}
-	isClient := sliceGw.Status.Config.SliceGatewayHostType == "Client"
-	if isClient {
+	if isClient(sliceGw) {
 		//reconcile headless service and endpoint for DNS Query by OpenVPN Client
 		if err := r.reconcileGatewayHeadlessService(ctx, sliceGw); err != nil {
 			return ctrl.Result{}, err
@@ -231,10 +182,9 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 				return ctrl.Result{}, err
 			}
 			return ctrl.Result{Requeue: true}, nil
-		} else {
-			log.Error(err, "Failed to get Deployment")
-			return ctrl.Result{}, err
 		}
+		log.Error(err, "Failed to get Deployment")
+		return ctrl.Result{}, err
 	}
 	//fetch netop pods
 	err = r.getNetOpPods(ctx, sliceGw)
@@ -315,8 +265,92 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	return ctrl.Result{}, nil
 }
 
+func isClient(sliceGw *kubeslicev1beta1.SliceGateway) bool {
+	return sliceGw.Status.Config.SliceGatewayHostType == "Client"
+}
+func isServer(sliceGw *kubeslicev1beta1.SliceGateway) bool {
+	return sliceGw.Status.Config.SliceGatewayHostType == "Server"
+}
+func canDeployGw(sliceGw *kubeslicev1beta1.SliceGateway) bool {
+	return sliceGw.Status.Config.SliceGatewayHostType == "Server" || readyToDeployGwClient(sliceGw)
+}
+func (r *SliceGwReconciler) handleSliceGwSvcCreation(ctx context.Context, sliceGw *kubeslicev1beta1.SliceGateway, sliceGwNodePort int32) (bool, reconcile.Result, error) {
+	log := logger.FromContext(ctx).WithName("slicegw-create-service")
+	sliceGwName := sliceGw.Name
+
+	foundsvc := &corev1.Service{}
+	err := r.Get(ctx, types.NamespacedName{Name: "svc-" + sliceGwName, Namespace: controllers.ControlPlaneNamespace}, foundsvc)
+	if err != nil {
+		if errors.IsNotFound(err) {
+
+			svc := r.serviceForGateway(sliceGw)
+			log.Info("Creating a new Service", "Namespace", svc.Namespace, "Name", svc.Name)
+			err = r.Create(ctx, svc)
+			if err != nil {
+				log.Error(err, "Failed to create new Service", "Namespace", svc.Namespace, "Name", svc.Name)
+				return true, ctrl.Result{}, err
+			}
+			return true, ctrl.Result{Requeue: true}, nil
+		}
+		log.Error(err, "Failed to get Service")
+		return true, ctrl.Result{}, err
+	}
+
+	sliceGwNodePort = foundsvc.Spec.Ports[0].NodePort
+	err = r.HubClient.UpdateNodePortForSliceGwServer(ctx, sliceGwNodePort, sliceGwName)
+	if err != nil {
+		log.Error(err, "Failed to update NodePort for sliceGw in the hub")
+
+		r.EventRecorder.Record(
+			&events.Event{
+				Object:    sliceGw,
+				EventType: events.EventTypeWarning,
+				Reason:    "Error",
+				Message:   "Unable to post NodePort to kubeslice-controller cluster",
+			},
+		)
+		return true, ctrl.Result{}, err
+	}
+
+	if err := r.reconcileNodes(ctx, sliceGw); err != nil {
+		return true, ctrl.Result{}, err
+	}
+	return false, reconcile.Result{}, nil
+}
+
+func (r *SliceGwReconciler) handleSliceGwDeletion(sliceGw *kubeslicev1beta1.SliceGateway, ctx context.Context) (bool, reconcile.Result, error) {
+	// Examine DeletionTimestamp to determine if object is under deletion
+	log := logger.FromContext(ctx).WithName("slicegw-deletion")
+	if sliceGw.ObjectMeta.DeletionTimestamp.IsZero() {
+		// The object is not being deleted, so if it does not have our finalizer,
+		// then lets add the finalizer and update the object. This is equivalent
+		// registering our finalizer.
+		if !controllerutil.ContainsFinalizer(sliceGw, sliceGwFinalizer) {
+			controllerutil.AddFinalizer(sliceGw, sliceGwFinalizer)
+			if err := r.Update(ctx, sliceGw); err != nil {
+				return true, ctrl.Result{}, err
+			}
+		}
+	} else {
+		// The object is being deleted
+		if controllerutil.ContainsFinalizer(sliceGw, sliceGwFinalizer) {
+			log.Info("Deleting sliceGW", "sliceGw", sliceGw.Name)
+			//cheanup Gateway related resources
+
+			r.cleanupSliceGwResources(ctx, sliceGw)
+			controllerutil.RemoveFinalizer(sliceGw, sliceGwFinalizer)
+			if err := r.Update(ctx, sliceGw); err != nil {
+				return true, ctrl.Result{}, err
+			}
+		}
+		// Stop reconciliation as the item is being deleted
+		return true, ctrl.Result{}, nil
+	}
+	return false, reconcile.Result{}, nil
+}
+
 func getPodType(labels map[string]string) string {
-	podType, found := labels["kubeslice.io/pod-type"]
+	podType, found := labels[webhook.PodInjectLabelKey]
 	if found {
 		return podType
 	}
@@ -344,7 +378,7 @@ func (r *SliceGwReconciler) findSliceGwObjectsToReconcile(pod client.Object) []r
 
 	switch podType {
 	case "router":
-		sliceName, found := podLabels["kubeslice.io/slice"]
+		sliceName, found := podLabels[controllers.ApplicationNamespaceSelectorLabelKey]
 		if !found {
 			return []reconcile.Request{}
 		}
@@ -399,7 +433,7 @@ func (r *SliceGwReconciler) sliceGwObjectsToReconcileForNodeRestart(node client.
 func (r *SliceGwReconciler) findObjectsForSliceRouterUpdate(sliceName string) (*kubeslicev1beta1.SliceGatewayList, error) {
 	sliceGwList := &kubeslicev1beta1.SliceGatewayList{}
 	listOpts := []client.ListOption{
-		client.MatchingLabels(map[string]string{"kubeslice.io/slice": sliceName}),
+		client.MatchingLabels(map[string]string{controllers.ApplicationNamespaceSelectorLabelKey: sliceName}),
 	}
 	err := r.List(context.Background(), sliceGwList, listOpts...)
 	if err != nil {
@@ -437,13 +471,13 @@ func (r *SliceGwReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	// slice router or the netop pods. This is needed to re-send connection context to the
 	// restarted slice router or netop pods.
 	// We will add a watch on those pods with appropriate label selectors for filtering.
-	labelSelector.MatchLabels = map[string]string{"kubeslice.io/pod-type": "router"}
+	labelSelector.MatchLabels = map[string]string{webhook.PodInjectLabelKey: "router"}
 	slicerouterPredicate, err := predicate.LabelSelectorPredicate(labelSelector)
 	if err != nil {
 		return err
 	}
 
-	labelSelector.MatchLabels = map[string]string{"kubeslice.io/pod-type": "netop"}
+	labelSelector.MatchLabels = map[string]string{webhook.PodInjectLabelKey: "netop"}
 	netopPredicate, err := predicate.LabelSelectorPredicate(labelSelector)
 	if err != nil {
 		return err
@@ -467,7 +501,7 @@ func (r *SliceGwReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
 	// The slice gateway reconciler needs to be invoked whenever there is an update to the
 	// kubeslice gateway nodes
-	labelSelector.MatchLabels = map[string]string{"kubeslice.io/node-type": "gateway"}
+	labelSelector.MatchLabels = map[string]string{controllers.NodeTypeSelectorLabelKey: "gateway"}
 	nodePredicate, err := predicate.LabelSelectorPredicate(labelSelector)
 	if err != nil {
 		return err

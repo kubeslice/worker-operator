@@ -22,10 +22,12 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"reflect"
 	"strings"
 
 	"github.com/go-logr/logr"
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
+	"github.com/kubeslice/worker-operator/controllers"
 	slicepkg "github.com/kubeslice/worker-operator/controllers/slice"
 	"github.com/kubeslice/worker-operator/pkg/events"
 	corev1 "k8s.io/api/core/v1"
@@ -74,7 +76,7 @@ func (c *NetpolReconciler) getSliceNameFromNsOfNetPol(ns string) (string, error)
 		c.Log.Error(err, "error while retrieving namespace")
 		return "", err
 	}
-	return namespace.Labels[slicepkg.ApplicationNamespaceSelectorLabelKey], nil
+	return namespace.Labels[controllers.ApplicationNamespaceSelectorLabelKey], nil
 }
 
 func (r *NetpolReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
@@ -107,18 +109,30 @@ func (r *NetpolReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		return ctrl.Result{}, nil
 	}
 
-	//if this network policy is the one installed by slice reconciler, we ignore it
-	if strings.EqualFold(sliceName+"-"+netpol.Namespace, netpol.Name) {
-		//early exit
-		log.Info("added/modified network policy,ignoring since it is reconciled by slice reconciler")
-		return ctrl.Result{}, nil
-	}
 	//get slice
 	slice := &kubeslicev1beta1.Slice{}
 	err = r.Get(context.Background(), types.NamespacedName{Name: sliceName, Namespace: "kubeslice-system"}, slice)
 	if err != nil {
 		log.Error(err, fmt.Sprintf("error while retrieving slice(%s/%s)", "kubeslice-system", sliceName))
 		return ctrl.Result{}, err
+	}
+
+	//if this network policy is the one installed by slice reconciler, compare it with slice netpol
+	//contructed from slice object
+	if strings.EqualFold(sliceName+"-"+netpol.Namespace, netpol.Name) {
+		log.Info("added/modified network policy installed by slice recocniler,reconciling")
+
+		sliceNetpol := controllers.ContructNetworkPolicyObject(ctx, slice, netpol.Namespace)
+		if !reflect.DeepEqual(sliceNetpol.Spec, netpol.Spec) {
+			// netpol changed
+			log.Info("network policy installed by slice recocniler is modified,reconciling")
+			netpol.Spec = sliceNetpol.Spec
+			err := r.Update(ctx, &netpol)
+			if err != nil {
+				return ctrl.Result{}, err
+			}
+		}
+		return ctrl.Result{}, nil
 	}
 
 	//extra network policy being added , compare and raise an event
@@ -137,7 +151,7 @@ func (r *NetpolReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 }
 
 func (c *NetpolReconciler) Compare(np *networkingv1.NetworkPolicy, slice *kubeslicev1beta1.Slice) (ctrl.Result, error) {
-	var ApplicationNamespaces, err1 = c.GetAppNamespacesBySliceNameAndLabel(context.Background(), slice.Name, slicepkg.ApplicationNamespaceSelectorLabelKey)
+	var ApplicationNamespaces, err1 = c.GetAppNamespacesBySliceNameAndLabel(context.Background(), slice.Name, controllers.ApplicationNamespaceSelectorLabelKey)
 	if err1 != nil {
 		c.Log.Error(err1, "error while retrieving application namespaces by sliceName")
 		return ctrl.Result{}, err1

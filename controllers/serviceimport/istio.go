@@ -66,26 +66,27 @@ func (r *Reconciler) reconcileIstio(ctx context.Context, serviceimport *kubeslic
 
 	// Add service entries and virtualServices for app pods in the slice to be able to route traffic through slice.
 	// Endpoints are load balanced at equal weights.
+	var serviceReconcilationNamespace string
 	if egressGatewayConfig != nil && egressGatewayConfig.Enabled {
-		res, err, requeue = r.ReconcileServiceEntries(ctx, serviceimport, controllers.ControlPlaneNamespace)
-		if requeue {
-			return res, err, requeue
-		}
+		serviceReconcilationNamespace = controllers.ControlPlaneNamespace
+	} else {
+		serviceReconcilationNamespace = serviceimport.Namespace
+	}
+	res, err, requeue = r.ReconcileServiceEntries(ctx, serviceimport, serviceReconcilationNamespace)
+	if requeue {
+		return res, err, requeue
+	}
+	if serviceReconcilationNamespace == controllers.ControlPlaneNamespace {
 		res, err, requeue = r.ReconcileVirtualServiceEgress(ctx, serviceimport)
 		if requeue {
 			return res, err, requeue
 		}
 	} else {
-		res, err, requeue = r.ReconcileServiceEntries(ctx, serviceimport, serviceimport.Namespace)
-		if requeue {
-			return res, err, requeue
-		}
 		res, err, requeue = r.ReconcileVirtualServiceNonEgress(ctx, serviceimport)
 		if requeue {
 			return res, err, requeue
 		}
 	}
-
 	return ctrl.Result{}, nil, false
 }
 

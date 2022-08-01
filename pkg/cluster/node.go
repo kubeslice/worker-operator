@@ -21,11 +21,13 @@ package cluster
 import (
 	"context"
 	"fmt"
+	"os"
+	"sync"
+
+	"github.com/kubeslice/worker-operator/controllers"
 	"github.com/kubeslice/worker-operator/pkg/logger"
 	corev1 "k8s.io/api/core/v1"
-	"os"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sync"
 )
 
 var log = logger.NewLogger().WithValues("type", "hub")
@@ -77,7 +79,7 @@ func (n *NodeInfo) getNodeExternalIpList() ([]string, error) {
 func (n *NodeInfo) populateNodeIpList() error {
 	ctx := context.Background()
 	nodeList := corev1.NodeList{}
-	labels := map[string]string{"kubeslice.io/node-type": "gateway"}
+	labels := map[string]string{controllers.NodeTypeSelectorLabelKey: "gateway"}
 	listOptions := []client.ListOption{
 		client.MatchingLabels(labels),
 	}

@@ -62,17 +62,8 @@ var finalizerName = "networking.kubeslice.io/serviceexport-finalizer"
 func (r Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := r.Log.WithValues("serviceexport", req.NamespacedName)
 
-	serviceexport := &kubeslicev1beta1.ServiceExport{}
-	err := r.Get(ctx, req.NamespacedName, serviceexport)
+	serviceexport, err := r.GetServiceExport(ctx, req, &log)
 	if err != nil {
-		if errors.IsNotFound(err) {
-			// Request object not found, could have been deleted after reconcile request.
-			// Return and don't requeue
-			log.Info("serviceexport resource not found. Ignoring since object must be deleted")
-			return ctrl.Result{}, nil
-		}
-		// Error reading the object - requeue the request.
-		log.Error(err, "Failed to get serviceexport")
 		return ctrl.Result{}, err
 	}
 
@@ -82,64 +73,22 @@ func (r Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resul
 
 	log.Info("reconciling", "serviceexport", serviceexport.Name)
 
-	// examine DeletionTimestamp to determine if object is under deletion
-	if serviceexport.ObjectMeta.DeletionTimestamp.IsZero() {
-		// register our finalizer
-		if !containsString(serviceexport.GetFinalizers(), finalizerName) {
-			log.Info("adding finalizer")
-			controllerutil.AddFinalizer(serviceexport, finalizerName)
-			if err := r.Update(ctx, serviceexport); err != nil {
-				return ctrl.Result{}, err
-			}
-			return ctrl.Result{Requeue: true}, nil
-		}
-	} else {
-		// The object is being deleted
-		if containsString(serviceexport.GetFinalizers(), finalizerName) {
-			log.Info("deleting serviceexport")
-			if err := r.HubClient.DeleteServiceExport(ctx, serviceexport); err != nil {
-				log.Error(err, "unable to delete service export on the hub from the spoke")
-				return ctrl.Result{}, err
-			}
-
-			if err := r.DeleteServiceExportResources(ctx, serviceexport); err != nil {
-				log.Error(err, "unable to delete service export resources")
-				return ctrl.Result{}, err
-			}
-
-			log.Info("removing finalizer")
-			controllerutil.RemoveFinalizer(serviceexport, finalizerName)
-			if err := r.Update(ctx, serviceexport); err != nil {
-				return ctrl.Result{}, err
-			}
-			return ctrl.Result{Requeue: true}, nil
-		}
-
-		return ctrl.Result{}, nil
+	//Adding finalizer or deleting serviceExport if under deletion
+	requeue, result, err := r.handleServiceExportDeletion(ctx, serviceexport, &log)
+	if requeue {
+		return result, err
 	}
 	// update service export with slice Label if not present
-	labels := serviceexport.GetLabels()
-	if value, exists := labels["kubeslice.io/slice"]; !exists || value != serviceexport.Spec.Slice {
-		// the label does not exists or the sliceName is incorrect
-		if labels == nil {
-			labels = make(map[string]string)
-		}
-		labels["kubeslice.io/slice"] = serviceexport.Spec.Slice
-		serviceexport.SetLabels(labels)
-
-		if err := r.Update(ctx, serviceexport); err != nil {
-			return ctrl.Result{}, err
-		}
-		debugLog.Info("Added Label for serviceexport", "serviceexport", serviceexport.Name)
-		return ctrl.Result{Requeue: true}, nil
+	requeue, result, err = r.labelServiceExportWithSlice(ctx, serviceexport, &debugLog)
+	if requeue {
+		return result, err
 	}
-
 	// Reconciler running for the first time. Set the initial status here
 	if serviceexport.Status.ExportStatus == kubeslicev1beta1.ExportStatusInitial {
 		serviceexport.Status.DNSName = serviceexport.Name + "." + serviceexport.Namespace + ".svc.slice.local"
 		serviceexport.Status.ExportStatus = kubeslicev1beta1.ExportStatusPending
 		serviceexport.Status.ExposedPorts = portListToDisplayString(serviceexport.Spec.Ports)
-		err = r.Status().Update(ctx, serviceexport)
+		err := r.Status().Update(ctx, serviceexport)
 		if err != nil {
 			log.Error(err, "Failed to update serviceexport initial status")
 			return ctrl.Result{}, err
@@ -153,7 +102,7 @@ func (r Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resul
 	if serviceexport.Status.ExposedPorts != portListToDisplayString(serviceexport.Spec.Ports) {
 		serviceexport.Status.ExposedPorts = portListToDisplayString(serviceexport.Spec.Ports)
 		serviceexport.Status.LastSync = 0
-		err = r.Status().Update(ctx, serviceexport)
+		err := r.Status().Update(ctx, serviceexport)
 		if err != nil {
 			log.Error(err, "Failed to update serviceexport ports")
 			//post event to service export
@@ -174,13 +123,10 @@ func (r Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resul
 	}
 
 	res, err, requeue := r.ReconcileAppPod(ctx, serviceexport)
-	if err != nil {
-		return ctrl.Result{}, err
-	}
 	if requeue {
 		log.Info("app pods reconciled")
 		debugLog.Info("requeuing after app pod reconcile", "res", res, "er", err)
-		return res, nil
+		return res, err
 	}
 	metrics.RecordServicecExportAvailableEndpointsCount(serviceexport.Status.AvailableEndpoints, controllers.ClusterName, serviceexport.Spec.Slice, serviceexport.Namespace, serviceexport.Name)
 	res, err, requeue = r.ReconcileIngressGwPod(ctx, serviceexport)
@@ -230,4 +176,81 @@ func (r *Reconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&kubeslicev1beta1.ServiceExport{}).
 		Complete(r)
+}
+
+func (r *Reconciler) GetServiceExport(ctx context.Context, req ctrl.Request, log *logr.Logger) (*kubeslicev1beta1.ServiceExport, error) {
+	serviceexport := &kubeslicev1beta1.ServiceExport{}
+	err := r.Get(ctx, req.NamespacedName, serviceexport)
+	if err != nil {
+		if errors.IsNotFound(err) {
+			// Request object not found, could have been deleted after reconcile request.
+			// Return and don't requeue
+			log.Info("serviceexport resource not found. Ignoring since object must be deleted")
+			return nil, err
+		}
+		// Error reading the object - requeue the request.
+		log.Error(err, "Failed to get serviceexport")
+		return nil, err
+	}
+	return serviceexport, nil
+}
+
+// handleServiceExportDeletion adds a finalizer to the serviceexport object
+// or if the finalizer is present on the serviceexport, it deletes serviceexport
+// and all the releated resources
+// returns requeue flag (to either requeue or stop requeing), the reconcilation result and error
+func (r *Reconciler) handleServiceExportDeletion(ctx context.Context, serviceexport *kubeslicev1beta1.ServiceExport, log *logr.Logger) (bool, ctrl.Result, error) {
+	// examine DeletionTimestamp to determine if object is under deletion
+	if serviceexport.ObjectMeta.DeletionTimestamp.IsZero() {
+		// register our finalizer
+		if !containsString(serviceexport.GetFinalizers(), finalizerName) {
+			controllerutil.AddFinalizer(serviceexport, finalizerName)
+			if err := r.Update(ctx, serviceexport); err != nil {
+				return true, ctrl.Result{}, err
+			}
+		}
+		return false, ctrl.Result{}, nil
+	}
+	// The object is being deleted
+	if containsString(serviceexport.GetFinalizers(), finalizerName) {
+		log.Info("deleting serviceexport")
+		if err := r.HubClient.DeleteServiceExport(ctx, serviceexport); err != nil {
+			log.Error(err, "unable to delete service export on the hub from the spoke")
+			return true, ctrl.Result{}, err
+		}
+
+		if err := r.DeleteServiceExportResources(ctx, serviceexport); err != nil {
+			log.Error(err, "unable to delete service export resources")
+			return true, ctrl.Result{}, err
+		}
+
+		log.Info("removing finalizer")
+		controllerutil.RemoveFinalizer(serviceexport, finalizerName)
+		if err := r.Update(ctx, serviceexport); err != nil {
+			log.Error(err, "unable to remove finalizer from serviceexport")
+			return true, ctrl.Result{}, err
+		}
+	}
+	return false, ctrl.Result{}, nil
+}
+
+// labelServiceExportWithSlice adds a label to the serviceexport object
+// returns requeue flag (to either requeue or stop requeing), the reconcilation result and error
+func (r *Reconciler) labelServiceExportWithSlice(ctx context.Context, serviceexport *kubeslicev1beta1.ServiceExport, debugLog *logr.Logger) (bool, ctrl.Result, error) {
+	labels := serviceexport.GetLabels()
+	if value, exists := labels[controllers.ApplicationNamespaceSelectorLabelKey]; !exists || value != serviceexport.Spec.Slice {
+		// the label does not exists or the sliceName is incorrect
+		if labels == nil {
+			labels = make(map[string]string)
+		}
+		labels[controllers.ApplicationNamespaceSelectorLabelKey] = serviceexport.Spec.Slice
+		serviceexport.SetLabels(labels)
+
+		if err := r.Update(ctx, serviceexport); err != nil {
+			return true, ctrl.Result{}, err
+		}
+		debugLog.Info("Added Label for serviceexport", "serviceexport", serviceexport.Name)
+		return true, ctrl.Result{Requeue: true}, nil
+	}
+	return false, ctrl.Result{}, nil
 }

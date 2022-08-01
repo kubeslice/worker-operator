@@ -22,6 +22,7 @@ import (
 	"context"
 
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
+	"github.com/kubeslice/worker-operator/controllers"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -51,7 +52,7 @@ func (r *SliceReconciler) cleanupServiceDiscoveryObjects(ctx context.Context, sl
 func (r *SliceReconciler) cleanupServiceImport(ctx context.Context, sliceName string) error {
 	listOpts := []client.ListOption{
 		client.MatchingLabels(map[string]string{
-			"kubeslice.io/slice": sliceName,
+			controllers.ApplicationNamespaceSelectorLabelKey: sliceName,
 		},
 		),
 	}
@@ -74,7 +75,7 @@ func (r *SliceReconciler) cleanupServiceExport(ctx context.Context, sliceName st
 	//delete the service export objects that belong to this slice
 	listOpts := []client.ListOption{
 		client.MatchingLabels(map[string]string{
-			"kubeslice.io/slice": sliceName,
+			controllers.ApplicationNamespaceSelectorLabelKey: sliceName,
 		},
 		),
 	}
