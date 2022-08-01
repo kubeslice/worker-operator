@@ -20,6 +20,8 @@ package cluster
 
 import (
 	"context"
+	"errors"
+
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -46,8 +48,9 @@ func (r *NodeReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 	}
 	if len(nodeList.Items) == 0 {
 		// no gateway nodes found
-		return ctrl.Result{}, nil
+		return ctrl.Result{}, errors.New("no gateway nodes available")
 	}
+	// we first fetch available external IPs , if none is available. We reconcile for Internal IPs
 	nodeIpArr := []corev1.NodeAddress{}
 	for i := 0; i < len(nodeList.Items); i++ {
 		nodeIpArr = append(nodeIpArr, nodeList.Items[i].Status.Addresses...)
@@ -59,7 +62,7 @@ func (r *NodeReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 		}
 	}
 	if len(nodeIPs) == 0 {
-		// we look for InteralIps
+		// we look for InteralIPs
 		for i := 0; i < len(nodeIpArr); i++ {
 			if nodeIpArr[i].Type == NodeInternalIP {
 				nodeIPs = append(nodeIPs, nodeIpArr[i].Address)
@@ -67,7 +70,7 @@ func (r *NodeReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 		}
 	}
 	if len(nodeIPs) == 0 {
-		return ctrl.Result{}, nil
+		return ctrl.Result{}, errors.New("number of nodeIPs is zero, reconciling")
 	}
 
 	nodeInfo.Lock()
