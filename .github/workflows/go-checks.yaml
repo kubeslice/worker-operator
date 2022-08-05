@@ -1,0 +1,16 @@
+name: go-checks
+on:
+  pull_request:
+    branches: master
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout the repo
+        uses: actions/checkout@v2
+      - uses: Jerome1337/gofmt-action@v1.0.4
+        name: check go fmt
+        with:
+          gofmt-path: './'
+          gofmt-flags: '-l -d'
