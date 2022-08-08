@@ -47,7 +47,7 @@ const (
 // Node info structure.
 // Protected by a mutex and contains information about the kubeslice gateway nodes in the cluster.
 type NodeInfo struct {
-	Client         client.Client
+	Client     client.Client
 	NodeIPList []string
 	sync.Mutex
 }
