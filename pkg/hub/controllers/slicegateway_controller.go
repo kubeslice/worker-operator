@@ -122,7 +122,7 @@ func (r *SliceGwReconciler) createSliceGwCerts(ctx context.Context, sliceGw *spo
 				log.Error(err, "unable to fetch slicegw certs from the hub", "sliceGw", sliceGw.Name)
 				return reconcile.Result{
 					RequeueAfter: 10 * time.Second,
-				}, err
+				}, nil
 			}
 			meshSliceGwCerts := &corev1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
@@ -220,6 +220,7 @@ func (r *SliceGwReconciler) createSliceGwOnSpoke(ctx context.Context, sliceGw *s
 					Message:   "Created slicegw on spoke cluster , slicegateway " + sliceGw.Name,
 				},
 			)
+
 		} else {
 			log.Error(err, "unable to fetch sliceGw in spoke cluster", "sliceGw", sliceGwName)
 			return err
