@@ -455,7 +455,7 @@ func newDeploymentSliceRouter(r *SliceReconciler, ctx context.Context, slice *ku
 	}, nil, true
 }
 func sliceConfigDefined(slice *kubeslicev1beta1.Slice) bool {
-	return slice.Status.SliceConfig != nil && slice.Status.SliceConfig.SliceSubnet != ""
+	return slice.Status.SliceConfig != nil && slice.Status.SliceConfig.SliceSubnet != "" && slice.Status.SliceConfig.ClusterSubnetCIDR != ""
 }
 func (r *SliceReconciler) cleanupSliceRouter(ctx context.Context, sliceName string) error {
 	log := logger.FromContext(ctx)
