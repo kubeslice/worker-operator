@@ -39,7 +39,7 @@ func NewHubClientEmulator(client client.Client) (*HubClientEmulator, error) {
 	}, nil
 }
 
-func (hubClientEmulator *HubClientEmulator) UpdateNodeIpInCluster(ctx context.Context, clusterName, nodeIP, namespace string) error {
+func (hubClientEmulator *HubClientEmulator) UpdateNodeIpInCluster(ctx context.Context, clusterName, namespace string, nodeIPs []string) error {
 	cluster := &hubv1alpha1.Cluster{}
 	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		err := hubClientEmulator.Get(ctx, types.NamespacedName{
@@ -49,7 +49,7 @@ func (hubClientEmulator *HubClientEmulator) UpdateNodeIpInCluster(ctx context.Co
 		if err != nil {
 			return err
 		}
-		cluster.Spec.NodeIP = nodeIP
+		cluster.Spec.NodeIPs = nodeIPs
 		if err := hubClientEmulator.Update(ctx, cluster); err != nil {
 			//log.Error(err, "Error updating to cluster spec on controller cluster")
 			return err
@@ -97,6 +97,6 @@ func (hubClientEmulator *HubClientEmulator) UpdateAppNamesapces(ctx context.Cont
 	return nil
 }
 
-func (hubClientEmulator *HubClientEmulator) GetClusterNodeIP(ctx context.Context, clusterName, namespace string) (string, error) {
-	return "35.235.10.1", nil
+func (hubClientEmulator *HubClientEmulator) GetClusterNodeIP(ctx context.Context, clusterName, namespace string) ([]string, error) {
+	return []string{"35.235.10.1"}, nil
 }
