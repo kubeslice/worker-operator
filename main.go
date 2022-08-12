@@ -276,7 +276,7 @@ func main() {
 	}()
 
 	//post GeoLocation and other metadata to cluster CR on Hub cluster
-	err = hub.PostClusterInfoToHub(ctx, clientForHubMgr, hubClient, os.Getenv("CLUSTER_NAME"), nodeIP, os.Getenv("HUB_PROJECT_NAMESPACE"))
+	err = hub.PostClusterInfoToHub(ctx, clientForHubMgr, hubClient, os.Getenv("CLUSTER_NAME"), os.Getenv("HUB_PROJECT_NAMESPACE"), nodeIP)
 	if err != nil {
 		setupLog.With("error", err).Error("could not post Cluster Info to Hub")
 	}

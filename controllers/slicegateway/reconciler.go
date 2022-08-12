@@ -59,7 +59,7 @@ type SliceGwReconciler struct {
 	WorkerGWSidecarClient WorkerGWSidecarClientProvider
 	NetOpPods             []NetOpPod
 	EventRecorder         *events.EventRecorder
-	NodeIP                string
+	NodeIP                []string
 }
 
 func readyToDeployGwClient(sliceGw *kubeslicev1beta1.SliceGateway) bool {
