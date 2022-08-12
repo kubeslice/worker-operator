@@ -44,6 +44,7 @@ var _ = Describe("Worker SlicegwController", func() {
 	var sliceGw *kubeslicev1beta1.SliceGateway
 	var createdSliceGw *kubeslicev1beta1.SliceGateway
 	var slice *kubeslicev1beta1.Slice
+	var svc *corev1.Service
 	var createdSlice *kubeslicev1beta1.Slice
 	var vl3ServiceEndpoint *nsmv1alpha1.NetworkServiceEndpoint
 	var appPod *corev1.Pod
@@ -66,6 +67,18 @@ var _ = Describe("Worker SlicegwController", func() {
 					Namespace: CONTROL_PLANE_NS,
 				},
 				Spec: kubeslicev1beta1.SliceSpec{},
+			}
+			svc = &corev1.Service{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "kubeslice-dns",
+					Namespace: "kubeslice-system",
+				},
+				Spec: corev1.ServiceSpec{
+					ClusterIP: "10.0.0.20",
+					Ports: []corev1.ServicePort{{
+						Port: 52,
+					}},
+				},
 			}
 			labels := map[string]string{
 				"kubeslice.io/slice":         "test-slice-4",
@@ -157,6 +170,7 @@ var _ = Describe("Worker SlicegwController", func() {
 
 		It("should create a gw nodeport service if gw type is Server", func() {
 			ctx := context.Background()
+
 			Expect(k8sClient.Create(ctx, slice)).Should(Succeed())
 			Expect(k8sClient.Create(ctx, vl3ServiceEndpoint)).Should(Succeed())
 			Expect(k8sClient.Create(ctx, sliceGw)).Should(Succeed())
@@ -190,6 +204,7 @@ var _ = Describe("Worker SlicegwController", func() {
 
 		It("Should create a deployment for gw server", func() {
 			ctx := context.Background()
+			Expect(k8sClient.Create(ctx, svc)).Should(Succeed())
 			Expect(k8sClient.Create(ctx, slice)).Should(Succeed())
 			Expect(k8sClient.Create(ctx, vl3ServiceEndpoint)).Should(Succeed())
 			Expect(k8sClient.Create(ctx, sliceGw)).Should(Succeed())
