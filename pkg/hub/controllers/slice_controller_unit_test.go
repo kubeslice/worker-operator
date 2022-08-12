@@ -45,11 +45,11 @@ var controllerSlice = &workerv1alpha1.WorkerSliceConfig{
 		DeletionTimestamp: &metav1.Time{Time: time.Now()},
 	},
 	Spec: workerv1alpha1.WorkerSliceConfigSpec{
-		SliceName:        "test-slice",
-		SliceType:        "Application",
-		SliceSubnet:      "10.0.0.1/16",
-		SliceIpamType:    "Local",
-		IpamClusterOctet: 100,
+		SliceName:     "test-slice",
+		SliceType:     "Application",
+		SliceSubnet:   "10.0.0.1/16",
+		SliceIpamType: "Local",
+		//IpamClusterOctet: 100,
 	},
 }
 

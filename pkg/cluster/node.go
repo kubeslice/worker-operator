@@ -112,17 +112,17 @@ func (n *NodeInfo) populateNodeIpList() error {
 	return err
 }
 
-func GetNodeIP(client client.Client) (string, error) {
+func GetNodeIP(client client.Client) ([]string, error) {
 	nodeInfo.Client = client
 	// nodeIPs will either have list of ExternalIPs if available, else Internal IPs
-	nodeIPs, err := nodeInfo.getNodeExternalIpList()
-	if err != nil || len(nodeIPs) == 0 {
+	externalNodeIPs, err := nodeInfo.getNodeExternalIpList()
+	if err != nil || len(externalNodeIPs) == 0 {
 		log.Error(err, "Getting NodeIP From kube-api-server")
-		return "", err
+		return []string{""}, err
 	}
-	nodeIP := nodeIPs[0]
-	log.Info("nodeIP selected", "nodeIP ", nodeIP)
-	return nodeIP, err
+	nodeIPs := externalNodeIPs
+	log.Info("nodeIPs selected", "nodeIP ", nodeIPs)
+	return nodeIPs, err
 }
 
 func GetNodeExternalIpList() []string {

@@ -21,6 +21,7 @@ package hub
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -83,7 +84,7 @@ func NewHubClientConfig() (*HubClientConfig, error) {
 	}, err
 }
 
-func (hubClient *HubClientConfig) UpdateNodeIpInCluster(ctx context.Context, clusterName, nodeIP, namespace string) error {
+func (hubClient *HubClientConfig) UpdateNodeIpInCluster(ctx context.Context, clusterName, namespace string, nodeIP []string) error {
 	cluster := &hubv1alpha1.Cluster{}
 	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		err := hubClient.Get(ctx, types.NamespacedName{
@@ -93,11 +94,12 @@ func (hubClient *HubClientConfig) UpdateNodeIpInCluster(ctx context.Context, clu
 		if err != nil {
 			return err
 		}
-		cluster.Spec.NodeIP = nodeIP
+		cluster.Spec.NodeIPs = nodeIP
 		if err := hubClient.Update(ctx, cluster); err != nil {
 			log.Error(err, "Error updating to cluster spec on controller cluster")
 			return err
 		}
+		fmt.Println("CLuster node ip after update:_______________>>>", cluster.Spec.NodeIPs)
 		return nil
 	})
 	if err != nil {
@@ -126,8 +128,8 @@ func (hubClient *HubClientConfig) UpdateNodePortForSliceGwServer(ctx context.Con
 	return hubClient.Update(ctx, sliceGw)
 }
 
-func PostClusterInfoToHub(ctx context.Context, spokeclient client.Client, hubClient client.Client, clusterName, nodeIP string, namespace string) error {
-	err := updateClusterInfoToHub(ctx, spokeclient, hubClient, clusterName, nodeIP, namespace)
+func PostClusterInfoToHub(ctx context.Context, spokeclient client.Client, hubClient client.Client, clusterName, namespace string, nodeIPs []string) error {
+	err := updateClusterInfoToHub(ctx, spokeclient, hubClient, clusterName, namespace, nodeIPs)
 	if err != nil {
 		log.Error(err, "Error Posting Cluster info to hub cluster")
 		return err
@@ -225,7 +227,7 @@ func updateClusterCredsToHub(ctx context.Context, spokeclient client.Client, hub
 	return err
 }
 
-func updateClusterInfoToHub(ctx context.Context, spokeclient client.Client, hubClient client.Client, clusterName, nodeIP string, namespace string) error {
+func updateClusterInfoToHub(ctx context.Context, spokeclient client.Client, hubClient client.Client, clusterName, namespace string, nodeIPs []string) error {
 	hubCluster := &hubv1alpha1.Cluster{}
 	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		err := hubClient.Get(ctx, types.NamespacedName{
@@ -251,7 +253,11 @@ func updateClusterInfoToHub(ctx context.Context, spokeclient client.Client, hubC
 		log.Info("cniSubnet", "cniSubnet", cniSubnet)
 		hubCluster.Spec.ClusterProperty.GeoLocation.CloudRegion = clusterInfo.ClusterProperty.GeoLocation.CloudRegion
 		hubCluster.Spec.ClusterProperty.GeoLocation.CloudProvider = clusterInfo.ClusterProperty.GeoLocation.CloudProvider
-		hubCluster.Spec.NodeIP = nodeIP
+		hubCluster.Spec.NodeIPs = nodeIPs
+
+		fmt.Println(nodeIPs, "=====================================")
+		fmt.Println(hubCluster.Spec, "----------------------------------- NodeIps from spec")
+
 		if err := hubClient.Update(ctx, hubCluster); err != nil {
 			log.Error(err, "Error updating to cluster spec on hub cluster")
 			return err
@@ -266,16 +272,16 @@ func updateClusterInfoToHub(ctx context.Context, spokeclient client.Client, hubC
 	return err
 }
 
-func (hubClient *HubClientConfig) GetClusterNodeIP(ctx context.Context, clusterName, namespace string) (string, error) {
+func (hubClient *HubClientConfig) GetClusterNodeIP(ctx context.Context, clusterName, namespace string) ([]string, error) {
 	cluster := &hubv1alpha1.Cluster{}
 	err := hubClient.Get(ctx, types.NamespacedName{
 		Name:      clusterName,
 		Namespace: namespace,
 	}, cluster)
 	if err != nil {
-		return "", err
+		return []string{""}, err
 	}
-	return cluster.Spec.NodeIP, nil
+	return cluster.Spec.NodeIPs, nil
 }
 
 func UpdateNamespaceInfoToHub(ctx context.Context, hubClient client.Client, onboardNamespace, sliceName string) error {

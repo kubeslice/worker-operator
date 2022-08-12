@@ -742,14 +742,14 @@ func (r *SliceGwReconciler) reconcileNodes(ctx context.Context, slicegateway *ku
 		//err := errors.New("node IP list is empty")
 		return nil
 	}
-	if !contains(nodeIpList, currentNodeIP) {
+	if !validatenodeipcount(nodeIpList, currentNodeIP) {
 		//nodeIP updated , update the cluster CR
-		log.Info("Mismatch in node IP", "IP in use", currentNodeIP, "IP to be used", nodeIpList[0])
-		err := r.HubClient.UpdateNodeIpInCluster(ctx, os.Getenv("CLUSTER_NAME"), nodeIpList[0], os.Getenv("HUB_PROJECT_NAMESPACE"))
+		log.Info("Mismatch in node IP", "IP in use", currentNodeIP, "IPs to be used", nodeIpList)
+		err := r.HubClient.UpdateNodeIpInCluster(ctx, os.Getenv("CLUSTER_NAME"), os.Getenv("HUB_PROJECT_NAMESPACE"), nodeIpList)
 		if err != nil {
 			return err
 		}
-		r.NodeIP = nodeIpList[0]
+		r.NodeIP = nodeIpList
 	}
 	return nil
 }
@@ -815,4 +815,14 @@ func contains(s []string, e string) bool {
 		}
 	}
 	return false
+}
+
+func validatenodeipcount(total, current []string) bool {
+	count := 0
+	for _, a := range current {
+		if contains(total, a) {
+			count += 1
+		}
+	}
+	return count == len(current)
 }
