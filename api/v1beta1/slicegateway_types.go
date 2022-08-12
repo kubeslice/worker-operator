@@ -53,6 +53,8 @@ type SliceGatewayConfig struct {
 	SliceGatewayNodePort int `json:"sliceGatewayNodePort,omitempty"`
 	// Remote Node IP
 	SliceGatewayRemoteNodeIP string `json:"sliceGatewayRemoteNodeIp,omitempty"`
+	// Remote Node IPs
+	SliceGatewayRemoteNodeIPs []string `json:"sliceGatewayRemoteNodeIps,omitempty"`
 	// Remote Node Port
 	SliceGatewayRemoteNodePort int `json:"sliceGatewayRemoteNodePort,omitempty"`
 	// Remote Node Subnet

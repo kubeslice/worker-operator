@@ -21,6 +21,7 @@ package slicegateway
 import (
 	"context"
 	_ "errors"
+	"fmt"
 	"os"
 	"strconv"
 	"time"
@@ -713,6 +714,7 @@ func (r *SliceGwReconciler) createHeadlessServiceForGwServer(slicegateway *kubes
 }
 
 func (r *SliceGwReconciler) createEndpointForGatewayServer(slicegateway *kubeslicev1beta1.SliceGateway) *corev1.Endpoints {
+	fmt.Println("IP from Subset: ------------------->", slicegateway.Status.Config.SliceGatewayRemoteNodeIPs[0])
 	e := &corev1.Endpoints{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      slicegateway.Status.Config.SliceGatewayRemoteGatewayID,
@@ -722,7 +724,7 @@ func (r *SliceGwReconciler) createEndpointForGatewayServer(slicegateway *kubesli
 			{
 				Addresses: []corev1.EndpointAddress{
 					{
-						IP: slicegateway.Status.Config.SliceGatewayRemoteNodeIP,
+						IP: slicegateway.Status.Config.SliceGatewayRemoteNodeIPs[0],
 					},
 				},
 			},
@@ -801,10 +803,10 @@ func (r *SliceGwReconciler) reconcileGatewayEndpoint(ctx context.Context, sliceG
 		return true, ctrl.Result{}, err
 	}
 	// endpoint already exists , check if sliceGatewayRemoteNodeIp is changed then update the endpoint
-	debugLog.Info("SliceGatewayRemoteNodeIP", "SliceGatewayRemoteNodeIP", sliceGw.Status.Config.SliceGatewayRemoteNodeIP)
-	if endpointFound.Subsets[0].Addresses[0].IP != sliceGw.Status.Config.SliceGatewayRemoteNodeIP {
+	debugLog.Info("SliceGatewayRemoteNodeIP", "SliceGatewayRemoteNodeIP", sliceGw.Status.Config.SliceGatewayRemoteNodeIPs)
+	if endpointFound.Subsets[0].Addresses[0].IP != sliceGw.Status.Config.SliceGatewayRemoteNodeIPs[0] {
 		debugLog.Info("Updating the Endpoint, since sliceGatewayRemoteNodeIp has changed", "from endpointFound", endpointFound.Subsets[0].Addresses[0].IP)
-		endpointFound.Subsets[0].Addresses[0].IP = sliceGw.Status.Config.SliceGatewayRemoteNodeIP
+		endpointFound.Subsets[0].Addresses[0].IP = sliceGw.Status.Config.SliceGatewayRemoteNodeIPs[0]
 		err := r.Update(ctx, &endpointFound)
 		if err != nil {
 			log.Error(err, "Error updating Endpoint")

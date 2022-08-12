@@ -295,7 +295,7 @@ var _ = Describe("Worker SlicegwController", func() {
 
 			createdSliceGw.Status.Config.SliceGatewayHostType = "Client"
 			createdSliceGw.Status.Config.SliceGatewayRemoteGatewayID = "remote-gateway-id"
-			createdSliceGw.Status.Config.SliceGatewayRemoteNodeIP = "192.168.1.1"
+			createdSliceGw.Status.Config.SliceGatewayRemoteNodeIPs = []string{"192.168.1.1"}
 			createdSliceGw.Status.Config.SliceGatewayRemoteNodePort = 8080
 
 			Eventually(func() bool {
@@ -333,7 +333,7 @@ var _ = Describe("Worker SlicegwController", func() {
 				}
 				createdSliceGw.Status.Config.SliceGatewayHostType = "Client"
 				createdSliceGw.Status.Config.SliceGatewayRemoteGatewayID = "remote-gateway-id"
-				createdSliceGw.Status.Config.SliceGatewayRemoteNodeIP = "192.168.1.1"
+				createdSliceGw.Status.Config.SliceGatewayRemoteNodeIPs = []string{"192.168.1.1"}
 				createdSliceGw.Status.Config.SliceGatewayRemoteNodePort = 8080
 
 				err = k8sClient.Status().Update(ctx, createdSliceGw)
@@ -370,7 +370,7 @@ var _ = Describe("Worker SlicegwController", func() {
 				}
 				createdSliceGw.Status.Config.SliceGatewayHostType = "Client"
 				createdSliceGw.Status.Config.SliceGatewayRemoteGatewayID = "remote-gateway-id"
-				createdSliceGw.Status.Config.SliceGatewayRemoteNodeIP = "192.168.1.1"
+				createdSliceGw.Status.Config.SliceGatewayRemoteNodeIPs = []string{"192.168.1.1"}
 				createdSliceGw.Status.Config.SliceGatewayRemoteNodePort = 8080
 
 				err = k8sClient.Status().Update(ctx, createdSliceGw)
@@ -392,7 +392,7 @@ var _ = Describe("Worker SlicegwController", func() {
 			}, time.Second*30, time.Millisecond*250).Should(BeTrue())
 			Expect(endpointFound.Name).To(Equal(createdSliceGw.Status.Config.SliceGatewayRemoteGatewayID))
 			//ip should be same as remote node IP
-			Expect(endpointFound.Subsets[0].Addresses[0].IP).To(Equal(createdSliceGw.Status.Config.SliceGatewayRemoteNodeIP))
+			Expect(endpointFound.Subsets[0].Addresses[0].IP).To(Equal(createdSliceGw.Status.Config.SliceGatewayRemoteNodeIPs[0]))
 		})
 	})
 
