@@ -90,6 +90,11 @@ spec:
                   sliceGatewayRemoteNodeIp:
                     description: Remote Node IP
                     type: string
+                  sliceGatewayRemoteNodeIps:
+                    description: Remote Node IPs
+                    items:
+                      type: string
+                    type: array
                   sliceGatewayRemoteNodePort:
                     description: Remote Node Port
                     type: integer
