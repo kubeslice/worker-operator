@@ -219,7 +219,7 @@ prefixes:
 				if err != nil {
 					return false
 				}
-				return cluster.Spec.NodeIP == "35.235.10.2"
+				return cluster.Spec.NodeIPs[0] == "35.235.10.2"
 			}, time.Second*60, time.Millisecond*250).Should(BeTrue())
 		})
 	})
