@@ -819,12 +819,13 @@ func contains(s []string, e string) bool {
 	return false
 }
 
+//total -> external ip list of nodes in the k8s cluster
+//current -> ip list present in nodeIPs of cluster cr
 func validatenodeipcount(total, current []string) bool {
-	count := 0
-	for _, a := range current {
-		if contains(total, a) {
-			count += 1
+	for _, a := range total {
+		if !contains(current, a) {
+			return false
 		}
 	}
-	return count == len(current)
+	return true && len(total) == len(current)
 }
