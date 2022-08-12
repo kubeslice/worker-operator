@@ -63,7 +63,7 @@ type SliceGwReconciler struct {
 }
 
 func readyToDeployGwClient(sliceGw *kubeslicev1beta1.SliceGateway) bool {
-	return sliceGw.Status.Config.SliceGatewayRemoteNodeIP != "" && sliceGw.Status.Config.SliceGatewayRemoteNodePort != 0 && sliceGw.Status.Config.SliceGatewayRemoteGatewayID != ""
+	return len(sliceGw.Status.Config.SliceGatewayRemoteNodeIPs) != 0 && sliceGw.Status.Config.SliceGatewayRemoteNodePort != 0 && sliceGw.Status.Config.SliceGatewayRemoteGatewayID != ""
 }
 
 //+kubebuilder:rbac:groups=networking.kubeslice.io,resources=slicegateways,verbs=get;list;watch;create;update;patch;delete

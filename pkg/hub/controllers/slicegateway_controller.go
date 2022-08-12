@@ -86,6 +86,7 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req reconcile.Request
 		SliceGatewayRemoteSubnet:    sliceGw.Spec.RemoteGatewayConfig.GatewaySubnet,
 		SliceGatewayHostType:        sliceGw.Spec.GatewayHostType,
 		SliceGatewayRemoteNodeIP:    sliceGw.Spec.RemoteGatewayConfig.NodeIp,
+		SliceGatewayRemoteNodeIPs:   sliceGw.Spec.RemoteGatewayConfig.NodeIps,
 		SliceGatewayRemoteNodePort:  sliceGw.Spec.RemoteGatewayConfig.NodePort,
 		SliceGatewayRemoteClusterID: sliceGw.Spec.RemoteGatewayConfig.ClusterName,
 		SliceGatewayRemoteGatewayID: sliceGw.Spec.RemoteGatewayConfig.GatewayName,
