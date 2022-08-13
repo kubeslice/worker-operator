@@ -1,7 +1,7 @@
 name: go-checks
 on:
   pull_request:
-    branches: master
+    branches: PR-external
 
 jobs:
   build:
