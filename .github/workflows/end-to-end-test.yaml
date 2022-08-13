@@ -46,17 +46,16 @@ jobs:
         allure_report: allure_report
         allure_history: allure-history
         gh_pages: gh-pages
-        keep_reports: 20
+        keep_reports: 500
         github_run_id: '${{ github.run_id }}'
         github_run_num: 'Kind-${{ github.base_ref }}-${{ github.run_number }}'
         report_url: 'https://kubeslice.github.io/e2e-allure-reports/'
         test_env: Kind
           
-    - name: Deploy report to Github Pages
-      uses: peaceiris/actions-gh-pages@v2
-      env:
-        PUBLISH_BRANCH: gh-pages
-        PERSONAL_TOKEN: ${{ secrets.TOKEN }}
-        EXTERNAL_REPOSITORY: kubeslice/e2e-allure-reports
-        PUBLISH_DIR: allure-history
-        keep_files: true
+    - name: Deploy
+      uses: peaceiris/actions-gh-pages@v3
+      with:
+        personal_token: ${{ secrets.PERSONAL_TOKEN }}
+        external_repository: kubeslice/e2e-allure-reports
+        publish_branch: gh-pages
+        publish_dir: allure-history
