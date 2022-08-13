@@ -55,7 +55,7 @@ jobs:
     - name: Deploy
       uses: peaceiris/actions-gh-pages@v3
       with:
-        personal_token:: ${{ secrets.PERSONAL_TOKEN }}
+        personal_token: ${{ secrets.PERSONAL_TOKEN }}
         external_repository: kubeslice/e2e-allure-reports
         publish_branch: gh-pages
         publish_dir: allure-history
