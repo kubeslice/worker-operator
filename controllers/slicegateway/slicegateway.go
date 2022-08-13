@@ -141,7 +141,7 @@ func (r *SliceGwReconciler) deploymentForGatewayServer(g *kubeslicev1beta1.Slice
 						},
 						PodAffinity: &corev1.PodAffinity{
 							RequiredDuringSchedulingIgnoredDuringExecution: []corev1.PodAffinityTerm{{
-								TopologyKey: "random",
+								TopologyKey: controllers.TopologyKeySelector,
 								LabelSelector: &metav1.LabelSelector{
 									MatchExpressions: []metav1.LabelSelectorRequirement{{
 										Key:      controllers.PodTypeSelectorLabelKey,
@@ -412,7 +412,7 @@ func (r *SliceGwReconciler) deploymentForGatewayClient(g *kubeslicev1beta1.Slice
 						},
 						PodAffinity: &corev1.PodAffinity{
 							RequiredDuringSchedulingIgnoredDuringExecution: []corev1.PodAffinityTerm{{
-								TopologyKey: "random",
+								TopologyKey: controllers.TopologyKeySelector,
 								LabelSelector: &metav1.LabelSelector{
 									MatchExpressions: []metav1.LabelSelectorRequirement{{
 										Key:      controllers.PodTypeSelectorLabelKey,
