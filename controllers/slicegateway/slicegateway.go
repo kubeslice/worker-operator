@@ -75,7 +75,7 @@ func (r *SliceGwReconciler) deploymentForGateway(g *kubeslicev1beta1.SliceGatewa
 func (r *SliceGwReconciler) deploymentForGatewayServer(g *kubeslicev1beta1.SliceGateway) *appsv1.Deployment {
 	ls := labelsForSliceGwDeployment(g.Name, g.Spec.SliceName)
 
-	var replicas int32 = 1
+	var replicas int32 = 2
 
 	var vpnSecretDefaultMode int32 = 420
 	var vpnFilesRestrictedMode int32 = 0644
@@ -138,6 +138,17 @@ func (r *SliceGwReconciler) deploymentForGatewayServer(g *kubeslicev1beta1.Slice
 									}},
 								}},
 							},
+						},
+						PodAffinity: &corev1.PodAffinity{
+							RequiredDuringSchedulingIgnoredDuringExecution: []corev1.PodAffinityTerm{{
+								LabelSelector: &metav1.LabelSelector{
+									MatchExpressions: []metav1.LabelSelectorRequirement{{
+										Key:      controllers.PodTypeSelectorLabelKey,
+										Operator: metav1.LabelSelectorOpIn,
+										Values:   []string{"slicegateway"},
+									}},
+								},
+							}},
 						},
 					},
 					Containers: []corev1.Container{{
@@ -333,7 +344,7 @@ func (r *SliceGwReconciler) serviceForGateway(g *kubeslicev1beta1.SliceGateway) 
 }
 
 func (r *SliceGwReconciler) deploymentForGatewayClient(g *kubeslicev1beta1.SliceGateway) *appsv1.Deployment {
-	var replicas int32 = 1
+	var replicas int32 = 2
 	var privileged = true
 
 	var vpnSecretDefaultMode int32 = 0644
@@ -397,6 +408,17 @@ func (r *SliceGwReconciler) deploymentForGatewayClient(g *kubeslicev1beta1.Slice
 									}},
 								}},
 							},
+						},
+						PodAffinity: &corev1.PodAffinity{
+							RequiredDuringSchedulingIgnoredDuringExecution: []corev1.PodAffinityTerm{{
+								LabelSelector: &metav1.LabelSelector{
+									MatchExpressions: []metav1.LabelSelectorRequirement{{
+										Key:      controllers.PodTypeSelectorLabelKey,
+										Operator: metav1.LabelSelectorOpIn,
+										Values:   []string{"slicegateway"},
+									}},
+								},
+							}},
 						},
 					},
 					Containers: []corev1.Container{{
