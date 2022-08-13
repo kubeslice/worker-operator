@@ -141,6 +141,7 @@ func (r *SliceGwReconciler) deploymentForGatewayServer(g *kubeslicev1beta1.Slice
 						},
 						PodAffinity: &corev1.PodAffinity{
 							RequiredDuringSchedulingIgnoredDuringExecution: []corev1.PodAffinityTerm{{
+								TopologyKey: "random",
 								LabelSelector: &metav1.LabelSelector{
 									MatchExpressions: []metav1.LabelSelectorRequirement{{
 										Key:      controllers.PodTypeSelectorLabelKey,
@@ -411,6 +412,7 @@ func (r *SliceGwReconciler) deploymentForGatewayClient(g *kubeslicev1beta1.Slice
 						},
 						PodAffinity: &corev1.PodAffinity{
 							RequiredDuringSchedulingIgnoredDuringExecution: []corev1.PodAffinityTerm{{
+								TopologyKey: "random",
 								LabelSelector: &metav1.LabelSelector{
 									MatchExpressions: []metav1.LabelSelectorRequirement{{
 										Key:      controllers.PodTypeSelectorLabelKey,
@@ -746,6 +748,9 @@ func (r *SliceGwReconciler) createEndpointForGatewayServer(slicegateway *kubesli
 			},
 		},
 	}
+	if len(slicegateway.Status.Config.SliceGatewayRemoteNodeIPs) > 1 {
+		e.Subsets[0].Addresses = append(e.Subsets[0].Addresses, corev1.EndpointAddress{IP: slicegateway.Status.Config.SliceGatewayRemoteNodeIPs[1]})
+	}
 	ctrl.SetControllerReference(slicegateway, e, r.Scheme)
 	return e
 }
@@ -819,10 +824,21 @@ func (r *SliceGwReconciler) reconcileGatewayEndpoint(ctx context.Context, sliceG
 		return true, ctrl.Result{}, err
 	}
 	// endpoint already exists , check if sliceGatewayRemoteNodeIp is changed then update the endpoint
+	toUpdate := false
 	debugLog.Info("SliceGatewayRemoteNodeIP", "SliceGatewayRemoteNodeIP", sliceGw.Status.Config.SliceGatewayRemoteNodeIPs)
+	if len(sliceGw.Status.Config.SliceGatewayRemoteNodeIPs) > 1 {
+		if endpointFound.Subsets[0].Addresses[0].IP != sliceGw.Status.Config.SliceGatewayRemoteNodeIPs[0] || endpointFound.Subsets[0].Addresses[1].IP != sliceGw.Status.Config.SliceGatewayRemoteNodeIPs[1] {
+			debugLog.Info("Updating the Endpoint, since sliceGatewayRemoteNodeIp has changed", "from endpointFound", endpointFound.Subsets[0].Addresses[0].IP)
+			endpointFound.Subsets[0].Addresses[0].IP = sliceGw.Status.Config.SliceGatewayRemoteNodeIPs[0]
+			endpointFound.Subsets[0].Addresses[1].IP = sliceGw.Status.Config.SliceGatewayRemoteNodeIPs[1]
+			toUpdate = true
+		}
+	}
 	if endpointFound.Subsets[0].Addresses[0].IP != sliceGw.Status.Config.SliceGatewayRemoteNodeIPs[0] {
-		debugLog.Info("Updating the Endpoint, since sliceGatewayRemoteNodeIp has changed", "from endpointFound", endpointFound.Subsets[0].Addresses[0].IP)
 		endpointFound.Subsets[0].Addresses[0].IP = sliceGw.Status.Config.SliceGatewayRemoteNodeIPs[0]
+		toUpdate = true
+	}
+	if toUpdate {
 		err := r.Update(ctx, &endpointFound)
 		if err != nil {
 			log.Error(err, "Error updating Endpoint")
