@@ -30,15 +30,18 @@ if [ ! -f profile/kind.yaml ];then
 Kubeconfig: kinde2e.yaml
 ControllerCluster:
   Context: kind-controller
+  HubChartOptions:
+    Repo: https://kubeslice.github.io/kubeslice/
 WorkerClusters:
 - Context: kind-controller
   NodeIP: ${IP1}
 - Context: kind-worker
   NodeIP: ${IP2}
 WorkerChartOptions:
+  Repo: https://kubeslice.github.io/kubeslice/
   SetStrValues:
     "operator.image": "worker-operator"
-    "operator.tag": "e2e-latest"
+    "operator.tag": "pr-external"
 TestSuitesEnabled:
   HubSuite: true
   WorkerSuite: true
