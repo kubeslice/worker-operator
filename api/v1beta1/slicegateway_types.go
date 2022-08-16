@@ -63,6 +63,10 @@ type SliceGatewayConfig struct {
 	SliceGatewayRemoteVpnIP string `json:"sliceGatewayRemoteVpnIp,omitempty"`
 	// Local VPN IP
 	SliceGatewayLocalVpnIP string `json:"sliceGatewayLocalVpnIp,omitempty"`
+	// Remote VPN IPs
+	SliceGatewayRemoteVpnIPs []string `json:"sliceGatewayRemoteVpnIps,omitempty"`
+	// Local VPN IPs
+	SliceGatewayLocalVpnIPs []string `json:"sliceGatewayLocalVpnIps,omitempty"`
 	// Remote Gateway ID
 	SliceGatewayRemoteGatewayID string `json:"sliceGatewayRemoteGatewayId,omitempty"`
 	// Remote Cluster ID
@@ -77,16 +81,24 @@ type SliceGatewayStatus struct {
 	ConfigUpdatedOn int64 `json:"configUpdatedOn,omitempty"`
 	// PodName is the name of the gateway pod running in cluster
 	PodName string `json:"podName,omitempty"`
+	// PodName is the name of the gateway pod running in cluster
+	PodNames []string `json:"podNames,omitempty"`
 	// PodStatus shows whether gateway pod is healthy
 	PodStatus string `json:"podStatus,omitempty"`
 	// PodIP is the Ip of the gateway pod running in cluster
 	PodIP string `json:"podIp,omitempty"`
+	// PodIPs is the Ip of the gateway pod running in cluster
+	PodIPs []string `json:"podIps,omitempty"`
 	// LocalIP is the gateway tunnel ip
 	LocalIP string `json:"localIp,omitempty"`
+	// LocalIP is the gateway tunnel ip
+	LocalIPs []string `json:"localIps,omitempty"`
 	// PeerIP is the gateway tunnel peer ip
 	PeerIP string `json:"peerIp,omitempty"`
 	// LocalNsmIP is the IP on the nsm interface to Slice Router
 	LocalNsmIP string `json:"localNsmIp,omitempty"`
+	// LocalNsmIPs is the IP on the nsm interface to Slice Router
+	LocalNsmIPs []string `json:"localNsmIps,omitempty"`
 	// ConnectionContextUpdated is the time when context updated in pod
 	ConnectionContextUpdatedOn int64 `json:"connectionContextUpdatedOn,omitempty"`
 }
