@@ -43,6 +43,7 @@ type SliceGatewayConfig struct {
 	GatewayName   string   `json:"gatewayName,omitempty"`
 	ClusterName   string   `json:"clusterName,omitempty"`
 	VpnIp         string   `json:"vpnIp,omitempty"`
+	VpnIps        []string `json:"vpnIps,omitempty"`
 	GatewaySubnet string   `json:"gatewaySubnet,omitempty"`
 }
 
