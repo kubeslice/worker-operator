@@ -85,6 +85,9 @@ func (wh *WebhookServer) InjectDecoder(d *admission.Decoder) error {
 
 func Mutate(deploy *appsv1.Deployment, sliceName string) *appsv1.Deployment {
 	// Add injection status to deployment annotations
+	if deploy.Annotations == nil {
+		deploy.Annotations = map[string]string{}
+	}
 	deploy.Annotations[AdmissionWebhookAnnotationStatusKey] = "injected"
 
 	if deploy.Spec.Template.ObjectMeta.Annotations == nil {
