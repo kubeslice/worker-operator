@@ -44,8 +44,8 @@ import (
 )
 
 const (
-	GCP string = "gcp"
-	AWS string = "aws"
+	GCP   string = "gcp"
+	AWS   string = "aws"
 	AZURE string = "azure"
 )
 
