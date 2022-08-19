@@ -43,6 +43,12 @@ import (
 	"github.com/kubeslice/worker-operator/pkg/logger"
 )
 
+const (
+	GCP   string = "gcp"
+	AWS   string = "aws"
+	AZURE string = "azure"
+)
+
 var scheme = runtime.NewScheme()
 var log = logger.NewLogger().WithValues("type", "hub")
 
@@ -249,8 +255,12 @@ func updateClusterInfoToHub(ctx context.Context, spokeclient client.Client, hubC
 			return err
 		}
 		log.Info("cniSubnet", "cniSubnet", cniSubnet)
-		hubCluster.Spec.ClusterProperty.GeoLocation.CloudRegion = clusterInfo.ClusterProperty.GeoLocation.CloudRegion
-		hubCluster.Spec.ClusterProperty.GeoLocation.CloudProvider = clusterInfo.ClusterProperty.GeoLocation.CloudProvider
+
+		// worker operator to only update Geolocation related values for gcp,aws and azure
+		if clusterInfo.ClusterProperty.GeoLocation.CloudProvider == GCP || clusterInfo.ClusterProperty.GeoLocation.CloudProvider == AWS || clusterInfo.ClusterProperty.GeoLocation.CloudProvider == AZURE {
+			hubCluster.Spec.ClusterProperty.GeoLocation.CloudRegion = clusterInfo.ClusterProperty.GeoLocation.CloudRegion
+			hubCluster.Spec.ClusterProperty.GeoLocation.CloudProvider = clusterInfo.ClusterProperty.GeoLocation.CloudProvider
+		}
 		hubCluster.Spec.NodeIP = nodeIP
 		if err := hubClient.Update(ctx, hubCluster); err != nil {
 			log.Error(err, "Error updating to cluster spec on hub cluster")
