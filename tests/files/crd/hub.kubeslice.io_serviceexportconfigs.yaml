@@ -13,6 +13,8 @@ spec:
     kind: ServiceExportConfig
     listKind: ServiceExportConfigList
     plural: serviceexportconfigs
+    shortNames:
+    - se
     singular: serviceexportconfig
   scope: Namespaced
   versions:
@@ -37,6 +39,15 @@ spec:
           spec:
             description: ServiceExportConfigSpec defines the desired state of ServiceExportConfig
             properties:
+              meshType:
+                description: The type of service mesh running in the cluster
+                enum:
+                - istio
+                - none
+                type: string
+              proxy:
+                description: Proxy enabled or disabled.
+                type: boolean
               serviceDiscoveryEndpoints:
                 description: the service discovery endpoint array
                 items:
@@ -78,8 +89,6 @@ spec:
               serviceName:
                 description: ServiceName is the name of the service
                 type: string
-              serviceNamespace:
-                type: string
               sliceName:
                 description: The name of the slice.
                 type: string
@@ -87,10 +96,6 @@ spec:
                 description: clusterId is the id of the cluster where the service
                   is available.
                 type: string
-            required:
-            - serviceName
-            - sliceName
-            - sourceCluster
             type: object
           status:
             type: object
