@@ -40,9 +40,9 @@ var _ = Describe("Hub SliceController", func() {
 
 		var hubSlice *workerv1alpha1.WorkerSliceConfig
 		var createdSlice *kubeslicev1beta1.Slice
-		var ipamOctet = 1
 
 		BeforeEach(func() {
+
 			// Prepare k8s objects
 			hubSlice = &workerv1alpha1.WorkerSliceConfig{
 				ObjectMeta: metav1.ObjectMeta{
@@ -53,14 +53,14 @@ var _ = Describe("Hub SliceController", func() {
 					},
 				},
 				Spec: workerv1alpha1.WorkerSliceConfigSpec{
-					SliceName:         "test-slice-1",
-					SliceType:         "Application",
-					SliceSubnet:       "10.0.0.1/16",
-					SliceIpamType:     "Local",
-					IpamClusterOctet:  &ipamOctet,
-					ClusterSubnetCIDR: "10.0.16.0/20",
+					SliceName:        "test-slice-1",
+					SliceType:        "Application",
+					SliceSubnet:      "10.0.0.1/16",
+					SliceIpamType:    "Local",
+					IpamClusterOctet: 100,
 				},
 			}
+
 			createdSlice = &kubeslicev1beta1.Slice{}
 
 			// Cleanup after each test
@@ -90,8 +90,8 @@ var _ = Describe("Hub SliceController", func() {
 			Expect(createdSlice.Status.SliceConfig.SliceDisplayName).To(Equal("test-slice-1"))
 			Expect(createdSlice.Status.SliceConfig.SliceType).To(Equal("Application"))
 			Expect(createdSlice.Status.SliceConfig.SliceIpam.SliceIpamType).To(Equal("Local"))
-			Expect(createdSlice.Status.SliceConfig.SliceIpam.IpamClusterOctet).To(Equal(&ipamOctet))
-			Expect(createdSlice.Status.SliceConfig.ClusterSubnetCIDR).To(Equal("10.0.16.0/20"))
+			Expect(createdSlice.Status.SliceConfig.SliceIpam.IpamClusterOctet).To(Equal(100))
+
 		})
 
 		It("Should Generate Events", func() {
@@ -146,7 +146,6 @@ var _ = Describe("Hub SliceController", func() {
 		var createdSlice *kubeslicev1beta1.Slice
 
 		BeforeEach(func() {
-			hundred := 100
 			// Prepare k8s objects
 			hubSlice = &workerv1alpha1.WorkerSliceConfig{
 				ObjectMeta: metav1.ObjectMeta{
@@ -161,7 +160,7 @@ var _ = Describe("Hub SliceController", func() {
 					SliceType:        "Application",
 					SliceSubnet:      "10.0.0.1/16",
 					SliceIpamType:    "Local",
-					IpamClusterOctet: &hundred,
+					IpamClusterOctet: 100,
 				},
 			}
 
@@ -195,7 +194,7 @@ var _ = Describe("Hub SliceController", func() {
 		var createdSlice *kubeslicev1beta1.Slice
 
 		BeforeEach(func() {
-			var ipamOcter = 16
+
 			// Prepare k8s objects
 			hubSlice = &workerv1alpha1.WorkerSliceConfig{
 				ObjectMeta: metav1.ObjectMeta{
@@ -206,8 +205,7 @@ var _ = Describe("Hub SliceController", func() {
 					},
 				},
 				Spec: workerv1alpha1.WorkerSliceConfigSpec{
-					SliceName:        "test-slice-3",
-					IpamClusterOctet: &ipamOcter,
+					SliceName: "test-slice-3",
 					ExternalGatewayConfig: workerv1alpha1.ExternalGatewayConfig{
 						Ingress: workerv1alpha1.ExternalGatewayConfigOptions{
 							Enabled: true,

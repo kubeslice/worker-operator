@@ -285,11 +285,10 @@ var _ = Describe("SliceController", func() {
 
 			status := kubeslicev1beta1.SliceStatus{
 				SliceConfig: &kubeslicev1beta1.SliceConfig{
-					SliceDisplayName:  "test-slice",
-					SliceSubnet:       "10.0.0.1/16",
-					SliceID:           "test-slice",
-					SliceType:         "Application",
-					ClusterSubnetCIDR: "1.1.1.1/16",
+					SliceDisplayName: "test-slice",
+					SliceSubnet:      "10.0.0.1/16",
+					SliceID:          "test-slice",
+					SliceType:        "Application",
 				},
 			}
 
@@ -304,8 +303,7 @@ var _ = Describe("SliceController", func() {
 					return err
 				}
 				createdSlice.Status = status
-				err = k8sClient.Status().Update(ctx, createdSlice)
-				return err
+				return k8sClient.Status().Update(ctx, createdSlice)
 			}, time.Second*20, time.Millisecond*1000).Should(BeNil())
 
 			sliceRouterKey := types.NamespacedName{Name: "vl3-slice-router-test-slice", Namespace: "kubeslice-system"}
@@ -318,7 +316,7 @@ var _ = Describe("SliceController", func() {
 					return false
 				}
 				return createdSliceRouter.Name == "vl3-slice-router-test-slice"
-			}, time.Second*60, time.Millisecond*250).Should(BeTrue())
+			}, time.Second*20, time.Millisecond*250).Should(BeTrue())
 
 			// verify router container images
 			Expect(createdSliceRouter.Spec.Template.Spec.Containers[0].Image).To(Equal("vl3-test"))
