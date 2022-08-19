@@ -40,42 +40,6 @@ spec:
                 items:
                   type: string
                 type: array
-              externalGatewayConfig:
-                items:
-                  description: ExternalGatewayConfig is the configuration for external
-                    gateways like 'istio', etc/
-                  properties:
-                    clusters:
-                      items:
-                        type: string
-                      type: array
-                    egress:
-                      properties:
-                        enabled:
-                          type: boolean
-                      type: object
-                    gatewayType:
-                      enum:
-                      - none
-                      - istio
-                      type: string
-                    ingress:
-                      properties:
-                        enabled:
-                          type: boolean
-                      type: object
-                    nsIngress:
-                      properties:
-                        enabled:
-                          type: boolean
-                      type: object
-                  type: object
-                type: array
-              maxClusters:
-                default: 16
-                maximum: 32
-                minimum: 2
-                type: integer
               namespaceIsolationProfile:
                 properties:
                   allowedNamespaces:
@@ -101,11 +65,12 @@ spec:
                       type: object
                     type: array
                   isolationEnabled:
-                    default: false
                     type: boolean
                 type: object
+              networkPolicyVersion:
+                type: integer
               qosProfileDetails:
-                description: The custom QOS Profile Details
+                description: QOSProfile is the QOS Profile configuration from backend
                 properties:
                   bandwidthCeilingKbps:
                     type: integer
@@ -129,12 +94,14 @@ spec:
                     - EF
                     type: string
                   priority:
-                    type: integer
+                    type: string
                   queueType:
-                    default: HTB
+                    enum:
+                    - HTB
                     type: string
                   tcType:
-                    default: BANDWIDTH_CONTROL
+                    enum:
+                    - BANDWIDTH_CONTROL
                     type: string
                 required:
                 - bandwidthCeilingKbps
@@ -145,30 +112,35 @@ spec:
                 - tcType
                 type: object
               sliceGatewayProvider:
-                description: WorkerSliceGatewayProvider defines the configuration
-                  for slicegateway
+                description: SpokeSliceGatewayProvider defines the configuration for
+                  slicegateway
                 properties:
                   sliceCaType:
-                    default: Local
+                    enum:
+                    - Local
                     type: string
                   sliceGatewayType:
-                    default: OpenVPN
+                    enum:
+                    - OpenVPN
                     type: string
                 required:
                 - sliceCaType
                 - sliceGatewayType
                 type: object
               sliceIpamType:
-                default: Local
+                enum:
+                - Local
                 type: string
               sliceSubnet:
                 type: string
               sliceType:
-                default: Application
+                enum:
+                - Application
                 type: string
               standardQosProfileName:
                 type: string
             required:
+            - qosProfileDetails
             - sliceGatewayProvider
             type: object
           status:

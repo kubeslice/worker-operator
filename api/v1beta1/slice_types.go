@@ -46,7 +46,7 @@ type SliceIpamConfig struct {
 	// IPAM Type for slice
 	SliceIpamType string `json:"sliceIpamType"`
 	// Cluster specific octet for IPAM root subnet
-	IpamClusterOctet *int `json:"ipamClusterOctet,omitempty"`
+	IpamClusterOctet int `json:"ipamClusterOctet,omitempty"`
 }
 
 // SliceConfig defines the Config retrieved from Hub
@@ -67,8 +67,6 @@ type SliceConfig struct {
 	ExternalGatewayConfig *ExternalGatewayConfig `json:"externalGatewayConfig,omitempty"`
 	// Namespace Isolation profile contains fields related to namespace binding to slice
 	NamespaceIsolationProfile *NamespaceIsolationProfile `json:"namespaceIsolationProfile,omitempty"`
-	//ClusterSubnetCIDR is the subnet to be used by the current cluster
-	ClusterSubnetCIDR string `json:"clusterSubnetCIDR,omitempty"`
 }
 
 // NamespaceIsolationProfile defines the namespace isolation policy for the slice

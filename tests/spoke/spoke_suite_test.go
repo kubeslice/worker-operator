@@ -136,7 +136,7 @@ var _ = BeforeSuite(func() {
 	Expect(err).ToNot(HaveOccurred())
 
 	err = (&slice.SliceReconciler{
-		Client: k8sClient,
+		Client: k8sManager.GetClient(),
 		Scheme: k8sManager.GetScheme(),
 		Log:    ctrl.Log.WithName("SliceTest"),
 		EventRecorder: &events.EventRecorder{
