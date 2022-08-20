@@ -14,7 +14,7 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-
+ 
 syntax = "proto3";
 
 package router;
@@ -49,6 +49,8 @@ message SliceGwConContext {
     string remoteSliceGwNsmSubnet = 6;
     // Local NSM gw peer IP
     string localNsmGwPeerIP = 7;
+    // Local NSM gw peer IPs
+    repeated string localNsmGwPeerIPList = 8;
 }
 
 // ConnectionInfo - Slice Router client connection information
