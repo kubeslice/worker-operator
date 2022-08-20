@@ -458,8 +458,10 @@ github.com/kubeslice/gateway-sidecar v0.1.4 h1:YKqzu3WzgzRdWhF1ZvalpmDmyF31QiZKX
 github.com/kubeslice/gateway-sidecar v0.1.4/go.mod h1:grTac1B4A6CsMkpjGp493CwDQhD3oExHwYFLKeE3how=
 github.com/kubeslice/netops v0.0.0-20220506082959-81fef290c265 h1:2NWAlXUz3z7bNk9JW8w0EGlB6iJqV2q77v74etzf60I=
 github.com/kubeslice/netops v0.0.0-20220506082959-81fef290c265/go.mod h1:E7YaL2XM2a7ifLp37F8gYuUX2oVPlKEeQqmHUe0LP7Q=
-github.com/kubeslice/router-sidecar v1.1.1 h1:dnW7iPwYwn1evjFXIXEeK/pjJZrTH6S64R/N65ClTh0=
-github.com/kubeslice/router-sidecar v1.1.1/go.mod h1:L38RGgSC7SZCDZ8pjM56Y1uhZ2GgJ7EkfpIePATuLvw=
+github.com/kubeslice/router-sidecar v1.0.0 h1:s9LSth6vghkYhJRmu8x27iWMVzPqEvSJqXRLM3bqHts=
+github.com/kubeslice/router-sidecar v1.0.0/go.mod h1:8HqA97X+9xvQCM+pc9w8r/5z72zzdf/bU/KxMuCvhgs=
+github.com/kubeslice/router-sidecar v1.1.2-0.20220820130640-c94ddd2059cb h1:GLYyCZmC1WaKbZ/TH28/Fh48wrr0W6RGfgytGq/ViGc=
+github.com/kubeslice/router-sidecar v1.1.2-0.20220820130640-c94ddd2059cb/go.mod h1:L38RGgSC7SZCDZ8pjM56Y1uhZ2GgJ7EkfpIePATuLvw=
 github.com/leodido/go-urn v1.2.0/go.mod h1:+8+nEpDfqqsY+g338gtMEUOtuK+4dEMhiQEgxpxOKII=
 github.com/lorenzosaino/go-sysctl v0.1.1/go.mod h1:J8IUEpaHUUrL+FuDT+OsvlToHAV0A3u6iNRrJdCkoCU=
 github.com/lorenzosaino/go-sysctl v0.2.0 h1:F+NhHQKbiIBFcdw55G7ggizehMe1on1603brqQQVKWA=
@@ -687,6 +689,7 @@ go.etcd.io/etcd/pkg/v3 v3.5.0/go.mod h1:UzJGatBQ1lXChBkQF0AuAtkRQMYnHubxAEYIrC3M
 go.etcd.io/etcd/raft/v3 v3.5.0/go.mod h1:UFOHSIvO/nKwd4lhkwabrTD3cqW5yVyYYf/KlD00Szc=
 go.etcd.io/etcd/server/v3 v3.5.0/go.mod h1:3Ah5ruV+M+7RZr0+Y/5mNLwC+eQlni+mQmOVdCRJoS4=
 go.ligato.io/cn-infra/v2 v2.5.0-alpha.0.20200313154441-b0d4c1b11c73/go.mod h1:mYLtG2Bq3C/SOUUafEe8JOwdqohd4NVYl6Bu/nh/O8Y=
+go.ligato.io/vpp-agent/v3 v3.2.0 h1:4/+Ny6y1udGLORasF+OTHQXgDY0mJjZaX1AIoH1OxPw=
 go.ligato.io/vpp-agent/v3 v3.2.0/go.mod h1:NoXENiLwlSOOUIsxOJ+s1DdNaF6csn5krQ9Gl2v/3r0=
 go.opencensus.io v0.21.0/go.mod h1:mSImk1erAIZhrmZN+AvHh14ztQfjbGwt4TtuofqLduU=
 go.opencensus.io v0.22.0/go.mod h1:+kGneAE2xo2IficOXnaByMWTGM9T73dGwxeWcUqIpI8=
