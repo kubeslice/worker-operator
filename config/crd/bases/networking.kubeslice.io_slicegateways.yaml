@@ -75,11 +75,6 @@ spec:
                   sliceGatewayLocalVpnIp:
                     description: Local VPN IP
                     type: string
-                  sliceGatewayLocalVpnIps:
-                    description: Local VPN IPs
-                    items:
-                      type: string
-                    type: array
                   sliceGatewayName:
                     description: Slice Gateway Name
                     type: string
@@ -109,11 +104,6 @@ spec:
                   sliceGatewayRemoteVpnIp:
                     description: Remote VPN IP
                     type: string
-                  sliceGatewayRemoteVpnIps:
-                    description: Remote VPN IPs
-                    items:
-                      type: string
-                    type: array
                   sliceGatewayStatus:
                     description: SliceGateway status
                     type: string

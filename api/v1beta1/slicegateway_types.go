@@ -63,10 +63,6 @@ type SliceGatewayConfig struct {
 	SliceGatewayRemoteVpnIP string `json:"sliceGatewayRemoteVpnIp,omitempty"`
 	// Local VPN IP
 	SliceGatewayLocalVpnIP string `json:"sliceGatewayLocalVpnIp,omitempty"`
-	// Remote VPN IPs
-	SliceGatewayRemoteVpnIPs []string `json:"sliceGatewayRemoteVpnIps,omitempty"`
-	// Local VPN IPs
-	SliceGatewayLocalVpnIPs []string `json:"sliceGatewayLocalVpnIps,omitempty"`
 	// Remote Gateway ID
 	SliceGatewayRemoteGatewayID string `json:"sliceGatewayRemoteGatewayId,omitempty"`
 	// Remote Cluster ID
