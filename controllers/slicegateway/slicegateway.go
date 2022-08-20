@@ -21,7 +21,6 @@ package slicegateway
 import (
 	"context"
 	_ "errors"
-	"fmt"
 	"os"
 	"strconv"
 	"time"
@@ -636,14 +635,12 @@ func (r *SliceGwReconciler) SendConnectionContextToGwPod(ctx context.Context, sl
 		log.Info("Gw podIPs not available yet, requeuing")
 		return ctrl.Result{RequeueAfter: 5 * time.Second}, nil, true
 	}
-
-	for index, podIp := range podIPs {
+	connCtx := &gwsidecar.GwConnectionContext{
+		RemoteSliceGwVpnIP:     slicegateway.Status.Config.SliceGatewayRemoteVpnIP,
+		RemoteSliceGwNsmSubnet: slicegateway.Status.Config.SliceGatewayRemoteSubnet,
+	}
+	for _, podIp := range podIPs {
 		sidecarGrpcAddress := podIp + ":5000"
-
-		connCtx := &gwsidecar.GwConnectionContext{
-			RemoteSliceGwVpnIP:     slicegateway.Status.Config.SliceGatewayRemoteVpnIPs[index],
-			RemoteSliceGwNsmSubnet: slicegateway.Status.Config.SliceGatewayRemoteSubnet,
-		}
 
 		err := r.WorkerGWSidecarClient.SendConnectionContext(ctx, sidecarGrpcAddress, connCtx)
 		if err != nil {
@@ -737,7 +734,6 @@ func (r *SliceGwReconciler) createHeadlessServiceForGwServer(slicegateway *kubes
 }
 
 func (r *SliceGwReconciler) createEndpointForGatewayServer(slicegateway *kubeslicev1beta1.SliceGateway) *corev1.Endpoints {
-	fmt.Println("IP from Subset: ------------------->", slicegateway.Status.Config.SliceGatewayRemoteNodeIPs[0])
 	e := &corev1.Endpoints{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      slicegateway.Status.Config.SliceGatewayRemoteGatewayID,
