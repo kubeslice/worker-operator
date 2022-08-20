@@ -49,6 +49,8 @@ message SliceGwConContext {
     string remoteSliceGwNsmSubnet = 6;
     // Local NSM gw peer IP
     string localNsmGwPeerIP = 7;
+    // Local NSM gw peer IPs
+    repeated string localNsmGwPeerIPList = 8;
 }
 
 // ConnectionInfo - Slice Router client connection information

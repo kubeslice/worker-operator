@@ -693,7 +693,7 @@ func (r *SliceGwReconciler) SendConnectionContextToSliceRouter(ctx context.Conte
 
 	connCtx := &router.SliceRouterConnCtx{
 		RemoteSliceGwNsmSubnet: slicegateway.Status.Config.SliceGatewayRemoteSubnet,
-		LocalNsmGwPeerIP:       slicegateway.Status.LocalNsmIP,
+		LocalNsmGwPeerIPs:      slicegateway.Status.LocalNsmIPs,
 	}
 
 	err = r.WorkerRouterClient.SendConnectionContext(ctx, sidecarGrpcAddress, connCtx)

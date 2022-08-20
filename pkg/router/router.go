@@ -30,7 +30,7 @@ import (
 
 type SliceRouterConnCtx struct {
 	RemoteSliceGwNsmSubnet string
-	LocalNsmGwPeerIP       string
+	LocalNsmGwPeerIPs      []string
 }
 
 type routerSidecarClient struct {
@@ -75,7 +75,7 @@ func (worker routerSidecarClient) SendConnectionContext(ctx context.Context, ser
 
 	msg := &sidecar.SliceGwConContext{
 		RemoteSliceGwNsmSubnet: sliceRouterConnCtx.RemoteSliceGwNsmSubnet,
-		LocalNsmGwPeerIP:       sliceRouterConnCtx.LocalNsmGwPeerIP,
+		LocalNsmGwPeerIPList:   sliceRouterConnCtx.LocalNsmGwPeerIPs,
 	}
 
 	client := sidecar.NewSliceRouterSidecarServiceClient(conn)
