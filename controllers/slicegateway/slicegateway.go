@@ -583,9 +583,9 @@ func (r *SliceGwReconciler) GetGwPodNameAndIP(ctx context.Context, sliceGw *kube
 }
 
 func isGatewayStatusChanged(slicegateway *kubeslicev1beta1.SliceGateway, podName string, podIP string, status *gwsidecar.GwStatus) bool {
-	return slicegateway.Status.PodName != podName ||
-		slicegateway.Status.PodIP != podIP ||
-		slicegateway.Status.LocalNsmIP != status.NsmStatus.LocalIP
+	return !contains(slicegateway.Status.PodNames, podName) ||
+		!contains(slicegateway.Status.PodIPs, podIP) ||
+		!contains(slicegateway.Status.LocalNsmIPs, status.NsmStatus.LocalIP)
 }
 
 func (r *SliceGwReconciler) ReconcileGwPodStatus(ctx context.Context, slicegateway *kubeslicev1beta1.SliceGateway) (ctrl.Result, error, bool) {
