@@ -1,7 +1,7 @@
 name: end-to-end-test
 on:
-  push:
-    branches: [ PR-external-1 ]
+  pull_request:
+    branches: [ master-PR-1 ]
   workflow_dispatch:
 jobs:
   end-to-end:
