@@ -138,15 +138,18 @@ func (r *SliceGwReconciler) deploymentForGatewayServer(g *kubeslicev1beta1.Slice
 								}},
 							},
 						},
-						PodAffinity: &corev1.PodAffinity{
-							RequiredDuringSchedulingIgnoredDuringExecution: []corev1.PodAffinityTerm{{
-								TopologyKey: controllers.TopologyKeySelector,
-								LabelSelector: &metav1.LabelSelector{
-									MatchExpressions: []metav1.LabelSelectorRequirement{{
-										Key:      controllers.PodTypeSelectorLabelKey,
-										Operator: metav1.LabelSelectorOpIn,
-										Values:   []string{"slicegateway"},
-									}},
+						PodAntiAffinity: &corev1.PodAntiAffinity{
+							PreferredDuringSchedulingIgnoredDuringExecution: []corev1.WeightedPodAffinityTerm{{
+								Weight: 1,
+								PodAffinityTerm: corev1.PodAffinityTerm{
+									TopologyKey: controllers.TopologyKeySelector,
+									LabelSelector: &metav1.LabelSelector{
+										MatchExpressions: []metav1.LabelSelectorRequirement{{
+											Key:      controllers.PodTypeSelectorLabelKey,
+											Operator: metav1.LabelSelectorOpIn,
+											Values:   []string{"slicegateway"},
+										}},
+									},
 								},
 							}},
 						},
@@ -409,15 +412,18 @@ func (r *SliceGwReconciler) deploymentForGatewayClient(g *kubeslicev1beta1.Slice
 								}},
 							},
 						},
-						PodAffinity: &corev1.PodAffinity{
-							RequiredDuringSchedulingIgnoredDuringExecution: []corev1.PodAffinityTerm{{
-								TopologyKey: controllers.TopologyKeySelector,
-								LabelSelector: &metav1.LabelSelector{
-									MatchExpressions: []metav1.LabelSelectorRequirement{{
-										Key:      controllers.PodTypeSelectorLabelKey,
-										Operator: metav1.LabelSelectorOpIn,
-										Values:   []string{"slicegateway"},
-									}},
+						PodAntiAffinity: &corev1.PodAntiAffinity{
+							PreferredDuringSchedulingIgnoredDuringExecution: []corev1.WeightedPodAffinityTerm{{
+								Weight: 1,
+								PodAffinityTerm: corev1.PodAffinityTerm{
+									TopologyKey: controllers.TopologyKeySelector,
+									LabelSelector: &metav1.LabelSelector{
+										MatchExpressions: []metav1.LabelSelectorRequirement{{
+											Key:      controllers.PodTypeSelectorLabelKey,
+											Operator: metav1.LabelSelectorOpIn,
+											Values:   []string{"slicegateway"},
+										}},
+									},
 								},
 							}},
 						},
