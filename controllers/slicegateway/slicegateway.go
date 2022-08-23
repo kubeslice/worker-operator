@@ -678,8 +678,8 @@ func (r *SliceGwReconciler) SendConnectionContextToSliceRouter(ctx context.Conte
 	}
 
 	if slicegateway.Status.Config.SliceGatewayRemoteSubnet == "" ||
-		slicegateway.Status.LocalNsmIP == "" {
-		log.Info("Waiting for remote subnet and local nsm IP. Delaying conn ctx update to router")
+		len(slicegateway.Status.LocalNsmIPs) == 0 {
+		log.Info("Waiting for remote subnet and local nsm IPs. Delaying conn ctx update to router")
 		return ctrl.Result{RequeueAfter: 10 * time.Second}, nil, true
 	}
 
