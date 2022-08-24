@@ -24,6 +24,7 @@ import (
 	"net/http"
 
 	//	"github.com/kubeslice/worker-operator/controllers"
+
 	"github.com/kubeslice/worker-operator/controllers"
 	"github.com/kubeslice/worker-operator/pkg/logger"
 	corev1 "k8s.io/api/core/v1"
@@ -63,7 +64,7 @@ func (wh *WebhookServer) Handle(ctx context.Context, req admission.Request) admi
 	}
 	log := logger.FromContext(ctx)
 
-	if mutate, sliceName := wh.MutationRequired(pod.ObjectMeta); !mutate {
+	if mutate, sliceName := wh.MutationRequired(pod.ObjectMeta, ctx); !mutate {
 		log.Info("mutation not required", "pod metadata", pod.ObjectMeta)
 	} else {
 		log.Info("mutating pod", "pod metadata", pod.ObjectMeta)
@@ -103,7 +104,8 @@ func Mutate(pod *corev1.Pod, sliceName string) *corev1.Pod {
 	return pod
 }
 
-func (wh *WebhookServer) MutationRequired(metadata metav1.ObjectMeta) (bool, string) {
+func (wh *WebhookServer) MutationRequired(metadata metav1.ObjectMeta, ctx context.Context) (bool, string) {
+	log := logger.FromContext(ctx)
 	log.Info("Object Meta from mutationrequied helper:", metadata)
 	annotations := metadata.GetAnnotations()
 	//early exit if metadata in nil
