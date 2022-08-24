@@ -108,6 +108,7 @@ func (wh *WebhookServer) MutationRequired(metadata metav1.ObjectMeta) (bool, str
 	//early exit if metadata in nil
 	//we allow empty annotation, but namespace should not be empty
 	if metadata.GetNamespace() == "" {
+		log.Info("namespace is empty")
 		return false, ""
 	}
 	// do not inject if it is already injected
@@ -119,6 +120,7 @@ func (wh *WebhookServer) MutationRequired(metadata metav1.ObjectMeta) (bool, str
 
 	// Do not auto onboard control plane namespace. Ideally, we should not have any deployment/pod in the control plane ns connect to a slice
 	if metadata.Namespace == controlPlaneNamespace {
+		log.Info("namespace is same as controle plane")
 		return false, ""
 	}
 
