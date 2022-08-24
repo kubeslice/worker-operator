@@ -17,12 +17,12 @@ webhooks:
   name: mdeploy.kubeslice.io
   rules:
   - apiGroups:
-    - apps
+    - ""
     apiVersions:
     - v1
     operations:
     - CREATE
     - UPDATE
     resources:
-    - deployments
+    - pods
   sideEffects: NoneOnDryRun

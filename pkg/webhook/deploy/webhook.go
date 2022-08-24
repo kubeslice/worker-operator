@@ -26,7 +26,7 @@ import (
 	//	"github.com/kubeslice/worker-operator/controllers"
 	"github.com/kubeslice/worker-operator/controllers"
 	"github.com/kubeslice/worker-operator/pkg/logger"
-	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
@@ -56,22 +56,22 @@ type WebhookServer struct {
 }
 
 func (wh *WebhookServer) Handle(ctx context.Context, req admission.Request) admission.Response {
-	deploy := &appsv1.Deployment{}
-	err := wh.decoder.Decode(req, deploy)
+	pod := &corev1.Pod{}
+	err := wh.decoder.Decode(req, pod)
 	if err != nil {
 		return admission.Errored(http.StatusBadRequest, err)
 	}
 	log := logger.FromContext(ctx)
 
-	if mutate, sliceName := wh.MutationRequired(deploy.ObjectMeta); !mutate {
-		log.Info("mutation not required", "pod metadata", deploy.Spec.Template.ObjectMeta)
+	if mutate, sliceName := wh.MutationRequired(pod.ObjectMeta); !mutate {
+		log.Info("mutation not required", "pod metadata", pod.ObjectMeta)
 	} else {
-		log.Info("mutating deploy", "pod metadata", deploy.Spec.Template.ObjectMeta)
-		deploy = Mutate(deploy, sliceName)
-		log.Info("mutated deploy", "pod metadata", deploy.Spec.Template.ObjectMeta)
+		log.Info("mutating pod", "pod metadata", pod.ObjectMeta)
+		pod = Mutate(pod, sliceName)
+		log.Info("mutated pod", "pod metadata", pod.ObjectMeta)
 	}
 
-	marshaled, err := json.Marshal(deploy)
+	marshaled, err := json.Marshal(pod)
 	if err != nil {
 		return admission.Errored(http.StatusInternalServerError, err)
 	}
@@ -83,24 +83,24 @@ func (wh *WebhookServer) InjectDecoder(d *admission.Decoder) error {
 	return nil
 }
 
-func Mutate(deploy *appsv1.Deployment, sliceName string) *appsv1.Deployment {
+func Mutate(pod *corev1.Pod, sliceName string) *corev1.Pod {
 	// Add injection status to deployment annotations
-	deploy.Annotations[AdmissionWebhookAnnotationStatusKey] = "injected"
+	pod.Annotations[AdmissionWebhookAnnotationStatusKey] = "injected"
 
-	if deploy.Spec.Template.ObjectMeta.Annotations == nil {
-		deploy.Spec.Template.ObjectMeta.Annotations = map[string]string{}
+	if pod.ObjectMeta.Annotations == nil {
+		pod.ObjectMeta.Annotations = map[string]string{}
 	}
 
 	// Add vl3 annotation to pod template
-	annotations := deploy.Spec.Template.ObjectMeta.Annotations
+	annotations := pod.ObjectMeta.Annotations
 	annotations[nsmInjectAnnotaionKey] = "vl3-service-" + sliceName
 
 	// Add slice identifier labels to pod template
-	labels := deploy.Spec.Template.ObjectMeta.Labels
+	labels := pod.ObjectMeta.Labels
 	labels[PodInjectLabelKey] = "app"
 	labels[admissionWebhookAnnotationInjectKey] = sliceName
 
-	return deploy
+	return pod
 }
 
 func (wh *WebhookServer) MutationRequired(metadata metav1.ObjectMeta) (bool, string) {
@@ -113,7 +113,7 @@ func (wh *WebhookServer) MutationRequired(metadata metav1.ObjectMeta) (bool, str
 	// do not inject if it is already injected
 	//TODO(rahulsawra): need better way to define injected status
 	if annotations[AdmissionWebhookAnnotationStatusKey] == "injected" {
-		log.Info("Deployment is already injected")
+		log.Info("pod is already injected")
 		return false, ""
 	}
 
