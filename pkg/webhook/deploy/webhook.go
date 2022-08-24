@@ -104,6 +104,7 @@ func Mutate(pod *corev1.Pod, sliceName string) *corev1.Pod {
 }
 
 func (wh *WebhookServer) MutationRequired(metadata metav1.ObjectMeta) (bool, string) {
+	log.Info("Object Meta from mutationrequied helper:", metadata)
 	annotations := metadata.GetAnnotations()
 	//early exit if metadata in nil
 	//we allow empty annotation, but namespace should not be empty
