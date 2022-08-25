@@ -63,7 +63,7 @@ func (wh *WebhookServer) Handle(ctx context.Context, req admission.Request) admi
 		return admission.Errored(http.StatusBadRequest, err)
 	}
 	log := logger.FromContext(ctx)
-	log.Info("pod after decode ------->", pod)
+	log.Info("pod after decode ------->", pod, pod.ObjectMeta)
 	if mutate, sliceName := wh.MutationRequired(pod.ObjectMeta, ctx); !mutate {
 		log.Info("mutation not required", "pod metadata", pod.ObjectMeta)
 	} else {
