@@ -690,9 +690,6 @@ func (r *SliceGwReconciler) SendConnectionContextToSliceRouter(ctx context.Conte
 		LocalNsmGwPeerIPs:      slicegateway.Status.LocalNsmIPs,
 	}
 
-	log.Info("LocalNsmIps recieved from slicegateway status ", slicegateway.Status.LocalNsmIPs)
-	log.Info("Conn ctx to send to slice router ", connCtx)
-
 	err = r.WorkerRouterClient.SendConnectionContext(ctx, sidecarGrpcAddress, connCtx)
 	if err != nil {
 		log.Error(err, "Unable to send conn ctx to slice router")
