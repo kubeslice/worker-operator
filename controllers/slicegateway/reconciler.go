@@ -144,7 +144,7 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	// true if the gateway is openvpn server
 	// Check if the Gw service already exists, if not create a new one if it is a server
 	if isServer(sliceGw) {
-		reconcile, result, err = r.handleSliceGwSvcCreation(ctx, sliceGw, sliceGwNodePort)
+		reconcile, result, sliceGwNodePort ,err = r.handleSliceGwSvcCreation(ctx, sliceGw)
 		if reconcile {
 			return result, err
 		}
@@ -274,7 +274,7 @@ func isServer(sliceGw *kubeslicev1beta1.SliceGateway) bool {
 func canDeployGw(sliceGw *kubeslicev1beta1.SliceGateway) bool {
 	return sliceGw.Status.Config.SliceGatewayHostType == "Server" || readyToDeployGwClient(sliceGw)
 }
-func (r *SliceGwReconciler) handleSliceGwSvcCreation(ctx context.Context, sliceGw *kubeslicev1beta1.SliceGateway, sliceGwNodePort int32) (bool, reconcile.Result, error) {
+func (r *SliceGwReconciler) handleSliceGwSvcCreation(ctx context.Context, sliceGw *kubeslicev1beta1.SliceGateway) (bool, reconcile.Result, int32,error) {
 	log := logger.FromContext(ctx).WithName("slicegw-create-service")
 	sliceGwName := sliceGw.Name
 
@@ -288,15 +288,15 @@ func (r *SliceGwReconciler) handleSliceGwSvcCreation(ctx context.Context, sliceG
 			err = r.Create(ctx, svc)
 			if err != nil {
 				log.Error(err, "Failed to create new Service", "Namespace", svc.Namespace, "Name", svc.Name)
-				return true, ctrl.Result{}, err
+				return true, ctrl.Result{},0,err
 			}
-			return true, ctrl.Result{Requeue: true}, nil
+			return true, ctrl.Result{Requeue: true}, 0 ,nil
 		}
 		log.Error(err, "Failed to get Service")
-		return true, ctrl.Result{}, err
+		return true, ctrl.Result{}, 0 ,err
 	}
 
-	sliceGwNodePort = foundsvc.Spec.Ports[0].NodePort
+	sliceGwNodePort := foundsvc.Spec.Ports[0].NodePort
 	err = r.HubClient.UpdateNodePortForSliceGwServer(ctx, sliceGwNodePort, sliceGwName)
 	if err != nil {
 		log.Error(err, "Failed to update NodePort for sliceGw in the hub")
@@ -309,13 +309,13 @@ func (r *SliceGwReconciler) handleSliceGwSvcCreation(ctx context.Context, sliceG
 				Message:   "Unable to post NodePort to kubeslice-controller cluster",
 			},
 		)
-		return true, ctrl.Result{}, err
+		return true, ctrl.Result{},sliceGwNodePort ,err
 	}
 
 	if err := r.reconcileNodes(ctx, sliceGw); err != nil {
-		return true, ctrl.Result{}, err
+		return true, ctrl.Result{},sliceGwNodePort ,err
 	}
-	return false, reconcile.Result{}, nil
+	return false, reconcile.Result{},sliceGwNodePort ,nil
 }
 
 func (r *SliceGwReconciler) handleSliceGwDeletion(sliceGw *kubeslicev1beta1.SliceGateway, ctx context.Context) (bool, reconcile.Result, error) {
