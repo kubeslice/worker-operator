@@ -63,13 +63,11 @@ func (wh *WebhookServer) Handle(ctx context.Context, req admission.Request) admi
 		return admission.Errored(http.StatusBadRequest, err)
 	}
 	log := logger.FromContext(ctx)
-	marreq, err := json.Marshal(req)
-	if err != nil {
-		log.Error(err, "problem marshalling the admission req")
-		return admission.Errored(http.StatusBadRequest, err)
+
+	if pod.ObjectMeta.Namespace == "" {
+		pod.ObjectMeta.Namespace = req.Namespace
 	}
-	log.Info("marshalled request------->", "mrreq", string(marreq))
-	log.Info("pod after decode ------->", "pod", pod.ObjectMeta)
+
 	if mutate, sliceName := wh.MutationRequired(pod.ObjectMeta, ctx); !mutate {
 		log.Info("mutation not required", "pod metadata", pod.ObjectMeta)
 	} else {
