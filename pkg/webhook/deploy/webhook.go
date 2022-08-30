@@ -64,6 +64,8 @@ func (wh *WebhookServer) Handle(ctx context.Context, req admission.Request) admi
 	}
 	log := logger.FromContext(ctx)
 
+	log.Info("info about req --> ", req, " pod metadata --> ", pod.ObjectMeta)
+
 	if pod.ObjectMeta.Namespace == "" {
 		pod.ObjectMeta.Namespace = req.Namespace
 	}
