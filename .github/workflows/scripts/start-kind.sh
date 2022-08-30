@@ -48,7 +48,7 @@ WorkerChartOptions:
     "operator.image": "worker-operator"
     "operator.tag": "e2e-latest"
 TestSuitesEnabled:
-  HubSuite: true
+  HubSuite: false
   WorkerSuite: true
 EOF
 
