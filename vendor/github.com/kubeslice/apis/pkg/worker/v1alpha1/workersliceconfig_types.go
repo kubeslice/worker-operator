@@ -1,17 +1,17 @@
 /*
- * 	Copyright (c) 2022 Avesha, Inc. All rights reserved. # # SPDX-License-Identifier: Apache-2.0
+ *  Copyright (c) 2022 Avesha, Inc. All rights reserved. # # SPDX-License-Identifier: Apache-2.0
  *
- * 	Licensed under the Apache License, Version 2.0 (the "License");
- * 	you may not use this file except in compliance with the License.
- * 	You may obtain a copy of the License at
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
  *
- * 	http://www.apache.org/licenses/LICENSE-2.0
+ *  http://www.apache.org/licenses/LICENSE-2.0
  *
- * 	Unless required by applicable law or agreed to in writing, software
- * 	distributed under the License is distributed on an "AS IS" BASIS,
- * 	WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * 	See the License for the specific language governing permissions and
- * 	limitations under the License.
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
  */
 
 package v1alpha1
@@ -31,10 +31,8 @@ type WorkerSliceConfigSpec struct {
 	SliceIpamType             string                    `json:"sliceIpamType,omitempty"`
 	QosProfileDetails         QOSProfile                `json:"qosProfileDetails,omitempty"`
 	NamespaceIsolationProfile NamespaceIsolationProfile `json:"namespaceIsolationProfile,omitempty"`
-	//+kubebuilder:validation:Required
-	IpamClusterOctet      *int                  `json:"ipamClusterOctet"`
-	ClusterSubnetCIDR     string                `json:"clusterSubnetCIDR,omitempty"`
-	ExternalGatewayConfig ExternalGatewayConfig `json:"externalGatewayConfig,omitempty"`
+	IpamClusterOctet          int                       `json:"ipamClusterOctet,omitempty"`
+	ExternalGatewayConfig     ExternalGatewayConfig     `json:"externalGatewayConfig,omitempty"`
 }
 
 // WorkerSliceGatewayProvider defines the configuration for slicegateway
@@ -58,9 +56,7 @@ type QOSProfile struct {
 }
 
 type NamespaceIsolationProfile struct {
-	//+kubebuilder:default:=false
-	//+kubebuilder:validation:Optional
-	IsolationEnabled      bool     `json:"isolationEnabled"`
+	IsolationEnabled      bool     `json:"isolationEnabled,omitempty"`
 	ApplicationNamespaces []string `json:"applicationNamespaces,omitempty"`
 	AllowedNamespaces     []string `json:"allowedNamespaces,omitempty"`
 }

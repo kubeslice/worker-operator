@@ -19,8 +19,7 @@ spec:
   - name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: WorkerServiceImport is the Schema for the workerserviceimport
-          API
+        description: WorkerServiceImport is the Schema for the workerserviceimport API
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation
@@ -37,6 +36,15 @@ spec:
           spec:
             description: WorkerServiceImportSpec defines the desired state of WorkerServiceImport
             properties:
+              meshType:
+                description: The type of service mesh running in the cluster
+                enum:
+                - istio
+                - none
+                type: string
+              proxy:
+                description: Proxy enabled or disabled.
+                type: boolean
               serviceDiscoveryEndpoints:
                 description: the service discovery endpoint array
                 items:
