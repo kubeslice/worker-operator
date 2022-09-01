@@ -285,10 +285,11 @@ var _ = Describe("SliceController", func() {
 
 			status := kubeslicev1beta1.SliceStatus{
 				SliceConfig: &kubeslicev1beta1.SliceConfig{
-					SliceDisplayName: "test-slice",
-					SliceSubnet:      "10.0.0.1/16",
-					SliceID:          "test-slice",
-					SliceType:        "Application",
+					SliceDisplayName:  "test-slice",
+					SliceSubnet:       "10.0.0.1/16",
+					SliceID:           "test-slice",
+					SliceType:         "Application",
+					ClusterSubnetCIDR: "10.0.0.1/20",
 				},
 			}
 

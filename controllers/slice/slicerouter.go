@@ -21,12 +21,9 @@ package slice
 import (
 	"context"
 	"fmt"
-	"os"
-	"strconv"
-	"strings"
-	"time"
-
 	"github.com/kubeslice/worker-operator/pkg/events"
+	"os"
+	"time"
 
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
 	nsmv1alpha1 "github.com/networkservicemesh/networkservicemesh/k8s/pkg/apis/networkservice/v1alpha1"
@@ -94,14 +91,7 @@ func (r *SliceReconciler) getNsmDataplaneMode(ctx context.Context, slice *kubesl
 	return nsmDataplaneKernel, nil
 }
 
-func getClusterPrefixPool(sliceSubnet string, ipamOctet string) string {
-	octetList := strings.Split(sliceSubnet, ".")
-	octetList[2] = ipamOctet
-	octetList[3] = "0/24"
-	return strings.Join(octetList, ".")
-}
-
-func (r *SliceReconciler) getContainerSpecForSliceRouter(s *kubeslicev1beta1.Slice, ipamOctet string, dataplane string) corev1.Container {
+func (r *SliceReconciler) getContainerSpecForSliceRouter(s *kubeslicev1beta1.Slice, dataplane string) corev1.Container {
 	vl3ImagePullPolicy := corev1.PullAlways
 
 	vl3Image := os.Getenv("AVESHA_VL3_ROUTER_IMAGE")
@@ -110,8 +100,6 @@ func (r *SliceReconciler) getContainerSpecForSliceRouter(s *kubeslicev1beta1.Sli
 	if len(vl3RouterPullPolicy) != 0 {
 		vl3ImagePullPolicy = corev1.PullPolicy(vl3RouterPullPolicy)
 	}
-
-	clusterPrefixPool := getClusterPrefixPool(s.Status.SliceConfig.SliceSubnet, ipamOctet)
 
 	privileged := true
 
@@ -159,7 +147,7 @@ func (r *SliceReconciler) getContainerSpecForSliceRouter(s *kubeslicev1beta1.Sli
 		sliceRouterContainer.Env = append(sliceRouterContainer.Env,
 			corev1.EnvVar{
 				Name:  "IP_ADDRESS",
-				Value: clusterPrefixPool,
+				Value: s.Status.SliceConfig.ClusterSubnetCIDR,
 			},
 			corev1.EnvVar{
 				Name:  "DST_ROUTES",
@@ -180,7 +168,7 @@ func (r *SliceReconciler) getContainerSpecForSliceRouter(s *kubeslicev1beta1.Sli
 		sliceRouterContainer.Env = append(sliceRouterContainer.Env,
 			corev1.EnvVar{
 				Name:  "NSE_IPAM_UNIQUE_OCTET",
-				Value: ipamOctet,
+				Value: s.Status.SliceConfig.ClusterSubnetCIDR,
 			},
 		)
 		sliceRouterContainer.VolumeMounts = append(sliceRouterContainer.VolumeMounts,
@@ -262,7 +250,7 @@ func (r *SliceReconciler) getVolumeSpecForSliceRouter(s *kubeslicev1beta1.Slice,
 }
 
 // Creates a deployment spec for the vL3 slice router
-func (r *SliceReconciler) deploymentForSliceRouter(s *kubeslicev1beta1.Slice, ipamOctet string, dataplane string) *appsv1.Deployment {
+func (r *SliceReconciler) deploymentForSliceRouter(s *kubeslicev1beta1.Slice, dataplane string) *appsv1.Deployment {
 	var replicas int32 = 1
 
 	ls := labelsForSliceRouterDeployment(s.Name)
@@ -298,7 +286,7 @@ func (r *SliceReconciler) deploymentForSliceRouter(s *kubeslicev1beta1.Slice, ip
 					},
 
 					Containers: []corev1.Container{
-						r.getContainerSpecForSliceRouter(s, ipamOctet, dataplane),
+						r.getContainerSpecForSliceRouter(s, dataplane),
 						r.getContainerSpecForSliceRouterSidecar(dataplane),
 					},
 					Volumes: r.getVolumeSpecForSliceRouter(s, dataplane),
@@ -342,9 +330,7 @@ func (r *SliceReconciler) deploySliceRouter(ctx context.Context, slice *kubeslic
 		return fmt.Errorf("invalid dataplane: %v", dataplane)
 	}
 
-	ipamOctet := strconv.Itoa(slice.Status.SliceConfig.SliceIpam.IpamClusterOctet)
-
-	dep := r.deploymentForSliceRouter(slice, ipamOctet, dataplane)
+	dep := r.deploymentForSliceRouter(slice, dataplane)
 	err = r.Create(ctx, dep)
 	if err != nil {
 		log.Error(err, "Failed to create deployment for slice router")
@@ -358,7 +344,7 @@ func (r *SliceReconciler) deploySliceRouter(ctx context.Context, slice *kubeslic
 		)
 		return err
 	}
-	log.Info("Created deployment spec for slice router: ", "Name: ", slice.Name, "ipamOctet: ", ipamOctet)
+	log.Info("Created deployment spec for slice router: ", "Name: ", slice.Name, "cluster subnet: ", slice.Status.SliceConfig.ClusterSubnetCIDR)
 	return nil
 }
 
@@ -469,7 +455,7 @@ func newDeploymentSliceRouter(r *SliceReconciler, ctx context.Context, slice *ku
 	}, nil, true
 }
 func sliceConfigDefined(slice *kubeslicev1beta1.Slice) bool {
-	return slice.Status.SliceConfig != nil && slice.Status.SliceConfig.SliceSubnet != ""
+	return slice.Status.SliceConfig != nil && slice.Status.SliceConfig.SliceSubnet != "" && slice.Status.SliceConfig.ClusterSubnetCIDR != ""
 }
 func (r *SliceReconciler) cleanupSliceRouter(ctx context.Context, sliceName string) error {
 	log := logger.FromContext(ctx)
