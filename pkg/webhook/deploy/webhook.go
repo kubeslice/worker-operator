@@ -64,8 +64,7 @@ func (wh *WebhookServer) Handle(ctx context.Context, req admission.Request) admi
 	}
 	log := logger.FromContext(ctx)
 
-	log.Info("info about req --> ", "req", req, " pod metadata --> ", pod.ObjectMeta)
-
+	// handle empty namespace field when the pod is created by deployment
 	if pod.ObjectMeta.Namespace == "" {
 		pod.ObjectMeta.Namespace = req.Namespace
 	}
@@ -115,7 +114,6 @@ func Mutate(pod *corev1.Pod, sliceName string) *corev1.Pod {
 
 func (wh *WebhookServer) MutationRequired(metadata metav1.ObjectMeta, ctx context.Context) (bool, string) {
 	log := logger.FromContext(ctx)
-	log.Info("Object Meta from mutationrequied helper:", metadata)
 	annotations := metadata.GetAnnotations()
 	//early exit if metadata in nil
 	//we allow empty annotation, but namespace should not be empty
