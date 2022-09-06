@@ -51,7 +51,7 @@ var controllerSlice = &workerv1alpha1.WorkerSliceConfig{
 		SliceType:        "Application",
 		SliceSubnet:      "10.0.0.1/16",
 		SliceIpamType:    "Local",
-		IpamClusterOctet: &hundred,
+		IpamClusterOctet: hundred,
 	},
 }
 

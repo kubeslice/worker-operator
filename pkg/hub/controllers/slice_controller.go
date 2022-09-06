@@ -147,7 +147,7 @@ func (r *SliceReconciler) updateSliceConfig(ctx context.Context, meshSlice *kube
 		meshSlice.Status.SliceConfig.SliceSubnet = spokeSlice.Spec.SliceSubnet
 	}
 
-	if meshSlice.Status.SliceConfig.SliceIpam.IpamClusterOctet == nil {
+	if meshSlice.Status.SliceConfig.SliceIpam.IpamClusterOctet == 0 {
 		meshSlice.Status.SliceConfig.SliceIpam.IpamClusterOctet = spokeSlice.Spec.IpamClusterOctet
 	}
 
