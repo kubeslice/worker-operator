@@ -1,4 +1,4 @@
-@Library('jenkins-library@opensource-helm-pipeline') _
+@Library('jenkins-library@opensource-helm-pipeline-release') _
 dockerbuildtestPipeline(
   script: this,
   service: 'worker-operator',
