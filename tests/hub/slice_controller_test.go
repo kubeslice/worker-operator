@@ -57,7 +57,7 @@ var _ = Describe("Hub SliceController", func() {
 					SliceType:         "Application",
 					SliceSubnet:       "10.0.0.1/16",
 					SliceIpamType:     "Local",
-					IpamClusterOctet:  &ipamOctet,
+					IpamClusterOctet:  ipamOctet,
 					ClusterSubnetCIDR: "10.0.16.0/20",
 				},
 			}
@@ -90,7 +90,7 @@ var _ = Describe("Hub SliceController", func() {
 			Expect(createdSlice.Status.SliceConfig.SliceDisplayName).To(Equal("test-slice-1"))
 			Expect(createdSlice.Status.SliceConfig.SliceType).To(Equal("Application"))
 			Expect(createdSlice.Status.SliceConfig.SliceIpam.SliceIpamType).To(Equal("Local"))
-			Expect(createdSlice.Status.SliceConfig.SliceIpam.IpamClusterOctet).To(Equal(&ipamOctet))
+			Expect(createdSlice.Status.SliceConfig.SliceIpam.IpamClusterOctet).To(Equal(ipamOctet))
 			Expect(createdSlice.Status.SliceConfig.ClusterSubnetCIDR).To(Equal("10.0.16.0/20"))
 		})
 
@@ -161,7 +161,7 @@ var _ = Describe("Hub SliceController", func() {
 					SliceType:        "Application",
 					SliceSubnet:      "10.0.0.1/16",
 					SliceIpamType:    "Local",
-					IpamClusterOctet: &hundred,
+					IpamClusterOctet: hundred,
 				},
 			}
 
@@ -207,7 +207,7 @@ var _ = Describe("Hub SliceController", func() {
 				},
 				Spec: workerv1alpha1.WorkerSliceConfigSpec{
 					SliceName:        "test-slice-3",
-					IpamClusterOctet: &ipamOcter,
+					IpamClusterOctet: ipamOcter,
 					ExternalGatewayConfig: workerv1alpha1.ExternalGatewayConfig{
 						Ingress: workerv1alpha1.ExternalGatewayConfigOptions{
 							Enabled: true,

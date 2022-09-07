@@ -46,7 +46,7 @@ type SliceIpamConfig struct {
 	// IPAM Type for slice
 	SliceIpamType string `json:"sliceIpamType"`
 	// Cluster specific octet for IPAM root subnet
-	IpamClusterOctet *int `json:"ipamClusterOctet,omitempty"`
+	IpamClusterOctet int `json:"ipamClusterOctet,omitempty"`
 }
 
 // SliceConfig defines the Config retrieved from Hub

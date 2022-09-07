@@ -455,6 +455,8 @@ github.com/kubeslice/apis v0.0.0-20220720101728-b77f56377257 h1:mTqmYuVGX93WcoJv
 github.com/kubeslice/apis v0.0.0-20220720101728-b77f56377257/go.mod h1:YDSfpIsQM+FtQPaZVGNCTZnlp3viWuQhkjJjIHQdaYs=
 github.com/kubeslice/apis v0.0.0-20220805102951-cb062949a0b0 h1:afUy/YCVwiDC3rMowAUJq5q1wmazwHSti0INgIGYpOc=
 github.com/kubeslice/apis v0.0.0-20220805102951-cb062949a0b0/go.mod h1:YDSfpIsQM+FtQPaZVGNCTZnlp3viWuQhkjJjIHQdaYs=
+github.com/kubeslice/apis v0.0.0-20220906094117-7c4a10df3387 h1:gPaLwlbTdZtaIfSas4RhtUgvNX5QgvqBae9EPv4BD0c=
+github.com/kubeslice/apis v0.0.0-20220906094117-7c4a10df3387/go.mod h1:YDSfpIsQM+FtQPaZVGNCTZnlp3viWuQhkjJjIHQdaYs=
 github.com/kubeslice/gateway-sidecar v0.1.1 h1:FjOaGfWSOpEbQlNtID39tQFES6e4Jisj7LPy6BYr1C4=
 github.com/kubeslice/gateway-sidecar v0.1.1/go.mod h1:grTac1B4A6CsMkpjGp493CwDQhD3oExHwYFLKeE3how=
 github.com/kubeslice/netops v0.0.0-20220506082959-81fef290c265 h1:2NWAlXUz3z7bNk9JW8w0EGlB6iJqV2q77v74etzf60I=
