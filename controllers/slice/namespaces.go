@@ -54,16 +54,9 @@ func (r *SliceReconciler) ReconcileSliceNamespaces(ctx context.Context, slice *k
 	if err != nil {
 		return ctrl.Result{}, err, true
 	}
-	if slice.Status.SliceConfig.NamespaceIsolationProfile != nil && !slice.Status.SliceConfig.NamespaceIsolationProfile.IsolationEnabled {
-		// IsolationEnabled is either turned off or toggled off
-		// if NetworkPoliciesInstalled is enabled, this means there are netpol installed in appnamespaces we need to remove
-		if slice.Status.NetworkPoliciesInstalled {
-			//IsolationEnabled toggled off by user/admin , uninstall nepol from app namespaces
-			err = r.uninstallNetworkPolicies(ctx, slice)
-			if err != nil {
-				return ctrl.Result{}, err, true
-			}
-		}
+	err = r.reconcileSliceNetworkPolicy(ctx, slice)
+	if err != nil {
+		return ctrl.Result{}, err, true
 	}
 	return ctrl.Result{}, nil, false
 }
@@ -125,11 +118,6 @@ func (r *SliceReconciler) reconcileAppNamespaces(ctx context.Context, slice *kub
 		}
 	}
 	if statusChanged {
-		//reconcile networkpolicy
-		err = r.reconcileSliceNetworkPolicy(ctx, slice)
-		if err != nil {
-			return ctrl.Result{}, err, true
-		}
 		err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 			// fetch the latest slice
 			if getErr := r.Get(ctx, types.NamespacedName{Name: slice.Name, Namespace: controllers.ControlPlaneNamespace}, slice); getErr != nil {
@@ -263,11 +251,6 @@ func (r *SliceReconciler) reconcileAllowedNamespaces(ctx context.Context, slice 
 		}
 	}
 	if statusChanged {
-		//reconcile networkpolicy
-		err = r.reconcileSliceNetworkPolicy(ctx, slice)
-		if err != nil {
-			return err
-		}
 		err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 			// fetch the latest slice
 			if getErr := r.Get(ctx, types.NamespacedName{Name: slice.Name, Namespace: controllers.ControlPlaneNamespace}, slice); getErr != nil {
@@ -483,6 +466,16 @@ func (r *SliceReconciler) reconcileSliceNetworkPolicy(ctx context.Context, slice
 	log := r.Log.WithValues("type", "networkPolicy")
 	//early exit if namespaceIsolation is empty
 	if slice.Status.SliceConfig.NamespaceIsolationProfile == nil {
+		return nil
+	}
+	//Early Exit if Isolation is not enabled
+	if !slice.Status.SliceConfig.NamespaceIsolationProfile.IsolationEnabled {
+		// IsolationEnabled is either turned off or toggled off
+		// if NetworkPoliciesInstalled is enabled, this means there are netpol installed in appnamespaces we need to remove
+		if slice.Status.NetworkPoliciesInstalled {
+			//IsolationEnabled toggled off by user/admin , uninstall nepol from app namespaces
+			return r.uninstallNetworkPolicies(ctx, slice)
+		}
 		return nil
 	}
 
