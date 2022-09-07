@@ -42,6 +42,7 @@ type HubClientProvider interface {
 type WorkerGWSidecarClientProvider interface {
 	GetStatus(ctx context.Context, serverAddr string) (*gwsidecar.GwStatus, error)
 	SendConnectionContext(ctx context.Context, serverAddr string, gwConnCtx *gwsidecar.GwConnectionContext) error
+	UpdateSliceQosProfile(ctx context.Context, serverAddr string, slice *kubeslicev1beta1.Slice) error
 }
 
 type WorkerRouterClientProvider interface {

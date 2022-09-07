@@ -599,7 +599,7 @@ func (r *SliceGwReconciler) ReconcileGwPodStatus(ctx context.Context, slicegatew
 	return ctrl.Result{}, nil, false
 }
 
-func (r *SliceGwReconciler) SendConnectionContextToGwPod(ctx context.Context, slicegateway *kubeslicev1beta1.SliceGateway) (ctrl.Result, error, bool) {
+func (r *SliceGwReconciler) SendConnectionContextToGwPodAndQos(ctx context.Context, slice *kubeslicev1beta1.Slice, slicegateway *kubeslicev1beta1.SliceGateway) (ctrl.Result, error, bool) {
 	log := logger.FromContext(ctx).WithValues("type", "SliceGw")
 
 	_, podIP := r.GetGwPodNameAndIP(ctx, slicegateway)
@@ -618,6 +618,12 @@ func (r *SliceGwReconciler) SendConnectionContextToGwPod(ctx context.Context, sl
 	err := r.WorkerGWSidecarClient.SendConnectionContext(ctx, sidecarGrpcAddress, connCtx)
 	if err != nil {
 		log.Error(err, "Unable to send conn ctx to gw")
+		return ctrl.Result{RequeueAfter: 10 * time.Second}, nil, true
+	}
+
+	err = r.WorkerGWSidecarClient.UpdateSliceQosProfile(ctx, sidecarGrpcAddress, slice)
+	if err != nil {
+		// log.Error(err, "Failed to send qos to netop. PodIp: %v, PodName: %v", n.PodIP, n.PodName)
 		return ctrl.Result{RequeueAfter: 10 * time.Second}, nil, true
 	}
 
