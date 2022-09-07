@@ -211,7 +211,7 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		return res, nil
 	}
 
-	res, err, requeue = r.SendConnectionContextToGwPod(ctx, sliceGw)
+	res, err, requeue = r.SendConnectionContextAndQosToGwPod(ctx, slice, sliceGw)
 	if err != nil {
 		log.Error(err, "Failed to send connection context to gw pod")
 		//post event to slicegw

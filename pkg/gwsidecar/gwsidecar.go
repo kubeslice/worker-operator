@@ -23,6 +23,7 @@ import (
 
 	empty "github.com/golang/protobuf/ptypes/empty"
 	sidecar "github.com/kubeslice/gateway-sidecar/pkg/sidecar/sidecarpb"
+	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
@@ -107,6 +108,35 @@ func (worker gwSidecarClient) SendConnectionContext(ctx context.Context, serverA
 	}
 
 	_, err = client.UpdateConnectionContext(ctx, msg)
+
+	return err
+}
+
+// SendConnectionContext sends connection context info to sidecar
+func (worker gwSidecarClient) UpdateSliceQosProfile(ctx context.Context, serverAddr string, slice *kubeslicev1beta1.Slice) error {
+	conn, err := grpc.Dial(serverAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	client := sidecar.NewGwSidecarServiceClient(conn)
+
+	// TODO change later if we add more TC types
+	tcType := sidecar.TcType_BANDWIDTH_CONTROL
+
+	qop := &sidecar.SliceQosProfile{
+		SliceName:      slice.Name,
+		SliceId:        slice.Name,
+		QosProfileName: slice.Name,
+		TcType:         tcType,
+		ClassType:      sidecar.ClassType_HTB,
+		BwCeiling:      uint32(slice.Status.SliceConfig.QosProfileDetails.BandwidthCeilingKbps),
+		BwGuaranteed:   uint32(slice.Status.SliceConfig.QosProfileDetails.BandwidthGuaranteedKbps),
+		Priority:       uint32(slice.Status.SliceConfig.QosProfileDetails.Priority),
+		DscpClass:      slice.Status.SliceConfig.QosProfileDetails.DscpClass,
+	}
+	_, err = client.UpdateSliceQosProfile(ctx, qop)
 
 	return err
 }
