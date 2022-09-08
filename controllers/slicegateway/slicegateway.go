@@ -623,7 +623,7 @@ func (r *SliceGwReconciler) SendConnectionContextToGwPodAndQos(ctx context.Conte
 
 	err = r.WorkerGWSidecarClient.UpdateSliceQosProfile(ctx, sidecarGrpcAddress, slice)
 	if err != nil {
-		// log.Error(err, "Failed to send qos to netop. PodIp: %v, PodName: %v", n.PodIP, n.PodName)
+		log.Error(err, "Failed to send qos to gateway")
 		return ctrl.Result{RequeueAfter: 10 * time.Second}, nil, true
 	}
 
