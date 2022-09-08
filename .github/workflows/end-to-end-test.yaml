@@ -1,7 +1,7 @@
 name: end-to-end-test
 on:
-  pull_request_target:
-    branches: [ master ]
+  push:
+    branches: [ PR-gate ]
   workflow_dispatch:
 jobs:
   end-to-end:
@@ -66,3 +66,12 @@ jobs:
         EXTERNAL_REPOSITORY: kubeslice/e2e-allure-reports
         PUBLISH_DIR: allure-history
         keep_files: true
+    
+    - uses: actions/checkout@v3
+
+    - name: Run Quality Gate Check
+      uses: PavanMudigonda/allure-html-reporter-github-pages/quality-gate@v1.1
+      with:
+          ENABLE_QUALITY_GATE: true
+          MINIMUM_PASS_PERCENTAGE: 75
+          ALLURE_BEHAVIORS_CSV: 'allure/data/behaviors.csv'
