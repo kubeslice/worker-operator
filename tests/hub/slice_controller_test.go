@@ -53,11 +53,11 @@ var _ = Describe("Hub SliceController", func() {
 					},
 				},
 				Spec: workerv1alpha1.WorkerSliceConfigSpec{
-					SliceName:     "test-slice-1",
-					SliceType:     "Application",
-					SliceSubnet:   "10.0.0.1/16",
-					SliceIpamType: "Local",
-					// IpamClusterOctet: 100,
+					SliceName:        "test-slice-1",
+					SliceType:        "Application",
+					SliceSubnet:      "10.0.0.1/16",
+					SliceIpamType:    "Local",
+					IpamClusterOctet: ipamOctet,
 				},
 			}
 			createdSlice = &kubeslicev1beta1.Slice{}
@@ -156,11 +156,11 @@ var _ = Describe("Hub SliceController", func() {
 					},
 				},
 				Spec: workerv1alpha1.WorkerSliceConfigSpec{
-					SliceName:     "test-slice-2",
-					SliceType:     "Application",
-					SliceSubnet:   "10.0.0.1/16",
-					SliceIpamType: "Local",
-					// IpamClusterOctet: 100,
+					SliceName:        "test-slice-2",
+					SliceType:        "Application",
+					SliceSubnet:      "10.0.0.1/16",
+					SliceIpamType:    "Local",
+					IpamClusterOctet: hundred,
 				},
 			}
 

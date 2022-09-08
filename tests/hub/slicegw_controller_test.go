@@ -51,11 +51,11 @@ var _ = Describe("Hub SlicegwController", func() {
 					},
 				},
 				Spec: workerv1alpha1.WorkerSliceConfigSpec{
-					SliceName:     "test-slice",
-					SliceType:     "Application",
-					SliceSubnet:   "10.0.0.1/16",
-					SliceIpamType: "Local",
-					// IpamClusterOctet: 100,
+					SliceName:        "test-slice",
+					SliceType:        "Application",
+					SliceSubnet:      "10.0.0.1/16",
+					SliceIpamType:    "Local",
+					IpamClusterOctet: hundred,
 				},
 			}
 			hubSliceGw = &workerv1alpha1.WorkerSliceGateway{
