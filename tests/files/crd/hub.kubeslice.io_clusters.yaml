@@ -96,8 +96,7 @@ spec:
                 description: NodeIP is the IP address of the Node
                 type: string
               nodeIPs:
-                description: NodeIP is the IP address of the Node
-                items: 
+                items:
                   type: string
                 type: array
             type: object
@@ -109,18 +108,19 @@ spec:
                 items:
                   type: string
                 type: array
+              namespaces:
+                description: Namespaces present in cluster
+                items:
+                  properties:
+                    name:
+                      type: string
+                    sliceName:
+                      type: string
+                  type: object
+                type: array
               secretName:
                 description: SecretName is the name of the secret for the worker cluster.
                 type: string
-              namespaces:
-                  type: array
-                  items:
-                    properties:
-                      name:
-                        type: string
-                      sliceName:
-                        type: string
-                    type: object
             type: object
         type: object
     served: true

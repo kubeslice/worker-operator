@@ -38,6 +38,7 @@ var _ = Describe("Hub SlicegwController", func() {
 		var hubSliceGw *workerv1alpha1.WorkerSliceGateway
 		var hubSecret *corev1.Secret
 		var createdSliceGwOnSpoke *kubeslicev1beta1.SliceGateway
+		var hundred = 100
 
 		BeforeEach(func() {
 			// Prepare k8s objects

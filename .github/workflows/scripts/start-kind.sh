@@ -5,6 +5,8 @@ if [ ! $(kind get clusters | grep controller) ];then
   kind create cluster --name controller --config .github/workflows/scripts/cluster.yaml --image kindest/node:v1.22.7
   ip=$(docker inspect controller-control-plane | jq -r '.[0].NetworkSettings.Networks.kind.IPAddress') 
 #  echo $ip
+# loading docker image into kind controller
+   kind load docker-image netops:e2e-latest
 # Replace loopback IP with docker ip
   kind get kubeconfig --name controller | sed "s/127.0.0.1.*/$ip:6443/g" > /home/runner/.kube/kind1.yaml
 fi
@@ -15,6 +17,9 @@ if [ ! $(kind get clusters | grep worker) ];then
   kind create cluster --name worker --config .github/workflows/scripts/cluster.yaml --image kindest/node:v1.22.7
   ip=$(docker inspect worker-control-plane | jq -r '.[0].NetworkSettings.Networks.kind.IPAddress')
 #  echo $ip
+# loading docker image into kind worker
+   kind load docker-image netops:e2e-latest
+
 # Replace loopback IP with docker ip
   kind get kubeconfig --name worker | sed "s/127.0.0.1.*/$ip:6443/g" > /home/runner/.kube/kind2.yaml
 fi
@@ -30,17 +35,20 @@ if [ ! -f profile/kind.yaml ];then
 Kubeconfig: kinde2e.yaml
 ControllerCluster:
   Context: kind-controller
+  HubChartOptions:
+      Repo: "https://kubeslice.github.io/kubeslice/"
 WorkerClusters:
 - Context: kind-controller
   NodeIP: ${IP1}
 - Context: kind-worker
   NodeIP: ${IP2}
 WorkerChartOptions:
+  Repo: https://kubeslice.github.io/kubeslice/
   SetStrValues:
     "operator.image": "worker-operator"
     "operator.tag": "e2e-latest"
 TestSuitesEnabled:
-  HubSuite: true
+  HubSuite: false
   WorkerSuite: true
 EOF
 

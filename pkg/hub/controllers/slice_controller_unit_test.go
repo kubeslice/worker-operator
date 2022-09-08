@@ -35,6 +35,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
+var hundred = 100
+
 var controllerSlice = &workerv1alpha1.WorkerSliceConfig{
 	ObjectMeta: metav1.ObjectMeta{
 		Name:      "test-slice",

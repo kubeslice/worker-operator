@@ -48,6 +48,7 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req reconcile.Request) 
 	ctx = logger.WithLogger(ctx, log)
 	debuglog := log.V(1)
 	slice := &spokev1alpha1.WorkerSliceConfig{}
+
 	err := r.Get(ctx, req.NamespacedName, slice)
 	if err != nil {
 		if errors.IsNotFound(err) {
@@ -138,10 +139,10 @@ func (r *SliceReconciler) updateSliceConfig(ctx context.Context, meshSlice *kube
 				SliceIpamType: spokeSlice.Spec.SliceIpamType,
 				// IpamClusterOctet: spokeSlice.Spec.IpamClusterOctet,
 			},
-			SliceType: spokeSlice.Spec.SliceType,
+			ClusterSubnetCIDR: spokeSlice.Spec.ClusterSubnetCIDR,
+			SliceType:         spokeSlice.Spec.SliceType,
 		}
 	}
-
 	if meshSlice.Status.SliceConfig.SliceSubnet == "" {
 		meshSlice.Status.SliceConfig.SliceSubnet = spokeSlice.Spec.SliceSubnet
 	}
@@ -149,6 +150,10 @@ func (r *SliceReconciler) updateSliceConfig(ctx context.Context, meshSlice *kube
 	// if meshSlice.Status.SliceConfig.SliceIpam.IpamClusterOctet == 0 {
 	// 	meshSlice.Status.SliceConfig.SliceIpam.IpamClusterOctet = spokeSlice.Spec.IpamClusterOctet
 	// }
+
+	if meshSlice.Status.SliceConfig.ClusterSubnetCIDR == "" || meshSlice.Status.SliceConfig.ClusterSubnetCIDR != spokeSlice.Spec.ClusterSubnetCIDR {
+		meshSlice.Status.SliceConfig.ClusterSubnetCIDR = spokeSlice.Spec.ClusterSubnetCIDR
+	}
 
 	meshSlice.Status.SliceConfig.QosProfileDetails = kubeslicev1beta1.QosProfileDetails{
 		QueueType:               spokeSlice.Spec.QosProfileDetails.QueueType,
