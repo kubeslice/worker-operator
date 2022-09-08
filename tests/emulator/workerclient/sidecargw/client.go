@@ -17,7 +17,10 @@ func NewClientEmulator() (*ClientEmulator, error) {
 
 func (ClientEmulator *ClientEmulator) GetStatus(
 	ctx context.Context, serverAddr string) (*gwsidecar.GwStatus, error) {
-	gwStatus := &gwsidecar.GwStatus{}
+	gwStatus := &gwsidecar.GwStatus{
+		NsmStatus: gwsidecar.NsmStatus{
+			LocalIP: "3.3.3.3",
+		}}
 	return gwStatus, nil
 }
 

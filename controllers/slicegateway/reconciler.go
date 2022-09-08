@@ -153,6 +153,13 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	if !canDeployGw(sliceGw) {
 		// no need to deploy gateway deployment or service
 		log.Info("Unable to deploy slicegateway client, remote info not available, requeuing")
+		sliceGw.Status.Config = kubeslicev1beta1.SliceGatewayConfig{
+			SliceGatewayHostType:        "Server",
+			SliceGatewayRemoteNodeIPs:   []string{"1", "2"},
+			SliceGatewayRemoteNodePort:  123456,
+			SliceGatewayRemoteGatewayID: "xyz",
+		}
+		log.Info("slicegw status:", "status", sliceGw.Status.Config)
 		return ctrl.Result{
 			RequeueAfter: 10 * time.Second,
 		}, nil
