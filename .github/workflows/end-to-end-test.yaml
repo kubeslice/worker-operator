@@ -67,7 +67,6 @@ jobs:
         PUBLISH_DIR: allure-history
         keep_files: true
     
-    - uses: actions/checkout@v3
 
     - name: Run Quality Gate Check
       uses: PavanMudigonda/allure-html-reporter-github-pages/quality-gate@v1.1
