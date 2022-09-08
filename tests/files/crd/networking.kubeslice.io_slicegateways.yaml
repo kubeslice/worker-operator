@@ -130,18 +130,38 @@ spec:
               localIp:
                 description: LocalIP is the gateway tunnel ip
                 type: string
+              localIps:
+                description: LocalIP is the gateway tunnel ip
+                items:
+                  type: string
+                type: array
               localNsmIp:
                 description: LocalNsmIP is the IP on the nsm interface to Slice Router
                 type: string
+              localNsmIps:
+                description: LocalNsmIPs is the IP on the nsm interface to Slice Router
+                items:
+                  type: string
+                type: array
               peerIp:
                 description: PeerIP is the gateway tunnel peer ip
                 type: string
               podIp:
                 description: PodIP is the Ip of the gateway pod running in cluster
                 type: string
+              podIps:
+                description: PodIPs is the Ip of the gateway pod running in cluster
+                items:
+                  type: string
+                type: array
               podName:
                 description: PodName is the name of the gateway pod running in cluster
                 type: string
+              podNames:
+                description: PodName is the name of the gateway pod running in cluster
+                items:
+                  type: string
+                type: array
               podStatus:
                 description: PodStatus shows whether gateway pod is healthy
                 type: string
