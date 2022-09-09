@@ -20,13 +20,10 @@ package spoke_test
 
 import (
 	"context"
-	"os"
 	"time"
 
 	hubv1alpha1 "github.com/kubeslice/apis/pkg/controller/v1alpha1"
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
-	clusterpkg "github.com/kubeslice/worker-operator/pkg/cluster"
-	hub "github.com/kubeslice/worker-operator/pkg/hub/hubclient"
 	nsmv1alpha1 "github.com/networkservicemesh/networkservicemesh/k8s/pkg/apis/networkservice/v1alpha1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -35,21 +32,19 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/util/retry"
 	_ "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // var sliceGwFinalizer = []string{
 // 	"networking.kubeslice.io/slicegw-finalizer"}
 
-var _ = FDescribe("Worker SlicegwController", func() {
+var _ = Describe("Worker SlicegwController", func() {
 
 	var sliceGw *kubeslicev1beta1.SliceGateway
 	var createdSliceGw *kubeslicev1beta1.SliceGateway
 	var slice *kubeslicev1beta1.Slice
 	var svc *corev1.Service
 	var createdSlice *kubeslicev1beta1.Slice
-	var node2, node3 *corev1.Node
 	var vl3ServiceEndpoint *nsmv1alpha1.NetworkServiceEndpoint
 	var appPod *corev1.Pod
 	var ns *corev1.Namespace
@@ -58,6 +53,7 @@ var _ = FDescribe("Worker SlicegwController", func() {
 	Context("With SliceGW CR created", func() {
 
 		BeforeEach(func() {
+
 			sliceGw = &kubeslicev1beta1.SliceGateway{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "test-slicegw",
@@ -67,51 +63,6 @@ var _ = FDescribe("Worker SlicegwController", func() {
 					SliceName: "test-slice-4",
 				},
 			}
-			node2 = &corev1.Node{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "kubeslice-gw-node-4",
-					Labels: map[string]string{
-						"kubeslice.io/node-type":        "gateway",
-						"topology.kubernetes.io/region": "us-east-1",
-						"kubeslice.io/pod-type":         "slicegateway",
-						"topology.kubeslice.io/gateway": "1",
-					},
-				},
-				Spec: corev1.NodeSpec{
-					ProviderID: "gce://demo",
-				},
-				Status: corev1.NodeStatus{
-					Addresses: []corev1.NodeAddress{
-						{
-							Type:    corev1.NodeExternalIP,
-							Address: "35.235.10.2",
-						},
-					},
-				},
-			}
-			node3 = &corev1.Node{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "kubeslice-gw-node-5",
-					Labels: map[string]string{
-						"kubeslice.io/node-type":        "gateway",
-						"topology.kubernetes.io/region": "us-east-1",
-						"kubeslice.io/pod-type":         "slicegateway",
-						"topology.kubeslice.io/gateway": "1",
-					},
-				},
-				Spec: corev1.NodeSpec{
-					ProviderID: "gce://demo",
-				},
-				Status: corev1.NodeStatus{
-					Addresses: []corev1.NodeAddress{
-						{
-							Type:    corev1.NodeExternalIP,
-							Address: "35.235.10.3",
-						},
-					},
-				},
-			}
-			Expect(k8sClient.Create(ctx, node2)).Should(Succeed())
 			ns = &corev1.Namespace{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: PROJECT_NS,
@@ -218,10 +169,6 @@ var _ = FDescribe("Worker SlicegwController", func() {
 			DeferCleanup(func() {
 				ctx := context.Background()
 				Eventually(func() bool {
-					err := k8sClient.Delete(ctx, node2)
-					return errors.IsNotFound(err)
-				}, time.Second*10, time.Millisecond*250).Should(BeTrue())
-				Eventually(func() bool {
 					err := k8sClient.Delete(ctx, cluster)
 					return errors.IsNotFound(err)
 				}, time.Second*10, time.Millisecond*250).Should(BeTrue())
@@ -253,59 +200,7 @@ var _ = FDescribe("Worker SlicegwController", func() {
 
 			})
 		})
-		It("Should update NodeIp List in the cluster CR with New Node Ip", func() {
-			os.Setenv("CLUSTER_NAME", cluster.Name)
-			os.Setenv("HUB_PROJECT_NAMESPACE", PROJECT_NS)
-			ctx := context.Background()
-			nodeIP, err := clusterpkg.GetNodeIP(k8sClient)
-			Expect(err).To(BeNil())
-			//post GeoLocation and other metadata to cluster CR on Hub cluster
-			err = hub.PostClusterInfoToHub(ctx, k8sClient, k8sClient, "cluster-internal-node", PROJECT_NS, nodeIP)
-			Expect(err).To(BeNil())
-			//get the cluster object
-			Eventually(func() bool {
-				err := k8sClient.Get(ctx, types.NamespacedName{Name: cluster.Name, Namespace: cluster.Namespace}, cluster)
-				return err == nil
-			}, time.Second*10, time.Millisecond*250).Should(BeTrue())
-			Expect(cluster.Spec.NodeIPs).Should(Equal(nodeIP))
-
-			Expect(k8sClient.Create(ctx, svc)).Should(Succeed())
-			Expect(k8sClient.Create(ctx, slice)).Should(Succeed())
-			Expect(k8sClient.Create(ctx, vl3ServiceEndpoint)).Should(Succeed())
-			Expect(k8sClient.Create(ctx, sliceGw)).Should(Succeed())
-			slicegwkey := types.NamespacedName{Name: sliceGw.Name, Namespace: CONTROL_PLANE_NS}
-			Eventually(func() bool {
-				err := k8sClient.Get(ctx, slicegwkey, createdSliceGw)
-				return err == nil
-			}, time.Second*10, time.Millisecond*250).Should(BeTrue())
-
-			createdSliceGw.Status.Config.SliceGatewayHostType = "Server"
-			err = retry.RetryOnConflict(retry.DefaultRetry, func() error {
-				err := k8sClient.Get(ctx, slicegwkey, createdSliceGw)
-				if err != nil {
-					return err
-				}
-				createdSliceGw.Status.Config.SliceGatewayHostType = "Server"
-				err = k8sClient.Status().Update(ctx, createdSliceGw)
-				if err != nil {
-					return err
-				}
-				return nil
-			})
-			Expect(err).To(BeNil())
-			//create another kubeslice node
-			Expect(k8sClient.Create(ctx, node3)).Should(Succeed())
-			// verify if new node IP is updated on cluster CR
-			Eventually(func() bool {
-				err := k8sClient.Get(ctx, types.NamespacedName{Name: cluster.Name, Namespace: cluster.Namespace}, cluster)
-				if err != nil {
-					return false
-				}
-				return cluster.Spec.NodeIPs[1] == "35.235.10.3"
-			}, time.Second*60, time.Millisecond*250).Should(BeTrue())
-
-		})
-		It("should create a gw nodeport service if gw type is Server", func() {
+		It("should create 2 gateway server pods ", func() {
 			ctx := context.Background()
 
 			Expect(k8sClient.Create(ctx, svc)).Should(Succeed())
@@ -349,7 +244,7 @@ var _ = FDescribe("Worker SlicegwController", func() {
 				return *founddepl.Spec.Replicas == 2
 			}, time.Second*120, time.Millisecond*250).Should(BeTrue())
 		})
-		It("Should create a deployment for gw client", func() {
+		It("should create 2 gateway client pods", func() {
 			ctx := context.Background()
 			Expect(k8sClient.Create(ctx, svc)).Should(Succeed())
 			Expect(k8sClient.Create(ctx, slice)).Should(Succeed())
