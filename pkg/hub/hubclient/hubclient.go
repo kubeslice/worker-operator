@@ -292,7 +292,6 @@ func UpdateNamespaceInfoToHub(ctx context.Context, hubClient client.Client, onbo
 			Namespace: os.Getenv("HUB_PROJECT_NAMESPACE"),
 		}, hubCluster)
 		if err != nil {
-			fmt.Println("Found here ----------------> 1", os.Getenv("CLUSTER_NAME"), os.Getenv("HUB_PROJECT_NAMESPACE"))
 			return err
 		}
 		nsIndex, nsInfo := getNamespaceInfo(onboardNamespace, hubCluster.Status.Namespaces)
@@ -313,7 +312,6 @@ func UpdateNamespaceInfoToHub(ctx context.Context, hubClient client.Client, onbo
 		return hubClient.Status().Update(ctx, hubCluster)
 	})
 	if err != nil {
-		fmt.Println("Found here ----------------> 2", err, os.Getenv("CLUSTER_NAME"), os.Getenv("HUB_PROJECT_NAMESPACE"))
 		return err
 	}
 	log.Info("Successfully update cluster namespace", "namespace", onboardNamespace)

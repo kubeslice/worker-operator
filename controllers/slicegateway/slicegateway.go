@@ -21,7 +21,6 @@ package slicegateway
 import (
 	"context"
 	_ "errors"
-	"fmt"
 	"os"
 	"strconv"
 	"time"
@@ -585,7 +584,6 @@ func (r *SliceGwReconciler) GetGwPodNameAndIP(ctx context.Context, sliceGw *kube
 			// return pod.Name, pod.Status.PodIP
 		}
 	}
-	fmt.Println("******************************************", podIPList, podNameList)
 	return podNameList, podIPList
 }
 
@@ -627,7 +625,6 @@ func (r *SliceGwReconciler) ReconcileGwPodStatus(ctx context.Context, slicegatew
 				log.Error(err, "Failed to update SliceGateway status for gateway status")
 				return ctrl.Result{}, err, true
 			}
-			fmt.Println("<<<<<<<<<<<<< localnsmips >>>>>>>>>>>>", status.NsmStatus.LocalIP)
 
 			log.Info("gw status updated")
 		}
@@ -662,7 +659,6 @@ func (r *SliceGwReconciler) SendConnectionContextToGwPod(ctx context.Context, sl
 			log.Error(err, "Failed to update SliceGateway status for conn ctx update")
 			return ctrl.Result{}, err, true
 		}
-		fmt.Println("<<<<<<<<<<<<<<<<<local nsm ip caller ", slicegateway.Status.LocalNsmIPs)
 	}
 	return ctrl.Result{}, nil, false
 }
@@ -682,7 +678,6 @@ func (r *SliceGwReconciler) SendConnectionContextToSliceRouter(ctx context.Conte
 
 	if slicegateway.Status.Config.SliceGatewayRemoteSubnet == "" ||
 		len(slicegateway.Status.LocalNsmIPs) == 0 {
-		fmt.Println("<<<<<<<<<<>>>>>>>>>>>>>>>", slicegateway.Status.Config.SliceGatewayRemoteSubnet, slicegateway.Status.LocalNsmIPs)
 		log.Info("Waiting for remote subnet and local nsm IPs. Delaying conn ctx update to router")
 		return ctrl.Result{RequeueAfter: 10 * time.Second}, nil, true
 	}
