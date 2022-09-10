@@ -67,10 +67,22 @@ jobs:
         PUBLISH_DIR: allure-history
         keep_files: true
     
+    - name: wait for report deploy on site
+      run: |
+         sleep 300 
+         echo 'https://kubeslice.github.io/e2e-allure-reports/Kind-${{ github.event.repository.name }}-${{ steps.date.outputs.date }}-${{ github.base_ref }}-${{ github.run_number }}/index.html'
 
+         
+    - name: Providing report link in PR comment
+      uses: mshick/add-pr-comment@v1
+      with:
+          message: |
+            echo 'https://kubeslice.github.io/e2e-allure-reports/Kind-${{ github.event.repository.name }}-${{ steps.date.outputs.date }}-${{ github.base_ref }}-${{ github.run_number }}/index.html'
+          repo-token: ${{ secrets.TOKEN }}
+          
     - name: Run Quality Gate Check
       uses: PavanMudigonda/allure-html-reporter-github-pages/quality-gate@v1.1
       with:
           ENABLE_QUALITY_GATE: true
           MINIMUM_PASS_PERCENTAGE: 75
-          ALLURE_BEHAVIORS_CSV: 'allure/data/behaviors.csv'
+          ALLURE_BEHAVIORS_CSV: 'allure-history/data/*.csv'
