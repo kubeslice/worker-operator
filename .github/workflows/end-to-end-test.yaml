@@ -86,4 +86,4 @@ jobs:
       with:
           ENABLE_QUALITY_GATE: true
           MINIMUM_PASS_PERCENTAGE: 75
-          ALLURE_BEHAVIORS_CSV: 'allure-history/Kind-${{ github.event.repository.name }}-${{ steps.date.outputs.date }}-${{ github.base_ref }}-${{ github.run_number }}/data/behaviors.csv'
+          ALLURE_BEHAVIORS_CSV: './allure-history/Kind-${{ github.event.repository.name }}-${{ steps.date.outputs.date }}-${{ github.base_ref }}-${{ github.run_number }}/data/behaviors.csv'
