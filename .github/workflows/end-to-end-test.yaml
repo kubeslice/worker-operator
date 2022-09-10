@@ -75,6 +75,7 @@ jobs:
          
     - name: Providing report link in PR comment
       uses: mshick/add-pr-comment@v1
+      if: ${{ github.event.label.name == 'ready-to-test' }}
       with:
           message: |
             echo 'https://kubeslice.github.io/e2e-allure-reports/Kind-${{ github.event.repository.name }}-${{ steps.date.outputs.date }}-${{ github.base_ref }}-${{ github.run_number }}/index.html'
@@ -85,4 +86,4 @@ jobs:
       with:
           ENABLE_QUALITY_GATE: true
           MINIMUM_PASS_PERCENTAGE: 75
-          ALLURE_BEHAVIORS_CSV: 'allure-history/data/*.csv'
+          ALLURE_BEHAVIORS_CSV: 'allure-history/Kind-${{ github.event.repository.name }}-${{ steps.date.outputs.date }}-${{ github.base_ref }}-${{ github.run_number }}/data/behaviors.csv'
