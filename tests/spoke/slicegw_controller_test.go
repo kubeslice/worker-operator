@@ -242,7 +242,7 @@ var _ = Describe("Worker SlicegwController", func() {
 
 			Eventually(func() bool {
 				err := k8sClient.Get(ctx, deplKey, founddepl)
-				return err == nil
+				return err == nil && *founddepl.Spec.Replicas == 2
 			}, time.Second*40, time.Millisecond*250).Should(BeTrue())
 
 			Expect(founddepl.Spec.Template.Spec.Containers[1].Name).Should(Equal("kubeslice-openvpn-server"))
@@ -331,7 +331,7 @@ var _ = Describe("Worker SlicegwController", func() {
 
 			Eventually(func() bool {
 				err := k8sClient.Get(ctx, deplKey, founddepl)
-				return err == nil
+				return err == nil && *founddepl.Spec.Replicas == 2
 			}, time.Second*40, time.Millisecond*250).Should(BeTrue())
 
 			Expect(founddepl.Spec.Template.Spec.Containers[1].Name).Should(Equal("kubeslice-openvpn-client"))
