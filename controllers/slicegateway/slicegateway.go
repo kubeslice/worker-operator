@@ -588,7 +588,11 @@ func (r *SliceGwReconciler) GetGwPodNameAndIP(ctx context.Context, sliceGw *kube
 	return podNameList, podIPList
 }
 
-func isGatewayStatusChanged(slicegateway *kubeslicev1beta1.SliceGateway, podName string, podIP string, status *gwsidecar.GwStatus) bool {
+func isGatewayStatusChanged(ctx context.Context, slicegateway *kubeslicev1beta1.SliceGateway, podName string, podIP string, status *gwsidecar.GwStatus) bool {
+	log := logger.FromContext(ctx).WithValues("type", "SliceGw")
+	log.Info("values present in slicegw status", slicegateway.Status)
+	log.Info("values needs to updated in slicegw status", podName, podIP, status)
+
 	return !contains(slicegateway.Status.PodNames, podName) ||
 		!contains(slicegateway.Status.PodIPs, podIP) ||
 		!contains(slicegateway.Status.LocalNsmIPs, status.NsmStatus.LocalIP)
@@ -615,7 +619,7 @@ func (r *SliceGwReconciler) ReconcileGwPodStatus(ctx context.Context, slicegatew
 
 		debugLog.Info("Got gw status", "result", status)
 
-		if isGatewayStatusChanged(slicegateway, podNames[i], podIPs[i], status) {
+		if isGatewayStatusChanged(ctx, slicegateway, podNames[i], podIPs[i], status) {
 			debugLog.Info("gw status changed", "status change", podNames, podIPs)
 			slicegateway.Status.PodNames = append(slicegateway.Status.PodNames, podNames[i])
 			slicegateway.Status.PodIPs = append(slicegateway.Status.PodIPs, podIPs[i])
