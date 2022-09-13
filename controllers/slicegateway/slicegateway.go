@@ -616,18 +616,18 @@ func (r *SliceGwReconciler) ReconcileGwPodStatus(ctx context.Context, slicegatew
 		debugLog.Info("Got gw status", "result", status)
 
 		if isGatewayStatusChanged(slicegateway, podNames[i], podIPs[i], status) {
-			log.Info("gw status changed")
+			debugLog.Info("gw status changed", "status change", podNames, podIPs)
 			slicegateway.Status.PodNames = append(slicegateway.Status.PodNames, podNames[i])
 			slicegateway.Status.PodIPs = append(slicegateway.Status.PodIPs, podIPs[i])
 			slicegateway.Status.LocalNsmIPs = append(slicegateway.Status.LocalNsmIPs, status.NsmStatus.LocalIP)
 			slicegateway.Status.ConnectionContextUpdatedOn = 0
 			err = r.Status().Update(ctx, slicegateway)
 			if err != nil {
-				log.Error(err, "Failed to update SliceGateway status for gateway status")
+				debugLog.Error(err, "error while update", "Failed to update SliceGateway status for gateway status")
 				return ctrl.Result{}, err, true
 			}
 
-			log.Info("gw status updated")
+			debugLog.Info("gw status updated", "status update", podIPs, podNames)
 		}
 	}
 	return ctrl.Result{}, nil, false
@@ -670,6 +670,7 @@ func (r *SliceGwReconciler) SendConnectionContextAndQosToGwPod(ctx context.Conte
 	return ctrl.Result{}, nil, false
 }
 
+// In the event of slice router deletion as well this function needs to be called so that the routes can be injected into the router sidecar
 func (r *SliceGwReconciler) SendConnectionContextToSliceRouter(ctx context.Context, slicegateway *kubeslicev1beta1.SliceGateway) (ctrl.Result, error, bool) {
 	log := logger.FromContext(ctx).WithValues("type", "SliceGw")
 
