@@ -607,7 +607,8 @@ func (r *SliceGwReconciler) ReconcileGwPodStatus(ctx context.Context, slicegatew
 		log.Info("Gw pods not available yet, requeuing")
 		return ctrl.Result{RequeueAfter: 5 * time.Second}, nil, true
 	}
-
+	updatedNsmIPs := []string{}
+	toUpdate := false
 	for i := 0; i < len(podNames); i++ {
 		sidecarGrpcAddress := podIPs[i] + ":5000"
 
@@ -621,17 +622,20 @@ func (r *SliceGwReconciler) ReconcileGwPodStatus(ctx context.Context, slicegatew
 		log.Info("before calling status changed", "pod names", slicegateway.Status.PodNames, "pod ips", slicegateway.Status.PodIPs, "pod nsmips", slicegateway.Status.LocalNsmIPs)
 		if isGatewayStatusChanged(ctx, slicegateway, podNames[i], podIPs[i], status) {
 			log.Info("gw status changed", "status change", podNames, podIPs)
-			slicegateway.Status.PodNames = append(slicegateway.Status.PodNames, podNames[i])
-			slicegateway.Status.PodIPs = append(slicegateway.Status.PodIPs, podIPs[i])
-			slicegateway.Status.LocalNsmIPs = append(slicegateway.Status.LocalNsmIPs, status.NsmStatus.LocalIP)
-			slicegateway.Status.ConnectionContextUpdatedOn = 0
-			err = r.Status().Update(ctx, slicegateway)
-			if err != nil {
-				debugLog.Error(err, "error while update", "Failed to update SliceGateway status for gateway status")
-				return ctrl.Result{}, err, true
-			}
-
 			log.Info("after calling status changed", "pod names", slicegateway.Status.PodNames, "pod ips", slicegateway.Status.PodIPs, "pod nsmips", slicegateway.Status.LocalNsmIPs)
+			toUpdate = true
+		}
+		updatedNsmIPs = append(updatedNsmIPs, status.NsmStatus.LocalIP)
+	}
+	if toUpdate {
+		slicegateway.Status.PodNames = podNames
+		slicegateway.Status.PodIPs = podIPs
+		slicegateway.Status.LocalNsmIPs = updatedNsmIPs
+		slicegateway.Status.ConnectionContextUpdatedOn = 0
+		err := r.Status().Update(ctx, slicegateway)
+		if err != nil {
+			debugLog.Error(err, "error while update", "Failed to update SliceGateway status for gateway status")
+			return ctrl.Result{}, err, true
 		}
 	}
 	return ctrl.Result{}, nil, false
