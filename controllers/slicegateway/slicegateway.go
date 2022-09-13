@@ -618,9 +618,9 @@ func (r *SliceGwReconciler) ReconcileGwPodStatus(ctx context.Context, slicegatew
 		}
 
 		debugLog.Info("Got gw status", "result", status)
-
+		log.Info("before calling status changed", "pod names", slicegateway.Status.PodNames, "pod ips", slicegateway.Status.PodIPs, "pod nsmips", slicegateway.Status.LocalNsmIPs)
 		if isGatewayStatusChanged(ctx, slicegateway, podNames[i], podIPs[i], status) {
-			debugLog.Info("gw status changed", "status change", podNames, podIPs)
+			log.Info("gw status changed", "status change", podNames, podIPs)
 			slicegateway.Status.PodNames = append(slicegateway.Status.PodNames, podNames[i])
 			slicegateway.Status.PodIPs = append(slicegateway.Status.PodIPs, podIPs[i])
 			slicegateway.Status.LocalNsmIPs = append(slicegateway.Status.LocalNsmIPs, status.NsmStatus.LocalIP)
@@ -631,7 +631,7 @@ func (r *SliceGwReconciler) ReconcileGwPodStatus(ctx context.Context, slicegatew
 				return ctrl.Result{}, err, true
 			}
 
-			debugLog.Info("gw status updated", "status update", podIPs, podNames)
+			log.Info("after calling status changed", "pod names", slicegateway.Status.PodNames, "pod ips", slicegateway.Status.PodIPs, "pod nsmips", slicegateway.Status.LocalNsmIPs)
 		}
 	}
 	return ctrl.Result{}, nil, false
