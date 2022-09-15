@@ -255,9 +255,6 @@ func updateClusterInfoToHub(ctx context.Context, spokeclient client.Client, hubC
 		hubCluster.Spec.ClusterProperty.GeoLocation.CloudProvider = clusterInfo.ClusterProperty.GeoLocation.CloudProvider
 		hubCluster.Spec.NodeIPs = nodeIPs
 
-		fmt.Println(nodeIPs, "=====================================")
-		fmt.Println(hubCluster.Spec, "----------------------------------- NodeIps from spec")
-
 		if err := hubClient.Update(ctx, hubCluster); err != nil {
 			log.Error(err, "Error updating to cluster spec on hub cluster")
 			return err
@@ -272,7 +269,7 @@ func updateClusterInfoToHub(ctx context.Context, spokeclient client.Client, hubC
 	return err
 }
 
-func (hubClient *HubClientConfig) GetClusterNodeIP(ctx context.Context, clusterName, namespace string) ([]string, error) {
+func (hubClient *HubClientConfig) GetClusterNodeIPs(ctx context.Context, clusterName, namespace string) ([]string, error) {
 	cluster := &hubv1alpha1.Cluster{}
 	err := hubClient.Get(ctx, types.NamespacedName{
 		Name:      clusterName,

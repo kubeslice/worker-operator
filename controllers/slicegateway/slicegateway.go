@@ -564,7 +564,7 @@ func (r *SliceGwReconciler) deploymentForGatewayClient(g *kubeslicev1beta1.Slice
 	return dep
 }
 
-func (r *SliceGwReconciler) GetGwPodNameAndIP(ctx context.Context, sliceGw *kubeslicev1beta1.SliceGateway) ([]string, []string) {
+func (r *SliceGwReconciler) GetGwPodNameAndIPs(ctx context.Context, sliceGw *kubeslicev1beta1.SliceGateway) ([]string, []string) {
 	log := logger.FromContext(ctx).WithValues("type", "slicegateway")
 	podList := &corev1.PodList{}
 	listOpts := []client.ListOption{
@@ -598,7 +598,7 @@ func (r *SliceGwReconciler) ReconcileGwPodStatus(ctx context.Context, slicegatew
 	log := logger.FromContext(ctx).WithValues("type", "SliceGw")
 	debugLog := log.V(1)
 
-	podNames, podIPs := r.GetGwPodNameAndIP(ctx, slicegateway)
+	podNames, podIPs := r.GetGwPodNameAndIPs(ctx, slicegateway)
 	if len(podNames) == 0 || len(podIPs) == 0 {
 		log.Info("Gw pods not available yet, requeuing")
 		return ctrl.Result{RequeueAfter: 5 * time.Second}, nil, true
@@ -610,7 +610,7 @@ func (r *SliceGwReconciler) ReconcileGwPodStatus(ctx context.Context, slicegatew
 		status, err := r.WorkerGWSidecarClient.GetStatus(ctx, sidecarGrpcAddress)
 		if err != nil {
 			log.Error(err, "Unable to fetch gw status")
-			return ctrl.Result{RequeueAfter: 10 * time.Second}, nil, true
+			return ctrl.Result{}, nil, true
 		}
 
 		debugLog.Info("Got gw status", "result", status)
@@ -636,7 +636,7 @@ func (r *SliceGwReconciler) ReconcileGwPodStatus(ctx context.Context, slicegatew
 func (r *SliceGwReconciler) SendConnectionContextToGwPod(ctx context.Context, slicegateway *kubeslicev1beta1.SliceGateway) (ctrl.Result, error, bool) {
 	log := logger.FromContext(ctx).WithValues("type", "SliceGw")
 
-	_, podIPs := r.GetGwPodNameAndIP(ctx, slicegateway)
+	_, podIPs := r.GetGwPodNameAndIPs(ctx, slicegateway)
 	if len(podIPs) == 0 {
 		log.Info("Gw podIPs not available yet, requeuing")
 		return ctrl.Result{RequeueAfter: 5 * time.Second}, nil, true
@@ -769,7 +769,7 @@ func (r *SliceGwReconciler) reconcileNodes(ctx context.Context, slicegateway *ku
 	log := r.Log
 	//currentNodeIP and nodeIpList would be same in case of operator restart because it is set at the start of operator in main.go, hence it is better to fetch the nodeIP in use from controller cluster CR!
 	//TODO: can we store nodeIP in slicegw?
-	currentNodeIP, err := r.HubClient.GetClusterNodeIP(ctx, os.Getenv("CLUSTER_NAME"), os.Getenv("HUB_PROJECT_NAMESPACE"))
+	currentNodeIPs, err := r.HubClient.GetClusterNodeIPs(ctx, os.Getenv("CLUSTER_NAME"), os.Getenv("HUB_PROJECT_NAMESPACE"))
 	if err != nil {
 		return err
 	}
@@ -778,9 +778,9 @@ func (r *SliceGwReconciler) reconcileNodes(ctx context.Context, slicegateway *ku
 		//err := errors.New("node IP list is empty")
 		return nil
 	}
-	if !validatenodeipcount(nodeIpList, currentNodeIP) {
+	if !validatenodeipcount(nodeIpList, currentNodeIPs) {
 		//nodeIP updated , update the cluster CR
-		log.Info("Mismatch in node IP", "IP in use", currentNodeIP, "IPs to be used", nodeIpList)
+		log.Info("Mismatch in node IPs", "IPs in use", currentNodeIPs, "IPs to be used", nodeIpList)
 		err := r.HubClient.UpdateNodeIpInCluster(ctx, os.Getenv("CLUSTER_NAME"), os.Getenv("HUB_PROJECT_NAMESPACE"), nodeIpList)
 		if err != nil {
 			return err

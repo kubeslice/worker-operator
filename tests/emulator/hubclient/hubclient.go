@@ -97,6 +97,6 @@ func (hubClientEmulator *HubClientEmulator) UpdateAppNamesapces(ctx context.Cont
 	return nil
 }
 
-func (hubClientEmulator *HubClientEmulator) GetClusterNodeIP(ctx context.Context, clusterName, namespace string) ([]string, error) {
+func (hubClientEmulator *HubClientEmulator) GetClusterNodeIPs(ctx context.Context, clusterName, namespace string) ([]string, error) {
 	return []string{"35.235.10.1"}, nil
 }
