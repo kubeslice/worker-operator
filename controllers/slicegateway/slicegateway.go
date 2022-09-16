@@ -613,6 +613,7 @@ func (r *SliceGwReconciler) ReconcileGwPodStatus(ctx context.Context, slicegatew
 		sidecarGrpcAddress := podIPs[i] + ":5000"
 
 		status, err := r.WorkerGWSidecarClient.GetStatus(ctx, sidecarGrpcAddress)
+		log.Info("Tunnel status ----------------------->","tunnel status",status.TunnelStatus)
 		if err != nil {
 			log.Error(err, "Unable to fetch gw status")
 			return ctrl.Result{RequeueAfter: 10 * time.Second}, nil, true
