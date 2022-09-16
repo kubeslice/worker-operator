@@ -627,8 +627,11 @@ func (r *SliceGwReconciler) ReconcileGwPodStatus(ctx context.Context, slicegatew
 			toUpdate = true
 		}
 		if status.TunnelStatus.IntfName == ""{
+			log.Info("tun0 down updting pod names and ips <<<<<<<<<<<<<<<<<<<<<","podnames",podNames)
+			
 			toUpdate = true
 			podNames,podIPs = UpdatePodNameAndIpSlice(podNames,podIPs,podNames[i])
+			log.Info(" pod names and ips after update >>>>>>>>>>>>>>>>","podnames",podNames)
 			continue
 		}
 		updatedNsmIPs = append(updatedNsmIPs, status.NsmStatus.LocalIP)
