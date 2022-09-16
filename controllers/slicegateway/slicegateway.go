@@ -626,6 +626,11 @@ func (r *SliceGwReconciler) ReconcileGwPodStatus(ctx context.Context, slicegatew
 			log.Info("after calling status changed", "pod names", slicegateway.Status.PodNames, "pod ips", slicegateway.Status.PodIPs, "pod nsmips", slicegateway.Status.LocalNsmIPs)
 			toUpdate = true
 		}
+		if status.TunnelStatus.IntfName == ""{
+			toUpdate = true
+			podNames,podIPs = UpdatePodNameAndIpSlice(podNames,podIPs,podNames[i])
+			continue
+		}
 		updatedNsmIPs = append(updatedNsmIPs, status.NsmStatus.LocalIP)
 	}
 	if toUpdate {
@@ -889,4 +894,16 @@ func validatenodeipcount(total, current []string) bool {
 		}
 	}
 	return true && len(total) == len(current)
+}
+
+func UpdatePodNameAndIpSlice(podNames,podIps []string,podName string)([]string,[]string){
+	index := -1
+	for i:=0;i<len(podNames);i++{
+		if podNames[i]==podName{
+			index=i
+			break
+		}
+	}
+	return append(podNames[:index],podNames[index+1:]...),append(podIps[:index],podIps[index+1:]...)
+
 }
