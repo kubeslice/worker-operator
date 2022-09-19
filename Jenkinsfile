@@ -3,4 +3,4 @@ dockerbuildtestPipeline(
   script: this,
   service: 'worker-operator',
   buildArguments: [PLATFORM:"amd64"]
-) 
+)
