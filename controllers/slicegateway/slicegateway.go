@@ -626,7 +626,7 @@ func (r *SliceGwReconciler) ReconcileGwPodStatus(ctx context.Context, slicegatew
 			log.Info("after calling status changed", "pod names", slicegateway.Status.PodNames, "pod ips", slicegateway.Status.PodIPs, "pod nsmips", slicegateway.Status.LocalNsmIPs)
 			toUpdate = true
 		}
-		if status.TunnelStatus.IntfName == ""{
+		if status.TunnelStatus == nil {
 			log.Info("tun0 down updting pod names and ips <<<<<<<<<<<<<<<<<<<<<","podnames",podNames)
 			
 			toUpdate = true
