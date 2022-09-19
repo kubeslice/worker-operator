@@ -78,7 +78,7 @@ func NewHubClientConfig() (*HubClientConfig, error) {
 		BearerTokenFile: HubTokenFile,
 		TLSClientConfig: rest.TLSClientConfig{
 			Insecure: true,
-			CAFile:   HubCAFile,
+			//CAFile:   HubCAFile,
 		}},
 		client.Options{
 			Scheme: scheme,
