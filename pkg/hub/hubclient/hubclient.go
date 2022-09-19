@@ -77,7 +77,7 @@ func NewHubClientConfig() (*HubClientConfig, error) {
 		Host:            os.Getenv("HUB_HOST_ENDPOINT"),
 		BearerTokenFile: HubTokenFile,
 		TLSClientConfig: rest.TLSClientConfig{
-			Insecure: true,
+			// Insecure: true,
 			//CAFile:   HubCAFile,
 		}},
 		client.Options{
