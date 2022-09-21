@@ -54,9 +54,9 @@ func Start(meshClient client.Client, ctx context.Context) {
 	config := &rest.Config{
 		Host:            os.Getenv("HUB_HOST_ENDPOINT"),
 		BearerTokenFile: HubTokenFile,
-		TLSClientConfig: rest.TLSClientConfig{
-			CAFile: HubCAFile,
-		},
+		// TLSClientConfig: rest.TLSClientConfig{
+		// 	CAFile: HubCAFile,
+		// },
 	}
 
 	var log = log.Log.WithName("hub")

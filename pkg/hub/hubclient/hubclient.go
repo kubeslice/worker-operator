@@ -76,9 +76,10 @@ func NewHubClientConfig() (*HubClientConfig, error) {
 	hubClient, err := client.New(&rest.Config{
 		Host:            os.Getenv("HUB_HOST_ENDPOINT"),
 		BearerTokenFile: HubTokenFile,
-		TLSClientConfig: rest.TLSClientConfig{
-			CAFile: HubCAFile,
-		}},
+		// TLSClientConfig: rest.TLSClientConfig{
+		// 	CAFile: HubCAFile,
+		// }},
+		},
 		client.Options{
 			Scheme: scheme,
 		},
