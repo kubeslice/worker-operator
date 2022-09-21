@@ -112,7 +112,6 @@ func (worker gwSidecarClient) SendConnectionContext(ctx context.Context, serverA
 	return err
 }
 
-// SendConnectionContext sends connection context info to sidecar
 func (worker gwSidecarClient) UpdateSliceQosProfile(ctx context.Context, serverAddr string, slice *kubeslicev1beta1.Slice) error {
 	conn, err := grpc.Dial(serverAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
