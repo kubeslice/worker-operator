@@ -3,6 +3,7 @@ package sidecargw
 import (
 	"context"
 
+	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
 	"github.com/kubeslice/worker-operator/pkg/gwsidecar"
 	"github.com/stretchr/testify/mock"
 )
@@ -22,5 +23,9 @@ func (ClientEmulator *ClientEmulator) GetStatus(
 }
 
 func (ClientEmulator *ClientEmulator) SendConnectionContext(ctx context.Context, serverAddr string, gwConnCtx *gwsidecar.GwConnectionContext) error {
+	return nil
+}
+
+func (ClientEmulator *ClientEmulator) UpdateSliceQosProfile(ctx context.Context, serverAddr string, slice *kubeslicev1beta1.Slice) error {
 	return nil
 }
