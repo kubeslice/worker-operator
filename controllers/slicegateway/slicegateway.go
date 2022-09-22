@@ -613,25 +613,29 @@ func (r *SliceGwReconciler) ReconcileGwPodStatus(ctx context.Context, slicegatew
 		sidecarGrpcAddress := podIPs[i] + ":5000"
 
 		status, err := r.WorkerGWSidecarClient.GetStatus(ctx, sidecarGrpcAddress)
-		log.Info("Tunnel status ----------------------->","tunnel status",status.TunnelStatus)
 		if err != nil {
 			log.Error(err, "Unable to fetch gw status")
 			return ctrl.Result{RequeueAfter: 10 * time.Second}, nil, true
 		}
 
 		debugLog.Info("Got gw status", "result", status)
-		log.Info("before calling status changed", "pod names", slicegateway.Status.PodNames, "pod ips", slicegateway.Status.PodIPs, "pod nsmips", slicegateway.Status.LocalNsmIPs)
 		if isGatewayStatusChanged(ctx, slicegateway, podNames[i], podIPs[i], status) {
-			log.Info("gw status changed", "status change", podNames, podIPs)
-			log.Info("after calling status changed", "pod names", slicegateway.Status.PodNames, "pod ips", slicegateway.Status.PodIPs, "pod nsmips", slicegateway.Status.LocalNsmIPs)
 			toUpdate = true
 		}
-		if status.TunnelStatus.IntfName == ""{
-			log.Info("tun0 down updting pod names and ips <<<<<<<<<<<<<<<<<<<<<","podnames",podNames)
-			
+		if status.TunnelStatus.IntfName == "" || status.TunnelStatus.PacketLoss >= 80 {
+			foundPod := &corev1.Pod{}
 			toUpdate = true
-			podNames,podIPs = UpdatePodNameAndIpSlice(podNames,podIPs,podNames[i])
-			log.Info(" pod names and ips after update >>>>>>>>>>>>>>>>","podnames",podNames)
+			podNames, podIPs = UpdatePodNameAndIpSlice(podNames, podIPs, podNames[i])
+			err := r.Get(ctx, types.NamespacedName{Name: podNames[i], Namespace: slicegateway.Namespace}, foundPod)
+			if err != nil {
+				log.Error(err, "Unable to fetch the gateway pod")
+				return ctrl.Result{RequeueAfter: 10 * time.Second}, nil, true
+			}
+			err = r.Delete(ctx, foundPod)
+			if err != nil {
+				log.Error(err, "Unable to delete the gateway pod")
+				return ctrl.Result{RequeueAfter: 10 * time.Second}, nil, true
+			}
 			continue
 		}
 		updatedNsmIPs = append(updatedNsmIPs, status.NsmStatus.LocalIP)
@@ -902,14 +906,14 @@ func validatenodeipcount(total, current []string) bool {
 	return true && len(total) == len(current)
 }
 
-func UpdatePodNameAndIpSlice(podNames,podIps []string,podName string)([]string,[]string){
+func UpdatePodNameAndIpSlice(podNames, podIps []string, podName string) ([]string, []string) {
 	index := -1
-	for i:=0;i<len(podNames);i++{
-		if podNames[i]==podName{
-			index=i
+	for i := 0; i < len(podNames); i++ {
+		if podNames[i] == podName {
+			index = i
 			break
 		}
 	}
-	return append(podNames[:index],podNames[index+1:]...),append(podIps[:index],podIps[index+1:]...)
+	return append(podNames[:index], podNames[index+1:]...), append(podIps[:index], podIps[index+1:]...)
 
 }
