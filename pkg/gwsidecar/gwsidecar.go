@@ -34,12 +34,13 @@ type NsmStatus struct {
 }
 
 type TunnelStatus struct {
-	IntfName string
-	LocalIP  string
-	RemoteIP string
-	Latency  uint64
-	TxRate   uint64
-	RxRate   uint64
+	IntfName   string
+	LocalIP    string
+	RemoteIP   string
+	Latency    uint64
+	TxRate     uint64
+	RxRate     uint64
+	PacketLoss uint64
 }
 
 type GwStatus struct {
@@ -83,9 +84,10 @@ func (worker gwSidecarClient) GetStatus(ctx context.Context, serverAddr string) 
 	}
 	if res.TunnelStatus != nil {
 		gwStatus.TunnelStatus = TunnelStatus{
-			IntfName: res.TunnelStatus.NetInterface,
-			LocalIP:  res.TunnelStatus.LocalIP,
-			RemoteIP: res.TunnelStatus.PeerIP,
+			IntfName:   res.TunnelStatus.NetInterface,
+			LocalIP:    res.TunnelStatus.LocalIP,
+			RemoteIP:   res.TunnelStatus.PeerIP,
+			PacketLoss: res.TunnelStatus.PacketLoss,
 		}
 	}
 

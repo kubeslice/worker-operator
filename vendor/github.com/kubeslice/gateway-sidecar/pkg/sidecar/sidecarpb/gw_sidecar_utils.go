@@ -42,6 +42,11 @@ func SetStatusMonitor(sm *status.Monitor) {
 	statusMonitor = sm
 }
 
+func tcCmdError(tcCmd string, err error, cmdOut string) string {
+	errStr := fmt.Sprintf("tc Command: %v execution failed with err: %v and stderr : %v", tcCmd, err, cmdOut)
+	return errStr
+}
+
 func getGwPodStatus() (*GwPodStatus, error) {
 	podStatus := &GwPodStatus{}
 	podStatus.GatewayPodIP = nettools.GetPodIP()
@@ -74,6 +79,7 @@ func getGwPodStatus() (*GwPodStatus, error) {
 				Latency:      tunStat.Latency,
 				TxRate:       tunStat.TxRate,
 				RxRate:       tunStat.RxRate,
+				PacketLoss:   tunStat.PacketLoss,
 			}
 			podStatus.TunnelStatus = &tunnelStatus
 		}
@@ -118,14 +124,14 @@ func runTcCommand(tcCmd string) (string, error) {
 	var cmdOut string = ""
 	cmdOut, err = runCommand(tcCmd)
 	if err != nil {
-		errStr := fmt.Sprintf("tc Command: %v execution failed with err: %v and stderr : %v", tcCmd, err, cmdOut)
+		errStr := tcCmdError(tcCmd, err, cmdOut)
 		log.Errorf(errStr)
 
 		if strings.Contains(cmdOut, "RTNETLINK answers: File exists") {
 			tcDelCmd := strings.Replace(tcCmd, "add", "del", -1)
 			cmdOut, err = runCommand(tcDelCmd)
 			if err != nil {
-				errStr := fmt.Sprintf("tc Command: %v execution failed with err: %v and stderr : %v", tcDelCmd, err, cmdOut)
+				errStr := tcCmdError(tcDelCmd, err, cmdOut)
 				log.Errorf(errStr)
 				errVal = errors.New(errStr)
 			}
@@ -134,7 +140,7 @@ func runTcCommand(tcCmd string) (string, error) {
 			// Re run the tc command
 			cmdOut, err = runCommand(tcCmd)
 			if err != nil {
-				errStr := fmt.Sprintf("tc Command: %v execution failed with err: %v and stderr : %v", tcCmd, err, cmdOut)
+				errStr := tcCmdError(tcCmd, err, cmdOut)
 				errVal = errors.New(errStr)
 			}
 			log.Infof("tc Command: %v output :%v", tcCmd, cmdOut)

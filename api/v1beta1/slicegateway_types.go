@@ -75,23 +75,23 @@ type SliceGatewayStatus struct {
 	Config SliceGatewayConfig `json:"config,omitempty"`
 	// ConfigUpdatedOn is the time when Config updated from backend
 	ConfigUpdatedOn int64 `json:"configUpdatedOn,omitempty"`
-	// PodName is the name of the gateway pod running in cluster
+	// Deprecated PodName is the name of the gateway pod running in cluster
 	PodName string `json:"podName,omitempty"`
-	// PodName is the name of the gateway pod running in cluster
+	// PodNames is the name of the gateway pod running in cluster
 	PodNames []string `json:"podNames,omitempty"`
 	// PodStatus shows whether gateway pod is healthy
 	PodStatus string `json:"podStatus,omitempty"`
-	// PodIP is the Ip of the gateway pod running in cluster
+	// Deprecated PodIP is the Ip of the gateway pod running in cluster
 	PodIP string `json:"podIp,omitempty"`
 	// PodIPs is the Ip of the gateway pod running in cluster
 	PodIPs []string `json:"podIps,omitempty"`
-	// LocalIP is the gateway tunnel ip
+	//Deprecated LocalIP is the gateway tunnel ip
 	LocalIP string `json:"localIp,omitempty"`
-	// LocalIP is the gateway tunnel ip
+	// LocalIPs is the gateway tunnel ip
 	LocalIPs []string `json:"localIps,omitempty"`
 	// PeerIP is the gateway tunnel peer ip
 	PeerIP string `json:"peerIp,omitempty"`
-	// LocalNsmIP is the IP on the nsm interface to Slice Router
+	//Deprecated LocalNsmIP is the IP on the nsm interface to Slice Router
 	LocalNsmIP string `json:"localNsmIp,omitempty"`
 	// LocalNsmIPs is the IP on the nsm interface to Slice Router
 	LocalNsmIPs []string `json:"localNsmIps,omitempty"`
