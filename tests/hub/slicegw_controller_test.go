@@ -55,7 +55,7 @@ var _ = Describe("Hub SlicegwController", func() {
 					SliceType:        "Application",
 					SliceSubnet:      "10.0.0.1/16",
 					SliceIpamType:    "Local",
-					IpamClusterOctet: hundred,
+					IpamClusterOctet: &hundred,
 				},
 			}
 			hubSliceGw = &workerv1alpha1.WorkerSliceGateway{

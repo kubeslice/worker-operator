@@ -96,7 +96,6 @@ func (n *NodeInfo) populateNodeIpList() error {
 	for i := 0; i < len(nodeList.Items); i++ {
 		nodeIpArr = append(nodeIpArr, nodeList.Items[i].Status.Addresses...)
 	}
-	log.Info("NodeIpArr array--------->", "nodeipArr", nodeIpArr)
 	for i := 0; i < len(nodeIpArr); i++ {
 		if nodeIpArr[i].Type == NodeExternalIP {
 			n.NodeIPList = append(n.NodeIPList, nodeIpArr[i].Address)
