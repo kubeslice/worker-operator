@@ -79,6 +79,7 @@ func getGwPodStatus() (*GwPodStatus, error) {
 				Latency:      tunStat.Latency,
 				TxRate:       tunStat.TxRate,
 				RxRate:       tunStat.RxRate,
+				PacketLoss:   tunStat.PacketLoss,
 			}
 			podStatus.TunnelStatus = &tunnelStatus
 		}
