@@ -598,19 +598,19 @@ func (r *SliceGwReconciler) ReconcileGwPodStatus(ctx context.Context, slicegatew
 		if isGatewayStatusChanged(ctx, slicegateway, gwPodsInfo[i].PodName, gwPodsInfo[i].PodIP, status) {
 			toUpdate = true
 		}
-		if status.TunnelStatus.IntfName == "" || status.TunnelStatus.PacketLoss >= 80 {
-			log.Info("deleteing the pod:", "Pod name:", gwPodsInfo[i].PodName, "pod Ips before deletion:", len(gwPodsInfo))
+		if status.TunnelStatus.IntfName == "" {
+			// log.Info("deleteing the pod:", "Pod name:", gwPodsInfo[i].PodName, "pod Ips before deletion:", len(gwPodsInfo))
 			foundPod := &corev1.Pod{}
 			err := r.Get(ctx, types.NamespacedName{Name: gwPodsInfo[i].PodName, Namespace: slicegateway.Namespace}, foundPod)
 			if err != nil {
 				log.Error(err, "Unable to fetch the gateway pod")
 				return ctrl.Result{}, nil, true
 			}
-			err = r.Delete(ctx, foundPod)
-			if err != nil {
-				log.Error(err, "Unable to delete the gateway pod")
-				return ctrl.Result{}, nil, true
-			}
+			// err = r.Delete(ctx, foundPod)
+			// if err != nil {
+			// 	log.Error(err, "Unable to delete the gateway pod")
+			// 	return ctrl.Result{}, nil, true
+			// }
 			podNames, podIPs = UpdatePodNameAndIpSlice(podNames, podIPs, gwPodsInfo[i].PodName)
 			toUpdate = true
 			continue
