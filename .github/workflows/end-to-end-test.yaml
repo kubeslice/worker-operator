@@ -3,6 +3,7 @@ on:
   pull_request_target:
     types: [ labeled ] 
   workflow_dispatch:
+  
 jobs:
   end-to-end:
     if: ${{ github.event.label.name == 'ready-to-test' }}
