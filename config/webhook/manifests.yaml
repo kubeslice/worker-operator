@@ -12,17 +12,17 @@ webhooks:
     service:
       name: webhook-service
       namespace: system
-      path: /mutate-appsv1-deploy
+      path: /mutate-corev1-pod
   failurePolicy: Fail
-  name: mdeploy.kubeslice.io
+  name: webhook.kubeslice.io
   rules:
   - apiGroups:
-    - apps
+    - ""
     apiVersions:
     - v1
     operations:
     - CREATE
     - UPDATE
     resources:
-    - deployments
+    - pods
   sideEffects: NoneOnDryRun
