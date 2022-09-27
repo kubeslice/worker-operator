@@ -580,8 +580,14 @@ func (in *SliceGatewayStatus) DeepCopyInto(out *SliceGatewayStatus) {
 	}
 	if in.GatewayPodStatus != nil {
 		in, out := &in.GatewayPodStatus, &out.GatewayPodStatus
-		*out = make([]GwPodInfo, len(*in))
-		copy(*out, *in)
+		*out = make([]*GwPodInfo, len(*in))
+		for i := range *in {
+			if (*in)[i] != nil {
+				in, out := &(*in)[i], &(*out)[i]
+				*out = new(GwPodInfo)
+				**out = **in
+			}
+		}
 	}
 }
 
