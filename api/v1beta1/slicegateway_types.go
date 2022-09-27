@@ -77,13 +77,13 @@ type SliceGatewayStatus struct {
 	ConfigUpdatedOn int64 `json:"configUpdatedOn,omitempty"`
 	// Deprecated PodName is the name of the gateway pod running in cluster
 	PodName string `json:"podName,omitempty"`
-	// PodNames is the name of the gateway pod running in cluster
+	// PodNames is the list of names of the gateway pods running in cluster
 	PodNames []string `json:"podNames,omitempty"`
 	// PodStatus shows whether gateway pod is healthy
 	PodStatus string `json:"podStatus,omitempty"`
 	// Deprecated PodIP is the Ip of the gateway pod running in cluster
 	PodIP string `json:"podIp,omitempty"`
-	// PodIPs is the Ip of the gateway pod running in cluster
+	// PodIPs is the list of Ip of the gateway pods running in cluster
 	PodIPs []string `json:"podIps,omitempty"`
 	//Deprecated LocalIP is the gateway tunnel ip
 	LocalIP string `json:"localIp,omitempty"`

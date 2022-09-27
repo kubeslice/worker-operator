@@ -152,7 +152,8 @@ spec:
                   in cluster
                 type: string
               podIps:
-                description: PodIPs is the Ip of the gateway pod running in cluster
+                description: PodIPs is the list of Ip of the gateway pods running
+                  in cluster
                 items:
                   type: string
                 type: array
@@ -161,7 +162,8 @@ spec:
                   in cluster
                 type: string
               podNames:
-                description: PodNames is the name of the gateway pod running in cluster
+                description: PodNames is the list of names of the gateway pods running
+                  in cluster
                 items:
                   type: string
                 type: array

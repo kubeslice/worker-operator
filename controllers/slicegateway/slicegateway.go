@@ -138,7 +138,7 @@ func (r *SliceGwReconciler) deploymentForGatewayServer(g *kubeslicev1beta1.Slice
 								}},
 							},
 						},
-						PodAntiAffinity: getPodAntiAffinity(),
+						PodAntiAffinity: getPodAntiAffinity(g.Spec.SliceName),
 					},
 					Containers: []corev1.Container{{
 						Name:            "kubeslice-sidecar",
@@ -398,7 +398,7 @@ func (r *SliceGwReconciler) deploymentForGatewayClient(g *kubeslicev1beta1.Slice
 								}},
 							},
 						},
-						PodAntiAffinity: getPodAntiAffinity(),
+						PodAntiAffinity: getPodAntiAffinity(g.Spec.SliceName),
 					},
 					Containers: []corev1.Container{{
 						Name:            "kubeslice-sidecar",
@@ -536,7 +536,7 @@ func (r *SliceGwReconciler) deploymentForGatewayClient(g *kubeslicev1beta1.Slice
 	return dep
 }
 
-func (r *SliceGwReconciler) GetGwPodNameAndIPs(ctx context.Context, sliceGw *kubeslicev1beta1.SliceGateway) []*GwPodInfo {
+func (r *SliceGwReconciler) GetGwPodNameAndIPs(ctx context.Context, sliceGw *kubeslicev1beta1.SliceGateway) ([]*GwPodInfo, error) {
 	log := logger.FromContext(ctx).WithValues("type", "slicegateway")
 	podList := &corev1.PodList{}
 	gwPodList := make([]*GwPodInfo, 0)
@@ -546,21 +546,16 @@ func (r *SliceGwReconciler) GetGwPodNameAndIPs(ctx context.Context, sliceGw *kub
 	}
 	if err := r.List(ctx, podList, listOpts...); err != nil {
 		log.Error(err, "Failed to list pods")
-		return gwPodList
+		return gwPodList, err
 	}
-	// podNameList := make([]string, 0)
-	// podIPList := make([]string, 0)
 	for _, pod := range podList.Items {
 		if pod.Status.Phase == corev1.PodRunning {
-			// podNameList = append(podNameList, pod.Name)
-			// podIPList = append(podIPList, pod.Status.PodIP)
 			gwPod := &GwPodInfo{PodName: pod.Name, PodIP: pod.Status.PodIP}
 			gwPodList = append(gwPodList, gwPod)
-			// return pod.Name, pod.Status.PodIP
 		}
 	}
 
-	return gwPodList
+	return gwPodList, nil
 }
 
 func isGatewayStatusChanged(ctx context.Context, slicegateway *kubeslicev1beta1.SliceGateway, podName string, podIP string, status *gwsidecar.GwStatus) bool {
@@ -577,7 +572,11 @@ func (r *SliceGwReconciler) ReconcileGwPodStatus(ctx context.Context, slicegatew
 	log := logger.FromContext(ctx).WithValues("type", "SliceGw")
 	debugLog := log.V(1)
 
-	gwPodsInfo := r.GetGwPodNameAndIPs(ctx, slicegateway)
+	gwPodsInfo, err := r.GetGwPodNameAndIPs(ctx, slicegateway)
+	if err != nil {
+		log.Error(err, "Error while fetching the pods", "Failed to fetch podIps and podNames")
+		return ctrl.Result{RequeueAfter: 5 * time.Second}, err, true
+	}
 	if len(gwPodsInfo) == 0 {
 		log.Info("Gw pods not available yet, requeuing")
 		return ctrl.Result{RequeueAfter: 5 * time.Second}, nil, true
@@ -591,7 +590,7 @@ func (r *SliceGwReconciler) ReconcileGwPodStatus(ctx context.Context, slicegatew
 		status, err := r.WorkerGWSidecarClient.GetStatus(ctx, sidecarGrpcAddress)
 		if err != nil {
 			log.Error(err, "Unable to fetch gw status")
-			return ctrl.Result{}, nil, true
+			return ctrl.Result{}, err, true
 		}
 
 		debugLog.Info("Got gw status", "result", status)
@@ -604,12 +603,12 @@ func (r *SliceGwReconciler) ReconcileGwPodStatus(ctx context.Context, slicegatew
 			err := r.Get(ctx, types.NamespacedName{Name: gwPodsInfo[i].PodName, Namespace: slicegateway.Namespace}, foundPod)
 			if err != nil {
 				log.Error(err, "Unable to fetch the gateway pod")
-				return ctrl.Result{}, nil, true
+				return ctrl.Result{}, err, true
 			}
 			err = r.Delete(ctx, foundPod)
 			if err != nil {
 				log.Error(err, "Unable to delete the gateway pod")
-				return ctrl.Result{}, nil, true
+				return ctrl.Result{}, err, true
 			}
 			podNames, podIPs = UpdatePodNameAndIpSlice(podNames, podIPs, gwPodsInfo[i].PodName)
 			toUpdate = true
@@ -618,6 +617,9 @@ func (r *SliceGwReconciler) ReconcileGwPodStatus(ctx context.Context, slicegatew
 		updatedNsmIPs = append(updatedNsmIPs, status.NsmStatus.LocalIP)
 	}
 	if toUpdate {
+		sliceGWStatus := slicegateway.Status
+		sliceGWStatus.PodIPs = podNames
+		slicegateway.Status = sliceGWStatus
 		slicegateway.Status.PodNames = podNames
 		slicegateway.Status.PodIPs = podIPs
 		slicegateway.Status.LocalNsmIPs = updatedNsmIPs
@@ -634,7 +636,11 @@ func (r *SliceGwReconciler) ReconcileGwPodStatus(ctx context.Context, slicegatew
 func (r *SliceGwReconciler) SendConnectionContextAndQosToGwPod(ctx context.Context, slice *kubeslicev1beta1.Slice, slicegateway *kubeslicev1beta1.SliceGateway) (ctrl.Result, error, bool) {
 	log := logger.FromContext(ctx).WithValues("type", "SliceGw")
 
-	gwPodsInfo := r.GetGwPodNameAndIPs(ctx, slicegateway)
+	gwPodsInfo, err := r.GetGwPodNameAndIPs(ctx, slicegateway)
+	if err != nil {
+		log.Error(err, "Error while fetching the pods", "Failed to fetch podIps and podNames")
+		return ctrl.Result{RequeueAfter: 5 * time.Second}, err, true
+	}
 	if len(gwPodsInfo) == 0 {
 		log.Info("Gw podIPs not available yet, requeuing")
 		return ctrl.Result{RequeueAfter: 5 * time.Second}, nil, true
@@ -649,13 +655,13 @@ func (r *SliceGwReconciler) SendConnectionContextAndQosToGwPod(ctx context.Conte
 		err := r.WorkerGWSidecarClient.SendConnectionContext(ctx, sidecarGrpcAddress, connCtx)
 		if err != nil {
 			log.Error(err, "Unable to send conn ctx to gw")
-			return ctrl.Result{RequeueAfter: 10 * time.Second}, nil, true
+			return ctrl.Result{RequeueAfter: 10 * time.Second}, err, true
 		}
 
 		err = r.WorkerGWSidecarClient.UpdateSliceQosProfile(ctx, sidecarGrpcAddress, slice)
 		if err != nil {
 			log.Error(err, "Failed to send qos to gateway")
-			return ctrl.Result{RequeueAfter: 10 * time.Second}, nil, true
+			return ctrl.Result{RequeueAfter: 10 * time.Second}, err, true
 		}
 
 		slicegateway.Status.ConnectionContextUpdatedOn = time.Now().Unix()
@@ -905,7 +911,7 @@ func getGwPodNameAndIPFromGwPodList(gwPodList []*GwPodInfo) ([]string, []string)
 	return podNames, podIPs
 }
 
-func getPodAntiAffinity() *corev1.PodAntiAffinity {
+func getPodAntiAffinity(slice string) *corev1.PodAntiAffinity {
 	return &corev1.PodAntiAffinity{
 		PreferredDuringSchedulingIgnoredDuringExecution: []corev1.WeightedPodAffinityTerm{{
 			Weight: 1,
@@ -916,6 +922,10 @@ func getPodAntiAffinity() *corev1.PodAntiAffinity {
 						Key:      controllers.PodTypeSelectorLabelKey,
 						Operator: metav1.LabelSelectorOpIn,
 						Values:   []string{"slicegateway"},
+					}, {
+						Key:      controllers.ApplicationNamespaceSelectorLabelKey,
+						Operator: metav1.LabelSelectorOpIn,
+						Values:   []string{slice},
 					}},
 				},
 			},
