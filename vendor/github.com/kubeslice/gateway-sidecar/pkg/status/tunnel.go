@@ -124,23 +124,23 @@ func (t *TunnelChecker) Stop() error {
 // MessageHandler to provide the Tunnel status
 func (t *TunnelChecker) MessageHandler(msg interface{}) error {
 	tunMsg := msg.(*tunnelMessage)
-
 	switch tunMsg.ty {
 	case UpdatePeerIP:
 		t.log.Debugf("PeerIP Message %v ", t.tunStatus.PeerIP)
-
-		t.tunStatus.PeerIP = fmt.Sprintf("%v", tunMsg.msg)
-		if t.pinger != nil {
-			// Stop the Pinger
-			t.pinger.Stop()
-			t.pinger = nil
+		//do not start new pinger in case Peer IP is same
+		currentIp := fmt.Sprintf("%v", tunMsg.msg)
+		if t.tunStatus.PeerIP == currentIp {
+			return nil
 		}
-		err := t.startPing(t.tunStatus.PeerIP)
-		if err != nil {
-			t.log.Errorf("Ping Start failed: %s", err.Error())
-			return err
+		t.tunStatus.PeerIP = currentIp
+		if t.pinger == nil {
+			err := t.startPing(t.tunStatus.PeerIP)
+			if err != nil {
+				t.log.Errorf("Ping Start failed: %s", err.Error())
+				return err
+			}
+			t.log.Debugf("Ping Started")
 		}
-		t.log.Debugf("Ping Started")
 	case RestartPinger:
 		err := t.startPing(t.tunStatus.PeerIP)
 		if err != nil {
