@@ -136,8 +136,8 @@ func (r *SliceReconciler) updateSliceConfig(ctx context.Context, meshSlice *kube
 			SliceDisplayName: spokeSlice.Spec.SliceName,
 			SliceSubnet:      spokeSlice.Spec.SliceSubnet,
 			SliceIpam: kubeslicev1beta1.SliceIpamConfig{
-				SliceIpamType: spokeSlice.Spec.SliceIpamType,
-				// IpamClusterOctet: spokeSlice.Spec.IpamClusterOctet,
+				SliceIpamType:    spokeSlice.Spec.SliceIpamType,
+				IpamClusterOctet: spokeSlice.Spec.IpamClusterOctet,
 			},
 			ClusterSubnetCIDR: spokeSlice.Spec.ClusterSubnetCIDR,
 			SliceType:         spokeSlice.Spec.SliceType,
@@ -147,9 +147,9 @@ func (r *SliceReconciler) updateSliceConfig(ctx context.Context, meshSlice *kube
 		meshSlice.Status.SliceConfig.SliceSubnet = spokeSlice.Spec.SliceSubnet
 	}
 
-	// if meshSlice.Status.SliceConfig.SliceIpam.IpamClusterOctet == 0 {
-	// 	meshSlice.Status.SliceConfig.SliceIpam.IpamClusterOctet = spokeSlice.Spec.IpamClusterOctet
-	// }
+	if meshSlice.Status.SliceConfig.SliceIpam.IpamClusterOctet == 0 {
+		meshSlice.Status.SliceConfig.SliceIpam.IpamClusterOctet = spokeSlice.Spec.IpamClusterOctet
+	}
 
 	if meshSlice.Status.SliceConfig.ClusterSubnetCIDR == "" || meshSlice.Status.SliceConfig.ClusterSubnetCIDR != spokeSlice.Spec.ClusterSubnetCIDR {
 		meshSlice.Status.SliceConfig.ClusterSubnetCIDR = spokeSlice.Spec.ClusterSubnetCIDR

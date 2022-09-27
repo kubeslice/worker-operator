@@ -53,11 +53,12 @@ var _ = Describe("Hub SliceController", func() {
 					},
 				},
 				Spec: workerv1alpha1.WorkerSliceConfigSpec{
-					SliceName:        "test-slice-1",
-					SliceType:        "Application",
-					SliceSubnet:      "10.0.0.1/16",
-					SliceIpamType:    "Local",
-					IpamClusterOctet: ipamOctet,
+					SliceName:         "test-slice-1",
+					SliceType:         "Application",
+					SliceSubnet:       "10.0.0.1/16",
+					SliceIpamType:     "Local",
+					IpamClusterOctet:  ipamOctet,
+					ClusterSubnetCIDR: "10.0.16.0/20",
 				},
 			}
 			createdSlice = &kubeslicev1beta1.Slice{}
@@ -85,11 +86,11 @@ var _ = Describe("Hub SliceController", func() {
 				return err == nil
 			}, time.Second*10, time.Millisecond*250).Should(BeTrue())
 
-			// Expect(createdSlice.Status.SliceConfig.SliceSubnet).To(Equal("10.0.0.1/16"))
+			Expect(createdSlice.Status.SliceConfig.SliceSubnet).To(Equal("10.0.0.1/16"))
 			Expect(createdSlice.Status.SliceConfig.SliceDisplayName).To(Equal("test-slice-1"))
 			Expect(createdSlice.Status.SliceConfig.SliceType).To(Equal("Application"))
 			Expect(createdSlice.Status.SliceConfig.SliceIpam.SliceIpamType).To(Equal("Local"))
-			Expect(createdSlice.Status.SliceConfig.SliceIpam.IpamClusterOctet).To(Equal(ipamOctet))
+			Expect(createdSlice.Status.SliceConfig.SliceIpam.IpamClusterOctet).To(Equal(1))
 			Expect(createdSlice.Status.SliceConfig.ClusterSubnetCIDR).To(Equal("10.0.16.0/20"))
 		})
 
