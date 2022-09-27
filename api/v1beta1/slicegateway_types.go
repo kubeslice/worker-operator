@@ -98,7 +98,7 @@ type SliceGatewayStatus struct {
 	// ConnectionContextUpdated is the time when context updated in pod
 	ConnectionContextUpdatedOn int64 `json:"connectionContextUpdatedOn,omitempty"`
 	//gatewayPodStatus is a list that consists of status of individual gatewaypods
-	GatewayPodStatus []GwPodInfo `json:"gatewayPodStatus,omitempty"`
+	GatewayPodStatus []*GwPodInfo `json:"gatewayPodStatus,omitempty"`
 }
 
 // +kubebuilder:object:root=true

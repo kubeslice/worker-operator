@@ -581,7 +581,7 @@ func (r *SliceGwReconciler) ReconcileGwPodStatus(ctx context.Context, slicegatew
 		log.Info("Gw pods not available yet, requeuing")
 		return ctrl.Result{RequeueAfter: 5 * time.Second}, nil, true
 	}
-	var UpdatedGWPodStatus []kubeslicev1beta1.GwPodInfo
+	var UpdatedGWPodStatus []*kubeslicev1beta1.GwPodInfo
 	toUpdate := false
 	for i := 0; i < len(gwPodsInfo); i++ {
 		sidecarGrpcAddress := gwPodsInfo[i].PodIP + ":5000"
@@ -611,7 +611,7 @@ func (r *SliceGwReconciler) ReconcileGwPodStatus(ctx context.Context, slicegatew
 				log.Error(err, "Unable to delete the gateway pod")
 				return ctrl.Result{}, err, true
 			}
-			UpdatedGWPodStatus = UpdateGWPodStatus(slicegateway, gwPodsInfo[i].PodName)
+			UpdatedGWPodStatus = UpdateGWPodStatus(gwPodsInfo, gwPodsInfo[i].PodName)
 			toUpdate = true
 			continue
 		}
@@ -883,9 +883,8 @@ func validatenodeipcount(total, current []string) bool {
 	}
 	return true && len(total) == len(current)
 }
-func UpdateGWPodStatus(slicegateway *kubeslicev1beta1.SliceGateway, podName string) []kubeslicev1beta1.GwPodInfo {
+func UpdateGWPodStatus(gwPodStatus []*kubeslicev1beta1.GwPodInfo, podName string) []*kubeslicev1beta1.GwPodInfo {
 	index := -1
-	gwPodStatus := slicegateway.Status.GatewayPodStatus
 	for i, _ := range gwPodStatus {
 		if gwPodStatus[i].PodName == podName {
 			index = i
