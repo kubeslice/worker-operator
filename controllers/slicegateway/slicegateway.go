@@ -597,6 +597,7 @@ func (r *SliceGwReconciler) ReconcileGwPodStatus(ctx context.Context, slicegatew
 		debugLog.Info("Got gw status", "result", status)
 		if isGatewayStatusChanged(ctx, slicegateway, gwPodsInfo[i].PodName, gwPodsInfo[i].PodIP, status) {
 			log.Info("gateway status changed")
+			UpdatedGWPodStatus = gwPodsInfo
 			toUpdate = true
 		}
 		if status.TunnelStatus.IntfName == "" || status.TunnelStatus.PacketLoss >= 80 {
