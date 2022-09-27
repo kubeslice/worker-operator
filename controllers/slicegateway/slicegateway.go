@@ -596,6 +596,7 @@ func (r *SliceGwReconciler) ReconcileGwPodStatus(ctx context.Context, slicegatew
 		gwPodsInfo[i].TunnelStatus = kubeslicev1beta1.TunnelStatus(status.TunnelStatus)
 		debugLog.Info("Got gw status", "result", status)
 		if isGatewayStatusChanged(ctx, slicegateway, gwPodsInfo[i].PodName, gwPodsInfo[i].PodIP, status) {
+			log.Info("gateway status changed")
 			toUpdate = true
 		}
 		if status.TunnelStatus.IntfName == "" || status.TunnelStatus.PacketLoss >= 80 {
@@ -625,6 +626,7 @@ func (r *SliceGwReconciler) ReconcileGwPodStatus(ctx context.Context, slicegatew
 			return ctrl.Result{}, err, true
 		}
 	}
+	log.Info("did not update slice gateway status")
 	return ctrl.Result{}, nil, false
 }
 
