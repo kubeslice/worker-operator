@@ -536,10 +536,10 @@ func (r *SliceGwReconciler) deploymentForGatewayClient(g *kubeslicev1beta1.Slice
 	return dep
 }
 
-func (r *SliceGwReconciler) GetGwPodNameAndIPs(ctx context.Context, sliceGw *kubeslicev1beta1.SliceGateway) ([]*GwPodInfo, error) {
+func (r *SliceGwReconciler) GetGwPodInfo(ctx context.Context, sliceGw *kubeslicev1beta1.SliceGateway) ([]*kubeslicev1beta1.GwPodInfo, error) {
 	log := logger.FromContext(ctx).WithValues("type", "slicegateway")
 	podList := &corev1.PodList{}
-	gwPodList := make([]*GwPodInfo, 0)
+	gwPodList := make([]*kubeslicev1beta1.GwPodInfo, 0)
 	listOpts := []client.ListOption{
 		client.InNamespace(sliceGw.Namespace),
 		client.MatchingLabels(labelsForSliceGwDeployment(sliceGw.Name, sliceGw.Spec.SliceName)),
@@ -550,7 +550,7 @@ func (r *SliceGwReconciler) GetGwPodNameAndIPs(ctx context.Context, sliceGw *kub
 	}
 	for _, pod := range podList.Items {
 		if pod.Status.Phase == corev1.PodRunning {
-			gwPod := &GwPodInfo{PodName: pod.Name, PodIP: pod.Status.PodIP}
+			gwPod := &kubeslicev1beta1.GwPodInfo{PodName: pod.Name, PodIP: pod.Status.PodIP}
 			gwPodList = append(gwPodList, gwPod)
 		}
 	}
@@ -563,16 +563,16 @@ func isGatewayStatusChanged(ctx context.Context, slicegateway *kubeslicev1beta1.
 	log.Info("values present in slicegw status", slicegateway.Status)
 	log.Info("values needs to updated in slicegw status", podName, podIP, status)
 
-	return !contains(slicegateway.Status.PodNames, podName) ||
-		!contains(slicegateway.Status.PodIPs, podIP) ||
-		!contains(slicegateway.Status.LocalNsmIPs, status.NsmStatus.LocalIP)
+	return !contains(getPodNames(slicegateway), podName) ||
+		!contains(getPodIPs(slicegateway), podIP) ||
+		!contains(getLocalNSMIPs(slicegateway), status.NsmStatus.LocalIP)
 }
 
 func (r *SliceGwReconciler) ReconcileGwPodStatus(ctx context.Context, slicegateway *kubeslicev1beta1.SliceGateway) (ctrl.Result, error, bool) {
 	log := logger.FromContext(ctx).WithValues("type", "SliceGw")
 	debugLog := log.V(1)
 
-	gwPodsInfo, err := r.GetGwPodNameAndIPs(ctx, slicegateway)
+	gwPodsInfo, err := r.GetGwPodInfo(ctx, slicegateway)
 	if err != nil {
 		log.Error(err, "Error while fetching the pods", "Failed to fetch podIps and podNames")
 		return ctrl.Result{RequeueAfter: 5 * time.Second}, err, true
@@ -581,9 +581,8 @@ func (r *SliceGwReconciler) ReconcileGwPodStatus(ctx context.Context, slicegatew
 		log.Info("Gw pods not available yet, requeuing")
 		return ctrl.Result{RequeueAfter: 5 * time.Second}, nil, true
 	}
-	updatedNsmIPs := []string{}
+	var UpdatedGWPodStatus []kubeslicev1beta1.GwPodInfo
 	toUpdate := false
-	podNames, podIPs := getGwPodNameAndIPFromGwPodList(gwPodsInfo)
 	for i := 0; i < len(gwPodsInfo); i++ {
 		sidecarGrpcAddress := gwPodsInfo[i].PodIP + ":5000"
 
@@ -592,7 +591,9 @@ func (r *SliceGwReconciler) ReconcileGwPodStatus(ctx context.Context, slicegatew
 			log.Error(err, "Unable to fetch gw status")
 			return ctrl.Result{}, err, true
 		}
-
+		// gwPodsInfo[i].TunnelStatus = status.TunnelStatus
+		gwPodsInfo[i].LocalNsmIP = status.NsmStatus.LocalIP
+		gwPodsInfo[i].TunnelStatus = kubeslicev1beta1.TunnelStatus(status.TunnelStatus)
 		debugLog.Info("Got gw status", "result", status)
 		if isGatewayStatusChanged(ctx, slicegateway, gwPodsInfo[i].PodName, gwPodsInfo[i].PodIP, status) {
 			toUpdate = true
@@ -610,19 +611,13 @@ func (r *SliceGwReconciler) ReconcileGwPodStatus(ctx context.Context, slicegatew
 				log.Error(err, "Unable to delete the gateway pod")
 				return ctrl.Result{}, err, true
 			}
-			podNames, podIPs = UpdatePodNameAndIpSlice(podNames, podIPs, gwPodsInfo[i].PodName)
+			UpdatedGWPodStatus = UpdateGWPodStatus(slicegateway, gwPodsInfo[i].PodName)
 			toUpdate = true
 			continue
 		}
-		updatedNsmIPs = append(updatedNsmIPs, status.NsmStatus.LocalIP)
 	}
 	if toUpdate {
-		sliceGWStatus := slicegateway.Status
-		sliceGWStatus.PodIPs = podNames
-		slicegateway.Status = sliceGWStatus
-		slicegateway.Status.PodNames = podNames
-		slicegateway.Status.PodIPs = podIPs
-		slicegateway.Status.LocalNsmIPs = updatedNsmIPs
+		slicegateway.Status.GatewayPodStatus = UpdatedGWPodStatus
 		slicegateway.Status.ConnectionContextUpdatedOn = 0
 		err := r.Status().Update(ctx, slicegateway)
 		if err != nil {
@@ -636,7 +631,7 @@ func (r *SliceGwReconciler) ReconcileGwPodStatus(ctx context.Context, slicegatew
 func (r *SliceGwReconciler) SendConnectionContextAndQosToGwPod(ctx context.Context, slice *kubeslicev1beta1.Slice, slicegateway *kubeslicev1beta1.SliceGateway) (ctrl.Result, error, bool) {
 	log := logger.FromContext(ctx).WithValues("type", "SliceGw")
 
-	gwPodsInfo, err := r.GetGwPodNameAndIPs(ctx, slicegateway)
+	gwPodsInfo, err := r.GetGwPodInfo(ctx, slicegateway)
 	if err != nil {
 		log.Error(err, "Error while fetching the pods", "Failed to fetch podIps and podNames")
 		return ctrl.Result{RequeueAfter: 5 * time.Second}, err, true
@@ -689,16 +684,16 @@ func (r *SliceGwReconciler) SendConnectionContextToSliceRouter(ctx context.Conte
 	}
 
 	if slicegateway.Status.Config.SliceGatewayRemoteSubnet == "" ||
-		len(slicegateway.Status.LocalNsmIPs) == 0 {
+		len(slicegateway.Status.GatewayPodStatus) == 0 {
 		log.Info("Waiting for remote subnet and local nsm IPs. Delaying conn ctx update to router")
 		return ctrl.Result{RequeueAfter: 10 * time.Second}, nil, true
 	}
 
 	sidecarGrpcAddress := podIP + ":5000"
-
+	LocalNsmIPs := getLocalNSMIPs(slicegateway)
 	connCtx := &router.SliceRouterConnCtx{
 		RemoteSliceGwNsmSubnet: slicegateway.Status.Config.SliceGatewayRemoteSubnet,
-		LocalNsmGwPeerIPs:      slicegateway.Status.LocalNsmIPs,
+		LocalNsmGwPeerIPs:      LocalNsmIPs,
 	}
 
 	err = r.WorkerRouterClient.SendConnectionContext(ctx, sidecarGrpcAddress, connCtx)
@@ -885,20 +880,40 @@ func validatenodeipcount(total, current []string) bool {
 	}
 	return true && len(total) == len(current)
 }
-
-func UpdatePodNameAndIpSlice(podNames, podIps []string, podName string) ([]string, []string) {
+func UpdateGWPodStatus(slicegateway *kubeslicev1beta1.SliceGateway, podName string) []kubeslicev1beta1.GwPodInfo {
 	index := -1
-	for i := 0; i < len(podNames); i++ {
-		if podNames[i] == podName {
+	gwPodStatus := slicegateway.Status.GatewayPodStatus
+	for i, _ := range gwPodStatus {
+		if gwPodStatus[i].PodName == podName {
 			index = i
 			break
 		}
 	}
-	return append(podNames[:index], podNames[index+1:]...), append(podIps[:index], podIps[index+1:]...)
+	return append(gwPodStatus[:index], gwPodStatus[index+1:]...)
 
 }
-
-func getGwPodNameAndIPFromGwPodList(gwPodList []*GwPodInfo) ([]string, []string) {
+func getLocalNSMIPs(slicegateway *kubeslicev1beta1.SliceGateway) []string {
+	nsmIPs := make([]string, 0)
+	for i, _ := range slicegateway.Status.GatewayPodStatus {
+		nsmIPs = append(nsmIPs, slicegateway.Status.GatewayPodStatus[i].LocalNsmIP)
+	}
+	return nsmIPs
+}
+func getPodIPs(slicegateway *kubeslicev1beta1.SliceGateway) []string {
+	podIPs := make([]string, 0)
+	for i, _ := range slicegateway.Status.GatewayPodStatus {
+		podIPs = append(podIPs, slicegateway.Status.GatewayPodStatus[i].PodIP)
+	}
+	return podIPs
+}
+func getPodNames(slicegateway *kubeslicev1beta1.SliceGateway) []string {
+	podNames := make([]string, 0)
+	for i, _ := range slicegateway.Status.GatewayPodStatus {
+		podNames = append(podNames, slicegateway.Status.GatewayPodStatus[i].PodName)
+	}
+	return podNames
+}
+func getGwPodNameAndIPFromGwPodList(gwPodList []*kubeslicev1beta1.GwPodInfo) ([]string, []string) {
 	podNames := make([]string, 0)
 	podIPs := make([]string, 0)
 	for i := 0; i < len(gwPodList); i++ {
@@ -907,7 +922,6 @@ func getGwPodNameAndIPFromGwPodList(gwPodList []*GwPodInfo) ([]string, []string)
 	}
 	return podNames, podIPs
 }
-
 func getPodAntiAffinity(slice string) *corev1.PodAntiAffinity {
 	return &corev1.PodAntiAffinity{
 		PreferredDuringSchedulingIgnoredDuringExecution: []corev1.WeightedPodAffinityTerm{{
