@@ -1,21 +1,26 @@
 name: end-to-end-test
 on:
   pull_request_target:
-    branches: [ master ]
+    types: [ labeled ] 
   workflow_dispatch:
 jobs:
   end-to-end:
+    if: ${{ github.event.label.name == 'ready-to-test' }}
     runs-on: ubuntu-20.04
     steps:
     - name: checkout the repo
       uses: actions/checkout@v3
       with:
         ref: ${{ github.event.pull_request.head.sha }}
-    
+   
+    - name: Set outputs
+      id: vars
+      run: echo "::set-output name=sha_commit::$(git rev-parse HEAD)"    
+
     - name: build the worker operator
       uses: docker/build-push-action@v2
       with:
-        tags: worker-operator:e2e-latest
+        tags: worker-operator:${{ steps.vars.outputs.sha_commit }}
         build-args: |
           PLATFORM=amd64
         push: false
@@ -24,6 +29,8 @@ jobs:
       run: |
         mkdir -p ${{ github.workspace }}/profile
         sh .github/workflows/scripts/start-kind.sh
+      env: 
+         GITHUB_HEAD_COMMIT: ${{ steps.vars.outputs.sha_commit }}
 
     - name: Docker Run Action
       uses: addnab/docker-run-action@v3
@@ -66,3 +73,22 @@ jobs:
         EXTERNAL_REPOSITORY: kubeslice/e2e-allure-reports
         PUBLISH_DIR: allure-history
         keep_files: true
+
+    - name: wait for report deploy on site ( you can check report here also )
+      run: |
+         sleep 200
+         echo 'https://kubeslice.github.io/e2e-allure-reports/Kind-${{ github.event.repository.name }}-${{ steps.date.outputs.date }}-${{ github.base_ref }}-${{ github.run_number }}/index.html'
+      
+    - name: Report link on Pull Request comment
+      uses: thollander/actions-comment-pull-request@v1
+      with:
+        message: |
+                 report link  'https://kubeslice.github.io/e2e-allure-reports/Kind-${{ github.event.repository.name }}-${{ steps.date.outputs.date }}-${{ github.base_ref }}-${{ github.run_number }}/index.html'
+        GITHUB_TOKEN: ${{ secrets.TOKEN }}
+    
+    - name: Run Quality Gate Check
+      uses: ./quality-gate
+      with:
+         ENABLE_QUALITY_GATE: true
+         MINIMUM_PASS_PERCENTAGE: 75 
+         ALLURE_BEHAVIORS_CSV: '/home/runner/work/${{ github.event.repository.name }}/${{ github.event.repository.name }}/allure-history/Kind-${{ github.event.repository.name }}-${{ steps.date.outputs.date }}-${{ github.base_ref }}-${{ github.run_number }}/data/behaviors.csv'
