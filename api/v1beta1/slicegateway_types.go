@@ -97,6 +97,8 @@ type SliceGatewayStatus struct {
 	LocalNsmIPs []string `json:"localNsmIps,omitempty"`
 	// ConnectionContextUpdated is the time when context updated in pod
 	ConnectionContextUpdatedOn int64 `json:"connectionContextUpdatedOn,omitempty"`
+	//gatewayPodStatus is a list that consists of status of individual gatewaypods
+	GatewayPodStatus []GwPodInfo `json:"gatewayPodStatus,omitempty"`
 }
 
 // +kubebuilder:object:root=true
@@ -123,6 +125,22 @@ type SliceGatewayList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []SliceGateway `json:"items"`
+}
+
+type GwPodInfo struct {
+	PodName      string       `json:"podName,omitempty"`
+	PodIP        string       `json:"podIP,omitempty"`
+	LocalNsmIP   string       `json:"localNsmIP,omitempty"`
+	TunnelStatus TunnelStatus `json:"tunnelStatus,omitempty"`
+}
+type TunnelStatus struct {
+	IntfName   string `json:"IntfName,omitempty"`
+	LocalIP    string `json:"LocalIP,omitempty"`
+	RemoteIP   string `json:"RemoteIP,omitempty"`
+	Latency    uint64 `json:"Latency,omitempty"`
+	TxRate     uint64 `json:"TxRate,omitempty"`
+	RxRate     uint64 `json:"RxRate,omitempty"`
+	PacketLoss uint64 `json:"PacketLoss,omitempty"`
 }
 
 func init() {
