@@ -62,7 +62,7 @@ import (
 	"github.com/kubeslice/worker-operator/pkg/logger"
 	"github.com/kubeslice/worker-operator/pkg/networkpolicy"
 	"github.com/kubeslice/worker-operator/pkg/utils"
-	deploywh "github.com/kubeslice/worker-operator/pkg/webhook/deploy"
+	podwh "github.com/kubeslice/worker-operator/pkg/webhook/pod"
 	//+kubebuilder:scaffold:imports
 )
 
@@ -109,9 +109,9 @@ func main() {
 	// Use an environment variable to be able to disable webhooks, so that we can run the operator locally
 	if utils.GetEnvOrDefault("ENABLE_WEBHOOKS", "true") == "true" {
 		mgr.GetWebhookServer().Register("/mutate-corev1-pod", &webhook.Admission{
-			Handler: &deploywh.WebhookServer{
+			Handler: &podwh.WebhookServer{
 				Client:          mgr.GetClient(),
-				SliceInfoClient: deploywh.NewWebhookClient(),
+				SliceInfoClient: podwh.NewWebhookClient(),
 			},
 		})
 	}

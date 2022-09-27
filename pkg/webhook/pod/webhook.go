@@ -16,7 +16,7 @@
  *  limitations under the License.
  */
 
-package deploy
+package pod
 
 import (
 	"context"

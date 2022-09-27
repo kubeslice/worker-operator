@@ -16,7 +16,7 @@
  *  limitations under the License.
  */
 
-package deploy_test
+package pod_test
 
 import (
 	"context"
