@@ -131,8 +131,9 @@ type SliceStatus struct {
 
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
+//+kubebuilder:resource:path=slices,singular=slice
 
-// Slice is the Schema for the slice API
+// Slice is the Schema for the slices API
 type Slice struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
