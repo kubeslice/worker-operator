@@ -127,16 +127,54 @@ spec:
                   in pod
                 format: int64
                 type: integer
+              gatewayPodStatus:
+                description: gatewayPodStatus is a list that consists of status of
+                  individual gatewaypods
+                items:
+                  properties:
+                    localNsmIP:
+                      type: string
+                    podIP:
+                      type: string
+                    podName:
+                      type: string
+                    tunnelStatus:
+                      properties:
+                        IntfName:
+                          type: string
+                        Latency:
+                          format: int64
+                          type: integer
+                        LocalIP:
+                          type: string
+                        PacketLoss:
+                          format: int64
+                          type: integer
+                        RemoteIP:
+                          type: string
+                        RxRate:
+                          format: int64
+                          type: integer
+                        Status:
+                          format: int32
+                          type: integer
+                        TxRate:
+                          format: int64
+                          type: integer
+                      type: object
+                  type: object
+                type: array
               localIp:
-                description: LocalIP is the gateway tunnel ip
+                description: Deprecated LocalIP is the gateway tunnel ip
                 type: string
               localIps:
-                description: LocalIP is the gateway tunnel ip
+                description: LocalIPs is the gateway tunnel ip
                 items:
                   type: string
                 type: array
               localNsmIp:
-                description: LocalNsmIP is the IP on the nsm interface to Slice Router
+                description: Deprecated LocalNsmIP is the IP on the nsm interface
+                  to Slice Router
                 type: string
               localNsmIps:
                 description: LocalNsmIPs is the IP on the nsm interface to Slice Router
@@ -147,18 +185,22 @@ spec:
                 description: PeerIP is the gateway tunnel peer ip
                 type: string
               podIp:
-                description: PodIP is the Ip of the gateway pod running in cluster
+                description: Deprecated PodIP is the Ip of the gateway pod running
+                  in cluster
                 type: string
               podIps:
-                description: PodIPs is the Ip of the gateway pod running in cluster
+                description: PodIPs is the list of Ip of the gateway pods running
+                  in cluster
                 items:
                   type: string
                 type: array
               podName:
-                description: PodName is the name of the gateway pod running in cluster
+                description: Deprecated PodName is the name of the gateway pod running
+                  in cluster
                 type: string
               podNames:
-                description: PodName is the name of the gateway pod running in cluster
+                description: PodNames is the list of names of the gateway pods running
+                  in cluster
                 items:
                   type: string
                 type: array

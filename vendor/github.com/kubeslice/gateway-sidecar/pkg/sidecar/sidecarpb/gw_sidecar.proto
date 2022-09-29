@@ -44,6 +44,11 @@ enum ClassType {
     TBF = 1;
 }
 
+enum TunnelStatusType {
+    GW_TUNNEL_STATE_UP = 0;
+    GW_TUNNEL_STATE_DOWN = 1;
+	GW_TUNNEL_STATE_UNKNOWN = 2;
+}
 // Slice QoS Profile 
 message SliceQosProfile {
     // Name of the slice
@@ -82,7 +87,9 @@ message TunnelInterfaceStatus  {
     uint64 rxRate       = 6;
     //Packet loss
     uint64  packetLoss = 7;
-}
+    //Status
+    TunnelStatusType status = 8;
+}   
 
 // NsmInterfaceStatus represents the status of NSM Interface to Slice Router.
 message NsmInterfaceStatus {

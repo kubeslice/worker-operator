@@ -40,4 +40,5 @@ type TunnelInterfaceStatus struct {
 	TxRate       uint64 `json:"txRate,omitempty"`
 	RxRate       uint64 `json:"rxRate,omitempty"`
 	PacketLoss   uint64 `json:"packetLoss,omitempty"`
+	Status       uint64 `json:"status,omitempty"`
 }
