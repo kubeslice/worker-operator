@@ -360,6 +360,7 @@ func (r *SliceReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&kubeslicev1beta1.Slice{}).
 		Owns(&appsv1.Deployment{}).
+		Owns(&corev1.Pod{}).
 		Owns(&kubeslicev1beta1.SliceGateway{}).
 		Complete(r)
 }

@@ -390,7 +390,7 @@ func (r *SliceReconciler) unbindAppNamespace(ctx context.Context, slice *kubesli
 	if err != nil && !errors.IsNotFound(err) {
 		log.Error(err, "NS unbind: Failed to remove slice netpol", "namespace", appNs)
 	}
-	//remove the deployment annotations and labels from this namespace
+	//remove the pod annotations and labels from this namespace
 	return r.deleteAnnotationsAndLabels(ctx, slice, appNs)
 }
 
