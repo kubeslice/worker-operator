@@ -87,7 +87,7 @@ github.com/json-iterator/go
 ## explicit
 github.com/kubeslice/apis/pkg/controller/v1alpha1
 github.com/kubeslice/apis/pkg/worker/v1alpha1
-# github.com/kubeslice/gateway-sidecar v0.1.5-0.20220929054012-0cf46a403ad3
+# github.com/kubeslice/gateway-sidecar v0.1.5-0.20220929112754-8f57c2e86601
 ## explicit
 github.com/kubeslice/gateway-sidecar/pkg/cmd
 github.com/kubeslice/gateway-sidecar/pkg/exec
