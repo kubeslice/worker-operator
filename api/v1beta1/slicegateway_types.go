@@ -141,6 +141,7 @@ type TunnelStatus struct {
 	TxRate     uint64 `json:"TxRate,omitempty"`
 	RxRate     uint64 `json:"RxRate,omitempty"`
 	PacketLoss uint64 `json:"PacketLoss,omitempty"`
+	Status     int32  `json:"Status,omitempty"`
 }
 
 func init() {

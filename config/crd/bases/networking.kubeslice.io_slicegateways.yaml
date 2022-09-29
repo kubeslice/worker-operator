@@ -155,6 +155,9 @@ spec:
                         RxRate:
                           format: int64
                           type: integer
+                        Status:
+                          format: int32
+                          type: integer
                         TxRate:
                           format: int64
                           type: integer

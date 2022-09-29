@@ -25,7 +25,6 @@ import (
 	"time"
 
 	workerv1alpha1 "github.com/kubeslice/apis/pkg/worker/v1alpha1"
-	"github.com/kubeslice/worker-operator/api/v1beta1"
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
 	"github.com/stretchr/testify/mock"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -135,7 +134,7 @@ func TestReconcileToReturnErrorWhileFetchingWorkerSlice(t *testing.T) {
 	client.On("Get",
 		mock.IsType(ctx),
 		mock.IsType(sliceKey),
-		mock.IsType(&v1beta1.Slice{}),
+		mock.IsType(&kubeslicev1beta1.Slice{}),
 	).Return(errors.New("object not found"))
 
 	reconciler := &SliceReconciler{
@@ -182,7 +181,7 @@ func TestReconcileToUpdateWorkerSlice(t *testing.T) {
 	client.On("Get",
 		mock.IsType(ctx),
 		mock.IsType(sliceKey),
-		mock.IsType(&v1beta1.Slice{}),
+		mock.IsType(&kubeslicev1beta1.Slice{}),
 	).Return(nil)
 	client.StatusMock.On("Update",
 		mock.IsType(ctx),
