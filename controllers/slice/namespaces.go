@@ -423,6 +423,13 @@ func (r *SliceReconciler) deleteAnnotationsAndLabels(ctx context.Context, slice 
 				delete(podannotations, "ns.networkservicemesh.io")
 			}
 		}
+		statusannotations := pod.ObjectMeta.GetAnnotations()
+		if statusannotations != nil {
+			_, ok := statusannotations["kubeslice.io/status"]
+			if ok {
+				delete(statusannotations, "kubeslice.io/status")
+			}
+		}
 		if err := r.Update(ctx, &pod); err != nil {
 			log.Error(err, "Error deleting labels and annotations from pod while namespace unbinding from slice", pod.ObjectMeta.Name)
 			return err

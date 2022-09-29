@@ -91,10 +91,10 @@ func (wh *WebhookServer) InjectDecoder(d *admission.Decoder) error {
 
 func Mutate(pod *corev1.Pod, sliceName string) *corev1.Pod {
 	// Add injection status to pod annotations
-	if pod.Annotations == nil {
-		pod.Annotations = map[string]string{}
+	if pod.ObjectMeta.Annotations == nil {
+		pod.ObjectMeta.Annotations = map[string]string{}
 	}
-	pod.Annotations[AdmissionWebhookAnnotationStatusKey] = "injected"
+	pod.ObjectMeta.Annotations[AdmissionWebhookAnnotationStatusKey] = "injected"
 
 	if pod.ObjectMeta.Annotations == nil {
 		pod.ObjectMeta.Annotations = map[string]string{}
