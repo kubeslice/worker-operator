@@ -25,7 +25,6 @@ import (
 	"github.com/kubeslice/worker-operator/controllers"
 	"github.com/kubeslice/worker-operator/pkg/logger"
 	webhook "github.com/kubeslice/worker-operator/pkg/webhook/deploy"
-	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -397,16 +396,16 @@ func (r *SliceReconciler) unbindAppNamespace(ctx context.Context, slice *kubesli
 
 func (r *SliceReconciler) deleteAnnotationsAndLabels(ctx context.Context, slice *kubeslicev1beta1.Slice, appNs string) error {
 	log := logger.FromContext(ctx).WithValues("type", "appNamespaces")
-	deployList := appsv1.DeploymentList{}
-	listOpts := []client.ListOption{
+	podList := corev1.PodList{}
+	listOps := []client.ListOption{
 		client.InNamespace(appNs),
 	}
-	if err := r.List(ctx, &deployList, listOpts...); err != nil {
-		log.Error(err, "Namespace offboarding:cannot list deployments under ns ", appNs)
+	if err := r.List(ctx, &podList, listOps...); err != nil {
+		log.Error(err, "Namespace offboarding:cannot list pods under ns", appNs)
 		return err
 	}
-	for _, deploy := range deployList.Items {
-		labels := deploy.Spec.Template.ObjectMeta.Labels
+	for _, pod := range podList.Items {
+		labels := pod.ObjectMeta.Labels
 		if labels != nil {
 			_, ok := labels[webhook.PodInjectLabelKey]
 			if ok {
@@ -417,25 +416,18 @@ func (r *SliceReconciler) deleteAnnotationsAndLabels(ctx context.Context, slice 
 				delete(labels, controllers.ApplicationNamespaceSelectorLabelKey)
 			}
 		}
-		podannotations := deploy.Spec.Template.ObjectMeta.Annotations
+		podannotations := pod.ObjectMeta.Annotations
 		if podannotations != nil {
 			v, ok := podannotations["ns.networkservicemesh.io"]
 			if ok && v == "vl3-service-"+slice.Name {
 				delete(podannotations, "ns.networkservicemesh.io")
 			}
 		}
-		deployannotations := deploy.ObjectMeta.GetAnnotations()
-		if deployannotations != nil {
-			_, ok := deployannotations["kubeslice.io/status"]
-			if ok {
-				delete(deployannotations, "kubeslice.io/status")
-			}
-		}
-		if err := r.Update(ctx, &deploy); err != nil {
-			log.Error(err, "Error deleting labels and annotations from deploy while namespace unbinding from slice", deploy.ObjectMeta.Name)
+		if err := r.Update(ctx, &pod); err != nil {
+			log.Error(err, "Error deleting labels and annotations from pod while namespace unbinding from slice", pod.ObjectMeta.Name)
 			return err
 		}
-		log.Info("Removed slice labels and annotations", "deployment", deploy.Name)
+		log.Info("Removed slice labels and annotations", "pod", pod.Name)
 	}
 	return nil
 }
