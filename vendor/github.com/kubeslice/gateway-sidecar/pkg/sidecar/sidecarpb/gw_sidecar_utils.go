@@ -82,7 +82,7 @@ func getGwPodStatus() (*GwPodStatus, error) {
 				PacketLoss:   tunStat.PacketLoss,
 				Status:       TunnelStatusType_GW_TUNNEL_STATE_UP,
 			}
-			if tunnelStatus.PacketLoss > 80 {
+			if tunnelStatus.PacketLoss > 80 || tunnelStatus.NetInterface == "" {
 				tunnelStatus.Status = TunnelStatusType_GW_TUNNEL_STATE_DOWN
 			}
 			podStatus.TunnelStatus = &tunnelStatus
