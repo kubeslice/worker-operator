@@ -32,7 +32,6 @@ type NsmStatus struct {
 	IntfName string
 	LocalIP  string
 }
-
 type TunnelStatus struct {
 	IntfName   string
 	LocalIP    string
@@ -41,8 +40,8 @@ type TunnelStatus struct {
 	TxRate     uint64
 	RxRate     uint64
 	PacketLoss uint64
+	Status     int32
 }
-
 type GwStatus struct {
 	NsmStatus
 	TunnelStatus
@@ -88,6 +87,7 @@ func (worker gwSidecarClient) GetStatus(ctx context.Context, serverAddr string) 
 			LocalIP:    res.TunnelStatus.LocalIP,
 			RemoteIP:   res.TunnelStatus.PeerIP,
 			PacketLoss: res.TunnelStatus.PacketLoss,
+			Status:     int32(res.TunnelStatus.Status),
 		}
 	}
 

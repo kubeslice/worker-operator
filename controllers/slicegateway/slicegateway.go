@@ -36,6 +36,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	gwsidecarpb "github.com/kubeslice/gateway-sidecar/pkg/sidecar/sidecarpb"
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
 	"github.com/kubeslice/worker-operator/pkg/cluster"
 	"github.com/kubeslice/worker-operator/pkg/gwsidecar"
@@ -558,14 +559,12 @@ func (r *SliceGwReconciler) GetGwPodInfo(ctx context.Context, sliceGw *kubeslice
 	return gwPodList, nil
 }
 
-func isGatewayStatusChanged(ctx context.Context, slicegateway *kubeslicev1beta1.SliceGateway, podName string, podIP string, status *gwsidecar.GwStatus) bool {
-	log := logger.FromContext(ctx).WithValues("type", "SliceGw")
-	log.Info("values present in slicegw status", slicegateway.Status)
-	log.Info("values needs to updated in slicegw status", podName, podIP, status)
+func isGatewayStatusChanged(slicegateway *kubeslicev1beta1.SliceGateway, gwPod *kubeslicev1beta1.GwPodInfo) bool {
+	return !contains(getPodNames(slicegateway), gwPod.PodName) ||
+		!contains(getPodIPs(slicegateway), gwPod.PodIP) ||
+		!contains(getLocalNSMIPs(slicegateway), gwPod.LocalNsmIP) ||
+		isGWPodStatusChanged(slicegateway, gwPod)
 
-	return !contains(getPodNames(slicegateway), podName) ||
-		!contains(getPodIPs(slicegateway), podIP) ||
-		!contains(getLocalNSMIPs(slicegateway), status.NsmStatus.LocalIP)
 }
 
 func (r *SliceGwReconciler) ReconcileGwPodStatus(ctx context.Context, slicegateway *kubeslicev1beta1.SliceGateway) (ctrl.Result, error, bool) {
@@ -595,11 +594,12 @@ func (r *SliceGwReconciler) ReconcileGwPodStatus(ctx context.Context, slicegatew
 		gwPodsInfo[i].LocalNsmIP = status.NsmStatus.LocalIP
 		gwPodsInfo[i].TunnelStatus = kubeslicev1beta1.TunnelStatus(status.TunnelStatus)
 		debugLog.Info("Got gw status", "result", status)
-		if isGatewayStatusChanged(ctx, slicegateway, gwPodsInfo[i].PodName, gwPodsInfo[i].PodIP, status) {
+		if isGatewayStatusChanged(slicegateway, gwPodsInfo[i]) {
 			UpdatedGWPodStatus = gwPodsInfo
 			toUpdate = true
+			log.Info("identified change in gateway pod status changed")
 		}
-		if status.TunnelStatus.IntfName == "" || status.TunnelStatus.PacketLoss >= 80 {
+		if status.TunnelStatus.Status == int32(gwsidecarpb.TunnelStatusType_GW_TUNNEL_STATE_DOWN) {
 			log.Info("deleteing the pod:", "Pod name:", gwPodsInfo[i].PodName, "pod Ips before deletion:", len(gwPodsInfo))
 			foundPod := &corev1.Pod{}
 			err := r.Get(ctx, types.NamespacedName{Name: gwPodsInfo[i].PodName, Namespace: slicegateway.Namespace}, foundPod)
@@ -874,8 +874,8 @@ func contains(s []string, e string) bool {
 	return false
 }
 
-//total -> external ip list of nodes in the k8s cluster
-//current -> ip list present in nodeIPs of cluster cr
+// total -> external ip list of nodes in the k8s cluster
+// current -> ip list present in nodeIPs of cluster cr
 func validatenodeipcount(total, current []string) bool {
 	for _, a := range total {
 		if !contains(current, a) {
@@ -916,14 +916,14 @@ func getPodNames(slicegateway *kubeslicev1beta1.SliceGateway) []string {
 	}
 	return podNames
 }
-func getGwPodNameAndIPFromGwPodList(gwPodList []*kubeslicev1beta1.GwPodInfo) ([]string, []string) {
-	podNames := make([]string, 0)
-	podIPs := make([]string, 0)
-	for i := 0; i < len(gwPodList); i++ {
-		podNames = append(podNames, gwPodList[i].PodName)
-		podIPs = append(podIPs, gwPodList[i].PodIP)
+func isGWPodStatusChanged(slicegateway *kubeslicev1beta1.SliceGateway, gwPod *kubeslicev1beta1.GwPodInfo) bool {
+	gwPodStatus := slicegateway.Status.GatewayPodStatus
+	for i, _ := range gwPodStatus {
+		if gwPodStatus[i].PodName == gwPod.PodName {
+			return gwPodStatus[i].TunnelStatus.Status == gwPod.TunnelStatus.Status
+		}
 	}
-	return podNames, podIPs
+	return false
 }
 func getPodAntiAffinity(slice string) *corev1.PodAntiAffinity {
 	return &corev1.PodAntiAffinity{
