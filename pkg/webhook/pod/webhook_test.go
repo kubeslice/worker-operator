@@ -16,7 +16,7 @@
  *  limitations under the License.
  */
 
-package deploy_test
+package pod_test
 
 import (
 	"context"
@@ -26,7 +26,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/kubeslice/worker-operator/controllers"
-	"github.com/kubeslice/worker-operator/pkg/webhook/deploy"
+	"github.com/kubeslice/worker-operator/pkg/webhook/pod"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -45,7 +45,7 @@ func (f fakeWebhookClient) GetNamespaceLabels(ctx context.Context, client client
 
 var _ = Describe("Deploy Webhook", func() {
 	fakeWhClient := new(fakeWebhookClient)
-	webhookServer := deploy.WebhookServer{
+	webhookServer := pod.WebhookServer{
 		SliceInfoClient: fakeWhClient,
 	}
 	Describe("MutationRequired", func() {
@@ -61,14 +61,14 @@ var _ = Describe("Deploy Webhook", func() {
 				{
 					Annotations: map[string]string{
 						controllers.ApplicationNamespaceSelectorLabelKey: "green",
-						deploy.AdmissionWebhookAnnotationStatusKey:       "",
+						pod.AdmissionWebhookAnnotationStatusKey:          "",
 					}, // with empty value for status key
 					Namespace: "test-ns",
 				},
 				{
 					Annotations: map[string]string{
 						controllers.ApplicationNamespaceSelectorLabelKey: "green",
-						deploy.AdmissionWebhookAnnotationStatusKey:       "not injected",
+						pod.AdmissionWebhookAnnotationStatusKey:          "not injected",
 					}, // with different value for status key
 					Namespace: "test-ns",
 				},
@@ -89,7 +89,7 @@ var _ = Describe("Deploy Webhook", func() {
 			table := []metav1.ObjectMeta{
 				{
 					Annotations: map[string]string{
-						deploy.AdmissionWebhookAnnotationStatusKey: "injected",
+						pod.AdmissionWebhookAnnotationStatusKey: "injected",
 					}, // with injection status
 					Namespace: "test-ns",
 				},

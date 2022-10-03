@@ -34,12 +34,13 @@ import (
 
 // Install istio egress gw resources on the given cluster in a slice
 // Resources:
-//  deployment (adds annotations to add the egress pod to the slice)
-//  serviceaccount
-//  role
-//  rolebinding
-//  service (type clusterip)
-//  gateway
+//
+//	deployment (adds annotations to add the egress pod to the slice)
+//	serviceaccount
+//	role
+//	rolebinding
+//	service (type clusterip)
+//	gateway
 func InstallEgress(ctx context.Context, c client.Client, slice *kubeslicev1beta1.Slice) error {
 	sliceName := slice.Name
 
@@ -107,12 +108,13 @@ func InstallEgress(ctx context.Context, c client.Client, slice *kubeslicev1beta1
 
 // Uninstall istio egress (EW) resources fo a slice from a given cluster
 // Resources:
-//  deployment
-//  serviceaccount
-//  role
-//  rolebinding
-//  service
-//  gateway
+//
+//	deployment
+//	serviceaccount
+//	role
+//	rolebinding
+//	service
+//	gateway
 func UninstallEgress(ctx context.Context, c client.Client, sliceName string) error {
 
 	log.Info("deleting EW egress gw for the slice", "slice", sliceName)

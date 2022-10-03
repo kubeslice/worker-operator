@@ -34,11 +34,12 @@ import (
 
 // Install istio ingress gw resources on the given cluster in a slice
 // Resources:
-//  deployment (adds annotations to add the ingress pod to the slice)
-//  serviceaccount
-//  role
-//  rolebinding
-//  service (type clusterip)
+//
+//	deployment (adds annotations to add the ingress pod to the slice)
+//	serviceaccount
+//	role
+//	rolebinding
+//	service (type clusterip)
 func InstallIngress(ctx context.Context, c client.Client, slice *kubeslicev1beta1.Slice) error {
 	sliceName := slice.Name
 
@@ -105,11 +106,12 @@ func InstallIngress(ctx context.Context, c client.Client, slice *kubeslicev1beta
 
 // Uninstall istio ingress (EW) resources fo a slice from a given cluster
 // Resources:
-//  deployment
-//  serviceaccount
-//  role
-//  rolebinding
-//  service
+//
+//	deployment
+//	serviceaccount
+//	role
+//	rolebinding
+//	service
 func UninstallIngress(ctx context.Context, c client.Client, slice string) error {
 	// TODO objects should be unique to slice
 

@@ -17,8 +17,8 @@
  */
 
 // Package v1beta1 contains API Schema definitions for the mesh v1beta1 API group
-//+kubebuilder:object:generate=true
-//+groupName=networking.kubeslice.io
+// +kubebuilder:object:generate=true
+// +groupName=networking.kubeslice.io
 package v1beta1
 
 import (
