@@ -77,7 +77,7 @@ var _ = Describe("Deploy Webhook", func() {
 			It("should enable injection", func() {
 
 				for _, meta := range table {
-					is, _ := webhookServer.MutationRequired(meta)
+					is, _ := webhookServer.MutationRequired(meta, context.Background())
 					Expect(is).To(BeTrue())
 				}
 
@@ -100,7 +100,7 @@ var _ = Describe("Deploy Webhook", func() {
 			It("Should skip injection", func() {
 
 				for _, meta := range table {
-					is, _ := webhookServer.MutationRequired(meta)
+					is, _ := webhookServer.MutationRequired(meta, context.Background())
 					Expect(is).To(BeFalse())
 				}
 
@@ -115,7 +115,7 @@ var _ = Describe("Deploy Webhook", func() {
 			}
 			It("should enable injection", func() {
 				for _, meta := range table {
-					is, _ := webhookServer.MutationRequired(meta)
+					is, _ := webhookServer.MutationRequired(meta, context.Background())
 					Expect(is).To(BeTrue())
 				}
 			})
