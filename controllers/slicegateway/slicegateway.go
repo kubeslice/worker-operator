@@ -551,8 +551,8 @@ func (r *SliceGwReconciler) GetGwPodInfo(ctx context.Context, sliceGw *kubeslice
 	}
 	for _, pod := range podList.Items {
 		if pod.Status.Phase == corev1.PodRunning {
-			podLifeSpan := time.Now().Sub(pod.ObjectMeta.CreationTimestamp.Time)
-			gwPod := &kubeslicev1beta1.GwPodInfo{PodName: pod.Name, PodIP: pod.Status.PodIP, PodLifeSpan: int64(podLifeSpan)}
+			podLifeSpan := time.Since(pod.ObjectMeta.CreationTimestamp.Time)
+			gwPod := &kubeslicev1beta1.GwPodInfo{PodName: pod.Name, PodIP: pod.Status.PodIP, PodLifeSpan: int64(podLifeSpan.Seconds())}
 			gwPodList = append(gwPodList, gwPod)
 		}
 	}
