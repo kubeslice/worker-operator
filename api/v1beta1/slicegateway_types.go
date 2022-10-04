@@ -132,7 +132,6 @@ type GwPodInfo struct {
 	PodIP        string       `json:"podIP,omitempty"`
 	LocalNsmIP   string       `json:"localNsmIP,omitempty"`
 	TunnelStatus TunnelStatus `json:"tunnelStatus,omitempty"`
-	PodLifeSpan  int64        `json:"podLifeSpan,omitempty"`
 }
 type TunnelStatus struct {
 	IntfName   string `json:"IntfName,omitempty"`
