@@ -609,6 +609,7 @@ func (r *SliceGwReconciler) ReconcileGwPodStatus(ctx context.Context, slicegatew
 			log.Info("identified change in gateway pod status changed")
 		}
 		if status.TunnelStatus.Status == int32(gwsidecarpb.TunnelStatusType_GW_TUNNEL_STATE_DOWN) {
+			log.Info("packet loss:", "--->", status.PacketLoss)
 			log.Info("deleteing the pod:", "Pod name:", gwPodsInfo[i].PodName, "pod Ips before deletion:", len(gwPodsInfo))
 			foundPod := &corev1.Pod{}
 			err := r.Get(ctx, types.NamespacedName{Name: gwPodsInfo[i].PodName, Namespace: slicegateway.Namespace}, foundPod)
