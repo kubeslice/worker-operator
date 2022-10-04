@@ -577,7 +577,7 @@ func (r *SliceGwReconciler) ReconcileGwPodStatus(ctx context.Context, slicegatew
 		log.Error(err, "Error while fetching the pods", "Failed to fetch podIps and podNames")
 		return ctrl.Result{RequeueAfter: 5 * time.Second}, err, true
 	}
-	if compareLifeSpan(getPodLifeSpan(slicegateway), 30) {
+	if compareLifeSpan(ctx, getPodLifeSpan(slicegateway), 30) {
 		log.Info("Gw pods are not yet old, requeuing")
 		return ctrl.Result{RequeueAfter: 10 * time.Second}, nil, true
 	}
@@ -959,8 +959,10 @@ func getPodAntiAffinity(slice string) *corev1.PodAntiAffinity {
 	}
 }
 
-func compareLifeSpan(podLifespan []int64, time int64) bool {
-	for _, i := range podLifespan {
+func compareLifeSpan(ctx context.Context, podLifeSpan []int64, time int64) bool {
+	log := logger.FromContext(ctx).WithValues("type", "slicegateway")
+	log.Info("gw pod lifespan", "-->", podLifeSpan)
+	for _, i := range podLifeSpan {
 		if i <= time {
 			return true
 		}

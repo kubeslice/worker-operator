@@ -136,6 +136,9 @@ spec:
                       type: string
                     podIP:
                       type: string
+                    podLifeSpan:
+                      format: int64
+                      type: integer
                     podName:
                       type: string
                     tunnelStatus:
