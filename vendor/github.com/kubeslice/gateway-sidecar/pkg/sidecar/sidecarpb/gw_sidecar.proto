@@ -47,7 +47,6 @@ enum ClassType {
 enum TunnelStatusType {
     GW_TUNNEL_STATE_UP = 0;
     GW_TUNNEL_STATE_DOWN = 1;
-	GW_TUNNEL_STATE_UNKNOWN = 2;
 }
 // Slice QoS Profile 
 message SliceQosProfile {
