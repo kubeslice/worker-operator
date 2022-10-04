@@ -551,7 +551,8 @@ func (r *SliceGwReconciler) GetGwPodInfo(ctx context.Context, sliceGw *kubeslice
 	}
 	for _, pod := range podList.Items {
 		if pod.Status.Phase == corev1.PodRunning {
-			gwPod := &kubeslicev1beta1.GwPodInfo{PodName: pod.Name, PodIP: pod.Status.PodIP}
+			podLifeSpan := time.Now().Sub(pod.ObjectMeta.CreationTimestamp.Time)
+			gwPod := &kubeslicev1beta1.GwPodInfo{PodName: pod.Name, PodIP: pod.Status.PodIP, PodLifeSpan: int64(podLifeSpan)}
 			gwPodList = append(gwPodList, gwPod)
 		}
 	}
@@ -575,6 +576,10 @@ func (r *SliceGwReconciler) ReconcileGwPodStatus(ctx context.Context, slicegatew
 	if err != nil {
 		log.Error(err, "Error while fetching the pods", "Failed to fetch podIps and podNames")
 		return ctrl.Result{RequeueAfter: 5 * time.Second}, err, true
+	}
+	if compareLifeSpan(getPodLifeSpan(slicegateway), 30) {
+		log.Info("Gw pods are not yet old, requeuing")
+		return ctrl.Result{RequeueAfter: 10 * time.Second}, nil, true
 	}
 	if len(gwPodsInfo) == 0 {
 		log.Info("Gw pods not available yet, requeuing")
@@ -909,6 +914,13 @@ func getPodIPs(slicegateway *kubeslicev1beta1.SliceGateway) []string {
 	}
 	return podIPs
 }
+func getPodLifeSpan(slicegateway *kubeslicev1beta1.SliceGateway) []int64 {
+	podlp := make([]int64, 0)
+	for i, _ := range slicegateway.Status.GatewayPodStatus {
+		podlp = append(podlp, slicegateway.Status.GatewayPodStatus[i].PodLifeSpan)
+	}
+	return podlp
+}
 func getPodNames(slicegateway *kubeslicev1beta1.SliceGateway) []string {
 	podNames := make([]string, 0)
 	for i, _ := range slicegateway.Status.GatewayPodStatus {
@@ -945,4 +957,13 @@ func getPodAntiAffinity(slice string) *corev1.PodAntiAffinity {
 			},
 		}},
 	}
+}
+
+func compareLifeSpan(podLifespan []int64, time int64) bool {
+	for _, i := range podLifespan {
+		if i <= time {
+			return true
+		}
+	}
+	return false
 }

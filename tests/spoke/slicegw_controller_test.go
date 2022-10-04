@@ -164,13 +164,14 @@ var _ = Describe("Worker SlicegwController", func() {
 					Expect(k8sClient.Delete(ctx, founddepl)).Should(Succeed())
 					return true
 				}, time.Second*40, time.Millisecond*250).Should(BeTrue())
-
+				Expect(k8sClient.Delete(ctx, svc)).Should(Succeed())
 			})
 		})
 
 		It("should create a gw nodeport service if gw type is Server", func() {
 			ctx := context.Background()
 
+			Expect(k8sClient.Create(ctx, svc)).Should(Succeed())
 			Expect(k8sClient.Create(ctx, slice)).Should(Succeed())
 			Expect(k8sClient.Create(ctx, vl3ServiceEndpoint)).Should(Succeed())
 			Expect(k8sClient.Create(ctx, sliceGw)).Should(Succeed())
@@ -241,7 +242,7 @@ var _ = Describe("Worker SlicegwController", func() {
 
 			Eventually(func() bool {
 				err := k8sClient.Get(ctx, deplKey, founddepl)
-				return err == nil
+				return err == nil && *founddepl.Spec.Replicas == 2
 			}, time.Second*40, time.Millisecond*250).Should(BeTrue())
 
 			Expect(founddepl.Spec.Template.Spec.Containers[1].Name).Should(Equal("kubeslice-openvpn-server"))
@@ -250,6 +251,7 @@ var _ = Describe("Worker SlicegwController", func() {
 		It("Should create a finalizer for the slicegw cr created", func() {
 			ctx := context.Background()
 
+			Expect(k8sClient.Create(ctx, svc)).Should(Succeed())
 			Eventually(func() bool {
 				err := k8sClient.Create(ctx, slice)
 				return err == nil
@@ -291,6 +293,7 @@ var _ = Describe("Worker SlicegwController", func() {
 
 		It("Should create a deployment for gw client", func() {
 			ctx := context.Background()
+			Expect(k8sClient.Create(ctx, svc)).Should(Succeed())
 			Expect(k8sClient.Create(ctx, slice)).Should(Succeed())
 			Expect(k8sClient.Create(ctx, vl3ServiceEndpoint)).Should(Succeed())
 			Expect(k8sClient.Create(ctx, sliceGw)).Should(Succeed())
@@ -328,13 +331,14 @@ var _ = Describe("Worker SlicegwController", func() {
 
 			Eventually(func() bool {
 				err := k8sClient.Get(ctx, deplKey, founddepl)
-				return err == nil
+				return err == nil && *founddepl.Spec.Replicas == 2
 			}, time.Second*40, time.Millisecond*250).Should(BeTrue())
 
 			Expect(founddepl.Spec.Template.Spec.Containers[1].Name).Should(Equal("kubeslice-openvpn-client"))
 		})
 		It("Should create create headless service for gw client", func() {
 			ctx := context.Background()
+			Expect(k8sClient.Create(ctx, svc)).Should(Succeed())
 			Expect(k8sClient.Create(ctx, slice)).Should(Succeed())
 			Expect(k8sClient.Create(ctx, vl3ServiceEndpoint)).Should(Succeed())
 			Expect(k8sClient.Create(ctx, sliceGw)).Should(Succeed())
@@ -372,6 +376,7 @@ var _ = Describe("Worker SlicegwController", func() {
 		})
 		It("Should create create endpoint for gw client", func() {
 			ctx := context.Background()
+			Expect(k8sClient.Create(ctx, svc)).Should(Succeed())
 			Expect(k8sClient.Create(ctx, slice)).Should(Succeed())
 			Expect(k8sClient.Create(ctx, vl3ServiceEndpoint)).Should(Succeed())
 			Expect(k8sClient.Create(ctx, sliceGw)).Should(Succeed())
