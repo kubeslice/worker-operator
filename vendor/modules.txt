@@ -99,7 +99,7 @@ github.com/kubeslice/gateway-sidecar/pkg/status
 # github.com/kubeslice/netops v0.0.0-20220506082959-81fef290c265
 ## explicit
 github.com/kubeslice/netops/pkg/proto
-# github.com/kubeslice/router-sidecar v1.1.2-0.20220820130640-c94ddd2059cb
+# github.com/kubeslice/router-sidecar v1.1.2-0.20221006121850-5e9c9afb9cfd
 ## explicit
 github.com/kubeslice/router-sidecar/pkg/sidecar/sidecarpb
 # github.com/matttproud/golang_protobuf_extensions v1.0.2-0.20181231171920-c182affec369
@@ -168,7 +168,7 @@ github.com/stretchr/objx
 ## explicit
 github.com/stretchr/testify/assert
 github.com/stretchr/testify/mock
-# github.com/vishvananda/netlink v1.1.0
+# github.com/vishvananda/netlink v1.2.1-beta.2.0.20220812183158-d44b87fd4d3f
 github.com/vishvananda/netlink
 github.com/vishvananda/netlink/nl
 # github.com/vishvananda/netns v0.0.0-20211101163701-50045581ed74
@@ -239,8 +239,7 @@ golang.org/x/oauth2/jwt
 # golang.org/x/sync v0.0.0-20220601150217-0de741cfad7f
 ## explicit
 golang.org/x/sync/errgroup
-# golang.org/x/sys v0.0.0-20220615213510-4f61da869c0c
-## explicit
+# golang.org/x/sys v0.0.0-20220804214406-8e32c043e418
 golang.org/x/sys/internal/unsafeheader
 golang.org/x/sys/plan9
 golang.org/x/sys/unix
