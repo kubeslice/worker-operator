@@ -757,16 +757,9 @@ func (r *SliceGwReconciler) createEndpointForGatewayServer(slicegateway *kubesli
 		},
 		Subsets: []corev1.EndpointSubset{
 			{
-				Addresses: []corev1.EndpointAddress{
-					{
-						IP: slicegateway.Status.Config.SliceGatewayRemoteNodeIPs[0],
-					},
-				},
+				Addresses: getAddrSlice(slicegateway.Status.Config.SliceGatewayRemoteNodeIPs),
 			},
 		},
-	}
-	if len(slicegateway.Status.Config.SliceGatewayRemoteNodeIPs) > 1 {
-		e.Subsets[0].Addresses = append(e.Subsets[0].Addresses, corev1.EndpointAddress{IP: slicegateway.Status.Config.SliceGatewayRemoteNodeIPs[1]})
 	}
 	ctrl.SetControllerReference(slicegateway, e, r.Scheme)
 	return e
@@ -843,16 +836,9 @@ func (r *SliceGwReconciler) reconcileGatewayEndpoint(ctx context.Context, sliceG
 	// endpoint already exists , check if sliceGatewayRemoteNodeIp is changed then update the endpoint
 	toUpdate := false
 	debugLog.Info("SliceGatewayRemoteNodeIP", "SliceGatewayRemoteNodeIP", sliceGw.Status.Config.SliceGatewayRemoteNodeIPs)
-	if len(sliceGw.Status.Config.SliceGatewayRemoteNodeIPs) > 1 {
-		if endpointFound.Subsets[0].Addresses[0].IP != sliceGw.Status.Config.SliceGatewayRemoteNodeIPs[0] || endpointFound.Subsets[0].Addresses[1].IP != sliceGw.Status.Config.SliceGatewayRemoteNodeIPs[1] {
-			debugLog.Info("Updating the Endpoint, since sliceGatewayRemoteNodeIp has changed", "from endpointFound", endpointFound.Subsets[0].Addresses[0].IP)
-			endpointFound.Subsets[0].Addresses[0].IP = sliceGw.Status.Config.SliceGatewayRemoteNodeIPs[0]
-			endpointFound.Subsets[0].Addresses[1].IP = sliceGw.Status.Config.SliceGatewayRemoteNodeIPs[1]
-			toUpdate = true
-		}
-	}
-	if endpointFound.Subsets[0].Addresses[0].IP != sliceGw.Status.Config.SliceGatewayRemoteNodeIPs[0] {
-		endpointFound.Subsets[0].Addresses[0].IP = sliceGw.Status.Config.SliceGatewayRemoteNodeIPs[0]
+	if !validateEndpointAddresses(endpointFound.Subsets[0], sliceGw.Status.Config.SliceGatewayRemoteNodeIPs) {
+		debugLog.Info("Updating the Endpoint, since sliceGatewayRemoteNodeIp has changed", "from endpointFound", endpointFound.Subsets[0].Addresses[0].IP)
+		endpointFound.Subsets[0].Addresses = getAddrSlice(sliceGw.Status.Config.SliceGatewayRemoteNodeIPs)
 		toUpdate = true
 	}
 	if toUpdate {
@@ -872,6 +858,22 @@ func contains(s []string, e string) bool {
 		}
 	}
 	return false
+}
+func getAddrSlice(nodeIPS []string) []corev1.EndpointAddress {
+	endpointSlice := make([]corev1.EndpointAddress, 0)
+	for _, ip := range nodeIPS {
+		endpointSlice = append(endpointSlice, corev1.EndpointAddress{IP: ip})
+	}
+	return endpointSlice
+}
+func validateEndpointAddresses(subset corev1.EndpointSubset, remoteNodeIPS []string) bool {
+	addrSlice := subset.Addresses
+	for _, address := range addrSlice {
+		if !contains(remoteNodeIPS, address.IP) {
+			return false
+		}
+	}
+	return true
 }
 
 // total -> external ip list of nodes in the k8s cluster
