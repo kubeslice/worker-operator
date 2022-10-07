@@ -610,18 +610,19 @@ func (r *SliceGwReconciler) ReconcileGwPodStatus(ctx context.Context, slicegatew
 		}
 		if status.TunnelStatus.Status == int32(gwsidecarpb.TunnelStatusType_GW_TUNNEL_STATE_DOWN) {
 			log.Info("packet loss:", "--->", status.PacketLoss)
-			log.Info("deleteing the pod:", "Pod name:", gwPodsInfo[i].PodName, "pod Ips before deletion:", len(gwPodsInfo))
-			foundPod := &corev1.Pod{}
-			err := r.Get(ctx, types.NamespacedName{Name: gwPodsInfo[i].PodName, Namespace: slicegateway.Namespace}, foundPod)
-			if err != nil {
-				log.Error(err, "Unable to fetch the gateway pod")
-				return ctrl.Result{}, err, true
-			}
-			err = r.Delete(ctx, foundPod)
-			if err != nil {
-				log.Error(err, "Unable to delete the gateway pod")
-				return ctrl.Result{}, err, true
-			}
+			// log.Info("deleteing the pod:", "Pod name:", gwPodsInfo[i].PodName, "pod Ips before deletion:", len(gwPodsInfo))
+			// foundPod := &corev1.Pod{}
+			// err := r.Get(ctx, types.NamespacedName{Name: gwPodsInfo[i].PodName, Namespace: slicegateway.Namespace}, foundPod)
+			// if err != nil {
+			// 	log.Error(err, "Unable to fetch the gateway pod")
+			// 	return ctrl.Result{}, err, true
+			// }
+			// err = r.Delete(ctx, foundPod)
+			// if err != nil {
+			// 	log.Error(err, "Unable to delete the gateway pod")
+			// 	return ctrl.Result{}, err, true
+			// }
+			r.UpdateRoutesInRouter(ctx, slicegateway, gwPodsInfo[i].LocalNsmIP)
 			UpdatedGWPodStatus = UpdateGWPodStatus(gwPodsInfo, gwPodsInfo[i].PodName)
 			toUpdate = true
 			continue
@@ -638,7 +639,37 @@ func (r *SliceGwReconciler) ReconcileGwPodStatus(ctx context.Context, slicegatew
 	}
 	return ctrl.Result{}, nil, false
 }
+func (r *SliceGwReconciler) UpdateRoutesInRouter(ctx context.Context, slicegateway *kubeslicev1beta1.SliceGateway, NsmIP string) error {
+	log := logger.FromContext(ctx).WithValues("type", "SliceGw")
 
+	_, podIP, err := controllers.GetSliceRouterPodNameAndIP(ctx, r.Client, slicegateway.Spec.SliceName)
+	if err != nil {
+		log.Error(err, "Unable to get slice router pod info")
+		return err
+	}
+	if podIP == "" {
+		log.Info("Slice router podIP not available yet, requeuing")
+		return err
+	}
+
+	if slicegateway.Status.Config.SliceGatewayRemoteSubnet == "" ||
+		len(slicegateway.Status.GatewayPodStatus) == 0 {
+		log.Info("Waiting for remote subnet and local nsm IPs. Delaying conn ctx update to router")
+		return err
+	}
+
+	sidecarGrpcAddress := podIP + ":5000"
+	routeInfo := &router.UpdateEcmpInfo{
+		RemoteSliceGwNsmSubnet: slicegateway.Status.Config.SliceGatewayRemoteSubnet,
+		NsmIpToDelete:          NsmIP,
+	}
+	err = r.WorkerRouterClient.UpdateEcmpRoutes(ctx, sidecarGrpcAddress, routeInfo)
+	if err != nil {
+		log.Error(err, "Unable to update ecmp routes in the slice router")
+		return err
+	}
+	return nil
+}
 func (r *SliceGwReconciler) SendConnectionContextAndQosToGwPod(ctx context.Context, slice *kubeslicev1beta1.Slice, slicegateway *kubeslicev1beta1.SliceGateway) (ctrl.Result, error, bool) {
 	log := logger.FromContext(ctx).WithValues("type", "SliceGw")
 

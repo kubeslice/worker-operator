@@ -25,3 +25,7 @@ func (ClientEmulator *ClientEmulator) GetClientConnectionInfo(ctx context.Contex
 func (ClientEmulator *ClientEmulator) SendConnectionContext(ctx context.Context, serverAddr string, sliceRouterConnCtx *router.SliceRouterConnCtx) error {
 	return nil
 }
+
+func (ClientEmulator *ClientEmulator) UpdateEcmpRoutes(ctx context.Context, serverAddr string, ecmpInfo *router.UpdateEcmpInfo) error {
+	return nil
+}
