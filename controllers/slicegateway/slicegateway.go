@@ -610,19 +610,10 @@ func (r *SliceGwReconciler) ReconcileGwPodStatus(ctx context.Context, slicegatew
 		}
 		if status.TunnelStatus.Status == int32(gwsidecarpb.TunnelStatusType_GW_TUNNEL_STATE_DOWN) {
 			log.Info("packet loss:", "--->", status.PacketLoss)
-			// log.Info("deleteing the pod:", "Pod name:", gwPodsInfo[i].PodName, "pod Ips before deletion:", len(gwPodsInfo))
-			// foundPod := &corev1.Pod{}
-			// err := r.Get(ctx, types.NamespacedName{Name: gwPodsInfo[i].PodName, Namespace: slicegateway.Namespace}, foundPod)
-			// if err != nil {
-			// 	log.Error(err, "Unable to fetch the gateway pod")
-			// 	return ctrl.Result{}, err, true
-			// }
-			// err = r.Delete(ctx, foundPod)
-			// if err != nil {
-			// 	log.Error(err, "Unable to delete the gateway pod")
-			// 	return ctrl.Result{}, err, true
-			// }
-			r.UpdateRoutesInRouter(ctx, slicegateway, gwPodsInfo[i].LocalNsmIP)
+			err := r.UpdateRoutesInRouter(ctx, slicegateway, gwPodsInfo[i].LocalNsmIP)
+			if err != nil {
+				return ctrl.Result{RequeueAfter: 10 * time.Second}, nil, true
+			}
 			UpdatedGWPodStatus = UpdateGWPodStatus(gwPodsInfo, gwPodsInfo[i].PodName)
 			toUpdate = true
 			continue
