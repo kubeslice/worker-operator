@@ -606,6 +606,7 @@ func (r *SliceGwReconciler) ReconcileGwPodStatus(ctx context.Context, slicegatew
 			toUpdate = true
 			log.Info("identified change in gateway pod status changed")
 		}
+		log.Info("tunnel status", "status from gw sidecar--->", int(status.TunnelStatus.Status))
 		if status.TunnelStatus.Status == int32(gwsidecarpb.TunnelStatusType_GW_TUNNEL_STATE_DOWN) {
 			log.Info("packet loss:", "--->", status.PacketLoss)
 			err := r.UpdateRoutesInRouter(ctx, slicegateway, gwPodsInfo[i].LocalNsmIP)
