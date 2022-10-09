@@ -612,7 +612,7 @@ func (r *SliceGwReconciler) ReconcileGwPodStatus(ctx context.Context, slicegatew
 			log.Info("packet loss:", "--->", status.PacketLoss)
 			err := r.UpdateRoutesInRouter(ctx, slicegateway, gwPodsInfo[i].LocalNsmIP)
 			if err != nil {
-				return ctrl.Result{RequeueAfter: 10 * time.Second}, nil, true
+				return ctrl.Result{}, nil, true
 			}
 			UpdatedGWPodStatus = UpdateGWPodStatus(gwPodsInfo, gwPodsInfo[i].PodName)
 			toUpdate = true
