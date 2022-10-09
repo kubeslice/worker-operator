@@ -628,7 +628,7 @@ func (r *SliceGwReconciler) ReconcileGwPodStatus(ctx context.Context, slicegatew
 		}
 	}
 	if toReconcile {
-		return ctrl.Result{}, nil, true
+		return ctrl.Result{}, nil, false
 	}
 	return ctrl.Result{}, nil, false
 }
