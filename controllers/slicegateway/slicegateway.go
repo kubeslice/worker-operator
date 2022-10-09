@@ -576,21 +576,20 @@ func (r *SliceGwReconciler) ReconcileGwPodStatus(ctx context.Context, slicegatew
 	log := logger.FromContext(ctx).WithValues("type", "SliceGw")
 	debugLog := log.V(1)
 
-	gwPodsInfo, toRequeue, err := r.GetGwPodInfo(ctx, slicegateway)
+	gwPodsInfo, _, err := r.GetGwPodInfo(ctx, slicegateway)
 	if err != nil {
 		log.Error(err, "Error while fetching the pods", "Failed to fetch podIps and podNames")
 		return ctrl.Result{RequeueAfter: 5 * time.Second}, err, true
 	}
-	if toRequeue {
-		log.Info("Gw pods are not yet old, requeuing")
-		return ctrl.Result{RequeueAfter: 10 * time.Second}, nil, true
-	}
+	// if toRequeue {
+	// 	log.Info("Gw pods are not yet old, requeuing")
+	// 	return ctrl.Result{RequeueAfter: 10 * time.Second}, nil, true
+	// }
 	if len(gwPodsInfo) == 0 {
 		log.Info("Gw pods not available yet, requeuing")
 		return ctrl.Result{RequeueAfter: 5 * time.Second}, nil, true
 	}
-	var UpdatedGWPodStatus []*kubeslicev1beta1.GwPodInfo
-	toUpdate := false
+	toUpdate, toReconcile := false, false
 	for i := 0; i < len(gwPodsInfo); i++ {
 		sidecarGrpcAddress := gwPodsInfo[i].PodIP + ":5000"
 
@@ -604,7 +603,6 @@ func (r *SliceGwReconciler) ReconcileGwPodStatus(ctx context.Context, slicegatew
 		gwPodsInfo[i].TunnelStatus = kubeslicev1beta1.TunnelStatus(status.TunnelStatus)
 		debugLog.Info("Got gw status", "result", status)
 		if isGatewayStatusChanged(slicegateway, gwPodsInfo[i]) {
-			UpdatedGWPodStatus = gwPodsInfo
 			toUpdate = true
 			log.Info("identified change in gateway pod status changed")
 		}
@@ -612,21 +610,24 @@ func (r *SliceGwReconciler) ReconcileGwPodStatus(ctx context.Context, slicegatew
 			log.Info("packet loss:", "--->", status.PacketLoss)
 			err := r.UpdateRoutesInRouter(ctx, slicegateway, gwPodsInfo[i].LocalNsmIP)
 			if err != nil {
-				return ctrl.Result{}, nil, true
+				toReconcile = true
 			}
-			UpdatedGWPodStatus = UpdateGWPodStatus(gwPodsInfo, gwPodsInfo[i].PodName)
+			gwPodsInfo[i].TunnelStatus.Status = int32(gwsidecarpb.TunnelStatusType_GW_TUNNEL_STATE_DOWN)
 			toUpdate = true
 			continue
 		}
 	}
 	if toUpdate {
-		slicegateway.Status.GatewayPodStatus = UpdatedGWPodStatus
+		slicegateway.Status.GatewayPodStatus = gwPodsInfo
 		slicegateway.Status.ConnectionContextUpdatedOn = 0
 		err := r.Status().Update(ctx, slicegateway)
 		if err != nil {
 			debugLog.Error(err, "error while update", "Failed to update SliceGateway status for gateway status")
 			return ctrl.Result{}, err, true
 		}
+	}
+	if toReconcile {
+		return ctrl.Result{}, nil, true
 	}
 	return ctrl.Result{}, nil, false
 }
