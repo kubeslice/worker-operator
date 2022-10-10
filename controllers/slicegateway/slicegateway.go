@@ -609,12 +609,14 @@ func (r *SliceGwReconciler) ReconcileGwPodStatus(ctx context.Context, slicegatew
 		log.Info("tunnel status", "status from gw sidecar--->", int(status.TunnelStatus.Status))
 		if status.TunnelStatus.Status == int32(gwsidecarpb.TunnelStatusType_GW_TUNNEL_STATE_DOWN) {
 			log.Info("packet loss:", "--->", status.PacketLoss)
-			err := r.UpdateRoutesInRouter(ctx, slicegateway, gwPodsInfo[i].LocalNsmIP)
-			if err != nil {
-				toReconcile = true
-			}
 			gwPodsInfo[i].TunnelStatus.Status = int32(gwsidecarpb.TunnelStatusType_GW_TUNNEL_STATE_DOWN)
-			gwPodsInfo[i].RouteRemoved = int32(gwsidecarpb.TunnelStatusType_GW_TUNNEL_STATE_DOWN)
+			if gwPodsInfo[i].RouteRemoved == 0{
+				err := r.UpdateRoutesInRouter(ctx, slicegateway, gwPodsInfo[i].LocalNsmIP)
+				if err != nil {
+					toReconcile = true
+				}else{
+					gwPodsInfo[i].RouteRemoved = int32(gwsidecarpb.TunnelStatusType_GW_TUNNEL_STATE_DOWN)
+				}
 			toUpdate = true
 			continue
 		} else {
