@@ -136,11 +136,11 @@ spec:
                       type: string
                     podIP:
                       type: string
-                    podLifeSpan:
-                      format: int64
-                      type: integer
                     podName:
                       type: string
+                    routeRemoved:
+                      format: int32
+                      type: integer
                     tunnelStatus:
                       properties:
                         IntfName:
