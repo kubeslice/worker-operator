@@ -581,10 +581,6 @@ func (r *SliceGwReconciler) ReconcileGwPodStatus(ctx context.Context, slicegatew
 		log.Error(err, "Error while fetching the pods", "Failed to fetch podIps and podNames")
 		return ctrl.Result{RequeueAfter: 5 * time.Second}, err, true
 	}
-	// if toRequeue {
-	// 	log.Info("Gw pods are not yet old, requeuing")
-	// 	return ctrl.Result{RequeueAfter: 10 * time.Second}, nil, true
-	// }
 	if len(gwPodsInfo) == 0 {
 		log.Info("Gw pods not available yet, requeuing")
 		return ctrl.Result{RequeueAfter: 5 * time.Second}, nil, true
@@ -617,12 +613,12 @@ func (r *SliceGwReconciler) ReconcileGwPodStatus(ctx context.Context, slicegatew
 				} else {
 					gwPodsInfo[i].RouteRemoved = int32(gwsidecarpb.TunnelStatusType_GW_TUNNEL_STATE_DOWN)
 				}
-				toUpdate = true
-				continue
-			} else {
-				gwPodsInfo[i].RouteRemoved = 0
-				toUpdate = true
 			}
+			toUpdate = true
+			// continue
+		} else {
+			gwPodsInfo[i].RouteRemoved = 0
+			toUpdate = true
 		}
 	}
 	if toUpdate {
