@@ -594,7 +594,6 @@ func (r *SliceGwReconciler) ReconcileGwPodStatus(ctx context.Context, slicegatew
 			log.Error(err, "Unable to fetch gw status")
 			return ctrl.Result{}, err, true
 		}
-		// gwPodsInfo[i].TunnelStatus = status.TunnelStatus
 		gwPodsInfo[i].LocalNsmIP = status.NsmStatus.LocalIP
 		gwPodsInfo[i].TunnelStatus = kubeslicev1beta1.TunnelStatus(status.TunnelStatus)
 		debugLog.Info("Got gw status", "result", status)
@@ -607,6 +606,7 @@ func (r *SliceGwReconciler) ReconcileGwPodStatus(ctx context.Context, slicegatew
 			log.Info("packet loss:", "--->", status.PacketLoss)
 			gwPodsInfo[i].TunnelStatus.Status = int32(gwsidecarpb.TunnelStatusType_GW_TUNNEL_STATE_DOWN)
 			if gwPodsInfo[i].RouteRemoved == 0 {
+				log.Info("removing route for gw pod ", "--->", gwPodsInfo[i])
 				err := r.UpdateRoutesInRouter(ctx, slicegateway, gwPodsInfo[i].LocalNsmIP)
 				if err != nil {
 					toReconcile = true
@@ -617,6 +617,7 @@ func (r *SliceGwReconciler) ReconcileGwPodStatus(ctx context.Context, slicegatew
 			toUpdate = true
 			// continue
 		} else {
+			log.Info("updating gw pod remove route field ", "--->", gwPodsInfo[i])
 			gwPodsInfo[i].RouteRemoved = 0
 			toUpdate = true
 		}
