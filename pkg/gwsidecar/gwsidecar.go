@@ -89,6 +89,8 @@ func (worker gwSidecarClient) GetStatus(ctx context.Context, serverAddr string) 
 			PacketLoss: res.TunnelStatus.PacketLoss,
 			Status:     int32(res.TunnelStatus.Status),
 		}
+	} else {
+		gwStatus.TunnelStatus.Status = int32(sidecar.TunnelStatusType_GW_TUNNEL_STATE_DOWN)
 	}
 
 	return gwStatus, err
