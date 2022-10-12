@@ -721,7 +721,7 @@ func (r *SliceGwReconciler) SendConnectionContextToSliceRouter(ctx context.Conte
 	}
 
 	sidecarGrpcAddress := podIP + ":5000"
-	LocalNsmIPs := getLocalNSMIPs(slicegateway)
+	LocalNsmIPs := getLocalNSMIPsForRouter(slicegateway)
 	connCtx := &router.SliceRouterConnCtx{
 		RemoteSliceGwNsmSubnet: slicegateway.Status.Config.SliceGatewayRemoteSubnet,
 		LocalNsmGwPeerIPs:      LocalNsmIPs,
@@ -930,6 +930,16 @@ func UpdateGWPodStatus(gwPodStatus []*kubeslicev1beta1.GwPodInfo, podName string
 func getLocalNSMIPs(slicegateway *kubeslicev1beta1.SliceGateway) []string {
 	nsmIPs := make([]string, 0)
 	for i, _ := range slicegateway.Status.GatewayPodStatus {
+		nsmIPs = append(nsmIPs, slicegateway.Status.GatewayPodStatus[i].LocalNsmIP)
+	}
+	return nsmIPs
+}
+func getLocalNSMIPsForRouter(slicegateway *kubeslicev1beta1.SliceGateway) []string {
+	nsmIPs := make([]string, 0)
+	for i, _ := range slicegateway.Status.GatewayPodStatus {
+		if slicegateway.Status.GatewayPodStatus[i].RouteRemoved == 1 {
+			continue
+		}
 		nsmIPs = append(nsmIPs, slicegateway.Status.GatewayPodStatus[i].LocalNsmIP)
 	}
 	return nsmIPs
