@@ -35,6 +35,10 @@ type SliceRouterConnCtx struct {
 
 type routerSidecarClient struct {
 }
+type UpdateEcmpInfo struct {
+	RemoteSliceGwNsmSubnet string
+	NsmIpToDelete          string
+}
 
 func NewWorkerRouterClientProvider() (*routerSidecarClient, error) {
 	return &routerSidecarClient{}, nil
@@ -82,5 +86,19 @@ func (worker routerSidecarClient) SendConnectionContext(ctx context.Context, ser
 
 	_, err = client.UpdateSliceGwConnectionContext(ctx, msg)
 
+	return err
+}
+func (worker routerSidecarClient) UpdateEcmpRoutes(ctx context.Context, serverAddr string, sliceRouterConnCtx *UpdateEcmpInfo) error {
+	conn, err := grpc.Dial(serverAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+	msg := &sidecar.EcmpUpdateInfo{
+		RemoteSliceGwNsmSubnet: sliceRouterConnCtx.RemoteSliceGwNsmSubnet,
+		NsmIPToRemove:          sliceRouterConnCtx.NsmIpToDelete,
+	}
+	client := sidecar.NewSliceRouterSidecarServiceClient(conn)
+	_, err = client.UpdateEcmpRoutes(ctx, msg)
 	return err
 }

@@ -138,6 +138,9 @@ spec:
                       type: string
                     podName:
                       type: string
+                    routeRemoved:
+                      format: int32
+                      type: integer
                     tunnelStatus:
                       properties:
                         IntfName:

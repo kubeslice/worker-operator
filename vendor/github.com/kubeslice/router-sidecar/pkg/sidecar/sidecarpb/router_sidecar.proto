@@ -53,6 +53,13 @@ message SliceGwConContext {
     repeated string localNsmGwPeerIPList = 8;
 }
 
+message EcmpUpdateInfo{
+    // Remote slice-gw NSM subnet
+    string remoteSliceGwNsmSubnet = 1;
+    // Local NSM ip to remove
+    string nsmIPToRemove = 8;
+
+}
 // ConnectionInfo - Slice Router client connection information
 message ConnectionInfo {
     // Pod Name of the client
@@ -77,5 +84,7 @@ service SliceRouterSidecarService {
     rpc UpdateSliceGwConnectionContext(SliceGwConContext) returns (SidecarResponse) {}
     // Provides connection information of all clients connected to the slice router
     rpc GetSliceRouterClientConnectionInfo(google.protobuf.Empty) returns (ClientConnectionInfo) {}
+    // Updates Ecmp routes in the router
+    rpc UpdateEcmpRoutes(EcmpUpdateInfo) returns (SidecarResponse) {}
 }
 

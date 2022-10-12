@@ -13,7 +13,7 @@ require (
 	github.com/kubeslice/apis v0.0.0-20220906094117-7c4a10df3387
 	github.com/kubeslice/gateway-sidecar v0.1.5-0.20220929123356-8e982226ed3f
 	github.com/kubeslice/netops v0.0.0-20220506082959-81fef290c265
-	github.com/kubeslice/router-sidecar v1.1.2-0.20220820130640-c94ddd2059cb
+	github.com/kubeslice/router-sidecar v0.1.1-0.20221012053548-12eff4a6492d
 	github.com/networkservicemesh/networkservicemesh/k8s/pkg/apis v0.0.0-20211028170547-e58ac1200f18
 	github.com/onsi/ginkgo/v2 v2.1.3
 	github.com/onsi/gomega v1.18.1
@@ -28,7 +28,6 @@ require (
 	golang.org/x/crypto v0.0.0-20210921155107-089bfa567519 // indirect
 	golang.org/x/net v0.0.0-20220617184016-355a448f1bc9 // indirect
 	golang.org/x/sync v0.0.0-20220601150217-0de741cfad7f // indirect
-	golang.org/x/sys v0.0.0-20220615213510-4f61da869c0c // indirect
 	golang.org/x/xerrors v0.0.0-20220609144429-65e65417b02f // indirect
 	google.golang.org/genproto v0.0.0-20220617124728-180714bec0ad // indirect
 	google.golang.org/grpc v1.47.0
