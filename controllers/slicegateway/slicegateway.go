@@ -41,7 +41,7 @@ import (
 	"github.com/kubeslice/worker-operator/pkg/gwsidecar"
 	"github.com/kubeslice/worker-operator/pkg/logger"
 	"github.com/kubeslice/worker-operator/pkg/router"
-	webhook "github.com/kubeslice/worker-operator/pkg/webhook/deploy"
+	webhook "github.com/kubeslice/worker-operator/pkg/webhook/pod"
 )
 
 var (

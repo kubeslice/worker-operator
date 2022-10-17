@@ -36,7 +36,7 @@ type Cluster struct {
 	Name   string `json:"clusterName,omitempty"`
 }
 
-//NewCluster returns ClusterInterface
+// NewCluster returns ClusterInterface
 func NewCluster(client client.Client, clusterName string) ClusterInterface {
 	return &Cluster{
 		Client: client,
