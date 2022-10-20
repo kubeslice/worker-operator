@@ -1,8 +1,12 @@
 name: end-to-end-test
 on:
-  pull_request_target:
-    types: [ labeled ] 
+  push:
+    branches: profile
   workflow_dispatch:
+env:
+  chartuser: ${{ secrets.DEV_CHARTS_USERNAME }}
+  chartpassword: ${{ secrets.DEV_CHARTS_PASSWORD }}
+
 jobs:
   end-to-end:
     if: ${{ github.event.label.name == 'ready-to-test' }}
@@ -28,7 +32,7 @@ jobs:
     - name: build kind clusters
       run: |
         mkdir -p ${{ github.workspace }}/profile
-        sh .github/workflows/scripts/start-kind.sh
+        bash .github/workflows/scripts/start-kind.sh
       env: 
          GITHUB_HEAD_COMMIT: ${{ steps.vars.outputs.sha_commit }}
 
