@@ -108,7 +108,7 @@ jobs:
        subject: Github Actions job result
        to: ${{ steps.test.outputs.email }}
        from: ${{github.actor}}
-       body: Build job of ${{github.repository}} completed successfully! and the report url is https://musical-engine-23294b55.pages.github.io/Kind-ent-${{ github.event.repository.name }}-${{ github.base_ref }}-${{ github.run_number }}-${{ steps.date.outputs.date }}/index.html
+       body: Build job of ${{github.repository}} completed successfully! and the report url is https://kubeslice.github.io/e2e-allure-reports/Kind-${{ github.event.repository.name }}-${{ steps.date.outputs.date }}-${{ github.base_ref }}-${{ github.run_number }}/index.html
 
     - name: Run Quality Gate Check
       uses: ./quality-gate
