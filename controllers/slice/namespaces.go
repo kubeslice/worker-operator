@@ -590,6 +590,7 @@ func (r *SliceReconciler) labelAppNamespaces(ctx context.Context, cfgAppNsList [
 			nsLabels = make(map[string]string)
 		}
 		nsLabels[controllers.ApplicationNamespaceSelectorLabelKey] = slice.Name
+		nsLabels[InjectSidecarKey] = "true"
 		namespace.ObjectMeta.SetLabels(nsLabels)
 
 		err = r.Update(ctx, namespace)

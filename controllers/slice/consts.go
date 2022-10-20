@@ -5,4 +5,5 @@ const (
 	AllowedNamespaceSelectorLabelKey     = "kubeslice.io/namespace"
 	ApplicationNamespaceSelectorLabelKey = "kubeslice.io/slice"
 	AllowedNamespaceAnnotationKey        = "kubeslice.io/trafficAllowedToSlices"
+	InjectSidecarKey                     = "kubeslice.io/inject"
 )
