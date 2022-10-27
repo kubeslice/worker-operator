@@ -44,7 +44,7 @@ WorkerClusters:
 WorkerChartOptions:
   Repo: https://kubeslice.github.io/kubeslice/
   SetStrValues:
-    "operator.image": "worker-operator"
+    "operator.image": "aveshadev/worker-operator"
     "operator.tag": "latest-feature-new-label"
 TestSuitesEnabled:
   HubSuite: false
