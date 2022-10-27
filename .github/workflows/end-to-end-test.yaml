@@ -1,7 +1,7 @@
 name: end-to-end-test
 on:
-  pull_request_target:
-    types: [ labeled ] 
+#   pull_request_target:
+#     types: [ labeled ] 
   workflow_dispatch:
 jobs:
   end-to-end:
