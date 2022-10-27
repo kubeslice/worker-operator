@@ -1,11 +1,11 @@
 name: end-to-end-test
 on:
-  pull_request_target:
-     types: [ labeled ] 
+#   pull_request_target:
+#      types: [ labeled ] 
   workflow_dispatch:
 jobs:
   end-to-end:
-    if: ${{ github.event.label.name == 'ready-to-test' }}
+    # if: ${{ github.event.label.name == 'ready-to-test' }}
     runs-on: ubuntu-20.04
     steps:
     - name: checkout the repo
