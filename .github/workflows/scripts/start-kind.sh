@@ -2,7 +2,7 @@
 
 # Create controller kind cluster if not present
 if [ ! $(kind get clusters | grep controller) ];then
-  kind create cluster --name controller --config .github/workflows/scripts/cluster.yaml --image kindest/node:v1.22.7
+  kind create cluster --name controller --config .github/workflows/scripts/cluster.yaml --image kindest/node:v1.23.12
 
   # Install Calico calico on controller-cluster
   echo "Installing calico on controller-cluster"
@@ -61,7 +61,7 @@ fi
 
 # Create worker1 kind cluster if not present
 if [ ! $(kind get clusters | grep worker) ];then
-  kind create cluster --name worker --config .github/workflows/scripts/cluster.yaml --image kindest/node:v1.22.7
+  kind create cluster --name worker --config .github/workflows/scripts/cluster.yaml --image kindest/node:v1.23.12
 
   # Install Calico calico on worker-cluster
   echo "Installing calico on worker-cluster"
