@@ -44,7 +44,7 @@ WorkerClusters:
 WorkerChartOptions:
   Repo: https://kubeslice.github.io/kubeslice/
   SetStrValues:
-    "operator.image": "worker-operator"
+    "operator.image": "latest-feature-new-label"
     "operator.tag": "${GITHUB_HEAD_COMMIT}"
 TestSuitesEnabled:
   HubSuite: false
