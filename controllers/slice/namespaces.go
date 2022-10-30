@@ -25,6 +25,8 @@ import (
 	"github.com/kubeslice/worker-operator/controllers"
 	"github.com/kubeslice/worker-operator/pkg/logger"
 	webhook "github.com/kubeslice/worker-operator/pkg/webhook/pod"
+	appsv1 "k8s.io/api/apps/v1"
+	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -390,51 +392,182 @@ func (r *SliceReconciler) unbindAppNamespace(ctx context.Context, slice *kubesli
 	if err != nil && !errors.IsNotFound(err) {
 		log.Error(err, "NS unbind: Failed to remove slice netpol", "namespace", appNs)
 	}
-	//remove the pod annotations and labels from this namespace
+	//remove the resource annotations and labels from this namespace
 	return r.deleteAnnotationsAndLabels(ctx, slice, appNs)
 }
 
 func (r *SliceReconciler) deleteAnnotationsAndLabels(ctx context.Context, slice *kubeslicev1beta1.Slice, appNs string) error {
 	log := logger.FromContext(ctx).WithValues("type", "appNamespaces")
 	podList := corev1.PodList{}
-	listOps := []client.ListOption{
+	listOpts := []client.ListOption{
 		client.InNamespace(appNs),
 	}
-	if err := r.List(ctx, &podList, listOps...); err != nil {
+	if err := r.List(ctx, &podList, listOpts...); err != nil {
 		log.Error(err, "Namespace offboarding:cannot list pods under ns", appNs)
-		return err
 	}
-	for _, pod := range podList.Items {
-		labels := pod.ObjectMeta.Labels
-		if labels != nil {
-			_, ok := labels[webhook.PodInjectLabelKey]
-			if ok {
-				delete(labels, webhook.PodInjectLabelKey)
+
+	if len(podList.Items) != 0 {
+		for _, pod := range podList.Items {
+			labels := pod.ObjectMeta.Labels
+			if labels != nil {
+				_, ok := labels[webhook.PodInjectLabelKey]
+				if ok {
+					delete(labels, webhook.PodInjectLabelKey)
+				}
+				sliceName, ok := labels[controllers.ApplicationNamespaceSelectorLabelKey]
+				if ok && slice.Name == sliceName {
+					delete(labels, controllers.ApplicationNamespaceSelectorLabelKey)
+				}
 			}
-			sliceName, ok := labels[controllers.ApplicationNamespaceSelectorLabelKey]
-			if ok && slice.Name == sliceName {
-				delete(labels, controllers.ApplicationNamespaceSelectorLabelKey)
+			podannotations := pod.ObjectMeta.Annotations
+			if podannotations != nil {
+				v, ok := podannotations["ns.networkservicemesh.io"]
+				if ok && v == "vl3-service-"+slice.Name {
+					delete(podannotations, "ns.networkservicemesh.io")
+				}
 			}
-		}
-		podannotations := pod.ObjectMeta.Annotations
-		if podannotations != nil {
-			v, ok := podannotations["ns.networkservicemesh.io"]
-			if ok && v == "vl3-service-"+slice.Name {
-				delete(podannotations, "ns.networkservicemesh.io")
+			statusannotations := pod.ObjectMeta.GetAnnotations()
+			if statusannotations != nil {
+				_, ok := statusannotations["kubeslice.io/status"]
+				if ok {
+					delete(statusannotations, "kubeslice.io/status")
+				}
 			}
-		}
-		statusannotations := pod.ObjectMeta.GetAnnotations()
-		if statusannotations != nil {
-			_, ok := statusannotations["kubeslice.io/status"]
-			if ok {
-				delete(statusannotations, "kubeslice.io/status")
+			if err := r.Update(ctx, &pod); err != nil {
+				log.Error(err, "Error deleting labels and annotations from pod while namespace unbinding from slice", pod.ObjectMeta.Name)
+				return err
 			}
+			log.Info("Removed slice labels and annotations", "pod", pod.Name)
 		}
-		if err := r.Update(ctx, &pod); err != nil {
-			log.Error(err, "Error deleting labels and annotations from pod while namespace unbinding from slice", pod.ObjectMeta.Name)
-			return err
+	}
+
+	deployList := appsv1.DeploymentList{}
+	listOpts = []client.ListOption{
+		client.InNamespace(appNs),
+	}
+	if err := r.List(ctx, &deployList, listOpts...); err != nil {
+		log.Error(err, "Namespace offboarding:cannot list deployments under ns ", appNs)
+	}
+
+	if len(deployList.Items) != 0 {
+		for _, deploy := range deployList.Items {
+			labels := deploy.Spec.Template.ObjectMeta.Labels
+			if labels != nil {
+				_, ok := labels[webhook.PodInjectLabelKey]
+				if ok {
+					delete(labels, webhook.PodInjectLabelKey)
+				}
+				sliceName, ok := labels[controllers.ApplicationNamespaceSelectorLabelKey]
+				if ok && slice.Name == sliceName {
+					delete(labels, controllers.ApplicationNamespaceSelectorLabelKey)
+				}
+			}
+			podannotations := deploy.Spec.Template.ObjectMeta.Annotations
+			if podannotations != nil {
+				v, ok := podannotations["ns.networkservicemesh.io"]
+				if ok && v == "vl3-service-"+slice.Name {
+					delete(podannotations, "ns.networkservicemesh.io")
+				}
+			}
+			deployannotations := deploy.ObjectMeta.GetAnnotations()
+			if deployannotations != nil {
+				_, ok := deployannotations["kubeslice.io/status"]
+				if ok {
+					delete(deployannotations, "kubeslice.io/status")
+				}
+			}
+			if err := r.Update(ctx, &deploy); err != nil {
+				log.Error(err, "Error deleting labels and annotations from deploy while namespace unbinding from slice", deploy.ObjectMeta.Name)
+				return err
+			}
+			log.Info("Removed slice labels and annotations", "deployment", deploy.Name)
 		}
-		log.Info("Removed slice labels and annotations", "pod", pod.Name)
+	}
+
+	statefulsetList := appsv1.StatefulSetList{}
+	listOpts = []client.ListOption{
+		client.InNamespace(appNs),
+	}
+	if err := r.List(ctx, &statefulsetList, listOpts...); err != nil {
+		log.Error(err, "Namespace offboarding:cannot list statefulset under ns ", appNs)
+	}
+
+	if len(statefulsetList.Items) != 0 {
+		for _, statefulset := range statefulsetList.Items {
+			labels := statefulset.Spec.Template.ObjectMeta.Labels
+			if labels != nil {
+				_, ok := labels[webhook.PodInjectLabelKey]
+				if ok {
+					delete(labels, webhook.PodInjectLabelKey)
+				}
+				sliceName, ok := labels[controllers.ApplicationNamespaceSelectorLabelKey]
+				if ok && slice.Name == sliceName {
+					delete(labels, controllers.ApplicationNamespaceSelectorLabelKey)
+				}
+			}
+			podannotations := statefulset.Spec.Template.ObjectMeta.Annotations
+			if podannotations != nil {
+				v, ok := podannotations["ns.networkservicemesh.io"]
+				if ok && v == "vl3-service-"+slice.Name {
+					delete(podannotations, "ns.networkservicemesh.io")
+				}
+			}
+			deployannotations := statefulset.ObjectMeta.GetAnnotations()
+			if deployannotations != nil {
+				_, ok := deployannotations["kubeslice.io/status"]
+				if ok {
+					delete(deployannotations, "kubeslice.io/status")
+				}
+			}
+			if err := r.Update(ctx, &statefulset); err != nil {
+				log.Error(err, "Error deleting labels and annotations from statefulset while namespace unbinding from slice", statefulset.ObjectMeta.Name)
+				return err
+			}
+			log.Info("Removed slice labels and annotations", "statefulset", statefulset.Name)
+		}
+	}
+
+	cronJobList := batchv1.CronJobList{}
+	listOpts = []client.ListOption{
+		client.InNamespace(appNs),
+	}
+	if err := r.List(ctx, &cronJobList, listOpts...); err != nil {
+		log.Error(err, "Namespace offboarding:cannot list cronjobs under ns ", appNs)
+	}
+
+	if len(cronJobList.Items) != 0 {
+		for _, cronJob := range cronJobList.Items {
+			labels := cronJob.Spec.JobTemplate.ObjectMeta.Labels
+			if labels != nil {
+				_, ok := labels[webhook.PodInjectLabelKey]
+				if ok {
+					delete(labels, webhook.PodInjectLabelKey)
+				}
+				sliceName, ok := labels[controllers.ApplicationNamespaceSelectorLabelKey]
+				if ok && slice.Name == sliceName {
+					delete(labels, controllers.ApplicationNamespaceSelectorLabelKey)
+				}
+			}
+			podannotations := cronJob.Spec.JobTemplate.Spec.Template.Annotations
+			if podannotations != nil {
+				v, ok := podannotations["ns.networkservicemesh.io"]
+				if ok && v == "vl3-service-"+slice.Name {
+					delete(podannotations, "ns.networkservicemesh.io")
+				}
+			}
+			cronjobannotations := cronJob.ObjectMeta.GetAnnotations()
+			if cronjobannotations != nil {
+				_, ok := cronjobannotations["kubeslice.io/status"]
+				if ok {
+					delete(cronjobannotations, "kubeslice.io/status")
+				}
+			}
+			if err := r.Update(ctx, &cronJob); err != nil {
+				log.Error(err, "Error deleting labels and annotations from cronjob while namespace unbinding from slice", cronJob.ObjectMeta.Name)
+				return err
+			}
+			log.Info("Removed slice labels and annotations", "cronjob", cronJob.Name)
+		}
 	}
 	return nil
 }
