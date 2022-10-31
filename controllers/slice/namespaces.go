@@ -373,6 +373,11 @@ func (r *SliceReconciler) unbindAppNamespace(ctx context.Context, slice *kubesli
 		debuglog.Info("NS unbind: slice label not found", "namespace", appNs)
 	} else {
 		delete(nsLabels, controllers.ApplicationNamespaceSelectorLabelKey)
+		// remove injection key
+		_, ok := nsLabels[InjectSidecarKey]
+		if ok {
+			delete(nsLabels, InjectSidecarKey)
+		}
 		namespace.ObjectMeta.SetLabels(nsLabels)
 		err = r.Update(ctx, namespace)
 		if err != nil {

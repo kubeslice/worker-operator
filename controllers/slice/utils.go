@@ -23,7 +23,9 @@ import (
 
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
 	"github.com/kubeslice/worker-operator/controllers"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -35,6 +37,40 @@ func (r *SliceReconciler) cleanupSliceResources(ctx context.Context, slice *kube
 	r.cleanupSliceRouter(ctx, slice.Name)
 	//cleanup Service Discovery objects - serviceimport and export objects that belong to this slice
 	r.cleanupServiceDiscoveryObjects(ctx, slice.Name)
+	// remove kubeslice.io/inject label from kubeslice-system , in case this is last slice
+	r.removeLabel(ctx)
+}
+
+// this func removes the kubeslice.io/inject label from kubeslice-system , once the last slice has been deleted
+func (r *SliceReconciler) removeLabel(ctx context.Context) error {
+	listOpts := []client.ListOption{
+		client.InNamespace(ControlPlaneNamespace),
+	}
+	sliceList := kubeslicev1beta1.SliceList{}
+	if err := r.List(ctx, &sliceList, listOpts...); err != nil {
+		return err
+	}
+	if len(sliceList.Items) == 1 {
+		// last slice is being deleted
+		namespace := &corev1.Namespace{}
+		err := r.Get(ctx, types.NamespacedName{Name: ControlPlaneNamespace}, namespace)
+		if err != nil {
+			return err
+		}
+
+		nsLabels := namespace.ObjectMeta.GetLabels()
+		if nsLabels == nil {
+			return nil
+		}
+		if _, ok := nsLabels[InjectSidecarKey]; ok {
+			delete(nsLabels, InjectSidecarKey)
+			err = r.Update(ctx, namespace)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
 
 func (r *SliceReconciler) cleanupServiceDiscoveryObjects(ctx context.Context, sliceName string) error {
