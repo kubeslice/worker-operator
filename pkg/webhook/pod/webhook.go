@@ -235,18 +235,18 @@ func MutateCronJobs(cronJobs *batchv1.CronJob, sliceName string) *batchv1.CronJo
 	log.Info("Cronjob meta", "meta", cronJobs.Spec.JobTemplate.ObjectMeta)
 
 	// Add injection status to jobs annotations
-	if cronJobs.Spec.JobTemplate.ObjectMeta.Annotations == nil {
-		cronJobs.Spec.JobTemplate.ObjectMeta.Annotations = map[string]string{}
+	if cronJobs.Spec.JobTemplate.Spec.Template.Annotations == nil {
+		cronJobs.Spec.JobTemplate.Spec.Template.Annotations = map[string]string{}
 	}
 
-	cronJobs.Spec.JobTemplate.ObjectMeta.Annotations[AdmissionWebhookAnnotationStatusKey] = "injected"
+	cronJobs.Spec.JobTemplate.Spec.Template.Annotations[AdmissionWebhookAnnotationStatusKey] = "injected"
 
 	// Add vl3 annotation to pod template
-	annotations := cronJobs.Spec.JobTemplate.ObjectMeta.Annotations
+	annotations := cronJobs.Spec.JobTemplate.Spec.Template.Annotations
 	annotations[nsmInjectAnnotaionKey] = "vl3-service-" + sliceName
 
 	// Add slice identifier labels to pod template
-	labels := cronJobs.Spec.JobTemplate.ObjectMeta.Labels
+	labels := cronJobs.Spec.JobTemplate.Spec.Template.Labels
 	labels[PodInjectLabelKey] = "app"
 	labels[admissionWebhookAnnotationInjectKey] = sliceName
 
