@@ -229,11 +229,11 @@ func MutateStatefulset(ss *appsv1.StatefulSet, sliceName string) *appsv1.Statefu
 
 func MutateCronJobs(cronJobs *batchv1.CronJob, sliceName string) *batchv1.CronJob {
 	// Add injection status to jobs annotations
-	if cronJobs.Spec.JobTemplate.Spec.Template.Annotations == nil {
-		cronJobs.Spec.JobTemplate.Spec.Template.Annotations = map[string]string{}
+	if cronJobs.Spec.JobTemplate.ObjectMeta.Annotations == nil {
+		cronJobs.Spec.JobTemplate.ObjectMeta.Annotations = map[string]string{}
 	}
 
-	cronJobs.Spec.JobTemplate.Spec.Template.Annotations[AdmissionWebhookAnnotationStatusKey] = "injected"
+	cronJobs.Spec.JobTemplate.ObjectMeta.Annotations[AdmissionWebhookAnnotationStatusKey] = "injected"
 
 	// Add vl3 annotation to pod template
 	annotations := cronJobs.Spec.JobTemplate.ObjectMeta.Annotations
