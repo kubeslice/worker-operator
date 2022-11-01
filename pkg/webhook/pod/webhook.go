@@ -98,7 +98,6 @@ func (wh *WebhookServer) Handle(ctx context.Context, req admission.Request) admi
 			log.Info("mutation not required", "pod metadata", deploy.Spec.Template.ObjectMeta)
 		} else {
 			log.Info("mutating deploy", "pod metadata", deploy.Spec.Template.ObjectMeta)
-			log.Info("deploy recieved inside caller", "deploy", deploy)
 			deploy = MutateDeployment(deploy, sliceName)
 			log.Info("mutated deploy", "pod metadata", deploy.Spec.Template.ObjectMeta)
 		}
@@ -228,6 +227,10 @@ func MutateStatefulset(ss *appsv1.StatefulSet, sliceName string) *appsv1.Statefu
 }
 
 func MutateCronJobs(cronJobs *batchv1.CronJob, sliceName string) *batchv1.CronJob {
+
+	log.Info("Mutation recieved for cronjob", "cronjob name", cronJobs.Name)
+	log.Info("Cronjob meta", "meta", cronJobs.Spec.JobTemplate.ObjectMeta)
+
 	// Add injection status to jobs annotations
 	if cronJobs.Spec.JobTemplate.ObjectMeta.Annotations == nil {
 		cronJobs.Spec.JobTemplate.ObjectMeta.Annotations = map[string]string{}
