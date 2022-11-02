@@ -49,12 +49,12 @@ func init() {
 	}
 }
 
-//WithLogger takes in a context and returns a context with key as loggerKey{} and value as loggger(of type logr.Logger) passed
+// WithLogger takes in a context and returns a context with key as loggerKey{} and value as loggger(of type logr.Logger) passed
 func WithLogger(ctx context.Context, logger logr.Logger) context.Context {
 	return context.WithValue(ctx, loggerKey{}, logger)
 }
 
-//FromContext returns a logger from the context.
+// FromContext returns a logger from the context.
 func FromContext(ctx context.Context) logr.Logger {
 
 	if v, ok := ctx.Value(loggerKey{}).(logr.Logger); ok {
@@ -64,7 +64,7 @@ func FromContext(ctx context.Context) logr.Logger {
 	return NewLogger()
 }
 
-//NewLogger Creates a new logr.Logger
+// NewLogger Creates a new logr.Logger
 func NewLogger() logr.Logger {
 
 	// info and debug level enabler

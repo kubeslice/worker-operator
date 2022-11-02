@@ -89,7 +89,7 @@ func Float64frombytes(bytes []byte) float64 {
 	return float
 }
 
-//method to register metrics to prometheus
+// method to register metrics to prometheus
 func init() {
 	// Register custom metrics with the global prometheus registry
 	monitoring.MustRegister(
