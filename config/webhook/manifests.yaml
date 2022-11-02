@@ -19,7 +19,6 @@ webhooks:
   - apiGroups:
     - ""
     - apps
-    - batch
     apiVersions:
     - v1
     operations:
@@ -29,5 +28,4 @@ webhooks:
     - pods
     - deployments
     - statefulsets
-    - jobs
   sideEffects: NoneOnDryRun

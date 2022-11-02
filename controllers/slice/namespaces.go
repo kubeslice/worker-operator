@@ -26,7 +26,6 @@ import (
 	"github.com/kubeslice/worker-operator/pkg/logger"
 	webhook "github.com/kubeslice/worker-operator/pkg/webhook/pod"
 	appsv1 "k8s.io/api/apps/v1"
-	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -524,49 +523,6 @@ func (r *SliceReconciler) deleteAnnotationsAndLabels(ctx context.Context, slice 
 				return err
 			}
 			log.Info("Removed slice labels and annotations", "statefulset", statefulset.Name)
-		}
-	}
-
-	cronJobList := batchv1.CronJobList{}
-	listOpts = []client.ListOption{
-		client.InNamespace(appNs),
-	}
-	if err := r.List(ctx, &cronJobList, listOpts...); err != nil {
-		log.Error(err, "Namespace offboarding:cannot list cronjobs under ns ", appNs)
-	}
-
-	if len(cronJobList.Items) != 0 {
-		for _, cronJob := range cronJobList.Items {
-			labels := cronJob.Spec.JobTemplate.Spec.Template.ObjectMeta.Labels
-			if labels != nil {
-				_, ok := labels[webhook.PodInjectLabelKey]
-				if ok {
-					delete(labels, webhook.PodInjectLabelKey)
-				}
-				sliceName, ok := labels[controllers.ApplicationNamespaceSelectorLabelKey]
-				if ok && slice.Name == sliceName {
-					delete(labels, controllers.ApplicationNamespaceSelectorLabelKey)
-				}
-			}
-			podannotations := cronJob.Spec.JobTemplate.Spec.Template.ObjectMeta.Annotations
-			if podannotations != nil {
-				v, ok := podannotations["ns.networkservicemesh.io"]
-				if ok && v == "vl3-service-"+slice.Name {
-					delete(podannotations, "ns.networkservicemesh.io")
-				}
-			}
-			cronjobannotations := cronJob.ObjectMeta.GetAnnotations()
-			if cronjobannotations != nil {
-				_, ok := cronjobannotations["kubeslice.io/status"]
-				if ok {
-					delete(cronjobannotations, "kubeslice.io/status")
-				}
-			}
-			if err := r.Update(ctx, &cronJob); err != nil {
-				log.Error(err, "Error deleting labels and annotations from cronjob while namespace unbinding from slice", cronJob.ObjectMeta.Name)
-				return err
-			}
-			log.Info("Removed slice labels and annotations", "cronjob", cronJob.Name)
 		}
 	}
 	return nil

@@ -29,7 +29,6 @@ import (
 	"github.com/kubeslice/worker-operator/pkg/logger"
 	v1 "k8s.io/api/admission/v1"
 	appsv1 "k8s.io/api/apps/v1"
-	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -131,27 +130,6 @@ func (wh *WebhookServer) Handle(ctx context.Context, req admission.Request) admi
 			return admission.Errored(http.StatusInternalServerError, err)
 		}
 		return admission.PatchResponseFromRaw(req.Object.Raw, marshaled)
-	} else if req.Kind.Kind == "CronJob" {
-		cronJob := &batchv1.CronJob{}
-		err := wh.decoder.Decode(req, cronJob)
-		if err != nil {
-			return admission.Errored(http.StatusBadRequest, err)
-		}
-		log := logger.FromContext(ctx)
-
-		if mutate, sliceName := wh.MutationRequired(cronJob.ObjectMeta, ctx, req.Kind.Kind); !mutate {
-			log.Info("mutation not required", "pod metadata", cronJob.Spec.JobTemplate.Spec.Template.ObjectMeta)
-		} else {
-			log.Info("mutating cronjob", "pod metadata", cronJob.Spec.JobTemplate.Spec.Template.ObjectMeta)
-			cronJob = MutateCronJobs(cronJob, sliceName)
-			log.Info("mutated cronjob", "pod metadata", cronJob.Spec.JobTemplate.Spec.Template.ObjectMeta)
-		}
-
-		marshaled, err := json.Marshal(cronJob)
-		if err != nil {
-			return admission.Errored(http.StatusInternalServerError, err)
-		}
-		return admission.PatchResponseFromRaw(req.Object.Raw, marshaled)
 	}
 
 	return admission.Response{AdmissionResponse: v1.AdmissionResponse{
@@ -227,30 +205,6 @@ func MutateStatefulset(ss *appsv1.StatefulSet, sliceName string) *appsv1.Statefu
 	labels[admissionWebhookAnnotationInjectKey] = sliceName
 
 	return ss
-}
-
-func MutateCronJobs(cronJobs *batchv1.CronJob, sliceName string) *batchv1.CronJob {
-	// Add injection status to jobs annotations
-	if cronJobs.Spec.JobTemplate.Spec.Template.ObjectMeta.Annotations == nil {
-		cronJobs.Spec.JobTemplate.Spec.Template.ObjectMeta.Annotations = map[string]string{}
-	}
-
-	cronJobs.Spec.JobTemplate.Spec.Template.ObjectMeta.Annotations[AdmissionWebhookAnnotationStatusKey] = "injected"
-
-	// Add vl3 annotation to pod template
-	annotations := cronJobs.Spec.JobTemplate.Spec.Template.ObjectMeta.Annotations
-	annotations[nsmInjectAnnotaionKey] = "vl3-service-" + sliceName
-
-	if cronJobs.Spec.JobTemplate.Spec.Template.ObjectMeta.Labels == nil {
-		cronJobs.Spec.JobTemplate.Spec.Template.ObjectMeta.Labels = map[string]string{}
-	}
-
-	// Add slice identifier labels to pod template
-	labels := cronJobs.Spec.JobTemplate.Spec.Template.ObjectMeta.Labels
-	labels[PodInjectLabelKey] = "app"
-	labels[admissionWebhookAnnotationInjectKey] = sliceName
-
-	return cronJobs
 }
 
 func (wh *WebhookServer) MutationRequired(metadata metav1.ObjectMeta, ctx context.Context, kind string) (bool, string) {
