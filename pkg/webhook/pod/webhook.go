@@ -140,11 +140,11 @@ func (wh *WebhookServer) Handle(ctx context.Context, req admission.Request) admi
 		log := logger.FromContext(ctx)
 
 		if mutate, sliceName := wh.MutationRequired(cronJob.ObjectMeta, ctx, req.Kind.Kind); !mutate {
-			log.Info("mutation not required", "pod metadata", cronJob.Spec.JobTemplate.ObjectMeta)
+			log.Info("mutation not required", "pod metadata", cronJob.Spec.JobTemplate.Spec.Template.ObjectMeta)
 		} else {
-			log.Info("mutating cronjob", "pod metadata", cronJob.Spec.JobTemplate.ObjectMeta)
+			log.Info("mutating cronjob", "pod metadata", cronJob.Spec.JobTemplate.Spec.Template.ObjectMeta)
 			cronJob = MutateCronJobs(cronJob, sliceName)
-			log.Info("mutated cronjob", "pod metadata", cronJob.Spec.JobTemplate.ObjectMeta)
+			log.Info("mutated cronjob", "pod metadata", cronJob.Spec.JobTemplate.Spec.Template.ObjectMeta)
 		}
 
 		marshaled, err := json.Marshal(cronJob)
@@ -233,20 +233,22 @@ func MutateCronJobs(cronJobs *batchv1.CronJob, sliceName string) *batchv1.CronJo
 
 	log.Info("Mutation recieved for cronjob", "cronjob name", cronJobs.Name)
 	log.Info("Cronjob meta", "meta", cronJobs.Spec.JobTemplate.ObjectMeta)
+	log.Info("Cronjob template objmeta", "template objmeta", cronJobs.Spec.JobTemplate.Spec.Template.ObjectMeta.Annotations)
+	log.Info("Cronjob template", "template", cronJobs.Spec.JobTemplate.Spec.Template.Annotations)
 
 	// Add injection status to jobs annotations
-	if cronJobs.Spec.JobTemplate.Spec.Template.Annotations == nil {
-		cronJobs.Spec.JobTemplate.Spec.Template.Annotations = map[string]string{}
+	if cronJobs.Spec.JobTemplate.Spec.Template.ObjectMeta.Annotations == nil {
+		cronJobs.Spec.JobTemplate.Spec.Template.ObjectMeta.Annotations = map[string]string{}
 	}
 
-	cronJobs.Spec.JobTemplate.Spec.Template.Annotations[AdmissionWebhookAnnotationStatusKey] = "injected"
+	cronJobs.Spec.JobTemplate.Spec.Template.ObjectMeta.Annotations[AdmissionWebhookAnnotationStatusKey] = "injected"
 
 	// Add vl3 annotation to pod template
-	annotations := cronJobs.Spec.JobTemplate.Spec.Template.Annotations
+	annotations := cronJobs.Spec.JobTemplate.Spec.Template.ObjectMeta.Annotations
 	annotations[nsmInjectAnnotaionKey] = "vl3-service-" + sliceName
 
 	// Add slice identifier labels to pod template
-	labels := cronJobs.Spec.JobTemplate.Spec.Template.Labels
+	labels := cronJobs.Spec.JobTemplate.Spec.Template.ObjectMeta.Labels
 	labels[PodInjectLabelKey] = "app"
 	labels[admissionWebhookAnnotationInjectKey] = sliceName
 

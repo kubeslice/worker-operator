@@ -537,7 +537,7 @@ func (r *SliceReconciler) deleteAnnotationsAndLabels(ctx context.Context, slice 
 
 	if len(cronJobList.Items) != 0 {
 		for _, cronJob := range cronJobList.Items {
-			labels := cronJob.Spec.JobTemplate.ObjectMeta.Labels
+			labels := cronJob.Spec.JobTemplate.Spec.Template.ObjectMeta.Labels
 			if labels != nil {
 				_, ok := labels[webhook.PodInjectLabelKey]
 				if ok {
@@ -548,7 +548,7 @@ func (r *SliceReconciler) deleteAnnotationsAndLabels(ctx context.Context, slice 
 					delete(labels, controllers.ApplicationNamespaceSelectorLabelKey)
 				}
 			}
-			podannotations := cronJob.Spec.JobTemplate.Spec.Template.Annotations
+			podannotations := cronJob.Spec.JobTemplate.Spec.Template.ObjectMeta.Annotations
 			if podannotations != nil {
 				v, ok := podannotations["ns.networkservicemesh.io"]
 				if ok && v == "vl3-service-"+slice.Name {
