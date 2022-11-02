@@ -230,12 +230,6 @@ func MutateStatefulset(ss *appsv1.StatefulSet, sliceName string) *appsv1.Statefu
 }
 
 func MutateCronJobs(cronJobs *batchv1.CronJob, sliceName string) *batchv1.CronJob {
-
-	log.Info("Mutation recieved for cronjob", "cronjob name", cronJobs.Name)
-	log.Info("Cronjob meta", "meta", cronJobs.Spec.JobTemplate.ObjectMeta)
-	log.Info("Cronjob template objmeta", "template objmeta", cronJobs.Spec.JobTemplate.Spec.Template.ObjectMeta.Annotations)
-	log.Info("Cronjob template", "template", cronJobs.Spec.JobTemplate.Spec.Template.Annotations)
-
 	// Add injection status to jobs annotations
 	if cronJobs.Spec.JobTemplate.Spec.Template.ObjectMeta.Annotations == nil {
 		cronJobs.Spec.JobTemplate.Spec.Template.ObjectMeta.Annotations = map[string]string{}
@@ -246,6 +240,10 @@ func MutateCronJobs(cronJobs *batchv1.CronJob, sliceName string) *batchv1.CronJo
 	// Add vl3 annotation to pod template
 	annotations := cronJobs.Spec.JobTemplate.Spec.Template.ObjectMeta.Annotations
 	annotations[nsmInjectAnnotaionKey] = "vl3-service-" + sliceName
+
+	if cronJobs.Spec.JobTemplate.Spec.Template.ObjectMeta.Labels == nil {
+		cronJobs.Spec.JobTemplate.Spec.Template.ObjectMeta.Labels = map[string]string{}
+	}
 
 	// Add slice identifier labels to pod template
 	labels := cronJobs.Spec.JobTemplate.Spec.Template.ObjectMeta.Labels
