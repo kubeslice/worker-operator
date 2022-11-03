@@ -212,7 +212,7 @@ func main() {
 
 	serviceExportEventRecorder := events.NewEventRecorder(mgr.GetEventRecorderFor("serviceExport-controller"))
 	if err = (&serviceexport.Reconciler{
-		Client:        mgr.GetClient(),
+		Client:        clientForHubMgr,
 		Log:           ctrl.Log.WithName("controllers").WithName("ServiceExport"),
 		Scheme:        mgr.GetScheme(),
 		HubClient:     hubClient,

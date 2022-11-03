@@ -186,7 +186,7 @@ func (r *Reconciler) GetServiceExport(ctx context.Context, req ctrl.Request, log
 			// Request object not found, could have been deleted after reconcile request.
 			// Return and don't requeue
 			log.Info("serviceexport resource not found. Ignoring since object must be deleted")
-			return nil, err
+			return nil, nil
 		}
 		// Error reading the object - requeue the request.
 		log.Error(err, "Failed to get serviceexport")
