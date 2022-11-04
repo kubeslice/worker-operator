@@ -525,6 +525,49 @@ func (r *SliceReconciler) deleteAnnotationsAndLabels(ctx context.Context, slice 
 			log.Info("Removed slice labels and annotations", "statefulset", statefulset.Name)
 		}
 	}
+
+	daemonSetList := appsv1.DaemonSetList{}
+	listOpts = []client.ListOption{
+		client.InNamespace(appNs),
+	}
+	if err := r.List(ctx, &daemonSetList, listOpts...); err != nil {
+		log.Error(err, "Namespace offboarding:cannot list daemonsets under ns ", appNs)
+	}
+
+	if len(daemonSetList.Items) != 0 {
+		for _, daemonset := range daemonSetList.Items {
+			labels := daemonset.Spec.Template.ObjectMeta.Labels
+			if labels != nil {
+				_, ok := labels[webhook.PodInjectLabelKey]
+				if ok {
+					delete(labels, webhook.PodInjectLabelKey)
+				}
+				sliceName, ok := labels[controllers.ApplicationNamespaceSelectorLabelKey]
+				if ok && slice.Name == sliceName {
+					delete(labels, controllers.ApplicationNamespaceSelectorLabelKey)
+				}
+			}
+			podannotations := daemonset.Spec.Template.ObjectMeta.Annotations
+			if podannotations != nil {
+				v, ok := podannotations["ns.networkservicemesh.io"]
+				if ok && v == "vl3-service-"+slice.Name {
+					delete(podannotations, "ns.networkservicemesh.io")
+				}
+			}
+			deployannotations := daemonset.ObjectMeta.GetAnnotations()
+			if deployannotations != nil {
+				_, ok := deployannotations["kubeslice.io/status"]
+				if ok {
+					delete(deployannotations, "kubeslice.io/status")
+				}
+			}
+			if err := r.Update(ctx, &daemonset); err != nil {
+				log.Error(err, "Error deleting labels and annotations from daemonset while namespace unbinding from slice", daemonset.ObjectMeta.Name)
+				return err
+			}
+			log.Info("Removed slice labels and annotations", "daemonset", daemonset.Name)
+		}
+	}
 	return nil
 }
 

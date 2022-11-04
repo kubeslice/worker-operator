@@ -130,6 +130,27 @@ func (wh *WebhookServer) Handle(ctx context.Context, req admission.Request) admi
 			return admission.Errored(http.StatusInternalServerError, err)
 		}
 		return admission.PatchResponseFromRaw(req.Object.Raw, marshaled)
+	} else if req.Kind.Kind == "DaemonSet" {
+		daemonset := &appsv1.DaemonSet{}
+		err := wh.decoder.Decode(req, daemonset)
+		if err != nil {
+			return admission.Errored(http.StatusBadRequest, err)
+		}
+		log := logger.FromContext(ctx)
+
+		if mutate, sliceName := wh.MutationRequired(daemonset.ObjectMeta, ctx, req.Kind.Kind); !mutate {
+			log.Info("mutation not required for daemonset", "pod metadata", daemonset.Spec.Template.ObjectMeta)
+		} else {
+			log.Info("mutating daemonset", "pod metadata", daemonset.Spec.Template.ObjectMeta)
+			daemonset = MutateDaemonSet(daemonset, sliceName)
+			log.Info("mutated daemonset", "pod metadata", daemonset.Spec.Template.ObjectMeta)
+		}
+
+		marshaled, err := json.Marshal(daemonset)
+		if err != nil {
+			return admission.Errored(http.StatusInternalServerError, err)
+		}
+		return admission.PatchResponseFromRaw(req.Object.Raw, marshaled)
 	}
 
 	return admission.Response{AdmissionResponse: v1.AdmissionResponse{
@@ -205,6 +226,26 @@ func MutateStatefulset(ss *appsv1.StatefulSet, sliceName string) *appsv1.Statefu
 	labels[admissionWebhookAnnotationInjectKey] = sliceName
 
 	return ss
+}
+
+func MutateDaemonSet(ds *appsv1.DaemonSet, sliceName string) *appsv1.DaemonSet {
+	// Add injection status to statefulset annotations
+	if ds.Spec.Template.ObjectMeta.Annotations == nil {
+		ds.Spec.Template.ObjectMeta.Annotations = map[string]string{}
+	}
+
+	ds.Spec.Template.ObjectMeta.Annotations[AdmissionWebhookAnnotationStatusKey] = "injected"
+
+	// Add vl3 annotation to pod template
+	annotations := ds.Spec.Template.ObjectMeta.Annotations
+	annotations[nsmInjectAnnotaionKey] = "vl3-service-" + sliceName
+
+	// Add slice identifier labels to pod template
+	labels := ds.Spec.Template.ObjectMeta.Labels
+	labels[PodInjectLabelKey] = "app"
+	labels[admissionWebhookAnnotationInjectKey] = sliceName
+
+	return ds
 }
 
 func (wh *WebhookServer) MutationRequired(metadata metav1.ObjectMeta, ctx context.Context, kind string) (bool, string) {

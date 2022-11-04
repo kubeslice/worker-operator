@@ -28,4 +28,5 @@ webhooks:
     - pods
     - deployments
     - statefulsets
+    - daemonsets
   sideEffects: NoneOnDryRun
