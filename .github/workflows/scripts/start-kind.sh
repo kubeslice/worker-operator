@@ -179,6 +179,7 @@ TestSuitesEnabled:
   HubSuite: false
   WorkerSuite: true
   IstioSuite: false
+  IntraClusterSuite:false
 EOF
 
 fi
