@@ -34,6 +34,7 @@ import (
 	"github.com/kubeslice/worker-operator/pkg/logger"
 	"github.com/kubeslice/worker-operator/pkg/metrics"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	istiov1beta1 "istio.io/client-go/pkg/apis/networking/v1beta1"
 )
 
 // Reconciler reconciles serviceexport resource
@@ -181,6 +182,8 @@ func (r Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resul
 func (r *Reconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&kubeslicev1beta1.ServiceExport{}).
+		Owns(&istiov1beta1.VirtualService{}).
+		Owns(&istiov1beta1.ServiceEntry{}).
 		Complete(r)
 }
 
