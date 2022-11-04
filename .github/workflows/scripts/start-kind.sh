@@ -157,6 +157,7 @@ WorkerChartOptions:
   Namespace: kubeslice-system
   Username: ${chartuser}
   Password: ${chartpassword}
+  Version: 0.4.6
   SetStrValues:
     "operator.image": "worker-operator"
     "operator.tag": "${GITHUB_HEAD_COMMIT}"
