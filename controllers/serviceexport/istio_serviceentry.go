@@ -150,7 +150,6 @@ func  (r *Reconciler )createServiceEntryForEndpoint(serviceexport *kubeslicev1be
 			}},
 		},
 	}
-	ctrl.SetControllerReference(serviceexport, se, r.Scheme)
 	return se
 }
 
