@@ -158,7 +158,6 @@ WorkerChartOptions:
   Username: ${chartuser}
   Password: ${chartpassword}
   SetStrValues:
-    "metrics.insecure": true
     "operator.image": "worker-operator"
     "operator.tag": "${GITHUB_HEAD_COMMIT}"
 IstioBaseChartOptions:
@@ -180,7 +179,6 @@ TestSuitesEnabled:
   HubSuite: false
   WorkerSuite: true
   IstioSuite: false
-  IntraClusterSuite:false
   
 EOF
 
