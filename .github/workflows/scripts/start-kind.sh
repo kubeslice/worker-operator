@@ -143,6 +143,7 @@ ControllerCluster:
     Chart: kubeslice-controller
     Repo: "https://raw.githubusercontent.com/kubeslice/dev-charts/gh-pages/"
     Namespace: kubeslice-controller
+    Version: 0.5.1
     Username: ${chartuser}
     Password: ${chartpassword}
 WorkerClusters:
@@ -155,6 +156,7 @@ WorkerChartOptions:
   Chart: kubeslice-worker
   Repo: "https://raw.githubusercontent.com/kubeslice/dev-charts/gh-pages/"
   Namespace: kubeslice-system
+  Version: 0.4.6
   Username: ${chartuser}
   Password: ${chartpassword}
   SetStrValues:
@@ -179,7 +181,7 @@ TestSuitesEnabled:
   HubSuite: false
   WorkerSuite: true
   IstioSuite: false
-  
+  IntraClusterSuite: false
 EOF
 
 fi
