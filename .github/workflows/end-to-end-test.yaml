@@ -1,7 +1,7 @@
 name: end-to-end-test
 on:
-#   pull_request_target:
-#     types: [ labeled ] 
+  pull_request_target:
+    types: [ labeled ] 
   workflow_dispatch:
 
 env:
@@ -10,7 +10,7 @@ env:
 
 jobs:
   end-to-end:
-#     if: ${{ github.event.label.name == 'ready-to-test' }}
+    if: ${{ github.event.label.name == 'ready-to-test' }}
     runs-on: ubuntu-20.04
     steps:
     - name: checkout the repo
@@ -21,12 +21,6 @@ jobs:
     - name: Set outputs
       id: vars
       run: echo "::set-output name=sha_commit::$(git rev-parse HEAD)"   
-      
-    - name: Login to DockerHub
-      uses: docker/login-action@v2
-      with:
-        username: ${{ secrets.IMAGEPULLUSERNAME  }}
-        password: ${{ secrets.IMAGEPULLSECRET }}   
 
     - name: build the worker operator
       uses: docker/build-push-action@v2
@@ -46,7 +40,7 @@ jobs:
     - name: Docker Run Action
       uses: addnab/docker-run-action@v3
       with:
-        image: aveshadev/oss-pipeline-debug:latest
+        image: aveshadev/kubeslice-e2e:latest
         options: -v ${{ github.workspace }}/reports:/e2e/reports -v /home/runner/.kube:/e2e/assets/kubeconfig -v ${{ github.workspace }}/profile:/e2e/profile --network kind
         run: |
           bash run.sh kind
