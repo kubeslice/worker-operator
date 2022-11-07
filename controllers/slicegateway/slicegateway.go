@@ -1067,7 +1067,10 @@ func (r *SliceGwReconciler) findAndRemovePodFromNode(ctx context.Context) error 
 	log.Info("removing label from pods", "pod", newestPod)
 	delete(newestPod.Labels, controllers.PodTypeSelectorLabelKey)
 	newestPod.Labels["kubeslice.io/pod-type"] = "toBeDeleted"
-	r.Client.Update(ctx, newestPod)
+	err = r.Client.Update(ctx, newestPod)
+	if err != nil {
+		return err
+	}
 	return nil
 
 }
