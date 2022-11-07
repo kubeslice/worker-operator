@@ -20,7 +20,7 @@ jobs:
    
     - name: Set outputs
       id: vars
-      run: echo "::set-output name=sha_commit::$(git rev-parse HEAD)"    
+      run: echo "::set-output name=sha_commit::$(git rev-parse HEAD)"  
 
     - name: build the worker operator
       uses: docker/build-push-action@v2
