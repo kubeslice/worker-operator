@@ -35,6 +35,9 @@ if [ ! $(kind get clusters | grep controller) ];then
 
   # Switch to Controller cluster...
   kubectx kind-controller
+  
+  echo 'kind load Image in controller cluster' 
+  kind load docker-image worker-operator:${GITHUB_HEAD_COMMIT}
 
   echo Install the Tigera Calico operator...
   kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/v3.24.1/manifests/tigera-operator.yaml
@@ -94,6 +97,9 @@ if [ ! $(kind get clusters | grep worker) ];then
 
   # Switch to Worker cluster...
   kubectx kind-worker
+  
+  echo 'kind load Image in worker cluster' 
+  kind load docker-image worker-operator:${GITHUB_HEAD_COMMIT}
 
   echo Install the Tigera Calico operator...
   kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/v3.24.1/manifests/tigera-operator.yaml
@@ -167,9 +173,6 @@ WorkerChartOptions:
   SetStrValues:
     "operator.image": "worker-operator"
     "operator.tag": "${GITHUB_HEAD_COMMIT}"
-    "imagePullSecrets.repository": "https://index.docker.io/v1/"
-    "imagePullSecrets.username": "${IMAGEUSER}"
-    "imagePullSecrets.password": "${IMAGESECRET}"
 IstioBaseChartOptions:
   Release:   "istio-base"
   Chart:     "istio-base"
