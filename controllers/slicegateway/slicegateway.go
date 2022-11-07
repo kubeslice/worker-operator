@@ -1064,6 +1064,7 @@ func (r *SliceGwReconciler) findAndRemovePodFromNode(ctx context.Context) error 
 		log.Error(err, "unable to fetch the newest pod")
 		return err
 	}
+	log.Info("removing label from pods", "pod", newestPod)
 	delete(newestPod.Labels, controllers.PodTypeSelectorLabelKey)
 	newestPod.Labels["kubeslice.io/pod-type"] = "toBeDeleted"
 	return nil

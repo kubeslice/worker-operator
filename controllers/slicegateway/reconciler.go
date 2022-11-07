@@ -267,6 +267,7 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		return ctrl.Result{}, err
 	}
 	if toRebalace {
+		log.Info("rebalacing gw pods", "rebalance:", toRebalace)
 		err := r.findAndRemovePodFromNode(ctx)
 		if err != nil {
 			log.Error(err, "Unable to rebalace gw pods")
