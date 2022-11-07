@@ -7,8 +7,6 @@ on:
 env:
   chartuser: ${{ secrets.DEV_CHARTS_USERNAME }}
   chartpassword: ${{ secrets.DEV_CHARTS_PASSWORD }}
-  IMAGESECRET: ${{ secrets.IMAGEPULLSECRET }}
-  IMAGEUSER: ${{ secrets.IMAGEPULLUSERNAME }}
 
 jobs:
   end-to-end:
