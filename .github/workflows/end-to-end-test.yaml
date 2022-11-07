@@ -31,7 +31,7 @@ jobs:
     - name: build the worker operator
       uses: docker/build-push-action@v2
       with:
-        tags: worker-operator:${{ steps.vars.outputs.sha_commit }}
+        tags: aveshadev/worker-operator:${{ steps.vars.outputs.sha_commit }}
         build-args: |
           PLATFORM=amd64
         push: true
