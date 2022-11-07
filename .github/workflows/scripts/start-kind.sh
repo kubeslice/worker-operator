@@ -160,6 +160,7 @@ WorkerChartOptions:
   SetStrValues:
     "operator.image": "worker-operator"
     "operator.tag": "${GITHUB_HEAD_COMMIT}"
+    "imagePullSecrets.repository": "https://index.docker.io/v1/"
     "imagePullSecrets.username": "${IMAGEUSER}"
     "imagePullSecrets.password": "${IMAGESECRET}"
 IstioBaseChartOptions:
