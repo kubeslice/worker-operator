@@ -59,9 +59,6 @@ type WebhookServer struct {
 }
 
 func (wh *WebhookServer) Handle(ctx context.Context, req admission.Request) admission.Response {
-
-	log.Info("logging the req obj", "req", req)
-
 	if req.Kind.Kind == "Pod" {
 		pod := &corev1.Pod{}
 		err := wh.decoder.Decode(req, pod)
@@ -76,7 +73,7 @@ func (wh *WebhookServer) Handle(ctx context.Context, req admission.Request) admi
 		}
 
 		if mutate, sliceName := wh.MutationRequired(pod.ObjectMeta, ctx, req.Kind.Kind); !mutate {
-			log.Info("mutation not required", "pod metadata", pod.ObjectMeta)
+			log.Info("mutation not required for pod", "pod metadata", pod.ObjectMeta)
 		} else {
 			log.Info("mutating pod", "pod metadata", pod.ObjectMeta)
 			pod = MutatePod(pod, sliceName)
@@ -97,7 +94,7 @@ func (wh *WebhookServer) Handle(ctx context.Context, req admission.Request) admi
 		}
 
 		if mutate, sliceName := wh.MutationRequired(deploy.ObjectMeta, ctx, req.Kind.Kind); !mutate {
-			log.Info("mutation not required", "pod metadata", deploy.Spec.Template.ObjectMeta)
+			log.Info("mutation not required for deployment", "pod metadata", deploy.Spec.Template.ObjectMeta)
 		} else {
 			log.Info("mutating deploy", "pod metadata", deploy.Spec.Template.ObjectMeta)
 			deploy = MutateDeployment(deploy, sliceName)
@@ -118,7 +115,7 @@ func (wh *WebhookServer) Handle(ctx context.Context, req admission.Request) admi
 		log := logger.FromContext(ctx)
 
 		if mutate, sliceName := wh.MutationRequired(statefulset.ObjectMeta, ctx, req.Kind.Kind); !mutate {
-			log.Info("mutation not required", "pod metadata", statefulset.Spec.Template.ObjectMeta)
+			log.Info("mutation not required for statefulsets", "pod metadata", statefulset.Spec.Template.ObjectMeta)
 		} else {
 			log.Info("mutating statefulset", "pod metadata", statefulset.Spec.Template.ObjectMeta)
 			statefulset = MutateStatefulset(statefulset, sliceName)
