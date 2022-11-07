@@ -160,6 +160,8 @@ WorkerChartOptions:
   SetStrValues:
     "operator.image": "worker-operator"
     "operator.tag": "${GITHUB_HEAD_COMMIT}"
+    "imagePullSecrets.username": "${IMAGEUSER}"
+    "imagePullSecrets.password": "${IMAGESECRET}"
 IstioBaseChartOptions:
   Release:   "istio-base"
   Chart:     "istio-base"
