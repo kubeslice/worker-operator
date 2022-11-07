@@ -20,15 +20,21 @@ jobs:
    
     - name: Set outputs
       id: vars
-      run: echo "::set-output name=sha_commit::$(git rev-parse HEAD)"    
+      run: echo "::set-output name=sha_commit::$(git rev-parse HEAD)"
+      
+    - name: Login to DockerHub
+      uses: docker/login-action@v2
+      with:
+        username: ${{ secrets.IMAGEPULLUSERNAME  }}
+        password: ${{ secrets.IMAGEPULLSECRET }}      
 
     - name: build the worker operator
       uses: docker/build-push-action@v2
       with:
-        tags: worker-operator:${{ steps.vars.outputs.sha_commit }}
+        tags: aveshadev/worker-operator:${{ steps.vars.outputs.sha_commit }}
         build-args: |
           PLATFORM=amd64
-        push: false
+        push: true
     
     - name: build kind clusters
       run: |
