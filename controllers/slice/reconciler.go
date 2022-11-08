@@ -56,9 +56,9 @@ type SliceReconciler struct {
 	WorkerNetOpClient  WorkerNetOpClientProvider
 }
 
-//+kubebuilder:rbac:groups=networking.kubeslice.io,resources=slices,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=networking.kubeslice.io,resources=slices/status,verbs=get;update;patch
-//+kubebuilder:rbac:groups=networking.kubeslice.io,resources=slices/finalizers,verbs=update
+//+kubebuilder:rbac:groups=networking.kubeslice.io,resources=slice,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=networking.kubeslice.io,resources=slice/status,verbs=get;update;patch
+//+kubebuilder:rbac:groups=networking.kubeslice.io,resources=slice/finalizers,verbs=update
 //+kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=core,resources=pods,verbs=get;list;watch;update
 //+kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list;watch;create;update;patch;delete

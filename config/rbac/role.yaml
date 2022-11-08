@@ -222,6 +222,32 @@ rules:
 - apiGroups:
   - networking.kubeslice.io
   resources:
+  - slice
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - networking.kubeslice.io
+  resources:
+  - slice/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - networking.kubeslice.io
+  resources:
+  - slice/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - networking.kubeslice.io
+  resources:
   - slicegateways
   verbs:
   - create
@@ -247,32 +273,6 @@ rules:
   - networking.kubeslice.io
   resources:
   - slicegateways/status
-  verbs:
-  - get
-  - patch
-  - update
-- apiGroups:
-  - networking.kubeslice.io
-  resources:
-  - slices
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - networking.kubeslice.io
-  resources:
-  - slices/finalizers
-  verbs:
-  - update
-- apiGroups:
-  - networking.kubeslice.io
-  resources:
-  - slices/status
   verbs:
   - get
   - patch
