@@ -98,6 +98,7 @@ jobs:
       run: |
          echo "::set-output name=user_email::$(git log -n 1 --pretty=format:%ae)"
 
+
 #    - name: get email
 #      id: test
 #      uses: evvanErb/get-github-email-by-username-action@v1.25
