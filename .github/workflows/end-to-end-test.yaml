@@ -69,7 +69,8 @@ jobs:
         github_run_num: 'Kind-${{ github.event.repository.name }}-${{ steps.date.outputs.date }}-${{ github.base_ref }}-${{ github.run_number }}'
         report_url: 'https://kubeslice.github.io/e2e-allure-reports/'
         test_env: Kind
-          
+    
+
     - name: Deploy report to Github Pages
       uses: peaceiris/actions-gh-pages@v2
       env:
@@ -90,13 +91,20 @@ jobs:
         message: |
                  report link  'https://kubeslice.github.io/e2e-allure-reports/Kind-${{ github.event.repository.name }}-${{ steps.date.outputs.date }}-${{ github.base_ref }}-${{ github.run_number }}/index.html'
         GITHUB_TOKEN: ${{ secrets.TOKEN }}
-    
-    - name: get email
-      id: test
-      uses: evvanErb/get-github-email-by-username-action@v1.25
-      with:
-          github-username: ${{github.actor}}
-          token: ${{ secrets.TOKEN }}
+
+
+     - name: Get user's e-mail
+       id: user_email
+       run: |
+         git checkout remotes/origin/${{ github.head_ref }}
+         echo "::set-output name=user_email::$(git log -n 1 --pretty=format:%ae)"
+
+#    - name: get email
+#      id: test
+#      uses: evvanErb/get-github-email-by-username-action@v1.25
+#      with:
+#          github-username: ${{github.actor}}
+#          token: ${{ secrets.TOKEN }}
 
     - name: Send mail
       uses: dawidd6/action-send-mail@v3
@@ -106,7 +114,7 @@ jobs:
        username: ${{secrets.MAIL_USERNAME}}
        password: ${{secrets.MAIL_PASSWORD}}
        subject: Github Actions job result
-       to: ${{ steps.test.outputs.email }}
+       to: ${{ steps.user_email.outputs.user_email }}
        from: ${{github.actor}}
        body: Build job of ${{github.repository}} completed successfully! and the report url is https://kubeslice.github.io/e2e-allure-reports/Kind-${{ github.event.repository.name }}-${{ steps.date.outputs.date }}-${{ github.base_ref }}-${{ github.run_number }}/index.html
 
