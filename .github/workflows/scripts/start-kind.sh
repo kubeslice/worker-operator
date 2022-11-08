@@ -166,7 +166,6 @@ WorkerChartOptions:
   Chart: kubeslice-worker
   Repo: "https://raw.githubusercontent.com/kubeslice/dev-charts/gh-pages/"
   Namespace: kubeslice-system
-  Version: 0.4.6
   Username: ${chartuser}
   Password: ${chartpassword}
   SetStrValues:
@@ -191,7 +190,7 @@ TestSuitesEnabled:
   HubSuite: false
   WorkerSuite: true
   IstioSuite: false
-  IntraClusterSuite:false
+  IntraClusterSuite: true
 EOF
 
 fi
