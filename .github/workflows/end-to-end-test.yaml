@@ -96,7 +96,6 @@ jobs:
     - name: Get user's e-mail
       id: user_email
       run: |
-         git checkout remotes/origin/${{ github.head_ref }}
          echo "::set-output name=user_email::$(git log -n 1 --pretty=format:%ae)"
 
 #    - name: get email
