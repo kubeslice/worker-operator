@@ -48,7 +48,7 @@ func (r *Reconciler) ReconcileServiceEntries(ctx context.Context, serviceexport 
 		seFound := serviceEntryExists(entries, endpoint)
 		if seFound == nil {
 			log.Info("serviceentry resource not found; creating", "serviceexport", serviceexport)
-			se := createServiceEntryForEndpoint(serviceexport, &endpoint)
+			se := r.createServiceEntryForEndpoint(serviceexport, &endpoint)
 			err := r.Create(ctx, se)
 			if err != nil {
 				log.Error(err, "Failed to create serviceentry for", "endpoint", endpoint)
@@ -111,7 +111,7 @@ func getServiceEntries(ctx context.Context, r client.Reader, serviceexport *kube
 }
 
 // Create serviceEntry based on serviceExport endpoint spec
-func createServiceEntryForEndpoint(serviceexport *kubeslicev1beta1.ServiceExport, endpoint *kubeslicev1beta1.ServicePod) *istiov1beta1.ServiceEntry {
+func  (r *Reconciler )createServiceEntryForEndpoint(serviceexport *kubeslicev1beta1.ServiceExport, endpoint *kubeslicev1beta1.ServicePod) *istiov1beta1.ServiceEntry {
 	ports := []*networkingv1beta1.Port{}
 
 	for _, p := range serviceexport.Spec.Ports {
@@ -150,7 +150,6 @@ func createServiceEntryForEndpoint(serviceexport *kubeslicev1beta1.ServiceExport
 			}},
 		},
 	}
-
 	return se
 }
 

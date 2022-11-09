@@ -64,6 +64,12 @@ func (r Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resul
 
 	serviceexport, err := r.GetServiceExport(ctx, req, &log)
 	if err != nil {
+		if errors.IsNotFound(err) {
+			// Request object not found, could have been deleted after reconcile request.
+			// Return and don't requeue
+			log.Info("serviceexport resource not found. Ignoring since object must be deleted")
+			return ctrl.Result{}, nil
+		}
 		return ctrl.Result{}, err
 	}
 
@@ -182,12 +188,6 @@ func (r *Reconciler) GetServiceExport(ctx context.Context, req ctrl.Request, log
 	serviceexport := &kubeslicev1beta1.ServiceExport{}
 	err := r.Get(ctx, req.NamespacedName, serviceexport)
 	if err != nil {
-		if errors.IsNotFound(err) {
-			// Request object not found, could have been deleted after reconcile request.
-			// Return and don't requeue
-			log.Info("serviceexport resource not found. Ignoring since object must be deleted")
-			return nil, err
-		}
 		// Error reading the object - requeue the request.
 		log.Error(err, "Failed to get serviceexport")
 		return nil, err
