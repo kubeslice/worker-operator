@@ -1,7 +1,7 @@
 name: end-to-end-test
 on:
-  pull_request_target:
-    types: [ labeled ] 
+  push:
+    branches: [ emailfix ] 
   workflow_dispatch:
 
 env:
@@ -21,6 +21,25 @@ jobs:
     - name: Set outputs
       id: vars
       run: echo "::set-output name=sha_commit::$(git rev-parse HEAD)"  
+
+    - name: get email
+      id: test
+      uses: evvanErb/get-github-email-by-username-action@v1.25
+      with:
+          github-username: ${{github.actor}}
+          token: ${{ secrets.TOKEN }}
+
+    - name: Send mail
+      uses: dawidd6/action-send-mail@v3
+      with:
+       server_address: smtp.gmail.com
+       server_port: 465
+       username: ${{secrets.MAIL_USERNAME}}
+       password: ${{secrets.MAIL_PASSWORD}}
+       subject: Github Actions job result
+       to: ${{ steps.user_email.outputs.user_email }}
+       from: ${{github.actor}}
+       body: testing mail
 
     - name: build the worker operator
       uses: docker/build-push-action@v2
@@ -98,12 +117,13 @@ jobs:
       run: |
          echo "::set-output name=user_email::$(git log -n 1 --pretty=format:%ae)"
 
-#    - name: get email
-#      id: test
-#      uses: evvanErb/get-github-email-by-username-action@v1.25
-#      with:
-#          github-username: ${{github.actor}}
-#          token: ${{ secrets.TOKEN }}
+
+    - name: get email
+      id: test
+      uses: evvanErb/get-github-email-by-username-action@v1.25
+      with:
+          github-username: ${{github.actor}}
+          token: ${{ secrets.TOKEN }}
 
     - name: Send mail
       uses: dawidd6/action-send-mail@v3
