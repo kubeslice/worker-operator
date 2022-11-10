@@ -1074,6 +1074,25 @@ func (r *SliceGwReconciler) findAndRemovePodFromNode(ctx context.Context) error 
 	return nil
 
 }
+
+//This method deletes gw pods with label kubeslice.io/pod-type=toBeDeleted, this label is added to the pods during rebalancing
+func (r *SliceGwReconciler) deleteOlderGWPods(ctx context.Context, slicegw *kubeslicev1beta1.SliceGateway) error {
+	log := r.Log
+	typeToBeDeleted := corev1.Pod{}
+	labels := map[string]string{controllers.PodTypeSelectorLabelKey: "toBeDeleted"}
+	delOpts := []client.DeleteAllOfOption{
+		client.InNamespace(slicegw.Namespace),
+		client.MatchingLabels(labels),
+		client.MatchingFields{"status.phase": "Running"},
+		client.GracePeriodSeconds(5),
+	}
+	err := r.Client.DeleteAllOf(ctx, &typeToBeDeleted, delOpts...)
+	if err != nil {
+		log.Error(err, "unable to delete old gw pods")
+		return err
+	}
+	return nil
+}
 func getNewestPod(c client.Client) (*corev1.Pod, error) {
 	PodList := corev1.PodList{}
 	labels := map[string]string{controllers.PodTypeSelectorLabelKey: "slicegateway"}

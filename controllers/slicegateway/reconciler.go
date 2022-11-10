@@ -273,6 +273,11 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 			log.Error(err, "Unable to rebalace gw pods")
 			return ctrl.Result{}, err
 		}
+		err = r.deleteOlderGWPods(ctx, sliceGw)
+		if err != nil {
+			log.Error(err, "Unable to delete older gw pods")
+			return ctrl.Result{}, err
+		}
 	}
 	return ctrl.Result{}, nil
 }
