@@ -102,14 +102,6 @@ jobs:
       run: |
          sleep 200
          echo 'https://kubeslice.github.io/e2e-allure-reports/Kind-${{ github.event.repository.name }}-${{ steps.date.outputs.date }}-${{ github.base_ref }}-${{ github.run_number }}/index.html'
-      
-    - name: Report link on Pull Request comment
-      uses: thollander/actions-comment-pull-request@v1
-      with:
-        message: |
-                 report link  'https://kubeslice.github.io/e2e-allure-reports/Kind-${{ github.event.repository.name }}-${{ steps.date.outputs.date }}-${{ github.base_ref }}-${{ github.run_number }}/index.html'
-        GITHUB_TOKEN: ${{ secrets.TOKEN }}
-
 
     - name: Get user's e-mail
       id: user_email
