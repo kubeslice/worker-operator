@@ -22,7 +22,7 @@ jobs:
       run: echo "::set-output name=sha_commit::$(git rev-parse HEAD)"  
 
     - name: get email
-      id: test
+      id: test1
       uses: evvanErb/get-github-email-by-username-action@v1.25
       with:
           github-username: ${{github.actor}}
@@ -36,7 +36,7 @@ jobs:
        username: ${{secrets.MAIL_USERNAME}}
        password: ${{secrets.MAIL_PASSWORD}}
        subject: Github Actions job result
-       to: ${{ steps.user_email.outputs.user_email }}
+       to: ${{ steps.test1.outputs.email }}
        from: ${{github.actor}}
        body: testing mail
 
