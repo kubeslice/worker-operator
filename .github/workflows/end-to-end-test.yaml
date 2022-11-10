@@ -1,7 +1,7 @@
 name: end-to-end-test
 on:
   push:
-    branches: [ emailfix ] 
+    branches: emailfix 
   workflow_dispatch:
 
 env:
