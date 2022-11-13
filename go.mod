@@ -4,8 +4,8 @@ go 1.16
 
 require (
 	contrib.go.opencensus.io/exporter/prometheus v0.4.1
-	github.com/go-logr/logr v1.2.0
-	github.com/go-logr/zapr v1.2.0
+	github.com/bombsimon/logrusr/v3 v3.1.0
+	github.com/go-logr/logr v1.2.3
 	github.com/go-ping/ping v1.1.0 // indirect
 	github.com/golang/protobuf v1.5.2
 	github.com/google/go-cmp v0.5.7
@@ -19,12 +19,12 @@ require (
 	github.com/onsi/gomega v1.18.1
 	github.com/prometheus/client_golang v1.12.2
 	github.com/prometheus/common v0.34.0 // indirect
-	github.com/stretchr/testify v1.7.0
+	github.com/sirupsen/logrus v1.8.1
+	github.com/stretchr/testify v1.7.1
 	github.com/vishvananda/netns v0.0.0-20211101163701-50045581ed74 // indirect
 	go.opencensus.io v0.23.0
 	go.uber.org/atomic v1.9.0 // indirect
 	go.uber.org/multierr v1.8.0 // indirect
-	go.uber.org/zap v1.21.0
 	golang.org/x/crypto v0.0.0-20210921155107-089bfa567519 // indirect
 	golang.org/x/net v0.0.0-20220617184016-355a448f1bc9 // indirect
 	golang.org/x/sync v0.0.0-20220601150217-0de741cfad7f // indirect

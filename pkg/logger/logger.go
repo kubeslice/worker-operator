@@ -21,31 +21,25 @@ package logger
 import (
 	"context"
 	"os"
-	"time"
 
+	"github.com/bombsimon/logrusr/v3"
 	"github.com/go-logr/logr"
-	"github.com/go-logr/zapr"
-	uzap "go.uber.org/zap"
-	"go.uber.org/zap/zapcore"
+	"github.com/sirupsen/logrus"
 )
 
 var (
-	logLevel string
+	logLevel logrus.Level = logrus.InfoLevel
 )
 
-var logLevelSeverity = map[string]zapcore.Level{
-	"DEBUG":   zapcore.DebugLevel,
-	"INFO":    zapcore.InfoLevel,
-	"WARNING": zapcore.WarnLevel,
-	"ERROR":   zapcore.ErrorLevel,
-}
+const (
+	LogLevelEnv = "LOG_LEVEL"
+)
 
 type loggerKey struct{}
 
 func init() {
-	logLevel = os.Getenv("LOG_LEVEL")
-	if logLevel == "" {
-		logLevel = "INFO"
+	if lvl, err := logrus.ParseLevel(os.Getenv(LogLevelEnv)); err == nil {
+		logLevel = lvl
 	}
 }
 
@@ -66,43 +60,17 @@ func FromContext(ctx context.Context) logr.Logger {
 
 // NewLogger Creates a new logr.Logger
 func NewLogger() logr.Logger {
+	logger := logrus.New()
 
-	// info and debug level enabler
-	debugInfoLevel := uzap.LevelEnablerFunc(func(level zapcore.Level) bool {
-		return level >= logLevelSeverity[logLevel] && level < zapcore.ErrorLevel
+	logger.SetFormatter(&logrus.JSONFormatter{
+		FieldMap: logrus.FieldMap{
+			logrus.FieldKeyLevel: "severity",
+			logrus.FieldKeyMsg:   "message",
+			logrus.FieldKeyTime:  "time",
+		},
 	})
 
-	// error and fatal level enabler
-	errorFatalLevel := uzap.LevelEnablerFunc(func(level zapcore.Level) bool {
-		return level >= zapcore.ErrorLevel
-	})
+	logger.SetLevel(logLevel)
 
-	// write syncers
-	stdoutSyncer := zapcore.Lock(os.Stdout)
-	stderrSyncer := zapcore.Lock(os.Stderr)
-
-	configLog := uzap.NewProductionEncoderConfig()
-	configLog.EncodeTime = func(ts time.Time, encoder zapcore.PrimitiveArrayEncoder) {
-		encoder.AppendString(ts.Format(time.RFC3339Nano))
-	}
-
-	// tee core
-	core := zapcore.NewTee(
-		zapcore.NewCore(
-			zapcore.NewJSONEncoder(configLog),
-			stdoutSyncer,
-			debugInfoLevel,
-		),
-		zapcore.NewCore(
-			zapcore.NewJSONEncoder(configLog),
-			stderrSyncer,
-			errorFatalLevel,
-		),
-	)
-
-	// finally construct the logger with the tee core
-	logger := uzap.New(core)
-
-	return zapr.NewLogger(logger)
-
+	return logrusr.New(logger)
 }
