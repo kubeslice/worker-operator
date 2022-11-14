@@ -68,7 +68,7 @@ import (
 
 var (
 	scheme   = runtime.NewScheme()
-	setupLog = ctrl.Log.WithName("setup")
+	setupLog = logger.NewLogger().With("name", "setup")
 )
 
 func init() {
@@ -116,7 +116,7 @@ func main() {
 		})
 	}
 	if err != nil {
-		setupLog.Error(err, "unable to start manager")
+		setupLog.With("error", err).Error("unable to start manager")
 		os.Exit(1)
 	}
 
@@ -125,7 +125,7 @@ func main() {
 		Registry: ctrlmetrics.Registry.(*prometheus.Registry),
 	})
 	if err != nil {
-		setupLog.Error(err, "Error while building exporter ..")
+		setupLog.With("error", err).Error("Error while building exporter ..")
 	} else {
 		view.RegisterExporter(exporter)
 		// It helps you to setup customize reporting period to push gateway
@@ -133,18 +133,18 @@ func main() {
 	}
 	hubClient, err := hub.NewHubClientConfig()
 	if err != nil {
-		setupLog.Error(err, "could not create hub client for slice gateway reconciler")
+		setupLog.With("error", err).Error("could not create hub client for slice gateway reconciler")
 		os.Exit(1)
 	}
 	workerRouterClient, err := router.NewWorkerRouterClientProvider()
 	if err != nil {
-		setupLog.Error(err, "could not create spoke router client for slice gateway reconciler")
+		setupLog.With("error", err).Error("could not create spoke router client for slice gateway reconciler")
 		os.Exit(1)
 	}
 
 	workerNetOPClient, err := netop.NewWorkerNetOpClientProvider()
 	if err != nil {
-		setupLog.Error(err, "could not create spoke netop client for slice gateway reconciler")
+		setupLog.With("error", err).Error("could not create spoke netop client for slice gateway reconciler")
 		os.Exit(1)
 	}
 
@@ -154,7 +154,7 @@ func main() {
 	//check if user has provided NODE_IP as env variable, if not fetch the ExternalIP from gateway nodes
 	nodeIP, err := cluster.GetNodeIP(clientForHubMgr)
 	if err != nil {
-		setupLog.Error(err, "Error Getting nodeIP")
+		setupLog.With("error", err).Error("Error Getting nodeIP")
 		os.Exit(1)
 	}
 	sliceEventRecorder := events.NewEventRecorder(mgr.GetEventRecorderFor("slice-controller"))
@@ -167,14 +167,14 @@ func main() {
 		WorkerRouterClient: workerRouterClient,
 		WorkerNetOpClient:  workerNetOPClient,
 	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "Slice")
+		setupLog.With("error", err).Error("unable to create controller", "controller", "Slice")
 		os.Exit(1)
 	}
 
 	sliceGwEventRecorder := events.NewEventRecorder(mgr.GetEventRecorderFor("sliceGw-controller"))
 	workerGWClient, err := sidecar.NewWorkerGWSidecarClientProvider()
 	if err != nil {
-		setupLog.Error(err, "could not create spoke sidecar gateway client for slice gateway reconciler")
+		setupLog.With("error", err).Error("could not create spoke sidecar gateway client for slice gateway reconciler")
 		os.Exit(1)
 	}
 	if err = (&slicegateway.SliceGwReconciler{
@@ -188,7 +188,7 @@ func main() {
 		EventRecorder:         sliceGwEventRecorder,
 		NodeIP:                nodeIP,
 	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "SliceGw")
+		setupLog.With("error", err).Error("unable to create controller", "controller", "SliceGw")
 		os.Exit(1)
 	}
 
@@ -198,7 +198,7 @@ func main() {
 			Client: mgr.GetClient(),
 			Log:    ctrl.Log.WithName("controllers").WithName("node reconciller"),
 		}).SetupWithManager(mgr); err != nil {
-			setupLog.Error(err, "unable to create controller", "controller", "node")
+			setupLog.With("error", err).Error("unable to create controller", "controller", "node")
 			os.Exit(1)
 		}
 	}
@@ -206,7 +206,7 @@ func main() {
 	//+kubebuilder:scaffold:builder
 	hubClient, err = hub.NewHubClientConfig()
 	if err != nil {
-		setupLog.Error(err, "could not create hub client for serviceexport reconciler")
+		setupLog.With("error", err).Error("could not create hub client for serviceexport reconciler")
 		os.Exit(1)
 	}
 
@@ -218,7 +218,7 @@ func main() {
 		HubClient:     hubClient,
 		EventRecorder: serviceExportEventRecorder,
 	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "ServiceExport")
+		setupLog.With("error", err, "controller", "ServiceExport").Error("unable to create controller")
 		os.Exit(1)
 	}
 
@@ -229,7 +229,7 @@ func main() {
 		Scheme:        mgr.GetScheme(),
 		EventRecorder: serviceImportEventRecorder,
 	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "ServiceImport")
+		setupLog.With("error", err, "controller", "ServiceImport").Error("unable to create controller")
 		os.Exit(1)
 	}
 
@@ -241,7 +241,7 @@ func main() {
 		EventRecorder: namespaceEventRecorder,
 		Hubclient:     hubClient,
 	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "namespace")
+		setupLog.With("error", err, "controller", "namespace").Error("unable to create controller")
 		os.Exit(1)
 	}
 	netpolEventRecorder := events.NewEventRecorder(mgr.GetEventRecorderFor("networkpolicy-controller"))
@@ -251,23 +251,23 @@ func main() {
 		Scheme:        mgr.GetScheme(),
 		EventRecorder: netpolEventRecorder,
 	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "networkpolicy")
+		setupLog.With("error", err, "controller", "networkpolicy").Error("unable to create controller")
 		os.Exit(1)
 	}
 	//+kubebuilder:scaffold:builder
 
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
-		setupLog.Error(err, "unable to set up health check")
+		setupLog.With("error", err).Error("unable to set up health check")
 		os.Exit(1)
 	}
 	if err := mgr.AddReadyzCheck("readyz", healthz.Ping); err != nil {
-		setupLog.Error(err, "unable to set up ready check")
+		setupLog.With("error", err).Error("unable to set up ready check")
 		os.Exit(1)
 	}
 	ctx := ctrl.SetupSignalHandler()
 
 	if err != nil {
-		setupLog.Error(err, "unable to create kube client for hub manager")
+		setupLog.With("error", err).Error("unable to create kube client for hub manager")
 		os.Exit(1)
 	}
 	go func() {
@@ -278,18 +278,18 @@ func main() {
 	//post GeoLocation and other metadata to cluster CR on Hub cluster
 	err = hub.PostClusterInfoToHub(ctx, clientForHubMgr, hubClient, os.Getenv("CLUSTER_NAME"), nodeIP, os.Getenv("HUB_PROJECT_NAMESPACE"))
 	if err != nil {
-		setupLog.Error(err, "could not post Cluster Info to Hub")
+		setupLog.With("error", err).Error("could not post Cluster Info to Hub")
 	}
 
 	//post dashboard creds cluster CR on Hub cluster
 	err = hub.PostDashboardCredsToHub(ctx, clientForHubMgr, hubClient)
 	if err != nil {
-		setupLog.Error(err, "could not post Dasboard Creds to Hub")
+		setupLog.With("error", err).Error("could not post Dasboard Creds to Hub")
 	}
 
 	setupLog.Info("starting manager")
 	if err := mgr.Start(ctx); err != nil {
-		setupLog.Error(err, "problem running manager")
+		setupLog.With("error", err).Error("problem running manager")
 		os.Exit(1)
 	}
 }
