@@ -111,7 +111,7 @@ func getServiceEntries(ctx context.Context, r client.Reader, serviceexport *kube
 }
 
 // Create serviceEntry based on serviceExport endpoint spec
-func  (r *Reconciler )createServiceEntryForEndpoint(serviceexport *kubeslicev1beta1.ServiceExport, endpoint *kubeslicev1beta1.ServicePod) *istiov1beta1.ServiceEntry {
+func (r *Reconciler) createServiceEntryForEndpoint(serviceexport *kubeslicev1beta1.ServiceExport, endpoint *kubeslicev1beta1.ServicePod) *istiov1beta1.ServiceEntry {
 	ports := []*networkingv1beta1.Port{}
 
 	for _, p := range serviceexport.Spec.Ports {

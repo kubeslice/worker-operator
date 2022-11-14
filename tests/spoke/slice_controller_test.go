@@ -37,7 +37,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-var log = logger.NewLogger()
+var log = logger.NewWrappedLogger()
 
 var _ = Describe("SliceController", func() {
 
