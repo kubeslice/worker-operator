@@ -68,14 +68,15 @@ func FromContext(ctx context.Context) logr.Logger {
 }
 
 // Creates a new zap logger, wraps it to logr.Logger using zapr
-// and returns the wrapped logger
+// Required for controller-runtime logging
 func NewWrappedLogger() logr.Logger {
 	logger := NewLogger()
 
 	return zapr.NewLogger(logger.Desugar())
 }
 
-// NewLogger Creates a new SugaredLogger instance with predefined fields
+// NewLogger Creates a new SugaredLogger instance with predefined standard fields
+// SugaredLogger makes it easy to use structured logging with logging levels and additional fields
 func NewLogger() *uzap.SugaredLogger {
 
 	// info and debug level enabler
