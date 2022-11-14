@@ -115,5 +115,5 @@ func NewLogger() *uzap.SugaredLogger {
 	// finally construct the logger with the tee core
 	logger := uzap.New(core).Sugar()
 
-	return logger.With("namespace", ControlPlaneNamespace, "cluster", ClusterName)
+	return logger.With("namespace", ControlPlaneNamespace, "sliceCluster", ClusterName)
 }
