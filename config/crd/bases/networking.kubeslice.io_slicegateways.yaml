@@ -87,9 +87,6 @@ spec:
                   sliceGatewayRemoteGatewayId:
                     description: Remote Gateway ID
                     type: string
-                  sliceGatewayRemoteNodeIp:
-                    description: Remote Node IP
-                    type: string
                   sliceGatewayRemoteNodeIps:
                     description: Remote Node IPs
                     items:
@@ -167,29 +164,8 @@ spec:
                       type: object
                   type: object
                 type: array
-              localIp:
-                description: Deprecated LocalIP is the gateway tunnel ip
-                type: string
-              localIps:
-                description: LocalIPs is the gateway tunnel ip
-                items:
-                  type: string
-                type: array
-              localNsmIp:
-                description: Deprecated LocalNsmIP is the IP on the nsm interface
-                  to Slice Router
-                type: string
-              localNsmIps:
-                description: LocalNsmIPs is the IP on the nsm interface to Slice Router
-                items:
-                  type: string
-                type: array
               peerIp:
                 description: PeerIP is the gateway tunnel peer ip
-                type: string
-              podIp:
-                description: Deprecated PodIP is the Ip of the gateway pod running
-                  in cluster
                 type: string
               podIps:
                 description: PodIPs is the list of Ip of the gateway pods running

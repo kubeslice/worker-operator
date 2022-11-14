@@ -568,16 +568,6 @@ func (in *SliceGatewayStatus) DeepCopyInto(out *SliceGatewayStatus) {
 		*out = make([]string, len(*in))
 		copy(*out, *in)
 	}
-	if in.LocalIPs != nil {
-		in, out := &in.LocalIPs, &out.LocalIPs
-		*out = make([]string, len(*in))
-		copy(*out, *in)
-	}
-	if in.LocalNsmIPs != nil {
-		in, out := &in.LocalNsmIPs, &out.LocalNsmIPs
-		*out = make([]string, len(*in))
-		copy(*out, *in)
-	}
 	if in.GatewayPodStatus != nil {
 		in, out := &in.GatewayPodStatus, &out.GatewayPodStatus
 		*out = make([]*GwPodInfo, len(*in))

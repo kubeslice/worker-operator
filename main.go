@@ -186,7 +186,7 @@ func main() {
 		WorkerRouterClient:    workerRouterClient,
 		WorkerNetOpClient:     workerNetOPClient,
 		EventRecorder:         sliceGwEventRecorder,
-		NodeIP:                nodeIP,
+		NodeIPs:               nodeIP,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.With("error", err).Error("unable to create controller", "controller", "SliceGw")
 		os.Exit(1)

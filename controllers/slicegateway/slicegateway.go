@@ -726,8 +726,6 @@ func (r *SliceGwReconciler) SendConnectionContextToSliceRouter(ctx context.Conte
 		RemoteSliceGwNsmSubnet: slicegateway.Status.Config.SliceGatewayRemoteSubnet,
 		LocalNsmGwPeerIPs:      LocalNsmIPs,
 	}
-
-	log.Info("LocalNsmIps recieved from slicegateway status ", slicegateway.Status.LocalNsmIPs)
 	log.Info("Conn ctx to send to slice router ", connCtx)
 
 	err = r.WorkerRouterClient.SendConnectionContext(ctx, sidecarGrpcAddress, connCtx)
@@ -818,7 +816,7 @@ func (r *SliceGwReconciler) reconcileNodes(ctx context.Context, slicegateway *ku
 		if err != nil {
 			return err
 		}
-		r.NodeIP = nodeIpList
+		r.NodeIPs = nodeIpList
 	}
 	return nil
 }
