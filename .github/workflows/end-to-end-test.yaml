@@ -85,6 +85,7 @@ jobs:
          echo 'https://kubeslice.github.io/e2e-allure-reports/Kind-${{ github.event.repository.name }}-${{ steps.date.outputs.date }}-${{ github.base_ref }}-${{ github.run_number }}/index.html'
       
     - name: Report link on Pull Request comment
+      if: ${{ github.event_name == 'pull_request_target' }}
       uses: thollander/actions-comment-pull-request@v1
       with:
         message: |
