@@ -43,7 +43,7 @@ import (
 var scheme = runtime.NewScheme()
 
 func init() {
-	log.SetLogger(logger.NewLogger())
+	log.SetLogger(logger.NewWrappedLogger())
 	clientgoscheme.AddToScheme(scheme)
 	utilruntime.Must(spokev1alpha1.AddToScheme(scheme))
 	utilruntime.Must(kubeslicev1beta1.AddToScheme(scheme))

@@ -21,7 +21,6 @@ package logger
 import (
 	"context"
 	"os"
-	"time"
 
 	"github.com/go-logr/logr"
 	"github.com/go-logr/zapr"
@@ -31,6 +30,10 @@ import (
 
 var (
 	logLevel string
+	// ControlPlaneNamespace is the namespace where slice operator is running
+	ControlPlaneNamespace = "kubeslice-system"
+	// Name of the cluster
+	ClusterName = os.Getenv("CLUSTER_NAME")
 )
 
 var logLevelSeverity = map[string]zapcore.Level{
@@ -61,11 +64,20 @@ func FromContext(ctx context.Context) logr.Logger {
 		return v
 	}
 
-	return NewLogger()
+	return NewWrappedLogger()
 }
 
-// NewLogger Creates a new logr.Logger
-func NewLogger() logr.Logger {
+// Creates a new zap logger, wraps it to logr.Logger using zapr
+// Required for controller-runtime logging
+func NewWrappedLogger() logr.Logger {
+	logger := NewLogger()
+
+	return zapr.NewLogger(logger.Desugar())
+}
+
+// NewLogger Creates a new SugaredLogger instance with predefined standard fields
+// SugaredLogger makes it easy to use structured logging with logging levels and additional fields
+func NewLogger() *uzap.SugaredLogger {
 
 	// info and debug level enabler
 	debugInfoLevel := uzap.LevelEnablerFunc(func(level zapcore.Level) bool {
@@ -82,9 +94,10 @@ func NewLogger() logr.Logger {
 	stderrSyncer := zapcore.Lock(os.Stderr)
 
 	configLog := uzap.NewProductionEncoderConfig()
-	configLog.EncodeTime = func(ts time.Time, encoder zapcore.PrimitiveArrayEncoder) {
-		encoder.AppendString(ts.Format(time.RFC3339Nano))
-	}
+	configLog.EncodeTime = zapcore.RFC3339TimeEncoder
+	configLog.LevelKey = "severity"
+	configLog.MessageKey = "message"
+	configLog.TimeKey = "time"
 
 	// tee core
 	core := zapcore.NewTee(
@@ -101,8 +114,7 @@ func NewLogger() logr.Logger {
 	)
 
 	// finally construct the logger with the tee core
-	logger := uzap.New(core)
+	logger := uzap.New(core).Sugar()
 
-	return zapr.NewLogger(logger)
-
+	return logger.With("namespace", ControlPlaneNamespace, "sliceCluster", ClusterName)
 }
