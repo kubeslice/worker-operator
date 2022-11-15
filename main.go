@@ -282,10 +282,10 @@ func main() {
 	}
 
 	//post dashboard creds cluster CR on Hub cluster
-	err = hub.PostDashboardCredsToHub(ctx, clientForHubMgr, hubClient)
-	if err != nil {
-		setupLog.With("error", err).Error("could not post Dasboard Creds to Hub")
-	}
+	// err = hub.PostDashboardCredsToHub(ctx, clientForHubMgr, hubClient)
+	// if err != nil {
+	// 	setupLog.With("error", err).Error("could not post Dasboard Creds to Hub")
+	// }
 
 	setupLog.Info("starting manager")
 	if err := mgr.Start(ctx); err != nil {
