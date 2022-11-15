@@ -53,11 +53,12 @@ var _ = Describe("Hub SliceController", func() {
 					},
 				},
 				Spec: workerv1alpha1.WorkerSliceConfigSpec{
-					SliceName:        "test-slice-1",
-					SliceType:        "Application",
-					SliceSubnet:      "10.0.0.1/16",
-					SliceIpamType:    "Local",
-					IpamClusterOctet: ipamOctet,
+					SliceName:         "test-slice-1",
+					SliceType:         "Application",
+					SliceSubnet:       "10.0.0.1/16",
+					SliceIpamType:     "Local",
+					IpamClusterOctet:  ipamOctet,
+					ClusterSubnetCIDR: "10.0.16.0/20",
 				},
 			}
 			createdSlice = &kubeslicev1beta1.Slice{}
