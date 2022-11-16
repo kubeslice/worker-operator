@@ -21,10 +21,12 @@ package hub
 import (
 	"context"
 	"errors"
+	"io/ioutil"
 	"os"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 
+	authv1 "k8s.io/api/authentication/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -44,9 +46,10 @@ import (
 )
 
 const (
-	GCP   string = "gcp"
-	AWS   string = "aws"
-	AZURE string = "azure"
+	GCP     string = "gcp"
+	AWS     string = "aws"
+	AZURE   string = "azure"
+	CA_FILE        = "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
 )
 
 var scheme = runtime.NewScheme()
@@ -143,25 +146,33 @@ func PostClusterInfoToHub(ctx context.Context, spokeclient client.Client, hubCli
 }
 
 func PostDashboardCredsToHub(ctx context.Context, spokeclient, hubClient client.Client) error {
-	sa := &corev1.ServiceAccount{
+	tokenReq := &authv1.TokenRequest{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      KubeSliceDashboardSA,
 			Namespace: controllers.ControlPlaneNamespace,
 		},
+		Spec: authv1.TokenRequestSpec{
+			// TODO: check if we need to add any parameters here
+		},
 	}
-	if err := spokeclient.Get(ctx, types.NamespacedName{Name: sa.Name, Namespace: controllers.ControlPlaneNamespace}, sa); err != nil {
-		log.Error(err, "Error getting service account")
+
+	if err := spokeclient.Create(ctx, tokenReq); err != nil {
+		log.Error(err, "Error getting service account token")
 		return err
 	}
 
-	secret := &corev1.Secret{}
-	err := spokeclient.Get(ctx, types.NamespacedName{Name: sa.Secrets[0].Name, Namespace: controllers.ControlPlaneNamespace}, secret)
+	ca, err := ioutil.ReadFile(CA_FILE)
 	if err != nil {
-		log.Error(err, "Error getting service account's secret")
+		log.Error(err, "Error getting ca cert")
 		return err
 	}
+	if tokenReq.Status.Token == "" {
+		log.Error(err, "Token not generated for dashboard")
+		return errors.New("Token not generated")
+	}
+
 	// post dashboard creds to cluster CR
-	err = PostCredsToHub(ctx, spokeclient, hubClient, secret)
+	err = PostCredsToHub(ctx, hubClient, []byte(tokenReq.Status.Token), ca)
 	if err != nil {
 		log.Error(err, "could not post Cluster Creds to Hub")
 		return err
@@ -170,32 +181,20 @@ func PostDashboardCredsToHub(ctx context.Context, spokeclient, hubClient client.
 	return nil
 }
 
-func PostCredsToHub(ctx context.Context, spokeclient client.Client, hubClient client.Client, secret *corev1.Secret) error {
+func PostCredsToHub(ctx context.Context, hubClient client.Client, token, ca []byte) error {
 	secretName := os.Getenv("CLUSTER_NAME") + HubSecretSuffix
-	err := createorUpdateClusterSecretOnHub(ctx, secretName, secret, hubClient)
+	err := createorUpdateClusterSecretOnHub(ctx, secretName, hubClient, token, ca)
 	if err != nil {
 		log.Error(err, "Error creating secret on hub cluster")
 		return err
 	}
-	return updateClusterCredsToHub(ctx, spokeclient, hubClient, secretName)
-
+	return updateClusterCredsToHub(ctx, hubClient, secretName)
 }
 
-func createorUpdateClusterSecretOnHub(ctx context.Context, secretName string, secret *corev1.Secret, hubClient client.Client) error {
-	if secret.Data == nil {
-		return errors.New("dashboard secret data is nil")
-	}
-	token, ok := secret.Data["token"]
-	if !ok {
-		return errors.New("token not present in dashboard secret")
-	}
-	cacrt, ok := secret.Data["ca.crt"]
-	if !ok {
-		return errors.New("ca.crt not present in dashboard secret")
-	}
+func createorUpdateClusterSecretOnHub(ctx context.Context, secretName string, hubClient client.Client, token, cacert []byte) error {
 	secretData := map[string][]byte{
 		"token":  token,
-		"ca.crt": cacrt,
+		"ca.crt": cacert,
 	}
 	hubSecret := corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
@@ -212,7 +211,7 @@ func createorUpdateClusterSecretOnHub(ctx context.Context, secretName string, se
 	return err
 }
 
-func updateClusterCredsToHub(ctx context.Context, spokeclient client.Client, hubClient client.Client, secretName string) error {
+func updateClusterCredsToHub(ctx context.Context, hubClient client.Client, secretName string) error {
 	hubCluster := &hubv1alpha1.Cluster{}
 	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		err := hubClient.Get(ctx, types.NamespacedName{
