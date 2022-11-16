@@ -6,20 +6,20 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.7.0
   creationTimestamp: null
-  name: slice.networking.kubeslice.io
+  name: slices.networking.kubeslice.io
 spec:
   group: networking.kubeslice.io
   names:
     kind: Slice
     listKind: SliceList
-    plural: slice
+    plural: slices
     singular: slice
   scope: Namespaced
   versions:
   - name: v1beta1
     schema:
       openAPIV3Schema:
-        description: Slice is the Schema for the slice API
+        description: Slice is the Schema for the slices API
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation
