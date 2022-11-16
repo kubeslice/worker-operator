@@ -1,5 +1,6 @@
 #!/bin/bash
 
+# Install kubectx and kubens
 echo Installing kubectx and kubens
 git clone https://github.com/ahmetb/kubectx /opt/kubectx
 ln -s /opt/kubectx/kubectx /usr/local/bin/kubectx
