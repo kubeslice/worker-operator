@@ -101,12 +101,12 @@ func (c *Cluster) GetNsmExcludedPrefix(ctx context.Context, configmap, namespace
 	}
 
 	var cmData map[string]interface{}
-	err = yaml.Unmarshal([]byte(nsmconfig.Data["excluded_prefixes.yaml"]), &cmData)
+	err = yaml.Unmarshal([]byte(nsmconfig.Data["excluded_prefixes_output.yaml"]), &cmData)
 	if err != nil {
 		return nil, fmt.Errorf("yaml unmarshalling error: %+v ", err)
 	}
 
-	if value, ok := cmData["prefixes"]; ok {
+	if value, ok := cmData["Prefixes"]; ok {
 		prefixes := make([]string, len(value.([]interface{})))
 		for i, v := range value.([]interface{}) {
 			prefixes[i] = fmt.Sprint(v)

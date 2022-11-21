@@ -21,6 +21,7 @@ package pod
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 
 	//	"github.com/kubeslice/worker-operator/controllers"
@@ -39,7 +40,8 @@ const (
 	PodInjectLabelKey                         = "kubeslice.io/pod-type"
 	admissionWebhookSliceNamespaceSelectorKey = controllers.ApplicationNamespaceSelectorLabelKey
 	controlPlaneNamespace                     = "kubeslice-system"
-	nsmInjectAnnotaionKey                     = "ns.networkservicemesh.io"
+	nsmInjectAnnotaionKey1                    = "ns.networkservicemesh.io"
+	nsmInjectAnnotaionKey2                    = "networkservicemesh.io"
 )
 
 var (
@@ -102,7 +104,8 @@ func Mutate(pod *corev1.Pod, sliceName string) *corev1.Pod {
 
 	// Add vl3 annotation to pod template
 	annotations := pod.ObjectMeta.Annotations
-	annotations[nsmInjectAnnotaionKey] = "vl3-service-" + sliceName
+	annotations[nsmInjectAnnotaionKey1] = "vl3-service-" + sliceName
+	annotations[nsmInjectAnnotaionKey2] = fmt.Sprintf("kernel://vl3-service-%s/nsm0", sliceName)
 
 	// Add slice identifier labels to pod template
 	labels := pod.ObjectMeta.Labels
