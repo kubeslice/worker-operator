@@ -108,7 +108,7 @@ func main() {
 
 	// Use an environment variable to be able to disable webhooks, so that we can run the operator locally
 	if utils.GetEnvOrDefault("ENABLE_WEBHOOKS", "true") == "true" {
-		mgr.GetWebhookServer().Register("/mutate-corev1-pod", &webhook.Admission{
+		mgr.GetWebhookServer().Register("/mutate-webhook", &webhook.Admission{
 			Handler: &podwh.WebhookServer{
 				Client:          mgr.GetClient(),
 				SliceInfoClient: podwh.NewWebhookClient(),

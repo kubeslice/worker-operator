@@ -814,7 +814,7 @@ var _ = Describe("SliceNetpol", func() {
 				return true
 			}, timeout, interval).Should(BeTrue())
 			//onbaord deploy in iperf namespace
-			Expect(k8sClient.Create(ctx, getDeploy())).Should(Succeed())
+			Expect(k8sClient.Create(ctx, getPod())).Should(Succeed())
 			// update slice status to ofboard namespace
 			err = retry.RetryOnConflict(retry.DefaultRetry, func() error {
 				err := k8sClient.Get(ctx, types.NamespacedName{
@@ -829,15 +829,15 @@ var _ = Describe("SliceNetpol", func() {
 				return err
 			})
 			Expect(err).To(BeNil())
-			//get the deployment and verify if labels and annotations are removed
+			//get the pod and verify if labels and annotations are removed
 			Eventually(func() bool {
-				createdDeploy := appsv1.Deployment{}
-				deployKey := types.NamespacedName{Name: "iperf-sleep", Namespace: "application-iperf-ns"}
-				err := k8sClient.Get(ctx, deployKey, &createdDeploy)
+				createdPod := corev1.Pod{}
+				podKey := types.NamespacedName{Name: "iperf-sleep", Namespace: "application-iperf-ns"}
+				err := k8sClient.Get(ctx, podKey, &createdPod)
 				if err != nil {
 					return false
 				}
-				labels := createdDeploy.Spec.Template.ObjectMeta.Labels
+				labels := createdPod.ObjectMeta.Labels
 				fmt.Println(labels)
 				_, ok := labels["kubeslice.io/pod-type"]
 				if ok {
@@ -847,7 +847,7 @@ var _ = Describe("SliceNetpol", func() {
 				if ok {
 					return false
 				}
-				_, ok = createdDeploy.Spec.Template.ObjectMeta.Annotations["ns.networkservicemesh.io"]
+				_, ok = createdPod.ObjectMeta.Annotations["ns.networkservicemesh.io"]
 				if ok {
 					return false
 				}
@@ -882,6 +882,32 @@ func getNetpol() *networkingv1.NetworkPolicy {
 		},
 	}
 	return netPolicy
+}
+
+func getPod() *corev1.Pod {
+	pod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "iperf-sleep",
+			Namespace: "application-iperf-ns",
+			Labels: map[string]string{
+				"app": "iperf-sleep",
+			},
+			Annotations: map[string]string{
+				"kubeslice.io/status": "injected",
+			},
+		},
+		Spec: corev1.PodSpec{
+			Containers: []corev1.Container{
+				{
+					Name:            "iperf",
+					Image:           "mlabbe/iperf",
+					ImagePullPolicy: "Always",
+					Command:         []string{"/bin/sleep", "3650d"},
+				},
+			},
+		},
+	}
+	return pod
 }
 
 func getDeploy() *appsv1.Deployment {
