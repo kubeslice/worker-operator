@@ -155,7 +155,7 @@ prefixes:
 				return err == nil
 			}, time.Second*10, time.Millisecond*250).Should(BeTrue())
 
-			err := hub.PostCredsToHub(ctx, k8sClient, k8sClient, operatorSecret)
+			err := hub.PostCredsToHub(ctx, k8sClient, operatorSecret.Data["token"], operatorSecret.Data["ca.crt"])
 			Expect(err).To(BeNil())
 
 			//get the secret on controller
