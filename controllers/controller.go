@@ -38,7 +38,7 @@ import (
 )
 
 var (
-	log                        logr.Logger = logger.NewLogger()
+	log                        logr.Logger = logger.NewWrappedLogger()
 	allowedNamespacesByDefault             = []string{"kubeslice-system", "kube-system", "istio-system"}
 )
 

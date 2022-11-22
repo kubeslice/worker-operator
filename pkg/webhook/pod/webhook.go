@@ -45,7 +45,7 @@ const (
 )
 
 var (
-	log = logger.NewLogger().WithName("Webhook").V(1)
+	log = logger.NewWrappedLogger().WithName("Webhook").V(1)
 )
 
 type SliceInfoProvider interface {

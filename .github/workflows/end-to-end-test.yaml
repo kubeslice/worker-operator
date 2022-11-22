@@ -20,21 +20,15 @@ jobs:
    
     - name: Set outputs
       id: vars
-      run: echo "::set-output name=sha_commit::$(git rev-parse HEAD)"
-      
-    - name: Login to DockerHub
-      uses: docker/login-action@v2
-      with:
-        username: ${{ secrets.IMAGEPULLUSERNAME  }}
-        password: ${{ secrets.IMAGEPULLSECRET }}      
+      run: echo "::set-output name=sha_commit::$(git rev-parse HEAD)"  
 
     - name: build the worker operator
       uses: docker/build-push-action@v2
       with:
-        tags: aveshadev/worker-operator:${{ steps.vars.outputs.sha_commit }}
+        tags: worker-operator:${{ steps.vars.outputs.sha_commit }}
         build-args: |
           PLATFORM=amd64
-        push: true
+        push: false
     
     - name: build kind clusters
       run: |
@@ -93,6 +87,7 @@ jobs:
          echo 'https://kubeslice.github.io/e2e-allure-reports/Kind-${{ github.event.repository.name }}-${{ steps.date.outputs.date }}-${{ github.base_ref }}-${{ github.run_number }}/index.html'
       
     - name: Report link on Pull Request comment
+      if: ${{ github.event_name == 'pull_request_target' }}
       uses: thollander/actions-comment-pull-request@v1
       with:
         message: |

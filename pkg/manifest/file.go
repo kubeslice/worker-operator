@@ -30,7 +30,7 @@ import (
 	"github.com/kubeslice/worker-operator/pkg/logger"
 )
 
-var log = logger.NewLogger()
+var log = logger.NewWrappedLogger()
 
 func GetManifestPath(file string) string {
 	dir := os.Getenv("MANIFEST_PATH")

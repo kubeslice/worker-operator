@@ -56,9 +56,9 @@ type SliceReconciler struct {
 	WorkerNetOpClient  WorkerNetOpClientProvider
 }
 
-//+kubebuilder:rbac:groups=networking.kubeslice.io,resources=slice,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=networking.kubeslice.io,resources=slice/status,verbs=get;update;patch
-//+kubebuilder:rbac:groups=networking.kubeslice.io,resources=slice/finalizers,verbs=update
+//+kubebuilder:rbac:groups=networking.kubeslice.io,resources=slices,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=networking.kubeslice.io,resources=slices/status,verbs=get;update;patch
+//+kubebuilder:rbac:groups=networking.kubeslice.io,resources=slices/finalizers,verbs=update
 //+kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=core,resources=pods,verbs=get;list;watch;update
 //+kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list;watch;create;update;patch;delete
@@ -96,6 +96,28 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 
 	log.Info("reconciling", "slice", slice.Name)
 
+	// label kubeslice-system namespace with kubeslice.io/inject=true label
+	namespace := &corev1.Namespace{}
+	err = r.Get(ctx, types.NamespacedName{Name: "kubeslice-system"}, namespace)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+	// A namespace might not have any labels attached to it. Directly accessing the label map
+	// leads to a crash for such namespaces.
+	// If the label map is nil, create one and use the setter api to attach it to the namespace.
+	nsLabels := namespace.ObjectMeta.GetLabels()
+	if nsLabels == nil {
+		nsLabels = make(map[string]string)
+	}
+	if _, ok := nsLabels[InjectSidecarKey]; !ok {
+		nsLabels[InjectSidecarKey] = "true"
+		namespace.ObjectMeta.SetLabels(nsLabels)
+
+		err = r.Update(ctx, namespace)
+		if err != nil {
+			return ctrl.Result{}, err
+		}
+	}
 	// Examine DeletionTimestamp to determine if object is under deletion
 	// The object is not being deleted, so if it does not have our finalizer,
 	// then lets add the finalizer and update the object. This is equivalent

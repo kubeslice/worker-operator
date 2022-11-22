@@ -20,6 +20,7 @@ package spoke_test
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"reflect"
 	"time"
@@ -33,9 +34,10 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-var log = logger.NewLogger()
+var log = logger.NewWrappedLogger()
 
 var _ = Describe("SliceController", func() {
 
@@ -335,6 +337,62 @@ var _ = Describe("SliceController", func() {
 				return createdSliceRouterSvc.Name == "vl3-slice-router-test-slice"
 			}, time.Second*20, time.Millisecond*250).Should(BeTrue())
 
+		})
+		It("Should label kubeslice-system namespace with inject key", func() {
+			// Create slice
+			Expect(k8sClient.Create(ctx, slice)).Should(Succeed())
+			ns := corev1.Namespace{}
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, types.NamespacedName{Name: CONTROL_PLANE_NS}, &ns)
+				if err != nil {
+					return false
+				}
+				nsLabels := ns.ObjectMeta.GetLabels()
+				return nsLabels["kubeslice.io/inject"] == "true"
+			}, time.Second*20, time.Millisecond*1000).Should(BeTrue())
+		})
+		It("Should remove the label (injection label) from kubeslice-system on last slice deletion", func() {
+			// Create slice
+			Expect(k8sClient.Create(ctx, slice)).Should(Succeed())
+			ns := corev1.Namespace{}
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, types.NamespacedName{Name: CONTROL_PLANE_NS}, &ns)
+				if err != nil {
+					return false
+				}
+				nsLabels := ns.ObjectMeta.GetLabels()
+				return nsLabels["kubeslice.io/inject"] == "true"
+			}, time.Second*20, time.Millisecond*1000).Should(BeTrue())
+			sliceList := kubeslicev1beta1.SliceList{}
+			listOpts := []client.ListOption{
+				client.InNamespace(CONTROL_PLANE_NS),
+			}
+			Expect(k8sClient.List(ctx, &sliceList, listOpts...)).Should(Succeed())
+			fmt.Println("len slices", len(sliceList.Items))
+			if len(sliceList.Items) != 1 {
+				return
+			}
+			Expect(k8sClient.Delete(ctx, slice)).Should(Succeed())
+
+			// expect label to be removed
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, types.NamespacedName{Name: CONTROL_PLANE_NS}, &ns)
+				if err != nil {
+					return false
+				}
+				nsLabels := ns.ObjectMeta.GetLabels()
+				_, ok := nsLabels["kubeslice.io/inject"]
+				return ok
+			}, time.Second*60, time.Millisecond*1000).Should(BeFalse())
+
+			slice = &kubeslicev1beta1.Slice{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-slice",
+					Namespace: "kubeslice-system",
+				},
+				Spec: kubeslicev1beta1.SliceSpec{},
+			}
+			Expect(k8sClient.Create(ctx, slice)).Should(Succeed())
 		})
 
 	})
