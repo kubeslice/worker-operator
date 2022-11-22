@@ -41,10 +41,8 @@ jobs:
       uses: addnab/docker-run-action@v3
       with:
         image: aveshadev/kubeslice-e2e:latest
-        options: -v ${{ github.workspace }}/reports:/e2e/reports -v /home/runner/.kube/:/e2e/assets/kubeconfig/ -v ${{ github.workspace }}/profile:/e2e/profile --network kind
+        options: -v ${{ github.workspace }}/reports:/e2e/reports -v /home/runner/.kube:/e2e/assets/kubeconfig -v ${{ github.workspace }}/profile:/e2e/profile --network kind
         run: |
-          echo printing the profile
-          echo ${{ github.workspace }}/profile
           bash run.sh kind
 
     - name: Checkout gh-pages repo
