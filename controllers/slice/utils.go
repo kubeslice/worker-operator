@@ -20,8 +20,6 @@ package slice
 
 import (
 	"context"
-	"log"
-
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
 	"github.com/kubeslice/worker-operator/controllers"
 	corev1 "k8s.io/api/core/v1"
