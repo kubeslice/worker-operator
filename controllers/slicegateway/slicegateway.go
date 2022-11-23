@@ -1000,9 +1000,6 @@ func (r *SliceGwReconciler) isRebalancingRequired(ctx context.Context, sliceGw *
 
 	//get the minimum number of pods that have to be associated with a node
 	nodeCount := len(cluster.GetNodeExternalIpList())
-	if nodeCount == 1 {
-		return false, nil
-	}
 	replicas := foundDep.Status.ReadyReplicas
 	MinNumberOfPodsReq := replicas / int32(nodeCount)
 
