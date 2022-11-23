@@ -654,7 +654,7 @@ func (r *SliceReconciler) installSliceNetworkPolicyInAppNs(ctx context.Context, 
 	return nil
 }
 
-func (r *SliceReconciler) cleanupSliceNamespaces(ctx context.Context, slice *kubeslicev1beta1.Slice) {
+func (r *SliceReconciler) cleanupSliceNamespaces(ctx context.Context, slice *kubeslicev1beta1.Slice) error {
 	log := logger.FromContext(ctx).WithValues("type", "appNamespaces")
 
 	// Get the list of existing namespaces that are tagged with the kubeslice label
@@ -665,20 +665,24 @@ func (r *SliceReconciler) cleanupSliceNamespaces(ctx context.Context, slice *kub
 	err := r.List(ctx, existingAppNsList, listOpts...)
 	if err != nil {
 		log.Error(err, "Failed to list namespaces")
+		return err
 	}
 
 	for _, existingAppNsObj := range existingAppNsList.Items {
 		err := r.unbindAppNamespace(ctx, slice, existingAppNsObj.ObjectMeta.Name)
 		if err != nil {
 			log.Error(err, "Failed to unbind namespace from slice", "namespace", existingAppNsObj.ObjectMeta.Name)
+			return err
 		}
 	}
 	// unbind allowed Namespaces
 	for _, namespace := range slice.Status.AllowedNamespaces {
 		if err := r.unbindAllowedNamespace(ctx, namespace, slice.Name); err != nil {
 			log.Error(err, "failed to unbind allowedNamespace", "namespace", namespace)
+			return err
 		}
 	}
+	return nil
 }
 
 func exists(i []string, o string) bool {

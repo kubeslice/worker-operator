@@ -346,7 +346,9 @@ func (r *SliceReconciler) handleSliceDeletion(slice *kubeslicev1beta1.Slice, ctx
 			if err != nil {
 				log.Error(err, "Failed to send slice deletetion event to netop")
 			}
-			r.cleanupSliceResources(ctx, slice)
+			if err := r.cleanupSliceResources(ctx, slice); err != nil {
+				return true, ctrl.Result{}, err
+			}
 			controllerutil.RemoveFinalizer(slice, sliceFinalizer)
 			if err := r.Update(ctx, slice); err != nil {
 				return true, ctrl.Result{}, err
