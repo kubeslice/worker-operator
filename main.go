@@ -57,6 +57,7 @@ import (
 	"github.com/kubeslice/worker-operator/controllers/serviceimport"
 	"github.com/kubeslice/worker-operator/controllers/slice"
 	"github.com/kubeslice/worker-operator/controllers/slicegateway"
+	"github.com/kubeslice/worker-operator/controllers/workerslicegwrecycler"
 	hub "github.com/kubeslice/worker-operator/pkg/hub/hubclient"
 	"github.com/kubeslice/worker-operator/pkg/hub/manager"
 	"github.com/kubeslice/worker-operator/pkg/logger"
@@ -230,6 +231,18 @@ func main() {
 		EventRecorder: serviceImportEventRecorder,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.With("error", err, "controller", "ServiceImport").Error("unable to create controller")
+		os.Exit(1)
+	}
+
+	slicegwRecyclerEventRecorder := events.NewEventRecorder(mgr.GetEventRecorderFor("slicegwRecycler-controller"))
+	if err = (&workerslicegwrecycler.Reconciler{
+		Client:        mgr.GetClient(),
+		Log:           ctrl.Log.WithName("controllers").WithName("workerslicegwrecycler"),
+		Scheme:        mgr.GetScheme(),
+		HubClient:     hubClient,
+		EventRecorder: slicegwRecyclerEventRecorder,
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.With("error", err, "controller", "slicegwRecycler").Error("unable to create controller")
 		os.Exit(1)
 	}
 
