@@ -71,6 +71,12 @@ var _ = Describe("Hub SlicegwController", func() {
 					LocalGatewayConfig: workerv1alpha1.SliceGatewayConfig{
 						ClusterName: CLUSTER_NAME,
 					},
+					RemoteGatewayConfig: workerv1alpha1.SliceGatewayConfig{
+						NodeIps: []string{
+							"10.10.190.2",
+							"10.10.190.3",
+						},
+					},
 				},
 			}
 			hubSecret = &corev1.Secret{
@@ -117,6 +123,25 @@ var _ = Describe("Hub SlicegwController", func() {
 				err := k8sClient.Get(ctx, sliceGwKey, createdSliceGwOnSpoke)
 				return err == nil
 			}, time.Second*20, time.Second*1).Should(BeTrue())
+		})
+		It("Should update the nodeIps field of slice gateway", func() {
+			Expect(k8sClient.Create(ctx, hubSlice)).Should(Succeed())
+			Expect(k8sClient.Create(ctx, hubSliceGw)).Should(Succeed())
+			Expect(k8sClient.Create(ctx, hubSecret)).Should(Succeed())
+			//once hubSlice is created controller will create a slice CR on spoke cluster
+			sliceKey := types.NamespacedName{Name: "test-slice", Namespace: "kubeslice-system"}
+			// Make sure slice is reconciled in spoke cluster
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, sliceKey, createdSlice)
+				return err == nil
+			}, time.Second*20, time.Millisecond*250).Should(BeTrue())
+
+			sliceGwKey := types.NamespacedName{Namespace: CONTROL_PLANE_NS, Name: hubSliceGw.Name}
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, sliceGwKey, createdSliceGwOnSpoke)
+				return err == nil
+			}, time.Second*20, time.Second*1).Should(BeTrue())
+			Expect(createdSliceGwOnSpoke.Status.Config.SliceGatewayRemoteNodeIPs).Should(Equal([]string{"10.10.190.2", "10.10.190.3"}))
 		})
 
 		It("Should Generate Events", func() {

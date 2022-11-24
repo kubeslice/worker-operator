@@ -21,6 +21,7 @@ package slicegateway
 import (
 	"context"
 	_ "errors"
+	"fmt"
 	"os"
 	"strconv"
 	"time"
@@ -985,4 +986,132 @@ func getPodAntiAffinity(slice string) *corev1.PodAntiAffinity {
 			},
 		}},
 	}
+}
+func (r *SliceGwReconciler) isRebalancingRequired(ctx context.Context, sliceGw *kubeslicev1beta1.SliceGateway) (bool, error) {
+	log := r.Log
+	//fetch the slicegateway deployment
+	foundDep := &appsv1.Deployment{}
+	slicegwkey := types.NamespacedName{Name: sliceGw.Name, Namespace: sliceGw.Namespace}
+	err := r.Get(ctx, slicegwkey, foundDep)
+	if err != nil {
+		log.Error(err, "problem getting the deployment")
+		return false, err
+	}
+
+	//get the minimum number of pods that have to be associated with a node
+	nodeCount := len(cluster.GetNodeExternalIpList())
+	replicas := foundDep.Status.ReadyReplicas
+	MinNumberOfPodsReq := replicas / int32(nodeCount)
+
+	//check if rebalancing is required
+	nodeToPodMap := make(map[string]int32)
+	PodList := corev1.PodList{}
+	labels := map[string]string{controllers.PodTypeSelectorLabelKey: "slicegateway"}
+	listOptions := []client.ListOption{
+		client.MatchingLabels(labels),
+	}
+	err = r.Client.List(ctx, &PodList, listOptions...)
+	if err != nil {
+		log.Error(err, "can't fetch pod list:")
+		return false, err
+	}
+
+	if len(PodList.Items) == 0 {
+		log.Error(err, "the pods list is empty")
+		return false, err
+	}
+	nodeList := corev1.NodeList{}
+	nodeLabels := map[string]string{controllers.NodeTypeSelectorLabelKey: "gateway"}
+	listOpts := []client.ListOption{
+		client.MatchingLabels(nodeLabels),
+	}
+	if err := r.List(ctx, &nodeList, listOpts...); err != nil {
+		log.Error(err, "Error getting kubeslice nodeList")
+		return false, err
+	}
+	if len(nodeList.Items) == 0 {
+		// no gateway nodes found
+		return false, fmt.Errorf("no gateway nodes available")
+	}
+	//populate the map with key as node name and the value with the number of pods that particular node holds
+	for _, pod := range PodList.Items {
+		if _, ok := nodeToPodMap[pod.Spec.NodeName]; !ok {
+			nodeToPodMap[pod.Spec.NodeName] = 1
+		} else {
+			nodeToPodMap[pod.Spec.NodeName] += 1
+		}
+	}
+	//update the map with new nodes
+	for _, node := range nodeList.Items {
+		if _, ok := nodeToPodMap[node.Name]; !ok {
+			nodeToPodMap[node.Name] = 0
+		}
+	}
+	validatePodCount := replicas
+	for _, pods := range nodeToPodMap {
+		if (pods < MinNumberOfPodsReq) && (validatePodCount > 0) {
+			return true, nil
+		}
+		validatePodCount -= MinNumberOfPodsReq
+	}
+	return false, nil
+}
+
+func (r *SliceGwReconciler) findAndRemovePodFromNode(ctx context.Context) error {
+	log := r.Log
+	newestPod, err := getNewestPod(r.Client)
+	if err != nil {
+		log.Error(err, "unable to fetch the newest pod")
+		return err
+	}
+	log.Info("removing label from pods", "pod", newestPod)
+	delete(newestPod.Labels, controllers.PodTypeSelectorLabelKey)
+	newestPod.Labels["kubeslice.io/pod-type"] = "toBeDeleted"
+	err = r.Client.Update(ctx, newestPod)
+	if err != nil {
+		return err
+	}
+	return nil
+
+}
+
+//This method deletes gw pods with label kubeslice.io/pod-type=toBeDeleted, this label is added to the pods during rebalancing
+func (r *SliceGwReconciler) deleteOlderGWPods(ctx context.Context, slicegw *kubeslicev1beta1.SliceGateway) error {
+	log := r.Log
+	typeToBeDeleted := corev1.Pod{}
+	labels := map[string]string{controllers.PodTypeSelectorLabelKey: "toBeDeleted"}
+	delOpts := []client.DeleteAllOfOption{
+		client.InNamespace(slicegw.Namespace),
+		client.MatchingLabels(labels),
+		client.MatchingFields{"status.phase": "Running"},
+		client.GracePeriodSeconds(5),
+	}
+	err := r.Client.DeleteAllOf(ctx, &typeToBeDeleted, delOpts...)
+	if err != nil {
+		log.Error(err, "unable to delete old gw pods")
+		return err
+	}
+	return nil
+}
+func getNewestPod(c client.Client) (*corev1.Pod, error) {
+	PodList := corev1.PodList{}
+	labels := map[string]string{controllers.PodTypeSelectorLabelKey: "slicegateway"}
+	listOptions := []client.ListOption{
+		client.MatchingLabels(labels),
+	}
+	ctx := context.Background()
+	err := c.List(ctx, &PodList, listOptions...)
+	if err != nil {
+		return &corev1.Pod{}, err
+	}
+	newestPod := PodList.Items[0]
+	newestPodDuration := time.Since(PodList.Items[0].CreationTimestamp.Time).Seconds()
+	for _, pod := range PodList.Items {
+		duration := time.Since(pod.CreationTimestamp.Time).Seconds()
+		if duration < newestPodDuration {
+			newestPodDuration = duration
+			newestPod = pod
+		}
+	}
+	return &newestPod, nil
 }

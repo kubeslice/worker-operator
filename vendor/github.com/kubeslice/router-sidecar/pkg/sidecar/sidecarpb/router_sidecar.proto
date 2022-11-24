@@ -57,7 +57,7 @@ message EcmpUpdateInfo{
     // Remote slice-gw NSM subnet
     string remoteSliceGwNsmSubnet = 1;
     // Local NSM ip to remove
-    string nsmIPToRemove = 8;
+    string nsmIPToRemove = 2;
 
 }
 // ConnectionInfo - Slice Router client connection information
