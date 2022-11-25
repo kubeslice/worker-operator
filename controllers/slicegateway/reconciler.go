@@ -20,9 +20,11 @@ package slicegateway
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/go-logr/logr"
+	"github.com/kubeslice/worker-operator/pkg/cluster"
 	webhook "github.com/kubeslice/worker-operator/pkg/webhook/pod"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -261,8 +263,121 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		)
 		return ctrl.Result{}, err
 	}
+	if isServer(sliceGw) {
+		toRebalace, err := r.isRebalancingRequired(ctx, sliceGw)
+		if err != nil {
+			log.Error(err, "Unable to rebalace gw pods")
+			return ctrl.Result{}, err
+		}
+		if toRebalace {
+			// start FSM for graceful termination of gateway pods
+			// create workerslicegwrecycler on controller
+			newestPod, err := r.getNewestPod(sliceGw)
+			if err != nil {
+				return ctrl.Result{}, err
+			}
+			// get clientID = clientPodName through inband
+			err = r.HubClient.CreateWorkerSliceGwRecycler(ctx, sliceGw.Name, "client-id", newestPod.Name, sliceGwName, sliceGw.Status.Config.SliceGatewayRemoteGatewayID, sliceGw.Spec.SliceName)
+			if err != nil {
+				return ctrl.Result{}, err
+			}
+		}
+	}
 
 	return ctrl.Result{}, nil
+}
+
+func (r *SliceGwReconciler) getNewestPod(slicegw *kubeslicev1beta1.SliceGateway) (*corev1.Pod, error) {
+	PodList := corev1.PodList{}
+	labels := map[string]string{"kubeslice.io/pod-type": "slicegateway", controllers.ApplicationNamespaceSelectorLabelKey: slicegw.Spec.SliceName}
+	listOptions := []client.ListOption{
+		client.MatchingLabels(labels),
+	}
+	ctx := context.Background()
+	err := r.List(ctx, &PodList, listOptions...)
+	if err != nil {
+		return &corev1.Pod{}, err
+	}
+	newestPod := PodList.Items[0]
+	newestPodDuration := time.Since(PodList.Items[0].CreationTimestamp.Time).Seconds()
+	for _, pod := range PodList.Items {
+		duration := time.Since(pod.CreationTimestamp.Time).Seconds()
+		if duration < newestPodDuration {
+			newestPodDuration = duration
+			newestPod = pod
+		}
+	}
+	return &newestPod, nil
+}
+
+func (r *SliceGwReconciler) isRebalancingRequired(ctx context.Context, sliceGw *kubeslicev1beta1.SliceGateway) (bool, error) {
+	log := r.Log
+	//fetch the slicegateway deployment
+	foundDep := &appsv1.Deployment{}
+	slicegwkey := types.NamespacedName{Name: sliceGw.Name, Namespace: sliceGw.Namespace}
+	err := r.Get(ctx, slicegwkey, foundDep)
+	if err != nil {
+		log.Error(err, "problem getting the deployment")
+		return false, err
+	}
+
+	//get the minimum number of pods that have to be associated with a node
+	nodeCount := len(cluster.GetNodeExternalIpList())
+	replicas := foundDep.Status.ReadyReplicas
+	MinNumberOfPodsReq := replicas / int32(nodeCount)
+
+	//check if rebalancing is required
+	nodeToPodMap := make(map[string]int32)
+	PodList := corev1.PodList{}
+	labels := map[string]string{"kubeslice.io/pod-type": "slicegateway"}
+	listOptions := []client.ListOption{
+		client.MatchingLabels(labels),
+	}
+	err = r.Client.List(ctx, &PodList, listOptions...)
+	if err != nil {
+		log.Error(err, "can't fetch pod list")
+		return false, err
+	}
+
+	if len(PodList.Items) == 0 {
+		log.Error(err, "the pods list is empty")
+		return false, err
+	}
+	nodeList := corev1.NodeList{}
+	nodeLabels := map[string]string{controllers.NodeTypeSelectorLabelKey: "gateway"}
+	listOpts := []client.ListOption{
+		client.MatchingLabels(nodeLabels),
+	}
+	if err := r.List(ctx, &nodeList, listOpts...); err != nil {
+		log.Error(err, "Error getting kubeslice nodeList")
+		return false, err
+	}
+	if len(nodeList.Items) == 0 {
+		// no gateway nodes found
+		return false, fmt.Errorf("no gateway nodes available")
+	}
+	//populate the map with key as node name and the value with the number of pods that particular node holds
+	for _, pod := range PodList.Items {
+		if _, ok := nodeToPodMap[pod.Spec.NodeName]; !ok {
+			nodeToPodMap[pod.Spec.NodeName] = 1
+		} else {
+			nodeToPodMap[pod.Spec.NodeName] += 1
+		}
+	}
+	//update the map with new nodes
+	for _, node := range nodeList.Items {
+		if _, ok := nodeToPodMap[node.Name]; !ok {
+			nodeToPodMap[node.Name] = 0
+		}
+	}
+	validatePodCount := replicas
+	for _, pods := range nodeToPodMap {
+		if (pods < MinNumberOfPodsReq) && (validatePodCount > 0) {
+			return true, nil
+		}
+		validatePodCount -= MinNumberOfPodsReq
+	}
+	return false, nil
 }
 
 func isClient(sliceGw *kubeslicev1beta1.SliceGateway) bool {

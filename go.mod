@@ -10,7 +10,7 @@ require (
 	github.com/golang/protobuf v1.5.2
 	github.com/google/go-cmp v0.5.7
 	github.com/google/uuid v1.3.0 // indirect
-	github.com/kubeslice/apis v0.0.0-20221123104640-1f3c37694504
+	github.com/kubeslice/apis v0.0.0-20221124121623-6568a15ca62b
 	github.com/kubeslice/gateway-sidecar v0.1.4
 	github.com/kubeslice/netops v0.0.0-20220506082959-81fef290c265
 	github.com/kubeslice/router-sidecar v1.1.1
