@@ -36,6 +36,7 @@ import (
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
 	"github.com/kubeslice/worker-operator/pkg/events"
 	"github.com/kubeslice/worker-operator/pkg/hub/controllers"
+	"github.com/kubeslice/worker-operator/pkg/hub/controllers/workerslicegwrecycler"
 	"github.com/kubeslice/worker-operator/pkg/logger"
 	ctrl "sigs.k8s.io/controller-runtime"
 )
@@ -127,6 +128,18 @@ func Start(meshClient client.Client, ctx context.Context) {
 			return object.GetLabels()["worker-cluster"] == ClusterName
 		})).
 		Complete(serviceImportReconciler)
+	if err != nil {
+		log.Error(err, "could not create controller")
+		os.Exit(1)
+	}
+
+	workerslicegwRecyclerReconciler := &workerslicegwrecycler.Reconciler{
+		MeshClient:    meshClient,
+	}
+	err = builder.
+		ControllerManagedBy(mgr).
+		For(&spokev1alpha1.WorkerSliceGwRecycler{}).
+		Complete(workerslicegwRecyclerReconciler)
 	if err != nil {
 		log.Error(err, "could not create controller")
 		os.Exit(1)
