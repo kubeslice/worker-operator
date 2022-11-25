@@ -16,7 +16,7 @@ func LinkSetMTU(link Link, mtu int) error {
 	return ErrNotImplemented
 }
 
-func LinkSetMaster(link Link, master Link) error {
+func LinkSetMaster(link Link, master *Bridge) error {
 	return ErrNotImplemented
 }
 
@@ -72,10 +72,6 @@ func LinkSetXdpFd(link Link, fd int) error {
 	return ErrNotImplemented
 }
 
-func LinkSetXdpFdWithFlags(link Link, fd, flags int) error {
-	return ErrNotImplemented
-}
-
 func LinkSetARPOff(link Link) error {
 	return ErrNotImplemented
 }
@@ -121,14 +117,6 @@ func LinkSetFlood(link Link, mode bool) error {
 }
 
 func LinkSetTxQLen(link Link, qlen int) error {
-	return ErrNotImplemented
-}
-
-func LinkSetGSOMaxSize(link Link, maxSize int) error {
-	return ErrNotImplemented
-}
-
-func LinkSetGROMaxSize(link Link, maxSize int) error {
 	return ErrNotImplemented
 }
 
@@ -188,28 +176,12 @@ func RouteAdd(route *Route) error {
 	return ErrNotImplemented
 }
 
-func RouteAppend(route *Route) error {
-	return ErrNotImplemented
-}
-
 func RouteDel(route *Route) error {
 	return ErrNotImplemented
 }
 
-func RouteGet(destination net.IP) ([]Route, error) {
-	return nil, ErrNotImplemented
-}
-
 func RouteList(link Link, family int) ([]Route, error) {
 	return nil, ErrNotImplemented
-}
-
-func RouteListFiltered(family int, filter *Route, filterMask uint64) ([]Route, error) {
-	return nil, ErrNotImplemented
-}
-
-func RouteReplace(route *Route) error {
-	return ErrNotImplemented
 }
 
 func XfrmPolicyAdd(policy *XfrmPolicy) error {

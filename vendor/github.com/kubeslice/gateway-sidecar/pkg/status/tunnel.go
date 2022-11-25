@@ -190,9 +190,8 @@ func (t *TunnelChecker) startPing(host string) error {
 // onFinishCb is called when ping is finished.
 func (t *TunnelChecker) onFinishCb(stats *ping.Statistics) {
 	if t.tunStatus != nil {
-		t.tunStatus.PacketLoss = uint64(stats.PacketLoss)
 		t.tunStatus.Latency = uint64(stats.AvgRtt / time.Millisecond)
-		t.log.Debugf("Latency :%v\t Packet Loss:%v", t.tunStatus.Latency, t.tunStatus.PacketLoss)
+		t.log.Debugf("Latency :%v", t.tunStatus.Latency)
 		if t.exMod != nil {
 			t.exMod.SendMsg(&tunnelMessage{ty: RestartPinger, msg: nil})
 		}

@@ -77,14 +77,6 @@ func writeReplayEsn(replayWindow int) []byte {
 	return replayEsn.Serialize()
 }
 
-func writeReplay(r *XfrmReplayState) []byte {
-	return (&nl.XfrmReplayState{
-		OSeq:   r.OSeq,
-		Seq:    r.Seq,
-		BitMap: r.BitMap,
-	}).Serialize()
-}
-
 // XfrmStateAdd will add an xfrm state to the system.
 // Equivalent to: `ip xfrm state add $state`
 func XfrmStateAdd(state *XfrmState) error {
@@ -119,7 +111,7 @@ func (h *Handle) xfrmStateAddOrUpdate(state *XfrmState, nlProto int) error {
 
 	// A state with spi 0 can't be deleted so don't allow it to be set
 	if state.Spi == 0 {
-		return fmt.Errorf("Spi must be set when adding xfrm state")
+		return fmt.Errorf("Spi must be set when adding xfrm state.")
 	}
 	req := h.newNetlinkRequest(nlProto, unix.NLM_F_CREATE|unix.NLM_F_EXCL|unix.NLM_F_ACK)
 
@@ -166,34 +158,13 @@ func (h *Handle) xfrmStateAddOrUpdate(state *XfrmState, nlProto int) error {
 		out := nl.NewRtAttr(nl.XFRMA_REPLAY_ESN_VAL, writeReplayEsn(state.ReplayWindow))
 		req.AddData(out)
 	}
-	if state.OutputMark != nil {
-		out := nl.NewRtAttr(nl.XFRMA_SET_MARK, nl.Uint32Attr(state.OutputMark.Value))
-		req.AddData(out)
-		if state.OutputMark.Mask != 0 {
-			out = nl.NewRtAttr(nl.XFRMA_SET_MARK_MASK, nl.Uint32Attr(state.OutputMark.Mask))
-			req.AddData(out)
-		}
-	}
-	if state.OSeqMayWrap || state.DontEncapDSCP {
-		var flags uint32
-		if state.DontEncapDSCP {
-			flags |= nl.XFRM_SA_XFLAG_DONT_ENCAP_DSCP
-		}
-		if state.OSeqMayWrap {
-			flags |= nl.XFRM_SA_XFLAG_OSEQ_MAY_WRAP
-		}
-		out := nl.NewRtAttr(nl.XFRMA_SA_EXTRA_FLAGS, nl.Uint32Attr(flags))
-		req.AddData(out)
-	}
-	if state.Replay != nil {
-		out := nl.NewRtAttr(nl.XFRMA_REPLAY_VAL, writeReplay(state.Replay))
+	if state.OutputMark != 0 {
+		out := nl.NewRtAttr(nl.XFRMA_OUTPUT_MARK, nl.Uint32Attr(uint32(state.OutputMark)))
 		req.AddData(out)
 	}
 
-	if state.Ifid != 0 {
-		ifId := nl.NewRtAttr(nl.XFRMA_IF_ID, nl.Uint32Attr(uint32(state.Ifid)))
-		req.AddData(ifId)
-	}
+	ifId := nl.NewRtAttr(nl.XFRMA_IF_ID, nl.Uint32Attr(uint32(state.Ifid)))
+	req.AddData(ifId)
 
 	_, err := req.Execute(unix.NETLINK_XFRM, 0)
 	return err
@@ -306,10 +277,8 @@ func (h *Handle) xfrmStateGetOrDelete(state *XfrmState, nlProto int) (*XfrmState
 		req.AddData(out)
 	}
 
-	if state.Ifid != 0 {
-		ifId := nl.NewRtAttr(nl.XFRMA_IF_ID, nl.Uint32Attr(uint32(state.Ifid)))
-		req.AddData(ifId)
-	}
+	ifId := nl.NewRtAttr(nl.XFRMA_IF_ID, nl.Uint32Attr(uint32(state.Ifid)))
+	req.AddData(ifId)
 
 	resType := nl.XFRM_MSG_NEWSA
 	if nlProto == nl.XFRM_MSG_DELSA {
@@ -408,37 +377,10 @@ func parseXfrmState(m []byte, family int) (*XfrmState, error) {
 			state.Mark = new(XfrmMark)
 			state.Mark.Value = mark.Value
 			state.Mark.Mask = mark.Mask
-		case nl.XFRMA_SA_EXTRA_FLAGS:
-			flags := native.Uint32(attr.Value)
-			if (flags & nl.XFRM_SA_XFLAG_DONT_ENCAP_DSCP) != 0 {
-				state.DontEncapDSCP = true
-			}
-			if (flags & nl.XFRM_SA_XFLAG_OSEQ_MAY_WRAP) != 0 {
-				state.OSeqMayWrap = true
-			}
-		case nl.XFRMA_SET_MARK:
-			if state.OutputMark == nil {
-				state.OutputMark = new(XfrmMark)
-			}
-			state.OutputMark.Value = native.Uint32(attr.Value)
-		case nl.XFRMA_SET_MARK_MASK:
-			if state.OutputMark == nil {
-				state.OutputMark = new(XfrmMark)
-			}
-			state.OutputMark.Mask = native.Uint32(attr.Value)
-			if state.OutputMark.Mask == 0xffffffff {
-				state.OutputMark.Mask = 0
-			}
+		case nl.XFRMA_OUTPUT_MARK:
+			state.OutputMark = int(native.Uint32(attr.Value))
 		case nl.XFRMA_IF_ID:
 			state.Ifid = int(native.Uint32(attr.Value))
-		case nl.XFRMA_REPLAY_VAL:
-			if state.Replay == nil {
-				state.Replay = new(XfrmReplayState)
-			}
-			replay := nl.DeserializeXfrmReplayState(attr.Value[:])
-			state.Replay.OSeq = replay.OSeq
-			state.Replay.Seq = replay.Seq
-			state.Replay.BitMap = replay.BitMap
 		}
 	}
 
