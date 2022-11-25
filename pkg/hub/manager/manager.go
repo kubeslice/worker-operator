@@ -133,18 +133,16 @@ func Start(meshClient client.Client, ctx context.Context) {
 		os.Exit(1)
 	}
 
-	workerslicegwRecyclerReconciler := &workerslicegwrecycler.Reconciler{
+	if err := (&workerslicegwrecycler.Reconciler{
 		MeshClient:    meshClient,
-	}
-	err = builder.
-		ControllerManagedBy(mgr).
-		For(&spokev1alpha1.WorkerSliceGwRecycler{}).
-		Complete(workerslicegwRecyclerReconciler)
-	if err != nil {
+		Log:           ctrl.Log.WithName("controllers").WithName("workerslicegwrecycler"),
+	 	Scheme:        mgr.GetScheme(),
+		Client: mgr.GetClient(),
+	}).SetupWithManager(mgr);err != nil {
 		log.Error(err, "could not create controller")
 		os.Exit(1)
 	}
-
+	
 	if err := mgr.Start(ctx); err != nil {
 		log.Error(err, "could not start manager")
 		os.Exit(1)
