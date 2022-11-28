@@ -1026,6 +1026,8 @@ func (r *SliceGwReconciler) isRebalancingRequired(ctx context.Context, sliceGw *
 	replicas := foundDep.Status.ReadyReplicas
 	MinNumberOfPodsReq := replicas / int32(nodeCount)
 
+	log.Info("MinNumberOfPodsReq","MinNumberOfPodsReq",MinNumberOfPodsReq)
+
 	//check if rebalancing is required
 	nodeToPodMap := make(map[string]int32)
 	PodList := corev1.PodList{}
