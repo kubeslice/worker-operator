@@ -112,8 +112,8 @@ func (hubClient *HubClientConfig) CreateWorkerSliceGwRecycler(ctx context.Contex
 	return hubClient.Create(ctx, &workerslicegwrecycler)
 }
 
-func (hubClient *HubClientConfig) UpdateWorkerSliceGwRecycler(gwRecyclerName string, state string, clientID string) {
-	
+func (hubClient *HubClientConfig) UpdateWorkerSliceGwRecycler(gwRecyclerName string, state string, clientID string) error {
+	return nil
 }
 
 func (hubClient *HubClientConfig) UpdateNodeIpInCluster(ctx context.Context, clusterName, namespace string, nodeIP []string) error {
