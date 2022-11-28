@@ -22,6 +22,7 @@ import (
 	"context"
 	_ "errors"
 	"fmt"
+	"math"
 	"os"
 	"strconv"
 	"time"
@@ -1024,7 +1025,7 @@ func (r *SliceGwReconciler) isRebalancingRequired(ctx context.Context, sliceGw *
 	//get the minimum number of pods that have to be associated with a node
 	nodeCount := len(cluster.GetNodeExternalIpList())
 	replicas := foundDep.Status.ReadyReplicas
-	MinNumberOfPodsReq := replicas / int32(nodeCount)
+	MinNumberOfPodsReq := math.Ceil(float64(replicas / int32(nodeCount)))
 
 	log.Info("MinNumberOfPodsReq","MinNumberOfPodsReq",MinNumberOfPodsReq)
 
@@ -1075,10 +1076,10 @@ func (r *SliceGwReconciler) isRebalancingRequired(ctx context.Context, sliceGw *
 	validatePodCount := replicas
 	r.Log.Info("nodeToPodMap","nodeToPodMap",nodeToPodMap)
 	for _, pods := range nodeToPodMap {
-		if (pods < MinNumberOfPodsReq) && (validatePodCount > 0) {
+		if (pods < int32(MinNumberOfPodsReq)) && (validatePodCount > 0) {
 			return true, nil
 		}
-		validatePodCount -= MinNumberOfPodsReq
+		validatePodCount -= int32(MinNumberOfPodsReq)
 	}
 	return false, nil
 }

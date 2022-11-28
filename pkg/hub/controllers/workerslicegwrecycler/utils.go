@@ -67,6 +67,7 @@ func (r *Reconciler) spawn_new_gw_pod(e *fsm.Event) error {
 	if isClient {
 		workerslicegwrecycler.Status.Client.Response = "new_gw_spawned"
 		workerslicegwrecycler.Status.Client.RecycledClient = newestPod.Name
+		return r.Status().Update(ctx, workerslicegwrecycler)
 	} else {
 		// progress the FSM to the next state by updating the CR object with the next state: new_gw_spawned
 		workerslicegwrecycler.Spec.GwPair.ClientID = workerslicegwrecycler.Status.Client.RecycledClient
