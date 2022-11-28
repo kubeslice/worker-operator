@@ -38,6 +38,7 @@ import (
 	"github.com/kubeslice/worker-operator/pkg/hub/controllers"
 	"github.com/kubeslice/worker-operator/pkg/logger"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"github.com/kubeslice/worker-operator/pkg/hub/controllers/workerslicegwrecycler"
 )
 
 var scheme = runtime.NewScheme()
@@ -128,6 +129,16 @@ func Start(meshClient client.Client, ctx context.Context) {
 		})).
 		Complete(serviceImportReconciler)
 	if err != nil {
+		log.Error(err, "could not create controller")
+		os.Exit(1)
+	}
+
+	if err := (&workerslicegwrecycler.Reconciler{
+		MeshClient:    meshClient,
+		Log:           ctrl.Log.WithName("controllers").WithName("workerslicegwrecycler"),
+	 	Scheme:        mgr.GetScheme(),
+		Client: mgr.GetClient(),
+	}).SetupWithManager(mgr);err != nil {
 		log.Error(err, "could not create controller")
 		os.Exit(1)
 	}
