@@ -1098,7 +1098,7 @@ func (r *SliceGwReconciler) findAndRemovePodFromNode(ctx context.Context) error 
 
 }
 
-//This method deletes gw pods with label kubeslice.io/pod-type=toBeDeleted, this label is added to the pods during rebalancing
+// This method deletes gw pods with label kubeslice.io/pod-type=toBeDeleted, this label is added to the pods during rebalancing
 func (r *SliceGwReconciler) deleteOlderGWPods(ctx context.Context, slicegw *kubeslicev1beta1.SliceGateway) error {
 	log := r.Log
 	typeToBeDeleted := corev1.Pod{}
