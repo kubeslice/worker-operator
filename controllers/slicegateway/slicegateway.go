@@ -987,6 +987,29 @@ func getPodAntiAffinity(slice string) *corev1.PodAntiAffinity {
 		}},
 	}
 }
+
+func (r *SliceGwReconciler) getNewestPod(slicegw *kubeslicev1beta1.SliceGateway) (*corev1.Pod, error) {
+	PodList := corev1.PodList{}
+	labels := map[string]string{"kubeslice.io/pod-type": "slicegateway", controllers.ApplicationNamespaceSelectorLabelKey: slicegw.Spec.SliceName}
+	listOptions := []client.ListOption{
+		client.MatchingLabels(labels),
+	}
+	ctx := context.Background()
+	err := r.List(ctx, &PodList, listOptions...)
+	if err != nil {
+		return &corev1.Pod{}, err
+	}
+	newestPod := PodList.Items[0]
+	newestPodDuration := time.Since(PodList.Items[0].CreationTimestamp.Time).Seconds()
+	for _, pod := range PodList.Items {
+		duration := time.Since(pod.CreationTimestamp.Time).Seconds()
+		if duration < newestPodDuration {
+			newestPodDuration = duration
+			newestPod = pod
+		}
+	}
+	return &newestPod, nil
+}
 func (r *SliceGwReconciler) isRebalancingRequired(ctx context.Context, sliceGw *kubeslicev1beta1.SliceGateway) (bool, error) {
 	log := r.Log
 	//fetch the slicegateway deployment

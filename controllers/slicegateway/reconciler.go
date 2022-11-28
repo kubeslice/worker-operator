@@ -261,23 +261,26 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		)
 		return ctrl.Result{}, err
 	}
-	toRebalace, err := r.isRebalancingRequired(ctx, sliceGw)
-	if err != nil {
-		log.Error(err, "Unable to rebalace gw pods")
-		return ctrl.Result{}, err
-	}
-	if toRebalace {
-		log.Info("rebalacing gw pods", "rebalance:", toRebalace)
-		err := r.findAndRemovePodFromNode(ctx)
+	if isServer(sliceGw) {
+		toRebalace, err := r.isRebalancingRequired(ctx, sliceGw)
 		if err != nil {
 			log.Error(err, "Unable to rebalace gw pods")
 			return ctrl.Result{}, err
 		}
-		log.Info("deleting older pods after rebalancing")
-		err = r.deleteOlderGWPods(ctx, sliceGw)
-		if err != nil {
-			log.Error(err, "Unable to delete older gw pods")
-			return ctrl.Result{}, err
+		if toRebalace {
+			// start FSM for graceful termination of gateway pods
+			// create workerslicegwrecycler on controller
+			newestPod, err := r.getNewestPod(sliceGw)
+			if err != nil {
+				return ctrl.Result{}, err
+			}
+			// TODO(rahulkumar): get clientID = clientPodName through inband
+			// 1. Call server gw pod to fetch the corresponding client gw pod name
+			
+			err = r.HubClient.CreateWorkerSliceGwRecycler(ctx, sliceGw.Name, "client-id", newestPod.Name, sliceGwName, sliceGw.Status.Config.SliceGatewayRemoteGatewayID, sliceGw.Spec.SliceName)
+			if err != nil {
+				return ctrl.Result{}, err
+			}
 		}
 	}
 	return ctrl.Result{}, nil
