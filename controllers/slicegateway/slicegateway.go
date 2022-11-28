@@ -1071,6 +1071,7 @@ func (r *SliceGwReconciler) isRebalancingRequired(ctx context.Context, sliceGw *
 		}
 	}
 	validatePodCount := replicas
+	r.Log.Info("nodeToPodMap","nodeToPodMap",nodeToPodMap)
 	for _, pods := range nodeToPodMap {
 		if (pods < MinNumberOfPodsReq) && (validatePodCount > 0) {
 			return true, nil
