@@ -93,7 +93,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	} else {
 		switch workerslicegwrecycler.Status.Client.Response {
 		case new_gw_spawned:
-			err := r.FSM.Event(spawn_new_gw_pod)
+			err := r.FSM.Event(spawn_new_gw_pod, workerslicegwrecycler, isClient)
 			if err != nil {
 				return ctrl.Result{}, err
 			}
