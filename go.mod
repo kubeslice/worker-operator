@@ -10,10 +10,11 @@ require (
 	github.com/golang/protobuf v1.5.2
 	github.com/google/go-cmp v0.5.7
 	github.com/google/uuid v1.3.0 // indirect
-	github.com/kubeslice/apis v0.0.0-20220906094117-7c4a10df3387
+	github.com/kubeslice/apis v0.0.0-20221124121623-6568a15ca62b
 	github.com/kubeslice/gateway-sidecar v0.1.5-0.20220929123356-8e982226ed3f
 	github.com/kubeslice/netops v0.0.0-20220506082959-81fef290c265
 	github.com/kubeslice/router-sidecar v1.3.0-alpha // indirect
+	github.com/looplab/fsm v0.3.0 // indirect
 	github.com/networkservicemesh/networkservicemesh/k8s/pkg/apis v0.0.0-20211028170547-e58ac1200f18
 	github.com/onsi/ginkgo/v2 v2.1.3
 	github.com/onsi/gomega v1.18.1

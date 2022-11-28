@@ -71,6 +71,7 @@ type HubClientRpc interface {
 		ep *kubeslicev1beta1.ServicePod) error
 	UpdateAppNamespaces(ctx context.Context, sliceConfigName string, onboardedNamespaces []string) error
 	UpdateNodeIpInCluster(ctx context.Context, clusterName, nodeIP, namespace string) error
+	CreateWorkerSliceGwRecycler(ctx context.Context, gwRecyclerName, clientID, serverID, sliceGwServer, sliceGwClient, slice string) error
 }
 
 func NewHubClientConfig() (*HubClientConfig, error) {
@@ -88,6 +89,31 @@ func NewHubClientConfig() (*HubClientConfig, error) {
 	return &HubClientConfig{
 		Client: hubClient,
 	}, err
+}
+
+func (hubClient *HubClientConfig) CreateWorkerSliceGwRecycler(ctx context.Context, gwRecyclerName, clientID, serverID, sliceGwServer, sliceGwClient, slice string) error {
+	workerslicegwrecycler := spokev1alpha1.WorkerSliceGwRecycler{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      gwRecyclerName,
+			Namespace: ProjectNamespace,
+		},
+		Spec: spokev1alpha1.WorkerSliceGwRecyclerSpec{
+			GwPair: spokev1alpha1.GwPair{
+				ServerID: serverID,
+				ClientID: clientID,
+			},
+			State:         "init",
+			Request:       "spawn_new_gw_pod",
+			SliceGwServer: sliceGwServer,
+			SliceGwClient: sliceGwClient,
+			SliceName:     slice,
+		},
+	}
+	return hubClient.Create(ctx, &workerslicegwrecycler)
+}
+
+func (hubClient *HubClientConfig) UpdateWorkerSliceGwRecycler(gwRecyclerName string, state string, clientID string) {
+	
 }
 
 func (hubClient *HubClientConfig) UpdateNodeIpInCluster(ctx context.Context, clusterName, namespace string, nodeIP []string) error {
