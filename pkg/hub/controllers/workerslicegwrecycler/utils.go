@@ -157,7 +157,7 @@ func (r *Reconciler) delete_old_gw_pods(e *fsm.Event) error {
 	if err != nil {
 		return err
 	}
-	err = r.Delete(ctx, &podList.Items[0])
+	err = r.MeshClient.Delete(ctx, &podList.Items[0])
 	if err != nil {
 		return err
 	}
