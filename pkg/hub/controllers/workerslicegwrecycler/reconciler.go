@@ -126,8 +126,8 @@ func (r *Reconciler) SetupWithManager(mgr ctrl.Manager) error {
 		INIT,
 		fsm.Events{
 			{Name: spawn_new_gw_pod, Src: []string{INIT}, Dst: new_gw_spawned},
-			{Name: update_routing_table, Src: []string{new_gw_spawned}, Dst: slicerouter_updated},
-			{Name: delete_old_gw_pods, Src: []string{slicerouter_updated}, Dst: old_gw_deleted},
+			{Name: update_routing_table, Src: []string{INIT,new_gw_spawned}, Dst: slicerouter_updated},
+			{Name: delete_old_gw_pods, Src: []string{INIT,slicerouter_updated}, Dst: old_gw_deleted},
 		},
 		fsm.Callbacks{
 			"enter_new_gw_spawned":      func(e *fsm.Event) { r.spawn_new_gw_pod(e) },
