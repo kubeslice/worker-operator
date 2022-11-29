@@ -132,7 +132,7 @@ func (r *Reconciler) SetupWithManager(mgr ctrl.Manager) error {
 		fsm.Callbacks{
 			"enter_new_gw_spawned":      func(e *fsm.Event) { r.spawn_new_gw_pod(e) },
 			"enter_slicerouter_updated": func(e *fsm.Event) { r.update_routing_table(e) },
-			"enter_delete_old_gw_pods":  func(e *fsm.Event) { r.delete_old_gw_pods(e) },
+			"enter_old_gw_deleted":  func(e *fsm.Event) { r.delete_old_gw_pods(e) },
 		},
 	)
 	return ctrl.NewControllerManagedBy(mgr).
