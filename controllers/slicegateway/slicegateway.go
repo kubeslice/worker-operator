@@ -20,6 +20,7 @@ package slicegateway
 
 import (
 	"context"
+	"encoding/json"
 	_ "errors"
 	"fmt"
 	"math"
@@ -592,7 +593,9 @@ func (r *SliceGwReconciler) ReconcileGwPodStatus(ctx context.Context, slicegatew
 		}
 		gwPodsInfo[i].LocalNsmIP = status.NsmStatus.LocalIP
 		gwPodsInfo[i].TunnelStatus = kubeslicev1beta1.TunnelStatus(status.TunnelStatus)
-		debugLog.Info("Got gw status", "result", status)
+		s,_ := json.Marshal(status)
+		debugLog.Info("Got gw status", "result", string(s))
+
 		if isGatewayStatusChanged(slicegateway, gwPodsInfo[i]) {
 			toUpdate = true
 			log.Info("identified change in gateway pod status changed")
