@@ -144,6 +144,7 @@ func (r *Reconciler) update_routing_table(e *fsm.Event) error {
 }
 
 func (r *Reconciler) delete_old_gw_pods(e *fsm.Event) error {
+	r.Log.Info("Deleteing Old gw pods")
 	workerslicegwrecycler := e.Args[0].(*spokev1alpha1.WorkerSliceGwRecycler)
 	isClient := e.Args[1].(bool)
 
@@ -157,6 +158,7 @@ func (r *Reconciler) delete_old_gw_pods(e *fsm.Event) error {
 	if err != nil {
 		return err
 	}
+	r.Log.Info("old gw pods to be deleted","podList",podList)
 	err = r.MeshClient.Delete(ctx, &podList.Items[0])
 	if err != nil {
 		return err
