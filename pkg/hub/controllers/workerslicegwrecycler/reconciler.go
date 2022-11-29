@@ -33,11 +33,13 @@ const (
 
 type Reconciler struct {
 	client.Client
-	Log           logr.Logger
-	Scheme        *runtime.Scheme
-	MeshClient    client.Client
-	EventRecorder *events.EventRecorder
-	FSM           *fsm.FSM
+	Log                   logr.Logger
+	Scheme                *runtime.Scheme
+	MeshClient            client.Client
+	WorkerGWSidecarClient WorkerGWSidecarClientProvider
+	WorkerRouterClient    WorkerRouterClientProvider
+	EventRecorder         *events.EventRecorder
+	FSM                   *fsm.FSM
 }
 
 func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
@@ -80,7 +82,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 				return ctrl.Result{}, err
 			}
 		case update_routing_table:
-			err := r.FSM.Event(update_routing_table)
+			err := r.FSM.Event(update_routing_table, workerslicegwrecycler, isClient, slicegw)
 			if err != nil {
 				return ctrl.Result{}, err
 			}
@@ -98,7 +100,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 				return ctrl.Result{}, err
 			}
 		case slicerouter_updated:
-			err := r.FSM.Event(update_routing_table)
+			err := r.FSM.Event(update_routing_table, workerslicegwrecycler, isClient, slicegw)
 			if err != nil {
 				return ctrl.Result{}, err
 			}

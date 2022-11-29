@@ -35,10 +35,12 @@ import (
 	spokev1alpha1 "github.com/kubeslice/apis/pkg/worker/v1alpha1"
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
 	"github.com/kubeslice/worker-operator/pkg/events"
+	sidecar "github.com/kubeslice/worker-operator/pkg/gwsidecar"
 	"github.com/kubeslice/worker-operator/pkg/hub/controllers"
-	"github.com/kubeslice/worker-operator/pkg/logger"
-	ctrl "sigs.k8s.io/controller-runtime"
 	"github.com/kubeslice/worker-operator/pkg/hub/controllers/workerslicegwrecycler"
+	"github.com/kubeslice/worker-operator/pkg/logger"
+	"github.com/kubeslice/worker-operator/pkg/router"
+	ctrl "sigs.k8s.io/controller-runtime"
 )
 
 var scheme = runtime.NewScheme()
@@ -133,12 +135,24 @@ func Start(meshClient client.Client, ctx context.Context) {
 		os.Exit(1)
 	}
 
+	workerGWClient, err := sidecar.NewWorkerGWSidecarClientProvider()
+	if err != nil {
+		log.Error(err, "could not create spoke sidecar gateway client for slice gateway reconciler")
+		os.Exit(1)
+	}
+	workerRouterClient, err := router.NewWorkerRouterClientProvider()
+	if err != nil {
+		log.Error(err, "could not create spoke router client for slice gateway reconciler")
+		os.Exit(1)
+	}
 	if err := (&workerslicegwrecycler.Reconciler{
-		MeshClient:    meshClient,
-		Log:           ctrl.Log.WithName("controllers").WithName("workerslicegwrecycler"),
-	 	Scheme:        mgr.GetScheme(),
-		Client: mgr.GetClient(),
-	}).SetupWithManager(mgr);err != nil {
+		MeshClient:            meshClient,
+		Log:                   ctrl.Log.WithName("controllers").WithName("workerslicegwrecycler"),
+		Scheme:                mgr.GetScheme(),
+		Client:                mgr.GetClient(),
+		WorkerGWSidecarClient: workerGWClient,
+		WorkerRouterClient:    workerRouterClient,
+	}).SetupWithManager(mgr); err != nil {
 		log.Error(err, "could not create controller")
 		os.Exit(1)
 	}

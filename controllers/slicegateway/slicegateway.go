@@ -20,7 +20,6 @@ package slicegateway
 
 import (
 	"context"
-	"encoding/json"
 	_ "errors"
 	"fmt"
 	"math"
@@ -593,9 +592,7 @@ func (r *SliceGwReconciler) ReconcileGwPodStatus(ctx context.Context, slicegatew
 		}
 		gwPodsInfo[i].LocalNsmIP = status.NsmStatus.LocalIP
 		gwPodsInfo[i].TunnelStatus = kubeslicev1beta1.TunnelStatus(status.TunnelStatus)
-		s,_ := json.Marshal(status)
-		debugLog.Info("Got gw status", "result", string(s))
-
+		debugLog.Info("Got gw status", "result", status)
 		if isGatewayStatusChanged(slicegateway, gwPodsInfo[i]) {
 			toUpdate = true
 			log.Info("identified change in gateway pod status changed")
@@ -1030,7 +1027,7 @@ func (r *SliceGwReconciler) isRebalancingRequired(ctx context.Context, sliceGw *
 	replicas := foundDep.Status.ReadyReplicas
 	MinNumberOfPodsReq := math.Ceil(float64(replicas / int32(nodeCount)))
 
-	log.Info("MinNumberOfPodsReq","MinNumberOfPodsReq",MinNumberOfPodsReq)
+	log.Info("MinNumberOfPodsReq", "MinNumberOfPodsReq", MinNumberOfPodsReq)
 
 	//check if rebalancing is required
 	nodeToPodMap := make(map[string]int32)
@@ -1077,7 +1074,7 @@ func (r *SliceGwReconciler) isRebalancingRequired(ctx context.Context, sliceGw *
 		}
 	}
 	validatePodCount := replicas
-	r.Log.Info("nodeToPodMap","nodeToPodMap",nodeToPodMap)
+	r.Log.Info("nodeToPodMap", "nodeToPodMap", nodeToPodMap)
 	for _, pods := range nodeToPodMap {
 		if (pods < int32(MinNumberOfPodsReq)) && (validatePodCount > 0) {
 			return true, nil
