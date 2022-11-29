@@ -143,4 +143,28 @@ func (r *Reconciler) update_routing_table(e *fsm.Event) error {
 	return r.Update(ctx, workerslicegwrecycler)
 }
 
-func (r *Reconciler) delete_old_gw_pods(e *fsm.Event) {}
+func (r *Reconciler) delete_old_gw_pods(e *fsm.Event) error {
+	workerslicegwrecycler := e.Args[0].(*spokev1alpha1.WorkerSliceGwRecycler)
+	isClient := e.Args[1].(bool)
+
+	podList := corev1.PodList{}
+	labels := map[string]string{"kubeslice.io/pod-type": "toBeDeleted", "kubeslice.io/slice": workerslicegwrecycler.Spec.SliceName}
+	listOptions := []client.ListOption{
+		client.MatchingLabels(labels),
+	}
+	ctx := context.Background()
+	err := r.MeshClient.List(ctx, &podList, listOptions...)
+	if err != nil {
+		return err
+	}
+	err = r.Delete(ctx, &podList.Items[0])
+	if err != nil {
+		return err
+	}
+	if isClient {
+		workerslicegwrecycler.Status.Client.Response = old_gw_deleted
+		return r.Status().Update(ctx, workerslicegwrecycler)
+	}
+	workerslicegwrecycler.Spec.State = old_gw_deleted
+	return r.Update(ctx, workerslicegwrecycler)
+}
