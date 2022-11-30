@@ -104,6 +104,8 @@ message GwPodStatus {
     string nodeIP                         = 1;
     // Gateway Pod IP.
     string gatewayPodIP                   = 2;
+    // Gateway Pod Name.
+    string gatewayPodName                 = 3;
     // The Tunnel Interface Status.
     TunnelInterfaceStatus tunnelStatus    = 4;
     // NSM Interface Status
