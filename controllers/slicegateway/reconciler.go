@@ -276,8 +276,11 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 			}
 			// TODO(rahulkumar): get clientID = clientPodName through inband
 			// 1. Call server gw pod to fetch the corresponding client gw pod name
-
-			err = r.HubClient.CreateWorkerSliceGwRecycler(ctx, sliceGw.Name, "blue-avesha-worker-2-avesha-worker-1-74fc4d7cdc-6qm8g", newestPod.Name, sliceGwName, sliceGw.Status.Config.SliceGatewayRemoteGatewayID, sliceGw.Spec.SliceName)
+			clientID, err := r.getRemoteGwPodName(ctx, *newestPod)
+			if err != nil {
+				return ctrl.Result{}, err
+			}
+			err = r.HubClient.CreateWorkerSliceGwRecycler(ctx, sliceGw.Name, clientID, newestPod.Name, sliceGwName, sliceGw.Status.Config.SliceGatewayRemoteGatewayID, sliceGw.Spec.SliceName)
 			if err != nil {
 				return ctrl.Result{}, err
 			}

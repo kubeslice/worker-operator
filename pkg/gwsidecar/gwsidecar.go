@@ -28,6 +28,9 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 )
 
+type PodStatus struct {
+	PodName string
+}
 type NsmStatus struct {
 	IntfName string
 	LocalIP  string
@@ -45,6 +48,7 @@ type TunnelStatus struct {
 type GwStatus struct {
 	NsmStatus
 	TunnelStatus
+	PodStatus
 }
 
 type GwConnectionContext struct {
@@ -75,6 +79,11 @@ func (worker gwSidecarClient) GetStatus(ctx context.Context, serverAddr string) 
 
 	gwStatus := &GwStatus{}
 
+	if res.GatewayPodName != "" {
+		gwStatus.PodStatus = PodStatus{
+			PodName: res.GatewayPodName,
+		}
+	}
 	if res.NsmIntfStatus != nil {
 		gwStatus.NsmStatus = NsmStatus{
 			IntfName: res.NsmIntfStatus.NsmInterfaceName,

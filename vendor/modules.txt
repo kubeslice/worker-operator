@@ -60,7 +60,7 @@ github.com/golang/protobuf/ptypes/any
 github.com/golang/protobuf/ptypes/duration
 github.com/golang/protobuf/ptypes/empty
 github.com/golang/protobuf/ptypes/timestamp
-# github.com/google/go-cmp v0.5.7
+# github.com/google/go-cmp v0.5.8
 ## explicit
 github.com/google/go-cmp/cmp
 github.com/google/go-cmp/cmp/internal/diff
@@ -87,7 +87,7 @@ github.com/json-iterator/go
 ## explicit
 github.com/kubeslice/apis/pkg/controller/v1alpha1
 github.com/kubeslice/apis/pkg/worker/v1alpha1
-# github.com/kubeslice/gateway-sidecar v0.1.5-0.20220929123356-8e982226ed3f
+# github.com/kubeslice/gateway-sidecar v0.1.5-0.20221130050706-1fd91a813067
 ## explicit
 github.com/kubeslice/gateway-sidecar/pkg/cmd
 github.com/kubeslice/gateway-sidecar/pkg/exec
@@ -165,9 +165,9 @@ github.com/prometheus/statsd_exporter/pkg/mapper
 github.com/prometheus/statsd_exporter/pkg/mapper/fsm
 # github.com/spf13/pflag v1.0.5
 github.com/spf13/pflag
-# github.com/stretchr/objx v0.2.0
+# github.com/stretchr/objx v0.4.0
 github.com/stretchr/objx
-# github.com/stretchr/testify v1.7.0
+# github.com/stretchr/testify v1.8.0
 ## explicit
 github.com/stretchr/testify/assert
 github.com/stretchr/testify/mock
@@ -212,8 +212,7 @@ go.uber.org/zap/zapcore
 ## explicit
 golang.org/x/crypto/pkcs12
 golang.org/x/crypto/pkcs12/internal/rc2
-# golang.org/x/net v0.0.0-20220617184016-355a448f1bc9
-## explicit
+# golang.org/x/net v0.0.0-20220722155237-a158d28d115b
 golang.org/x/net/bpf
 golang.org/x/net/context
 golang.org/x/net/context/ctxhttp
@@ -272,8 +271,6 @@ golang.org/x/text/unicode/bidi
 golang.org/x/text/unicode/norm
 # golang.org/x/time v0.0.0-20210723032227-1f47c861a9ac
 golang.org/x/time/rate
-# golang.org/x/xerrors v0.0.0-20220609144429-65e65417b02f
-## explicit
 # gomodules.xyz/jsonpatch/v2 v2.2.0
 gomodules.xyz/jsonpatch/v2
 # google.golang.org/appengine v1.6.7
@@ -380,7 +377,7 @@ gopkg.in/inf.v0
 # gopkg.in/yaml.v2 v2.4.0
 ## explicit
 gopkg.in/yaml.v2
-# gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b
+# gopkg.in/yaml.v3 v3.0.1
 gopkg.in/yaml.v3
 # istio.io/api v0.0.0-20210226184957-53be27d8195b
 ## explicit
