@@ -19,11 +19,14 @@ package sidecar
 
 import (
 	"context"
+	"fmt"
 	"net"
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/vishvananda/netlink"
+	grpc "google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/status"
 )
 
@@ -46,6 +49,37 @@ func checkIfVppIntfPresent() bool {
 		return false
 	}
 	return vppInterface != nil
+}
+
+// GetSliceGwRemotePodName get the remote GwPodName
+func (s *GwSidecar) GetSliceGwRemotePodName(ctx context.Context, remoteGwVpnIP *RemoteGwVpnIP) (*GwPodStatus, error) {
+	if ctx.Err() == context.Canceled {
+		return nil, status.Errorf(codes.Canceled, "Client cancelled, abandoning.")
+	}
+	if remoteGwVpnIP == nil {
+		return nil, status.Errorf(codes.InvalidArgument, "Connection Context is Empty")
+	}
+	if remoteGwVpnIP.GetRemoteGwVpnIP() == "" {
+		return nil, status.Errorf(codes.InvalidArgument, "Invalid Remote Slice Gateway VPN IP")
+	}
+
+	// Call the GRPC client get the RemoteGW PodName
+	address := remoteGwVpnIP.RemoteGwVpnIP + ":5000"
+	fmt.Println("logging the address", address)
+	conn, err := grpc.Dial(address, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		fmt.Println("err:", err.Error())
+		return nil, status.Errorf(codes.InvalidArgument, "Unable to connecto to remote gw pod")
+	}
+	defer conn.Close()
+	client := NewGwSidecarServiceClient(conn)
+	res, err := client.GetStatus(context.Background(), &empty.Empty{})
+	if err != nil {
+		fmt.Println("err:", err.Error())
+		status.Errorf(codes.InvalidArgument, "Unable to get the remote pod status")
+	}
+	log.Info("recieved response from remote cluster", res)
+	return res, nil
 }
 
 // GetStatus get the status of sidecar.

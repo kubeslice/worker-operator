@@ -11,7 +11,7 @@ require (
 	github.com/google/go-cmp v0.5.8
 	github.com/google/uuid v1.3.0 // indirect
 	github.com/kubeslice/apis v0.0.0-20221124121623-6568a15ca62b
-	github.com/kubeslice/gateway-sidecar v0.1.5-0.20221130050706-1fd91a813067
+	github.com/kubeslice/gateway-sidecar v0.1.5-0.20221130124917-de196d219417
 	github.com/kubeslice/netops v0.0.0-20220506082959-81fef290c265
 	github.com/kubeslice/router-sidecar v1.3.0-alpha
 	github.com/looplab/fsm v0.3.0
