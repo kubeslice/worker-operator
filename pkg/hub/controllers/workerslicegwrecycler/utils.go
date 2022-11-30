@@ -159,6 +159,7 @@ func (r *Reconciler) delete_old_gw_pods(e *fsm.Event) error {
 		return err
 	}
 	r.Log.Info("old gw pods to be deleted","podList",podList)
+	//TODO:add rbac in charts to include delete verb
 	err = r.MeshClient.Delete(ctx, &podList.Items[0])
 	if err != nil {
 		return err
@@ -168,5 +169,6 @@ func (r *Reconciler) delete_old_gw_pods(e *fsm.Event) error {
 		return r.Status().Update(ctx, workerslicegwrecycler)
 	}
 	workerslicegwrecycler.Spec.State = old_gw_deleted
+	workerslicegwrecycler.Spec.Request = "end"
 	return r.Update(ctx, workerslicegwrecycler)
 }
