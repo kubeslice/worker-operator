@@ -767,6 +767,7 @@ func (r *SliceGwReconciler) getRemoteGwPodName(ctx context.Context, gwPod corev1
 	r.Log.Info("calling gw sidecar to get PodName", "type", "slicegw")
 	sidecarGrpcAddress := gwPod.Status.PodIP + ":5000"
 	status, err := r.WorkerGWSidecarClient.GetStatus(ctx, sidecarGrpcAddress)
+	r.Log.Info("slicegw remote pod name", "status", status)
 	if err != nil {
 		r.Log.Error(err, "Failed to send conn ctx to netop. PodIp: %v, PodName: %v", gwPod.Status.PodIP, gwPod.Name)
 		return "", err
