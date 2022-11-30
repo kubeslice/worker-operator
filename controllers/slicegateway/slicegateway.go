@@ -552,7 +552,7 @@ func (r *SliceGwReconciler) GetGwPodInfo(ctx context.Context, sliceGw *kubeslice
 		return gwPodList, err
 	}
 	for _, pod := range podList.Items {
-		if pod.Status.Phase == corev1.PodRunning {
+		if pod.Status.Phase == corev1.PodRunning && pod.ObjectMeta.DeletionTimestamp == nil {
 			gwPod := &kubeslicev1beta1.GwPodInfo{PodName: pod.Name, PodIP: pod.Status.PodIP}
 			gwPodList = append(gwPodList, gwPod)
 		}

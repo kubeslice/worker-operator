@@ -54,6 +54,8 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			// Request object not found, could have been deleted after reconcile request.
 			// Return and don't requeue
 			log.Info("workerslicegwrecycler resource not found. Ignoring since object must be deleted")
+			// move FSM to INIT state
+			r.FSM.SetState(INIT)
 			return ctrl.Result{}, nil
 		}
 		// Error reading the object - requeue the request.
