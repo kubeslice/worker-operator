@@ -763,17 +763,16 @@ func (r *SliceGwReconciler) SyncNetOpConnectionContextAndQos(ctx context.Context
 	return nil
 }
 
-func (r *SliceGwReconciler) getRemoteGwPodName(ctx context.Context, gwPod corev1.Pod) (string, error) {
+func (r *SliceGwReconciler) getRemoteGwPodName(ctx context.Context, gwRemoteVpnIP string, gwPod corev1.Pod) (string, error) {
 	r.Log.Info("calling gw sidecar to get PodName", "type", "slicegw")
 	sidecarGrpcAddress := gwPod.Status.PodIP + ":5000"
-	status, err := r.WorkerGWSidecarClient.GetStatus(ctx, sidecarGrpcAddress)
-	r.Log.Info("slicegw remote pod name", "status", status)
+	remoteGwPodName, err := r.WorkerGWSidecarClient.GetSliceGwRemotePodName(ctx, gwRemoteVpnIP, sidecarGrpcAddress)
+	r.Log.Info("slicegw remote pod name", "slicegw", remoteGwPodName)
 	if err != nil {
-		r.Log.Error(err, "Failed to send conn ctx to netop. PodIp: %v, PodName: %v", gwPod.Status.PodIP, gwPod.Name)
+		r.Log.Error(err, "Failed to get slicegw remote pod name. PodIp: %v, PodName: %v", gwPod.Status.PodIP, gwPod.Name)
 		return "", err
 	}
-	podName := status.PodName
-	return podName, nil
+	return remoteGwPodName, nil
 }
 
 func (r *SliceGwReconciler) createHeadlessServiceForGwServer(slicegateway *kubeslicev1beta1.SliceGateway) *corev1.Service {

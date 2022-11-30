@@ -112,6 +112,11 @@ message GwPodStatus {
     NsmInterfaceStatus  nsmIntfStatus     = 5;
 }
 
+// RemoteGwVpnIP represents remote SliceGwPod VPN IP
+message RemoteGwVpnIP {
+    // Remote Slice Gateway VPN IP.
+    string remoteGwVpnIP = 1;
+}
 
 // SliceGwConnectionContext - Slice Gateway Connection Context.
 message SliceGwConnectionContext {
@@ -146,6 +151,8 @@ message SliceGwConnectionContext {
 service GwSidecarService {
     // The Interface to get the Pod status.
     rpc GetStatus(google.protobuf.Empty) returns (GwPodStatus) {}
+    // The Interface to get the Remote Gw Pod Name.
+    rpc GetSliceGwRemotePodName(RemoteGwVpnIP) returns (GwPodStatus) {}
     // The Interface to update the connection context. It also adds the route.
     rpc UpdateConnectionContext(SliceGwConnectionContext) returns (SidecarResponse) {}
     // Update Slice QoS Profile

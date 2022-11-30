@@ -28,9 +28,6 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 )
 
-type PodStatus struct {
-	PodName string
-}
 type NsmStatus struct {
 	IntfName string
 	LocalIP  string
@@ -48,7 +45,6 @@ type TunnelStatus struct {
 type GwStatus struct {
 	NsmStatus
 	TunnelStatus
-	PodStatus
 }
 
 type GwConnectionContext struct {
@@ -61,6 +57,25 @@ type gwSidecarClient struct {
 
 func NewWorkerGWSidecarClientProvider() (*gwSidecarClient, error) {
 	return &gwSidecarClient{}, nil
+}
+
+func (worker gwSidecarClient) GetSliceGwRemotePodName(ctx context.Context, gwRemoteVpnIP string, serverAddr string) (string, error) {
+	conn, err := grpc.Dial(serverAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		return "", err
+	}
+	defer conn.Close()
+	client := sidecar.NewGwSidecarServiceClient(conn)
+
+	gwPodIP := &sidecar.RemoteGwVpnIP{
+		RemoteGwVpnIP: gwRemoteVpnIP,
+	}
+
+	res, err := client.GetSliceGwRemotePodName(ctx, gwPodIP)
+	if err != nil {
+		return "", err
+	}
+	return res.GatewayPodName, nil
 }
 
 // GetStatus retrieves sidecar status
@@ -79,11 +94,6 @@ func (worker gwSidecarClient) GetStatus(ctx context.Context, serverAddr string) 
 
 	gwStatus := &GwStatus{}
 
-	if res.GatewayPodName != "" {
-		gwStatus.PodStatus = PodStatus{
-			PodName: res.GatewayPodName,
-		}
-	}
 	if res.NsmIntfStatus != nil {
 		gwStatus.NsmStatus = NsmStatus{
 			IntfName: res.NsmIntfStatus.NsmInterfaceName,

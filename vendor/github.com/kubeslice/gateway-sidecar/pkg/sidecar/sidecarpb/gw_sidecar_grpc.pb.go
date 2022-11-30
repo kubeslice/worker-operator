@@ -25,6 +25,8 @@ const _ = grpc.SupportPackageIsVersion7
 type GwSidecarServiceClient interface {
 	// The Interface to get the Pod status.
 	GetStatus(ctx context.Context, in *empty.Empty, opts ...grpc.CallOption) (*GwPodStatus, error)
+	// The Interface to get the Remote Gw Pod Name.
+	GetSliceGwRemotePodName(ctx context.Context, in *RemoteGwVpnIP, opts ...grpc.CallOption) (*GwPodStatus, error)
 	// The Interface to update the connection context. It also adds the route.
 	UpdateConnectionContext(ctx context.Context, in *SliceGwConnectionContext, opts ...grpc.CallOption) (*SidecarResponse, error)
 	// Update Slice QoS Profile
@@ -42,6 +44,15 @@ func NewGwSidecarServiceClient(cc grpc.ClientConnInterface) GwSidecarServiceClie
 func (c *gwSidecarServiceClient) GetStatus(ctx context.Context, in *empty.Empty, opts ...grpc.CallOption) (*GwPodStatus, error) {
 	out := new(GwPodStatus)
 	err := c.cc.Invoke(ctx, "/sidecar.GwSidecarService/GetStatus", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *gwSidecarServiceClient) GetSliceGwRemotePodName(ctx context.Context, in *RemoteGwVpnIP, opts ...grpc.CallOption) (*GwPodStatus, error) {
+	out := new(GwPodStatus)
+	err := c.cc.Invoke(ctx, "/sidecar.GwSidecarService/GetSliceGwRemotePodName", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -72,6 +83,8 @@ func (c *gwSidecarServiceClient) UpdateSliceQosProfile(ctx context.Context, in *
 type GwSidecarServiceServer interface {
 	// The Interface to get the Pod status.
 	GetStatus(context.Context, *empty.Empty) (*GwPodStatus, error)
+	// The Interface to get the Remote Gw Pod Name.
+	GetSliceGwRemotePodName(context.Context, *RemoteGwVpnIP) (*GwPodStatus, error)
 	// The Interface to update the connection context. It also adds the route.
 	UpdateConnectionContext(context.Context, *SliceGwConnectionContext) (*SidecarResponse, error)
 	// Update Slice QoS Profile
@@ -85,6 +98,9 @@ type UnimplementedGwSidecarServiceServer struct {
 
 func (UnimplementedGwSidecarServiceServer) GetStatus(context.Context, *empty.Empty) (*GwPodStatus, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetStatus not implemented")
+}
+func (UnimplementedGwSidecarServiceServer) GetSliceGwRemotePodName(context.Context, *RemoteGwVpnIP) (*GwPodStatus, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetSliceGwRemotePodName not implemented")
 }
 func (UnimplementedGwSidecarServiceServer) UpdateConnectionContext(context.Context, *SliceGwConnectionContext) (*SidecarResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method UpdateConnectionContext not implemented")
@@ -119,6 +135,24 @@ func _GwSidecarService_GetStatus_Handler(srv interface{}, ctx context.Context, d
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(GwSidecarServiceServer).GetStatus(ctx, req.(*empty.Empty))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _GwSidecarService_GetSliceGwRemotePodName_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RemoteGwVpnIP)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(GwSidecarServiceServer).GetSliceGwRemotePodName(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/sidecar.GwSidecarService/GetSliceGwRemotePodName",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(GwSidecarServiceServer).GetSliceGwRemotePodName(ctx, req.(*RemoteGwVpnIP))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -169,6 +203,10 @@ var GwSidecarService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetStatus",
 			Handler:    _GwSidecarService_GetStatus_Handler,
+		},
+		{
+			MethodName: "GetSliceGwRemotePodName",
+			Handler:    _GwSidecarService_GetSliceGwRemotePodName_Handler,
 		},
 		{
 			MethodName: "UpdateConnectionContext",
