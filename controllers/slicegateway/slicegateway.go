@@ -1080,18 +1080,19 @@ func (r *SliceGwReconciler) isRebalancingRequired(ctx context.Context, sliceGw *
 		}
 	}
 	//update the map with new nodes
+	newNodeAdded := false
 	for _, node := range nodeList.Items {
 		if _, ok := nodeToPodMap[node.Name]; !ok {
 			nodeToPodMap[node.Name] = 0
+			newNodeAdded = true
 		}
 	}
-	validatePodCount := replicas
+
 	r.Log.Info("nodeToPodMap", "nodeToPodMap", nodeToPodMap)
 	for _, pods := range nodeToPodMap {
-		if (pods < int32(MinNumberOfPodsReq)) && (validatePodCount > 0) {
+		if (pods > int32(MinNumberOfPodsReq)) && newNodeAdded {
 			return true, nil
 		}
-		validatePodCount -= int32(MinNumberOfPodsReq)
 	}
 	return false, nil
 }

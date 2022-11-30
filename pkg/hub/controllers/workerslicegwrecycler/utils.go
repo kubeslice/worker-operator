@@ -158,7 +158,7 @@ func (r *Reconciler) delete_old_gw_pods(e *fsm.Event) error {
 	if err != nil {
 		return err
 	}
-	r.Log.Info("old gw pods to be deleted","podList",podList)
+	r.Log.Info("old gw pods to be deleted", "podList", podList)
 	//TODO:add rbac in charts to include delete verb
 	err = r.MeshClient.Delete(ctx, &podList.Items[0])
 	if err != nil {
