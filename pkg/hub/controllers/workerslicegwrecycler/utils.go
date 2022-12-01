@@ -8,6 +8,7 @@ import (
 	spokev1alpha1 "github.com/kubeslice/apis/pkg/worker/v1alpha1"
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
 	"github.com/kubeslice/worker-operator/controllers"
+	"github.com/kubeslice/worker-operator/pkg/logger"
 	"github.com/kubeslice/worker-operator/pkg/router"
 	"github.com/looplab/fsm"
 	appsv1 "k8s.io/api/apps/v1"
@@ -85,16 +86,19 @@ func (r *Reconciler) spawn_new_gw_pod(e *fsm.Event) error {
 func (r *Reconciler) update_routing_table(e *fsm.Event) error {
 	// TODO: 1. verify if the route was added
 	// 2. delete the old route
+	ctx := context.Background()
+	log := logger.FromContext(ctx)
 	fmt.Println("update_routing_table")
 	workerslicegwrecycler := e.Args[0].(*spokev1alpha1.WorkerSliceGwRecycler)
 	isClient := e.Args[1].(bool)
 	slicegateway := e.Args[2].(kubeslicev1beta1.SliceGateway)
-	ctx := context.Background()
+	
 	var nsmIPOfNewGwPod string
 	fmt.Println("before wait Poll")
 	err := wait.Poll(5*time.Second, 180 * time.Second ,func() (done bool, err error) {
 		// get the new gw pod name
 		fmt.Println("in wait Poll")
+		log.Info("in wait Poll")
 		var gwPod string
 		if isClient{
 			gwPod = workerslicegwrecycler.Status.Client.RecycledClient
@@ -117,7 +121,7 @@ func (r *Reconciler) update_routing_table(e *fsm.Event) error {
 			return false, nil
 		}
 
-		r.Log.Info("nsmIPOfNewGwPod","nsmIPOfNewGwPod",nsmIPOfNewGwPod)
+		log.Info("nsmIPOfNewGwPod","nsmIPOfNewGwPod",nsmIPOfNewGwPod)
 
 		// call router func to verify if route was added
 		_, podIP, err := controllers.GetSliceRouterPodNameAndIP(ctx, r.MeshClient, slicegateway.Spec.SliceName)
@@ -139,7 +143,7 @@ func (r *Reconciler) update_routing_table(e *fsm.Event) error {
 		return res.IsRoutePresent, nil
 	})
 	if err != nil {
-		r.Log.Error(err,"error while waiting for route check")
+		log.Error(err,"error while waiting for route check")
 		return err
 	}
 	fmt.Println("after wait Poll")
