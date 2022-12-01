@@ -38,7 +38,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	_ "github.com/kubeslice/gateway-sidecar/pkg/sidecar/sidecarpb"
+	gwsidecarpb "github.com/kubeslice/gateway-sidecar/pkg/sidecar/sidecarpb"
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
 	"github.com/kubeslice/worker-operator/pkg/cluster"
 	"github.com/kubeslice/worker-operator/pkg/gwsidecar"
@@ -597,24 +597,24 @@ func (r *SliceGwReconciler) ReconcileGwPodStatus(ctx context.Context, slicegatew
 			toUpdate = true
 			log.Info("identified change in gateway pod status changed")
 		}
-		// log.Info("tunnel status", "status from gw sidecar--->", int(status.TunnelStatus.Status))
-		// if status.TunnelStatus.Status == int32(gwsidecarpb.TunnelStatusType_GW_TUNNEL_STATE_DOWN) {
-		// 	log.Info("packet loss:", "--->", status.PacketLoss)
-		// 	gwPodsInfo[i].TunnelStatus.Status = int32(gwsidecarpb.TunnelStatusType_GW_TUNNEL_STATE_DOWN)
-		// 	if gwPodsInfo[i].RouteRemoved == 0 {
-		// 		err := r.UpdateRoutesInRouter(ctx, slicegateway, gwPodsInfo[i].LocalNsmIP)
-		// 		if err != nil {
-		// 			toReconcile = true
-		// 		} else {
-		// 			gwPodsInfo[i].RouteRemoved = int32(gwsidecarpb.TunnelStatusType_GW_TUNNEL_STATE_DOWN)
-		// 		}
-		// 	}
-		// 	toUpdate = true
-		// } else {
-		// 	log.Info("updating gw pod remove route field ", "--->", gwPodsInfo[i])
-		// 	gwPodsInfo[i].RouteRemoved = 0
-		// 	toUpdate = true
-		// }
+		log.Info("tunnel status", "status from gw sidecar--->", int(status.TunnelStatus.Status))
+		if status.TunnelStatus.Status == int32(gwsidecarpb.TunnelStatusType_GW_TUNNEL_STATE_DOWN) {
+			log.Info("packet loss:", "--->", status.PacketLoss)
+			gwPodsInfo[i].TunnelStatus.Status = int32(gwsidecarpb.TunnelStatusType_GW_TUNNEL_STATE_DOWN)
+			if gwPodsInfo[i].RouteRemoved == 0 {
+				err := r.UpdateRoutesInRouter(ctx, slicegateway, gwPodsInfo[i].LocalNsmIP)
+				if err != nil {
+					toReconcile = true
+				} else {
+					gwPodsInfo[i].RouteRemoved = int32(gwsidecarpb.TunnelStatusType_GW_TUNNEL_STATE_DOWN)
+				}
+			}
+			toUpdate = true
+		} else {
+			log.Info("updating gw pod remove route field ", "--->", gwPodsInfo[i])
+			gwPodsInfo[i].RouteRemoved = 0
+			toUpdate = true
+		}
 	}
 	if toUpdate {
 		slicegateway.Status.GatewayPodStatus = gwPodsInfo

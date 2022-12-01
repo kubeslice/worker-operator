@@ -87,13 +87,36 @@ func (r *Reconciler) update_routing_table(e *fsm.Event) error {
 	workerslicegwrecycler := e.Args[0].(*spokev1alpha1.WorkerSliceGwRecycler)
 	isClient := e.Args[1].(bool)
 	slicegateway := e.Args[2].(kubeslicev1beta1.SliceGateway)
+	ctx := context.Background()
+	var nsmIPOfNewGwPod string
+
+	wait.PollInfinite(5*time.Second, func() (done bool, err error) {
+		// get the new gw pod name
+		gwPod := workerslicegwrecycler.Status.Client.RecycledClient
+		// fetch the latest slicegw object
+		if isClient {
+			if err := r.MeshClient.Get(ctx, types.NamespacedName{Namespace: "kubeslice-system", Name: workerslicegwrecycler.Spec.SliceGwClient}, &slicegateway); err != nil {
+				return false, err
+			}
+		} else {
+			if err := r.MeshClient.Get(ctx, types.NamespacedName{Namespace: "kubeslice-system", Name: workerslicegwrecycler.Spec.SliceGwServer}, &slicegateway); err != nil {
+				return false, err
+			}
+		}
+		nsmIPOfNewGwPod = getNsmIp(&slicegateway, gwPod)
+		if nsmIPOfNewGwPod == "" {
+			return false, nil
+		}
+
+		// call router func to verify if route was added
+		return true, nil
+	})
 
 	podList := corev1.PodList{}
 	labels := map[string]string{"kubeslice.io/pod-type": "toBeDeleted", "kubeslice.io/slice": workerslicegwrecycler.Spec.SliceName}
 	listOptions := []client.ListOption{
 		client.MatchingLabels(labels),
 	}
-	ctx := context.Background()
 	err := r.MeshClient.List(ctx, &podList, listOptions...)
 	if err != nil {
 		return err
@@ -170,5 +193,19 @@ func (r *Reconciler) delete_old_gw_pods(e *fsm.Event) error {
 	}
 	workerslicegwrecycler.Spec.State = old_gw_deleted
 	workerslicegwrecycler.Spec.Request = "end"
-	return r.Update(ctx, workerslicegwrecycler)
+	err = r.Update(ctx, workerslicegwrecycler)
+	if err != nil {
+		return err
+	}
+	// FSM complete - delete workergwrecycler
+	return r.Delete(ctx, workerslicegwrecycler)
+}
+
+func getNsmIp(slicegw *kubeslicev1beta1.SliceGateway, podName string) string {
+	for _, gwPod := range slicegw.Status.GatewayPodStatus {
+		if gwPod.PodName == podName {
+			return gwPod.LocalNsmIP
+		}
+	}
+	return ""
 }
