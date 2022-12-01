@@ -92,7 +92,12 @@ func (r *Reconciler) update_routing_table(e *fsm.Event) error {
 
 	wait.PollInfinite(5*time.Second, func() (done bool, err error) {
 		// get the new gw pod name
-		gwPod := workerslicegwrecycler.Status.Client.RecycledClient
+		var gwPod string
+		if isClient{
+			gwPod = workerslicegwrecycler.Status.Client.RecycledClient
+		} else {
+			gwPod = workerslicegwrecycler.Spec.GwPair.ServerID
+		}
 		// fetch the latest slicegw object
 		if isClient {
 			if err := r.MeshClient.Get(ctx, types.NamespacedName{Namespace: "kubeslice-system", Name: workerslicegwrecycler.Spec.SliceGwClient}, &slicegateway); err != nil {
