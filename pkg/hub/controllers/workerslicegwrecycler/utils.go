@@ -89,9 +89,10 @@ func (r *Reconciler) update_routing_table(e *fsm.Event) error {
 	slicegateway := e.Args[2].(kubeslicev1beta1.SliceGateway)
 	ctx := context.Background()
 	var nsmIPOfNewGwPod string
-
-	wait.PollInfinite(5*time.Second, func() (done bool, err error) {
+	r.Log.Info("before wait Poll")
+	wait.Poll(5*time.Second, 180 * time.Second ,func() (done bool, err error) {
 		// get the new gw pod name
+		r.Log.Info("entering wait Poll")
 		var gwPod string
 		if isClient{
 			gwPod = workerslicegwrecycler.Status.Client.RecycledClient
@@ -108,6 +109,7 @@ func (r *Reconciler) update_routing_table(e *fsm.Event) error {
 				return false, err
 			}
 		}
+
 		nsmIPOfNewGwPod = getNsmIp(&slicegateway, gwPod)
 		if nsmIPOfNewGwPod == "" {
 			return false, nil
@@ -134,7 +136,7 @@ func (r *Reconciler) update_routing_table(e *fsm.Event) error {
 		r.Log.Info("is route injected","res",res)
 		return res.IsRoutePresent, nil
 	})
-
+	r.Log.Info("after wait poll")
 	podList := corev1.PodList{}
 	labels := map[string]string{"kubeslice.io/pod-type": "toBeDeleted", "kubeslice.io/slice": workerslicegwrecycler.Spec.SliceName}
 	listOptions := []client.ListOption{
