@@ -99,7 +99,7 @@ github.com/kubeslice/gateway-sidecar/pkg/status
 # github.com/kubeslice/netops v0.0.0-20220506082959-81fef290c265
 ## explicit
 github.com/kubeslice/netops/pkg/proto
-# github.com/kubeslice/router-sidecar v1.3.0-alpha
+# github.com/kubeslice/router-sidecar v1.3.0-alpha.0.20221201103732-6fc910848807
 ## explicit
 github.com/kubeslice/router-sidecar/pkg/sidecar/sidecarpb
 # github.com/looplab/fsm v0.3.0

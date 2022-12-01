@@ -13,7 +13,7 @@ require (
 	github.com/kubeslice/apis v0.0.0-20221124121623-6568a15ca62b
 	github.com/kubeslice/gateway-sidecar v0.1.5-0.20221130124917-de196d219417
 	github.com/kubeslice/netops v0.0.0-20220506082959-81fef290c265
-	github.com/kubeslice/router-sidecar v1.3.0-alpha
+	github.com/kubeslice/router-sidecar v1.3.0-alpha.0.20221201103732-6fc910848807
 	github.com/looplab/fsm v0.3.0
 	github.com/networkservicemesh/networkservicemesh/k8s/pkg/apis v0.0.0-20211028170547-e58ac1200f18
 	github.com/onsi/ginkgo/v2 v2.1.3

@@ -109,7 +109,22 @@ func (r *Reconciler) update_routing_table(e *fsm.Event) error {
 		}
 
 		// call router func to verify if route was added
-		return true, nil
+		_, podIP, err := controllers.GetSliceRouterPodNameAndIP(ctx, r.MeshClient, slicegateway.Spec.SliceName)
+		if err != nil {
+			r.Log.Error(err, "Unable to get slice router pod info")
+			return false, err
+		}
+
+		sidecarGrpcAddress := podIP + ":5000"
+		sliceRouterConnCtx := &router.GetRouteConfig{
+			RemoteSliceGwNsmSubnet: slicegateway.Status.Config.SliceGatewayRemoteSubnet,
+			NsmIp:                  nsmIPOfNewGwPod,
+		}
+		res, err := r.WorkerRouterClient.GetRouteInKernel(ctx, sidecarGrpcAddress, sliceRouterConnCtx)
+		if err != nil {
+			return false, err
+		}
+		return res.IsRoutePresent, nil
 	})
 
 	podList := corev1.PodList{}
