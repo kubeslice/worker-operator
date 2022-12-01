@@ -146,7 +146,7 @@ func (r *Reconciler) update_routing_table(e *fsm.Event) error {
 	listOptions := []client.ListOption{
 		client.MatchingLabels(labels),
 	}
-	err := r.MeshClient.List(ctx, &podList, listOptions...)
+	err = r.MeshClient.List(ctx, &podList, listOptions...)
 	if err != nil {
 		return err
 	}
