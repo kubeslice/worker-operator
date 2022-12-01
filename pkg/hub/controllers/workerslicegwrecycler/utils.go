@@ -2,6 +2,7 @@ package workerslicegwrecycler
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	spokev1alpha1 "github.com/kubeslice/apis/pkg/worker/v1alpha1"
@@ -89,10 +90,10 @@ func (r *Reconciler) update_routing_table(e *fsm.Event) error {
 	slicegateway := e.Args[2].(kubeslicev1beta1.SliceGateway)
 	ctx := context.Background()
 	var nsmIPOfNewGwPod string
-	r.Log.Info("before wait Poll")
+	fmt.Println("before wait Poll")
 	err := wait.Poll(5*time.Second, 180 * time.Second ,func() (done bool, err error) {
 		// get the new gw pod name
-		r.Log.Info("entering wait Poll")
+		fmt.Println("in wait Poll")
 		var gwPod string
 		if isClient{
 			gwPod = workerslicegwrecycler.Status.Client.RecycledClient
@@ -140,7 +141,7 @@ func (r *Reconciler) update_routing_table(e *fsm.Event) error {
 		r.Log.Error(err,"error while waiting for route check")
 		return err
 	}
-	r.Log.Info("after wait poll")
+	fmt.Println("after wait Poll")
 	podList := corev1.PodList{}
 	labels := map[string]string{"kubeslice.io/pod-type": "toBeDeleted", "kubeslice.io/slice": workerslicegwrecycler.Spec.SliceName}
 	listOptions := []client.ListOption{
