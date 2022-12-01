@@ -43,7 +43,7 @@ type Reconciler struct {
 }
 
 func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	log := r.Log.WithValues("workerslicegwrecycler", req.NamespacedName)
+	log := logger.FromContext(ctx)
 	ctx = logger.WithLogger(ctx, log)
 
 	workerslicegwrecycler := &spokev1alpha1.WorkerSliceGwRecycler{}
