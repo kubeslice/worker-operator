@@ -108,6 +108,8 @@ func (r *Reconciler) update_routing_table(e *fsm.Event) error {
 			return false, nil
 		}
 
+		r.Log.Info("nsmIPOfNewGwPod","nsmIPOfNewGwPod",nsmIPOfNewGwPod)
+
 		// call router func to verify if route was added
 		_, podIP, err := controllers.GetSliceRouterPodNameAndIP(ctx, r.MeshClient, slicegateway.Spec.SliceName)
 		if err != nil {
@@ -124,6 +126,7 @@ func (r *Reconciler) update_routing_table(e *fsm.Event) error {
 		if err != nil {
 			return false, err
 		}
+		r.Log.Info("is route injected","res",res)
 		return res.IsRoutePresent, nil
 	})
 
