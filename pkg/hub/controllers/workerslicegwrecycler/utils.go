@@ -91,10 +91,10 @@ func (r *Reconciler) update_routing_table(e *fsm.Event) error {
 	log := logger.FromContext(ctx).WithName("workerslicegwrecycler")
 
 	log.Info("in update_routing_table")
-	if r.FSM.Current() == slicerouter_updated {
-		log.Info("Ignoring","current state",r.FSM.Current())
-		return nil
-	}
+	// if r.FSM.Current() == slicerouter_updated {
+	// 	log.Info("Ignoring","current state",r.FSM.Current())
+	// 	return nil
+	// }
 	// TODO: 1. verify if the route was added
 	// 2. delete the old route
 	workerslicegwrecycler := e.Args[0].(*spokev1alpha1.WorkerSliceGwRecycler)
