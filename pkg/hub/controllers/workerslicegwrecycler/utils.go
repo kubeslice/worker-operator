@@ -20,9 +20,9 @@ import (
 
 func (r *Reconciler) spawn_new_gw_pod(e *fsm.Event) error {
 	// The client cluster finds the client pod using the client-id field and removes the kubeslice gw label to drive it out of the purview of the gw deployment spec. Once the label is removed, Kubernetes spawns a new pod automatically to honor the number of replicas defined in the gw deployment spec. Once the new pod comes up, the client cluster retrieves the pod info to verify that the new pod has obtained an nsm IP. It then posts an update to the status field
-	if r.FSM.Current() == new_gw_spawned{
-		return nil
-	}
+	// if r.FSM.Current() == new_gw_spawned{
+	// 	return nil
+	// }
 	workerslicegwrecycler := e.Args[0].(*spokev1alpha1.WorkerSliceGwRecycler)
 	isClient := e.Args[1].(bool)
 
