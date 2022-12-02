@@ -2,9 +2,10 @@ package workerslicegwrecycler
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"time"
 
+	retry "github.com/avast/retry-go"
 	spokev1alpha1 "github.com/kubeslice/apis/pkg/worker/v1alpha1"
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
 	"github.com/kubeslice/worker-operator/controllers"
@@ -100,13 +101,11 @@ func (r *Reconciler) update_routing_table(e *fsm.Event) error {
 	workerslicegwrecycler := e.Args[0].(*spokev1alpha1.WorkerSliceGwRecycler)
 	isClient := e.Args[1].(bool)
 	slicegateway := e.Args[2].(kubeslicev1beta1.SliceGateway)
-	
 	var nsmIPOfNewGwPod string
-	err := wait.Poll(5*time.Second, 180 * time.Second ,func() (done bool, err error) {
-		// get the new gw pod name
-		log.Info("inside wait Poll")
+
+	retry.Do(func() error {
 		var gwPod string
-		if isClient{
+		if isClient {
 			gwPod = workerslicegwrecycler.Status.Client.RecycledClient
 		} else {
 			gwPod = workerslicegwrecycler.Spec.GwPair.ServerID
@@ -114,29 +113,29 @@ func (r *Reconciler) update_routing_table(e *fsm.Event) error {
 		// fetch the latest slicegw object
 		if isClient {
 			if err := r.MeshClient.Get(ctx, types.NamespacedName{Namespace: "kubeslice-system", Name: workerslicegwrecycler.Spec.SliceGwClient}, &slicegateway); err != nil {
-				log.Error(err,"error fetching slicegw")
-				return false, err
+				log.Error(err, "error fetching slicegw")
+				return err
 			}
 		} else {
 			if err := r.MeshClient.Get(ctx, types.NamespacedName{Namespace: "kubeslice-system", Name: workerslicegwrecycler.Spec.SliceGwServer}, &slicegateway); err != nil {
-				log.Error(err,"error fetching slicegw")
-				return false, err
+				log.Error(err, "error fetching slicegw")
+				return err
 			}
 		}
 
 		nsmIPOfNewGwPod = getNsmIp(&slicegateway, gwPod)
 		if nsmIPOfNewGwPod == "" {
 			log.Info("nsmIPOfNewGwPod not populated yet..empty")
-			return false, nil
+			return errors.New("nsmIPOfNewGwPod not populated yet..empty")
 		}
 
-		log.Info("nsmIPOfNewGwPod","nsmIPOfNewGwPod",nsmIPOfNewGwPod)
+		log.Info("nsmIPOfNewGwPod", "nsmIPOfNewGwPod", nsmIPOfNewGwPod)
 
 		// call router func to verify if route was added
 		_, podIP, err := controllers.GetSliceRouterPodNameAndIP(ctx, r.MeshClient, slicegateway.Spec.SliceName)
 		if err != nil {
 			log.Error(err, "Unable to get slice router pod info")
-			return false, err
+			return err
 		}
 
 		sidecarGrpcAddress := podIP + ":5000"
@@ -146,60 +145,63 @@ func (r *Reconciler) update_routing_table(e *fsm.Event) error {
 		}
 		res, err := r.WorkerRouterClient.GetRouteInKernel(ctx, sidecarGrpcAddress, sliceRouterConnCtx)
 		if err != nil {
-			log.Error(err,"error in GetRouteInKernel")
-			return false, err
+			log.Error(err, "error in GetRouteInKernel")
+			return err
 		}
-		log.Info("is route injected","res",res)
-		return res.IsRoutePresent, nil
+		log.Info("is route injected", "res", res)
+		if res.IsRoutePresent != true {
+			return errors.New("route not yet present")
+		}
+		return nil
 	})
-	if err != nil {
-		log.Error(err,"error while waiting for route check")
-		return err
-	}
-	fmt.Println("after wait Poll")
-	podList := corev1.PodList{}
-	labels := map[string]string{"kubeslice.io/pod-type": "toBeDeleted", "kubeslice.io/slice": workerslicegwrecycler.Spec.SliceName}
-	listOptions := []client.ListOption{
-		client.MatchingLabels(labels),
-	}
-	err = r.MeshClient.List(ctx, &podList, listOptions...)
-	if err != nil {
-		return err
-	}
-	grpcAdd := podList.Items[0].Status.PodIP + ":5000"
 
-	status, err := r.WorkerGWSidecarClient.GetStatus(ctx, grpcAdd)
-	if err != nil {
-		r.Log.Error(err, "Unable to fetch gw status")
-		return err
-	}
-	nsmIP := status.NsmStatus.LocalIP
-	_, podIP, err := controllers.GetSliceRouterPodNameAndIP(ctx, r.MeshClient, slicegateway.Spec.SliceName)
-	if err != nil {
-		r.Log.Error(err, "Unable to get slice router pod info")
-		return err
-	}
-	if podIP == "" {
-		r.Log.Info("Slice router podIP not available yet, requeuing")
-		return err
-	}
+	retry.Do(func() error {
+		podList := corev1.PodList{}
+		labels := map[string]string{"kubeslice.io/pod-type": "toBeDeleted", "kubeslice.io/slice": workerslicegwrecycler.Spec.SliceName}
+		listOptions := []client.ListOption{
+			client.MatchingLabels(labels),
+		}
+		err := r.MeshClient.List(ctx, &podList, listOptions...)
+		if err != nil {
+			return err
+		}
+		grpcAdd := podList.Items[0].Status.PodIP + ":5000"
 
-	if slicegateway.Status.Config.SliceGatewayRemoteSubnet == "" ||
-		len(slicegateway.Status.GatewayPodStatus) == 0 {
-		r.Log.Info("Waiting for remote subnet and local nsm IPs. Delaying conn ctx update to router")
-		return err
-	}
+		status, err := r.WorkerGWSidecarClient.GetStatus(ctx, grpcAdd)
+		if err != nil {
+			r.Log.Error(err, "Unable to fetch gw status")
+			return err
+		}
+		nsmIP := status.NsmStatus.LocalIP
+		_, podIP, err := controllers.GetSliceRouterPodNameAndIP(ctx, r.MeshClient, slicegateway.Spec.SliceName)
+		if err != nil {
+			r.Log.Error(err, "Unable to get slice router pod info")
+			return err
+		}
+		if podIP == "" {
+			r.Log.Info("Slice router podIP not available yet, requeuing")
+			return err
+		}
 
-	sidecarGrpcAddress := podIP + ":5000"
-	routeInfo := &router.UpdateEcmpInfo{
-		RemoteSliceGwNsmSubnet: slicegateway.Status.Config.SliceGatewayRemoteSubnet,
-		NsmIpToDelete:          nsmIP,
-	}
-	err = r.WorkerRouterClient.UpdateEcmpRoutes(ctx, sidecarGrpcAddress, routeInfo)
-	if err != nil {
-		r.Log.Error(err, "Unable to update ecmp routes in the slice router")
-		return err
-	}
+		if slicegateway.Status.Config.SliceGatewayRemoteSubnet == "" ||
+			len(slicegateway.Status.GatewayPodStatus) == 0 {
+			r.Log.Info("Waiting for remote subnet and local nsm IPs. Delaying conn ctx update to router")
+			return err
+		}
+
+		sidecarGrpcAddress := podIP + ":5000"
+		routeInfo := &router.UpdateEcmpInfo{
+			RemoteSliceGwNsmSubnet: slicegateway.Status.Config.SliceGatewayRemoteSubnet,
+			NsmIpToDelete:          nsmIP,
+		}
+		err = r.WorkerRouterClient.UpdateEcmpRoutes(ctx, sidecarGrpcAddress, routeInfo)
+		if err != nil {
+			r.Log.Error(err, "Unable to update ecmp routes in the slice router")
+			return err
+		}
+		return nil
+	})
+
 	if isClient {
 		workerslicegwrecycler.Status.Client.Response = slicerouter_updated
 		return r.Status().Update(ctx, workerslicegwrecycler)

@@ -4,6 +4,7 @@ go 1.16
 
 require (
 	contrib.go.opencensus.io/exporter/prometheus v0.4.1
+	github.com/avast/retry-go v3.0.0+incompatible // indirect
 	github.com/go-logr/logr v1.2.0
 	github.com/go-logr/zapr v1.2.0
 	github.com/go-ping/ping v1.1.0 // indirect
