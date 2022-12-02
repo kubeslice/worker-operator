@@ -43,7 +43,7 @@ type Reconciler struct {
 }
 
 func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	log := logger.FromContext(ctx)
+	log := logger.FromContext(ctx).WithName("workerslicegwrecycler")
 	ctx = logger.WithLogger(ctx, log)
 
 	workerslicegwrecycler := &spokev1alpha1.WorkerSliceGwRecycler{}
@@ -64,7 +64,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	}
 
 	log.Info("reconciling", "workerslicegwrecycler", workerslicegwrecycler.Name)
-
+	log.Info("current state","FSM",r.FSM.Current())
 	slicegw := kubeslicev1beta1.SliceGateway{}
 
 	if err := r.MeshClient.Get(ctx, types.NamespacedName{Namespace: "kubeslice-system", Name: workerslicegwrecycler.Spec.SliceGwServer}, &slicegw); err != nil {
