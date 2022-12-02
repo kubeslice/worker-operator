@@ -87,7 +87,7 @@ func (r *Reconciler) update_routing_table(e *fsm.Event) error {
 	// TODO: 1. verify if the route was added
 	// 2. delete the old route
 	ctx := context.Background()
-	log := logger.FromContext(ctx)
+	log := logger.FromContext(ctx).WithName("workerslicegwrecycler")
 	fmt.Println("update_routing_table")
 	workerslicegwrecycler := e.Args[0].(*spokev1alpha1.WorkerSliceGwRecycler)
 	isClient := e.Args[1].(bool)
