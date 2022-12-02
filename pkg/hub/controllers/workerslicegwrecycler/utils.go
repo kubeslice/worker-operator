@@ -20,6 +20,9 @@ import (
 
 func (r *Reconciler) spawn_new_gw_pod(e *fsm.Event) error {
 	// The client cluster finds the client pod using the client-id field and removes the kubeslice gw label to drive it out of the purview of the gw deployment spec. Once the label is removed, Kubernetes spawns a new pod automatically to honor the number of replicas defined in the gw deployment spec. Once the new pod comes up, the client cluster retrieves the pod info to verify that the new pod has obtained an nsm IP. It then posts an update to the status field
+	if r.FSM.Current() == new_gw_spawned{
+		return nil
+	}
 	workerslicegwrecycler := e.Args[0].(*spokev1alpha1.WorkerSliceGwRecycler)
 	isClient := e.Args[1].(bool)
 
@@ -84,21 +87,21 @@ func (r *Reconciler) spawn_new_gw_pod(e *fsm.Event) error {
 }
 
 func (r *Reconciler) update_routing_table(e *fsm.Event) error {
+	if r.FSM.Current() == slicerouter_updated {
+		return nil
+	}
 	// TODO: 1. verify if the route was added
 	// 2. delete the old route
 	ctx := context.Background()
 	log := logger.FromContext(ctx).WithName("workerslicegwrecycler")
-	fmt.Println("update_routing_table")
 	workerslicegwrecycler := e.Args[0].(*spokev1alpha1.WorkerSliceGwRecycler)
 	isClient := e.Args[1].(bool)
 	slicegateway := e.Args[2].(kubeslicev1beta1.SliceGateway)
 	
 	var nsmIPOfNewGwPod string
-	fmt.Println("before wait Poll")
 	err := wait.Poll(5*time.Second, 180 * time.Second ,func() (done bool, err error) {
 		// get the new gw pod name
-		fmt.Println("in wait Poll")
-		log.Info("in wait Poll")
+		log.Info("inside wait Poll")
 		var gwPod string
 		if isClient{
 			gwPod = workerslicegwrecycler.Status.Client.RecycledClient
@@ -108,16 +111,19 @@ func (r *Reconciler) update_routing_table(e *fsm.Event) error {
 		// fetch the latest slicegw object
 		if isClient {
 			if err := r.MeshClient.Get(ctx, types.NamespacedName{Namespace: "kubeslice-system", Name: workerslicegwrecycler.Spec.SliceGwClient}, &slicegateway); err != nil {
+				log.Error(err,"error fetching slicegw")
 				return false, err
 			}
 		} else {
 			if err := r.MeshClient.Get(ctx, types.NamespacedName{Namespace: "kubeslice-system", Name: workerslicegwrecycler.Spec.SliceGwServer}, &slicegateway); err != nil {
+				log.Error(err,"error fetching slicegw")
 				return false, err
 			}
 		}
 
 		nsmIPOfNewGwPod = getNsmIp(&slicegateway, gwPod)
 		if nsmIPOfNewGwPod == "" {
+			log.Info("nsmIPOfNewGwPod not populated yet..empty")
 			return false, nil
 		}
 
@@ -137,6 +143,7 @@ func (r *Reconciler) update_routing_table(e *fsm.Event) error {
 		}
 		res, err := r.WorkerRouterClient.GetRouteInKernel(ctx, sidecarGrpcAddress, sliceRouterConnCtx)
 		if err != nil {
+			log.Error(err,"error in GetRouteInKernel")
 			return false, err
 		}
 		log.Info("is route injected","res",res)
