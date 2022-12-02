@@ -91,7 +91,7 @@ func (r *Reconciler) update_routing_table(e *fsm.Event) error {
 	ctx := context.Background()
 	log := logger.FromContext(ctx).WithName("workerslicegwrecycler")
 
-	log.Info("in update_routing_table")
+	log.Info("in update_routing_table","current_state",r.FSM.Current())
 	// if r.FSM.Current() == slicerouter_updated {
 	// 	log.Info("Ignoring","current state",r.FSM.Current())
 	// 	return nil
