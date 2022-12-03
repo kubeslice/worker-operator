@@ -149,7 +149,7 @@ func (r *Reconciler) update_routing_table(e *fsm.Event) error {
 			return err
 		}
 		log.Info("is route injected", "res", res)
-		if res.IsRoutePresent != true {
+		if !res.IsRoutePresent {
 			return errors.New("route not yet present")
 		}
 		return nil

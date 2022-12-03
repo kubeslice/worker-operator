@@ -565,7 +565,7 @@ func isGatewayStatusChanged(slicegateway *kubeslicev1beta1.SliceGateway, gwPod *
 	return !contains(getPodNames(slicegateway), gwPod.PodName) ||
 		!contains(getPodIPs(slicegateway), gwPod.PodIP) ||
 		!contains(getLocalNSMIPs(slicegateway), gwPod.LocalNsmIP) ||
-		isGWPodStatusChanged(slicegateway, gwPod)
+		!isGWPodStatusChanged(slicegateway, gwPod)
 
 }
 func (r *SliceGwReconciler) ReconcileGwPodStatus(ctx context.Context, slicegateway *kubeslicev1beta1.SliceGateway) (ctrl.Result, error, bool) {
@@ -593,13 +593,10 @@ func (r *SliceGwReconciler) ReconcileGwPodStatus(ctx context.Context, slicegatew
 		gwPodsInfo[i].LocalNsmIP = status.NsmStatus.LocalIP
 		gwPodsInfo[i].TunnelStatus = kubeslicev1beta1.TunnelStatus(status.TunnelStatus)
 		debugLog.Info("Got gw status", "result", status)
-		if isGatewayStatusChanged(slicegateway, gwPodsInfo[i]) {
-			toUpdate = true
-			log.Info("identified change in gateway pod status changed")
+		if !isGatewayStatusChanged(slicegateway, gwPodsInfo[i]) {
+			continue
 		}
-		log.Info("tunnel status", "status from gw sidecar--->", int(status.TunnelStatus.Status))
 		if status.TunnelStatus.Status == int32(gwsidecarpb.TunnelStatusType_GW_TUNNEL_STATE_DOWN) {
-			log.Info("packet loss:", "--->", status.PacketLoss)
 			gwPodsInfo[i].TunnelStatus.Status = int32(gwsidecarpb.TunnelStatusType_GW_TUNNEL_STATE_DOWN)
 			if gwPodsInfo[i].RouteRemoved == 0 {
 				err := r.UpdateRoutesInRouter(ctx, slicegateway, gwPodsInfo[i].LocalNsmIP)
@@ -949,7 +946,7 @@ func getLocalNSMIPs(slicegateway *kubeslicev1beta1.SliceGateway) []string {
 func getLocalNSMIPsForRouter(slicegateway *kubeslicev1beta1.SliceGateway) []string {
 	nsmIPs := make([]string, 0)
 	for i, _ := range slicegateway.Status.GatewayPodStatus {
-		if slicegateway.Status.GatewayPodStatus[i].RouteRemoved == 1 {
+		if slicegateway.Status.GatewayPodStatus[i].RouteRemoved == int32(gwsidecarpb.TunnelStatusType_GW_TUNNEL_STATE_DOWN) {
 			continue
 		}
 		nsmIPs = append(nsmIPs, slicegateway.Status.GatewayPodStatus[i].LocalNsmIP)
