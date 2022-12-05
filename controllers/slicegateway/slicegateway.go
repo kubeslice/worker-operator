@@ -606,9 +606,11 @@ func (r *SliceGwReconciler) ReconcileGwPodStatus(ctx context.Context, slicegatew
 				}
 			}
 		} else {
-			log.Info("updating gw pod remove route field ", "--->", gwPod)
-			gwPod.RouteRemoved = 0
-			toUpdate = true
+			if r.isRouteRemoved(slicegateway,gwPod.PodName){
+				log.Info("updating gw pod remove route field ", "--->", gwPod)
+				gwPod.RouteRemoved = 0
+				toUpdate = true
+			}
 		}
 	}
 	if toUpdate {
