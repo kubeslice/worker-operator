@@ -613,6 +613,7 @@ func (r *SliceGwReconciler) ReconcileGwPodStatus(ctx context.Context, slicegatew
 		}
 	}
 	if toUpdate {
+		log.Info("gwPodsInfo","gwPodsInfo",gwPodsInfo)
 		slicegateway.Status.GatewayPodStatus = gwPodsInfo
 		slicegateway.Status.ConnectionContextUpdatedOn = 0
 		err := r.Status().Update(ctx, slicegateway)
