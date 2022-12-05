@@ -24,6 +24,7 @@ import (
 	empty "github.com/golang/protobuf/ptypes/empty"
 	sidecar "github.com/kubeslice/gateway-sidecar/pkg/sidecar/sidecarpb"
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
+	"github.com/kubeslice/worker-operator/pkg/logger"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
@@ -117,6 +118,7 @@ func (worker gwSidecarClient) GetStatus(ctx context.Context, serverAddr string) 
 
 // SendConnectionContext sends connection context info to sidecar
 func (worker gwSidecarClient) SendConnectionContext(ctx context.Context, serverAddr string, gwConnCtx *GwConnectionContext) error {
+	log := logger.FromContext(ctx)
 	conn, err := grpc.Dial(serverAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		return err
@@ -129,6 +131,8 @@ func (worker gwSidecarClient) SendConnectionContext(ctx context.Context, serverA
 		RemoteSliceGwVpnIP:     gwConnCtx.RemoteSliceGwVpnIP,
 		RemoteSliceGwNsmSubnet: gwConnCtx.RemoteSliceGwNsmSubnet,
 	}
+
+	log.Info("SliceGwConnectionContext","SliceGwConnectionContext",msg)
 
 	_, err = client.UpdateConnectionContext(ctx, msg)
 
