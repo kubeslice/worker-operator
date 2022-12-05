@@ -593,9 +593,9 @@ func (r *SliceGwReconciler) ReconcileGwPodStatus(ctx context.Context, slicegatew
 		gwPod.LocalNsmIP = status.NsmStatus.LocalIP
 		gwPod.TunnelStatus = kubeslicev1beta1.TunnelStatus(status.TunnelStatus)
 		debugLog.Info("Got gw status", "result", status)
-		// if !isGatewayStatusChanged(slicegateway, gwPodsInfo[i]) {
-		// 	continue
-		// }
+		if !isGatewayStatusChanged(slicegateway, gwPod) {
+			toUpdate = true
+		}
 		if gwPod.TunnelStatus.Status == int32(gwsidecarpb.TunnelStatusType_GW_TUNNEL_STATE_DOWN) {
 			if gwPod.RouteRemoved == 0 {
 				err := r.UpdateRoutesInRouter(ctx, slicegateway, gwPod.LocalNsmIP)
