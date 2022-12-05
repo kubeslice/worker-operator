@@ -596,7 +596,7 @@ func (r *SliceGwReconciler) ReconcileGwPodStatus(ctx context.Context, slicegatew
 		if !isGatewayStatusChanged(slicegateway, gwPod) {
 			toUpdate = true
 		}
-		if gwPod.TunnelStatus.Status == int32(gwsidecarpb.TunnelStatusType_GW_TUNNEL_STATE_DOWN) {
+		if status.TunnelStatus.Status == int32(gwsidecarpb.TunnelStatusType_GW_TUNNEL_STATE_DOWN) {
 			if gwPod.RouteRemoved == 0 {
 				err := r.UpdateRoutesInRouter(ctx, slicegateway, gwPod.LocalNsmIP)
 				if err != nil {
