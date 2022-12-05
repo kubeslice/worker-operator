@@ -596,7 +596,7 @@ func (r *SliceGwReconciler) ReconcileGwPodStatus(ctx context.Context, slicegatew
 			toUpdate = true
 		}
 		if status.TunnelStatus.Status == int32(gwsidecarpb.TunnelStatusType_GW_TUNNEL_STATE_DOWN) {
-			if !r.isRouteRemoved(slicegateway,gwPod.PodName) {
+			if !r.isRouteRemoved(slicegateway, gwPod.PodName) {
 				err := r.UpdateRoutesInRouter(ctx, slicegateway, gwPod.LocalNsmIP)
 				if err != nil {
 					toReconcile = true
@@ -612,7 +612,7 @@ func (r *SliceGwReconciler) ReconcileGwPodStatus(ctx context.Context, slicegatew
 		}
 	}
 	if toUpdate {
-		log.Info("gwPodsInfo","gwPodsInfo",gwPodsInfo)
+		log.Info("gwPodsInfo", "gwPodsInfo", gwPodsInfo)
 		slicegateway.Status.GatewayPodStatus = gwPodsInfo
 		slicegateway.Status.ConnectionContextUpdatedOn = 0
 		err := r.Status().Update(ctx, slicegateway)
@@ -620,9 +620,10 @@ func (r *SliceGwReconciler) ReconcileGwPodStatus(ctx context.Context, slicegatew
 			debugLog.Error(err, "error while update", "Failed to update SliceGateway status for gateway status")
 			return ctrl.Result{}, err, true
 		}
+		toReconcile = true
 	}
 	if toReconcile {
-		return ctrl.Result{}, err, false
+		return ctrl.Result{}, err, true
 	}
 	return ctrl.Result{}, nil, false
 }
@@ -698,7 +699,6 @@ func (r *SliceGwReconciler) SendConnectionContextAndQosToGwPod(ctx context.Conte
 	return ctrl.Result{}, nil, false
 }
 
-
 // In the event of slice router deletion as well this function needs to be called so that the routes can be injected into the router sidecar
 func (r *SliceGwReconciler) SendConnectionContextToSliceRouter(ctx context.Context, slicegateway *kubeslicev1beta1.SliceGateway) (ctrl.Result, error, bool) {
 	log := logger.FromContext(ctx).WithValues("type", "SliceGw")
@@ -771,7 +771,6 @@ func (r *SliceGwReconciler) getRemoteGwPodName(ctx context.Context, gwRemoteVpnI
 	}
 	return remoteGwPodName, nil
 }
-
 
 func (r *SliceGwReconciler) createHeadlessServiceForGwServer(slicegateway *kubeslicev1beta1.SliceGateway) *corev1.Service {
 	svc := &corev1.Service{
@@ -891,15 +890,14 @@ func (r *SliceGwReconciler) reconcileGatewayEndpoint(ctx context.Context, sliceG
 	return false, ctrl.Result{}, nil
 }
 
-func (r *SliceGwReconciler) isRouteRemoved(slicegw *kubeslicev1beta1.SliceGateway,podName string) bool {
-	for _,gwPod := range slicegw.Status.GatewayPodStatus{
+func (r *SliceGwReconciler) isRouteRemoved(slicegw *kubeslicev1beta1.SliceGateway, podName string) bool {
+	for _, gwPod := range slicegw.Status.GatewayPodStatus {
 		if gwPod.PodName == podName {
 			return gwPod.RouteRemoved == 1
 		}
 	}
 	return false
 }
-
 
 func contains(s []string, e string) bool {
 	for _, a := range s {
