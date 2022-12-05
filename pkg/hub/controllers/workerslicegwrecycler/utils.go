@@ -202,6 +202,7 @@ func (r *Reconciler) update_routing_table(e *fsm.Event) error {
 		return nil
 	})
 
+	// use retry.RetryOnConflict
 	if isClient {
 		workerslicegwrecycler.Status.Client.Response = slicerouter_updated
 		return r.Status().Update(ctx, workerslicegwrecycler)
