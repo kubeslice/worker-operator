@@ -582,34 +582,33 @@ func (r *SliceGwReconciler) ReconcileGwPodStatus(ctx context.Context, slicegatew
 		return ctrl.Result{RequeueAfter: 5 * time.Second}, nil, true
 	}
 	toUpdate, toReconcile := false, false
-	for i := 0; i < len(gwPodsInfo); i++ {
-		sidecarGrpcAddress := gwPodsInfo[i].PodIP + ":5000"
+	for _, gwPod := range gwPodsInfo {
+		sidecarGrpcAddress := gwPod.PodIP + ":5000"
 
 		status, err := r.WorkerGWSidecarClient.GetStatus(ctx, sidecarGrpcAddress)
 		if err != nil {
 			log.Error(err, "Unable to fetch gw status")
 			return ctrl.Result{}, err, true
 		}
-		gwPodsInfo[i].LocalNsmIP = status.NsmStatus.LocalIP
-		gwPodsInfo[i].TunnelStatus = kubeslicev1beta1.TunnelStatus(status.TunnelStatus)
+		gwPod.LocalNsmIP = status.NsmStatus.LocalIP
+		gwPod.TunnelStatus = kubeslicev1beta1.TunnelStatus(status.TunnelStatus)
 		debugLog.Info("Got gw status", "result", status)
-		if !isGatewayStatusChanged(slicegateway, gwPodsInfo[i]) {
-			continue
-		}
-		if status.TunnelStatus.Status == int32(gwsidecarpb.TunnelStatusType_GW_TUNNEL_STATE_DOWN) {
-			gwPodsInfo[i].TunnelStatus.Status = int32(gwsidecarpb.TunnelStatusType_GW_TUNNEL_STATE_DOWN)
-			if gwPodsInfo[i].RouteRemoved == 0 {
-				err := r.UpdateRoutesInRouter(ctx, slicegateway, gwPodsInfo[i].LocalNsmIP)
+		// if !isGatewayStatusChanged(slicegateway, gwPodsInfo[i]) {
+		// 	continue
+		// }
+		if gwPod.TunnelStatus.Status == int32(gwsidecarpb.TunnelStatusType_GW_TUNNEL_STATE_DOWN) {
+			if gwPod.RouteRemoved == 0 {
+				err := r.UpdateRoutesInRouter(ctx, slicegateway, gwPod.LocalNsmIP)
 				if err != nil {
 					toReconcile = true
 				} else {
-					gwPodsInfo[i].RouteRemoved = int32(gwsidecarpb.TunnelStatusType_GW_TUNNEL_STATE_DOWN)
+					gwPod.RouteRemoved = 1
+					toUpdate = true
 				}
 			}
-			toUpdate = true
 		} else {
-			log.Info("updating gw pod remove route field ", "--->", gwPodsInfo[i])
-			gwPodsInfo[i].RouteRemoved = 0
+			log.Info("updating gw pod remove route field ", "--->", gwPod)
+			gwPod.RouteRemoved = 0
 			toUpdate = true
 		}
 	}
@@ -725,7 +724,7 @@ func (r *SliceGwReconciler) SendConnectionContextToSliceRouter(ctx context.Conte
 		RemoteSliceGwNsmSubnet: slicegateway.Status.Config.SliceGatewayRemoteSubnet,
 		LocalNsmGwPeerIPs:      LocalNsmIPs,
 	}
-	log.Info("Conn ctx to send to slice router ","connCtx" ,connCtx)
+	log.Info("Conn ctx to send to slice router ", "connCtx", connCtx)
 
 	err = r.WorkerRouterClient.SendConnectionContext(ctx, sidecarGrpcAddress, connCtx)
 	if err != nil {
@@ -945,11 +944,11 @@ func getLocalNSMIPs(slicegateway *kubeslicev1beta1.SliceGateway) []string {
 }
 func getLocalNSMIPsForRouter(slicegateway *kubeslicev1beta1.SliceGateway) []string {
 	nsmIPs := make([]string, 0)
-	for i, _ := range slicegateway.Status.GatewayPodStatus {
-		if slicegateway.Status.GatewayPodStatus[i].RouteRemoved == int32(gwsidecarpb.TunnelStatusType_GW_TUNNEL_STATE_DOWN) {
+	for _, gwPod := range slicegateway.Status.GatewayPodStatus {
+		if gwPod.RouteRemoved == 1 {
 			continue
 		}
-		nsmIPs = append(nsmIPs, slicegateway.Status.GatewayPodStatus[i].LocalNsmIP)
+		nsmIPs = append(nsmIPs, gwPod.LocalNsmIP)
 	}
 	return nsmIPs
 }
@@ -969,9 +968,9 @@ func getPodNames(slicegateway *kubeslicev1beta1.SliceGateway) []string {
 }
 func isGWPodStatusChanged(slicegateway *kubeslicev1beta1.SliceGateway, gwPod *kubeslicev1beta1.GwPodInfo) bool {
 	gwPodStatus := slicegateway.Status.GatewayPodStatus
-	for i, _ := range gwPodStatus {
-		if gwPodStatus[i].PodName == gwPod.PodName {
-			return gwPodStatus[i].TunnelStatus.Status == gwPod.TunnelStatus.Status
+	for _, gw := range gwPodStatus {
+		if gw.PodName == gwPod.PodName {
+			return gw.TunnelStatus.Status == gwPod.TunnelStatus.Status
 		}
 	}
 	return false
