@@ -566,7 +566,6 @@ func isGatewayStatusChanged(slicegateway *kubeslicev1beta1.SliceGateway, gwPod *
 		!contains(getPodIPs(slicegateway), gwPod.PodIP) ||
 		!contains(getLocalNSMIPs(slicegateway), gwPod.LocalNsmIP) ||
 		!isGWPodStatusChanged(slicegateway, gwPod)
-
 }
 func (r *SliceGwReconciler) ReconcileGwPodStatus(ctx context.Context, slicegateway *kubeslicev1beta1.SliceGateway) (ctrl.Result, error, bool) {
 	log := logger.FromContext(ctx).WithValues("type", "SliceGw")
@@ -597,7 +596,7 @@ func (r *SliceGwReconciler) ReconcileGwPodStatus(ctx context.Context, slicegatew
 			toUpdate = true
 		}
 		if status.TunnelStatus.Status == int32(gwsidecarpb.TunnelStatusType_GW_TUNNEL_STATE_DOWN) {
-			if gwPod.RouteRemoved == 0 {
+			if !r.isRouteRemoved(slicegateway,gwPod.PodName) {
 				err := r.UpdateRoutesInRouter(ctx, slicegateway, gwPod.LocalNsmIP)
 				if err != nil {
 					toReconcile = true
@@ -699,6 +698,7 @@ func (r *SliceGwReconciler) SendConnectionContextAndQosToGwPod(ctx context.Conte
 	return ctrl.Result{}, nil, false
 }
 
+
 // In the event of slice router deletion as well this function needs to be called so that the routes can be injected into the router sidecar
 func (r *SliceGwReconciler) SendConnectionContextToSliceRouter(ctx context.Context, slicegateway *kubeslicev1beta1.SliceGateway) (ctrl.Result, error, bool) {
 	log := logger.FromContext(ctx).WithValues("type", "SliceGw")
@@ -771,6 +771,7 @@ func (r *SliceGwReconciler) getRemoteGwPodName(ctx context.Context, gwRemoteVpnI
 	}
 	return remoteGwPodName, nil
 }
+
 
 func (r *SliceGwReconciler) createHeadlessServiceForGwServer(slicegateway *kubeslicev1beta1.SliceGateway) *corev1.Service {
 	svc := &corev1.Service{
@@ -890,6 +891,16 @@ func (r *SliceGwReconciler) reconcileGatewayEndpoint(ctx context.Context, sliceG
 	return false, ctrl.Result{}, nil
 }
 
+func (r *SliceGwReconciler) isRouteRemoved(slicegw *kubeslicev1beta1.SliceGateway,podName string) bool {
+	for _,gwPod := range slicegw.Status.GatewayPodStatus{
+		if gwPod.PodName == podName {
+			return gwPod.RouteRemoved == 1
+		}
+	}
+	return false
+}
+
+
 func contains(s []string, e string) bool {
 	for _, a := range s {
 		if a == e {
@@ -967,6 +978,7 @@ func getPodNames(slicegateway *kubeslicev1beta1.SliceGateway) []string {
 	}
 	return podNames
 }
+
 func isGWPodStatusChanged(slicegateway *kubeslicev1beta1.SliceGateway, gwPod *kubeslicev1beta1.GwPodInfo) bool {
 	gwPodStatus := slicegateway.Status.GatewayPodStatus
 	for _, gw := range gwPodStatus {
