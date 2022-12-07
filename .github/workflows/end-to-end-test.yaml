@@ -1,8 +1,7 @@
 name: end-to-end-test
 on:
-  pull_request_target:
-    types: [ labeled ] 
-  workflow_dispatch:
+  push:
+    branches: PR-email
 env:
   chartuser: ${{ secrets.DEV_CHARTS_USERNAME }}
   chartpassword: ${{ secrets.DEV_CHARTS_PASSWORD }}
@@ -28,6 +27,12 @@ jobs:
         build-args: |
           PLATFORM=amd64
         push: false
+    
+    - name: Build and scan image
+      uses: ISID/build-and-scan-image@main
+      with:
+        tag: "worker-operator:${{ steps.vars.outputs.sha_commit }}"  
+        path: "."
     
     - name: build kind clusters
       run: |
