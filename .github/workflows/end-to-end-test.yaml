@@ -27,6 +27,10 @@ jobs:
           PLATFORM=amd64
         push: false
     
+    - uses: azure/container-scan@v0
+      with:
+        image-name: worker-operator:${{ steps.vars.outputs.sha_commit }}
+        
     - name: Build and scan image
       uses: ISID/build-and-scan-image@main
       with:
