@@ -193,25 +193,9 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		return ctrl.Result{}, err
 	}
 
-	res, err, requeue := r.SendConnectionContextAndQosToGwPod(ctx, slice, sliceGw)
-	if err != nil {
-		log.Error(err, "Failed to send connection context to gw pod")
-		//post event to slicegw
-		r.EventRecorder.Record(
-			&events.Event{
-				Object:    sliceGw,
-				EventType: events.EventTypeWarning,
-				Reason:    "Error",
-				Message:   "Failed to send connection context to gw pod",
-			},
-		)
-		return ctrl.Result{}, err
-	}
-	if requeue {
-		return res, nil
-	}
+	
 
-	res, err, requeue = r.ReconcileGwPodStatus(ctx, sliceGw)
+	res, err, requeue := r.ReconcileGwPodStatus(ctx, sliceGw)
 	if err != nil {
 		log.Error(err, "Failed to reconcile slice gw pod status")
 		//post event to slicegw
@@ -229,7 +213,23 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		return res, nil
 	}
 
-	
+	res, err, requeue = r.SendConnectionContextAndQosToGwPod(ctx, slice, sliceGw)
+	if err != nil {
+		log.Error(err, "Failed to send connection context to gw pod")
+		//post event to slicegw
+		r.EventRecorder.Record(
+			&events.Event{
+				Object:    sliceGw,
+				EventType: events.EventTypeWarning,
+				Reason:    "Error",
+				Message:   "Failed to send connection context to gw pod",
+			},
+		)
+		return ctrl.Result{}, err
+	}
+	if requeue {
+		return res, nil
+	}
 
 	res, err, requeue = r.SendConnectionContextToSliceRouter(ctx, sliceGw)
 	if err != nil {

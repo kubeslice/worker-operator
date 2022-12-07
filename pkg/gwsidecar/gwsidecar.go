@@ -132,7 +132,7 @@ func (worker gwSidecarClient) SendConnectionContext(ctx context.Context, serverA
 		RemoteSliceGwNsmSubnet: gwConnCtx.RemoteSliceGwNsmSubnet,
 	}
 
-	log.Info("SliceGwConnectionContext","SliceGwConnectionContext",msg)
+	log.Info("SliceGwConnectionContext", "SliceGwConnectionContext", msg)
 
 	_, err = client.UpdateConnectionContext(ctx, msg)
 
