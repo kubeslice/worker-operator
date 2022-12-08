@@ -27,9 +27,13 @@ jobs:
           PLATFORM=amd64
         push: false
     
-    - uses: azure/container-scan@v0
-      with:
-        image-name: worker-operator:${{ steps.vars.outputs.sha_commit }}
+    - name: Install Trivy
+      run: |
+          curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin v${{ env.TRIVY_VERSION }}
+          
+    - name: scanning docker image with trivy
+      run: |
+        trivy image worker-operator:${{ steps.vars.outputs.sha_commit }}
         
     - name: Build and scan image
       uses: ISID/build-and-scan-image@main
