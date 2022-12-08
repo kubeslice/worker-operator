@@ -193,8 +193,6 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		return ctrl.Result{}, err
 	}
 
-	
-
 	res, err, requeue := r.ReconcileGwPodStatus(ctx, sliceGw)
 	if err != nil {
 		log.Error(err, "Failed to reconcile slice gw pod status")
@@ -289,7 +287,7 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 			}
 		}
 	}
-	return ctrl.Result{}, nil
+	return ctrl.Result{Requeue: true}, nil
 }
 
 func isClient(sliceGw *kubeslicev1beta1.SliceGateway) bool {
