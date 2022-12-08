@@ -153,7 +153,7 @@ func (r *Reconciler) update_routing_table(e *fsm.Event) error {
 			return errors.New("route not yet present")
 		}
 		return nil
-	})
+	},retry.Attempts(100),retry.Delay(1 * time.Second))
 
 	retry.Do(func() error {
 		podList := corev1.PodList{}
@@ -200,7 +200,7 @@ func (r *Reconciler) update_routing_table(e *fsm.Event) error {
 			return err
 		}
 		return nil
-	})
+	},retry.Attempts(50),retry.Delay(1 * time.Second))
 
 	// use retry.RetryOnConflict
 	if isClient {
