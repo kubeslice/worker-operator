@@ -27,9 +27,11 @@ jobs:
           PLATFORM=amd64
         push: false
     
-    - name: Install Trivy
-      run: |
-         sudo apt-get install trivy
+    - name: Run Trivy vulnerability scanner
+      uses: aquasecurity/trivy-action@master
+      with:
+          image-ref: worker-operator:${{ steps.vars.outputs.sha_commit }}
+          format: 'table'
           
     - name: scanning docker image with trivy
       run: |
