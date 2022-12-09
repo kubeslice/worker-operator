@@ -36,12 +36,6 @@ jobs:
           image-ref: worker-operator:${{ steps.vars.outputs.sha_commit }}
           format: 'table'
     
-    - name: Build and scan image
-      uses: ISID/build-and-scan-image@main
-      with:
-        tag: "worker-operator:${{ steps.vars.outputs.sha_commit }}"  
-        path: "."
-    
     - name: build kind clusters
       run: |
         mkdir -p ${{ github.workspace }}/profile
