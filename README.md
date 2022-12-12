@@ -35,7 +35,7 @@ docker pull aveshasystems/worker-operator:latest
 If you have not added avesha helm repo yet, add it.
 
 ```console
-helm repo add avesha https://kubeslice.github.io/charts/
+helm repo add avesha https://kubeslice.github.io/kubeslice/
 ```
 
 Upgrade the avesha helm repo.
