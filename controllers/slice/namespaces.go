@@ -100,6 +100,7 @@ func (r *SliceReconciler) reconcileAppNamespaces(ctx context.Context, slice *kub
 	// Compare the existing list with the configured list.
 	// If a namespace is not found in the existing list, consider it as an addition event and
 	// label the namespace.
+	// (In case it doesn't exist, first create it & then label the same)
 	// If a namespace is found in the existing list, mark it to indicate that it has been verified
 	// to be valid as it is present in the configured list as well.
 	labeledAppNsList, statusChanged, err := r.labelAppNamespaces(ctx, cfgAppNsList, existingAppNsMap, slice)
@@ -718,9 +719,19 @@ func (r *SliceReconciler) labelAppNamespaces(ctx context.Context, cfgAppNsList [
 		// label does not exists on namespace
 		namespace := &corev1.Namespace{}
 		err := r.Get(ctx, types.NamespacedName{Name: cfgAppNs}, namespace)
+		// If the namespace itself doesn't exist on specified cluster then first create it
 		if err != nil {
-			log.Error(err, "Failed to find namespace", "namespace", cfgAppNs)
-			continue
+			log.Info("Failed to find namespace", "namespace", cfgAppNs)
+			namespace = &corev1.Namespace{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: cfgAppNs,
+				},
+			}
+			err2 := r.Create(ctx, namespace)
+			if err2 != nil {
+				log.Error(err2, "Failed to create namespace", cfgAppNs)
+			}
+			log.Info("Namespace created successfully", "namespace", cfgAppNs)
 		}
 		// A namespace might not have any labels attached to it. Directly accessing the label map
 		// leads to a crash for such namespaces.
