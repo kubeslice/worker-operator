@@ -770,7 +770,7 @@ func (r *SliceGwReconciler) getRemoteGwPodName(ctx context.Context, gwRemoteVpnI
 	sidecarGrpcAddress := gwPod.Status.PodIP + ":5000"
 	remoteGwPodName, err := r.WorkerGWSidecarClient.GetSliceGwRemotePodName(ctx, gwRemoteVpnIP, sidecarGrpcAddress)
 	r.Log.Info("slicegw remote pod name", "slicegw", remoteGwPodName)
-	if err != nil {
+	if err != nil {	
 		r.Log.Error(err, "Failed to get slicegw remote pod name. PodIp: %v, PodName: %v", gwPod.Status.PodIP, gwPod.Name)
 		return "", err
 	}
