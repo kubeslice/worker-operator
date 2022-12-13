@@ -103,7 +103,7 @@ func (r *SliceReconciler) reconcileAppNamespaces(ctx context.Context, slice *kub
 	// (In case it doesn't exist, first create it & then label the same)
 	// If a namespace is found in the existing list, mark it to indicate that it has been verified
 	// to be valid as it is present in the configured list as well.
-	labeledAppNsList, statusChanged, err := r.labelAppNamespaces(ctx, cfgAppNsList, existingAppNsMap, slice)
+	labeledAppNsList, statusChanged, err := r.createAndLabelAppNamespaces(ctx, cfgAppNsList, existingAppNsMap, slice)
 	if err != nil {
 		return ctrl.Result{}, err, true
 	}
@@ -706,7 +706,7 @@ func buildAppNamespacesList(slice *kubeslicev1beta1.Slice) []string {
 	}
 	return cfgAppNsList
 }
-func (r *SliceReconciler) labelAppNamespaces(ctx context.Context, cfgAppNsList []string, existingAppNsMap map[string]*nsMarker, slice *kubeslicev1beta1.Slice) ([]string, bool, error) {
+func (r *SliceReconciler) createAndLabelAppNamespaces(ctx context.Context, cfgAppNsList []string, existingAppNsMap map[string]*nsMarker, slice *kubeslicev1beta1.Slice) ([]string, bool, error) {
 	labeledAppNsList := []string{}
 	statusChanged := false
 	log := logger.FromContext(ctx).WithValues("type", "appNamespaces")
@@ -729,7 +729,8 @@ func (r *SliceReconciler) labelAppNamespaces(ctx context.Context, cfgAppNsList [
 			}
 			err2 := r.Create(ctx, namespace)
 			if err2 != nil {
-				log.Error(err2, "Failed to create namespace", cfgAppNs)
+				log.Error(err2, "Failed to create namespace", "namespace", cfgAppNs)
+				continue
 			}
 			log.Info("Namespace created successfully", "namespace", cfgAppNs)
 		}
