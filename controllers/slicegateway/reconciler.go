@@ -265,6 +265,14 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		toRebalace, err := r.isRebalancingRequired(ctx, sliceGw)
 		if err != nil {
 			log.Error(err, "Unable to rebalace gw pods")
+			r.EventRecorder.Record(
+				&events.Event{
+					Object:    sliceGw,
+					EventType: events.EventTypeWarning,
+					Reason:    "Error",
+					Message:   "Failed to check if rebalancing required",
+				},
+			)
 			return ctrl.Result{}, err
 		}
 		if toRebalace {
@@ -279,12 +287,30 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 			gwRemoteVpnIP := sliceGw.Status.Config.SliceGatewayRemoteVpnIP
 			clientID, err := r.getRemoteGwPodName(ctx, gwRemoteVpnIP, *newestPod)
 			if err != nil {
+				log.Error(err, "Error while fetching remote gw podName")
+				// post event to slicegw
+				r.EventRecorder.Record(
+					&events.Event{
+						Object:    sliceGw,
+						EventType: events.EventTypeWarning,
+						Reason:    "Error",
+						Message:   "Failed to get remote gw podName",
+					},
+				)
 				return ctrl.Result{}, err
 			}
 			err = r.HubClient.CreateWorkerSliceGwRecycler(ctx, sliceGw.Name, clientID, newestPod.Name, sliceGwName, sliceGw.Status.Config.SliceGatewayRemoteGatewayID, sliceGw.Spec.SliceName)
 			if err != nil {
 				return ctrl.Result{}, err
 			}
+			r.EventRecorder.Record(
+				&events.Event{
+					Object:    sliceGw,
+					EventType: events.EventTypeNormal,
+					Reason:    "Success",
+					Message:   "Rebalancing is in progress",
+				},
+			)
 		}
 	}
 	return ctrl.Result{Requeue: true}, nil

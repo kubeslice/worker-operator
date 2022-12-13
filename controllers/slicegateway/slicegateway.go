@@ -592,7 +592,7 @@ func (r *SliceGwReconciler) ReconcileGwPodStatus(ctx context.Context, slicegatew
 		gwPod.LocalNsmIP = status.NsmStatus.LocalIP
 		gwPod.TunnelStatus = kubeslicev1beta1.TunnelStatus(status.TunnelStatus)
 		debugLog.Info("Got gw status", "result", status)
-		if r.isRouteRemoved(slicegateway,gwPod.PodName){
+		if r.isRouteRemoved(slicegateway, gwPod.PodName) {
 			gwPod.RouteRemoved = 1
 		}
 		if isGatewayStatusChanged(slicegateway, gwPod) {
@@ -609,7 +609,7 @@ func (r *SliceGwReconciler) ReconcileGwPodStatus(ctx context.Context, slicegatew
 				}
 			}
 		} else {
-			if r.isRouteRemoved(slicegateway,gwPod.PodName){
+			if r.isRouteRemoved(slicegateway, gwPod.PodName) {
 				log.Info("updating gw pod remove route field ", "--->", gwPod)
 				gwPod.RouteRemoved = 0
 				toUpdate = true
@@ -765,13 +765,14 @@ func (r *SliceGwReconciler) SyncNetOpConnectionContextAndQos(ctx context.Context
 	return nil
 }
 
+// getRemoteGwPodName returns the remote gw PodName.
 func (r *SliceGwReconciler) getRemoteGwPodName(ctx context.Context, gwRemoteVpnIP string, gwPod corev1.Pod) (string, error) {
 	r.Log.Info("calling gw sidecar to get PodName", "type", "slicegw")
 	sidecarGrpcAddress := gwPod.Status.PodIP + ":5000"
 	remoteGwPodName, err := r.WorkerGWSidecarClient.GetSliceGwRemotePodName(ctx, gwRemoteVpnIP, sidecarGrpcAddress)
 	r.Log.Info("slicegw remote pod name", "slicegw", remoteGwPodName)
-	if err != nil {	
-		r.Log.Error(err, "Failed to get slicegw remote pod name. PodIp: %v, PodName: %v", gwPod.Status.PodIP, gwPod.Name)
+	if err != nil {
+		r.Log.Error(err, "Failed to get slicegw remote pod name. PodIp: %v, Local PodName: %v", gwPod.Status.PodIP, gwPod.Name)
 		return "", err
 	}
 	return remoteGwPodName, nil
@@ -1035,6 +1036,8 @@ func (r *SliceGwReconciler) getNewestPod(slicegw *kubeslicev1beta1.SliceGateway)
 	}
 	return &newestPod, nil
 }
+
+// isRebalancingRequired checks if rebalancing needs to be performed
 func (r *SliceGwReconciler) isRebalancingRequired(ctx context.Context, sliceGw *kubeslicev1beta1.SliceGateway) (bool, error) {
 	log := r.Log
 	//fetch the slicegateway deployment
@@ -1051,7 +1054,7 @@ func (r *SliceGwReconciler) isRebalancingRequired(ctx context.Context, sliceGw *
 	replicas := foundDep.Status.ReadyReplicas
 	MinNumberOfPodsReq := math.Ceil(float64(replicas) / float64(nodeCount))
 
-	log.Info("rebalancing reqd?","nodeCount",nodeCount,"replicas",replicas,"MinNumberOfPodsReq", MinNumberOfPodsReq)
+	log.Info("rebalancing reqd?", "nodeCount", nodeCount, "replicas", replicas, "MinNumberOfPodsReq", MinNumberOfPodsReq)
 
 	//check if rebalancing is required
 	nodeToPodMap := make(map[string]int32)
