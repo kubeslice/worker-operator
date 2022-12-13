@@ -719,20 +719,23 @@ func (r *SliceReconciler) createAndLabelAppNamespaces(ctx context.Context, cfgAp
 		// label does not exists on namespace
 		namespace := &corev1.Namespace{}
 		err := r.Get(ctx, types.NamespacedName{Name: cfgAppNs}, namespace)
-		// If the namespace itself doesn't exist on specified cluster then first create it
 		if err != nil {
-			log.Info("Failed to find namespace", "namespace", cfgAppNs)
-			namespace = &corev1.Namespace{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: cfgAppNs,
-				},
+			// If the namespace doesn't exist on specified cluster then first create it
+			if errors.IsNotFound(err) {
+				log.Info("Namespace is not found. Creating namespace.", "namespace", cfgAppNs)
+				namespace = &corev1.Namespace{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: cfgAppNs,
+					},
+				}
+				if err := r.Create(ctx, namespace); err != nil {
+					log.Error(err, "Failed to create namespace", "namespace", cfgAppNs)
+					continue
+				}
+				log.Info("Namespace created successfully", "namespace", cfgAppNs)
 			}
-			err2 := r.Create(ctx, namespace)
-			if err2 != nil {
-				log.Error(err2, "Failed to create namespace", "namespace", cfgAppNs)
-				continue
-			}
-			log.Info("Namespace created successfully", "namespace", cfgAppNs)
+			log.Error(err, "Failed to get namespace", "namespace", cfgAppNs)
+			continue
 		}
 		// A namespace might not have any labels attached to it. Directly accessing the label map
 		// leads to a crash for such namespaces.
