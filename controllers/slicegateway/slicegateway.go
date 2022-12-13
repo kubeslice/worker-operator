@@ -575,6 +575,8 @@ func isGatewayStatusChanged(slicegateway *kubeslicev1beta1.SliceGateway, gwPod *
 		!contains(getLocalNSMIPs(slicegateway), gwPod.LocalNsmIP) ||
 		!isGWPodStatusChanged(slicegateway, gwPod)
 }
+
+
 func (r *SliceGwReconciler) ReconcileGwPodStatus(ctx context.Context, slicegateway *kubeslicev1beta1.SliceGateway) (ctrl.Result, error, bool) {
 	log := logger.FromContext(ctx).WithValues("type", "SliceGw")
 	debugLog := log.V(1)
@@ -604,6 +606,9 @@ func (r *SliceGwReconciler) ReconcileGwPodStatus(ctx context.Context, slicegatew
 			gwPod.RouteRemoved = 1
 		}
 		if isGatewayStatusChanged(slicegateway, gwPod) {
+			toUpdate = true
+		}
+		if len(slicegateway.Status.GatewayPodStatus) != len(gwPodsInfo){
 			toUpdate = true
 		}
 		if status.TunnelStatus.Status == int32(gwsidecarpb.TunnelStatusType_GW_TUNNEL_STATE_DOWN) {
