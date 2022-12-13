@@ -553,7 +553,7 @@ func (r *SliceGwReconciler) GetGwPodInfo(ctx context.Context, sliceGw *kubeslice
 	gwPodList := make([]*kubeslicev1beta1.GwPodInfo, 0)
 	listOpts := []client.ListOption{
 		client.InNamespace(sliceGw.Namespace),
-		client.MatchingLabels(labelsForSliceGwDeployment(sliceGw.Name, sliceGw.Spec.SliceName)),
+		client.MatchingLabels(labelsForSliceGwService(sliceGw.Name)),
 	}
 	if err := r.List(ctx, podList, listOpts...); err != nil {
 		log.Error(err, "Failed to list pods")
