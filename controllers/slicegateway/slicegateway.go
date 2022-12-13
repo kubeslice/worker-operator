@@ -62,7 +62,15 @@ func labelsForSliceGwDeployment(name string, slice string) map[string]string {
 	return map[string]string{
 		"networkservicemesh.io/app":                      name,
 		webhook.PodInjectLabelKey:                        "slicegateway",
-		controllers.ApplicationNamespaceSelectorLabelKey: slice}
+		controllers.ApplicationNamespaceSelectorLabelKey: slice,
+		"kubeslice.io/slice-gw":name,
+	}
+}
+
+func labelsForSliceGwService(name string) map[string]string {
+	return map[string]string{
+		"kubeslice.io/slice-gw":name,
+	}
 }
 
 // deploymentForGateway returns a gateway Deployment object
@@ -320,7 +328,7 @@ func (r *SliceGwReconciler) serviceForGateway(g *kubeslicev1beta1.SliceGateway) 
 		},
 		Spec: corev1.ServiceSpec{
 			Type:     "NodePort",
-			Selector: labelsForSliceGwDeployment(g.Name, g.Spec.SliceName),
+			Selector: labelsForSliceGwService(g.Name),
 			Ports: []corev1.ServicePort{{
 				Port:       11194,
 				Protocol:   corev1.ProtocolUDP,
@@ -476,7 +484,7 @@ func (r *SliceGwReconciler) deploymentForGatewayClient(g *kubeslicev1beta1.Slice
 							"--port",
 							strconv.Itoa(g.Status.Config.SliceGatewayRemoteNodePort),
 							"--ping-restart",
-							"30",
+							"15",
 							"--proto",
 							"udp",
 							"--txqueuelen",
