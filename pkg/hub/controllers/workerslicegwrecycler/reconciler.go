@@ -83,16 +83,40 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			if err != nil {
 				return ctrl.Result{}, err
 			}
+			r.EventRecorder.Record(
+				&events.Event{
+					Object:    workerslicegwrecycler,
+					EventType: events.EventTypeNormal,
+					Reason:    "Sucess",
+					Message:   "FSM current state - new gw spawned",
+				},
+			)
 		case update_routing_table:
 			err := r.FSM.Event(update_routing_table, workerslicegwrecycler, isClient, slicegw)
 			if err != nil {
 				return ctrl.Result{}, err
 			}
+			r.EventRecorder.Record(
+				&events.Event{
+					Object:    workerslicegwrecycler,
+					EventType: events.EventTypeNormal,
+					Reason:    "Sucess",
+					Message:   "FSM current state - update routing table",
+				},
+			)
 		case delete_old_gw_pods:
 			err := r.FSM.Event(delete_old_gw_pods, workerslicegwrecycler, isClient)
 			if err != nil {
 				return ctrl.Result{}, err
 			}
+			r.EventRecorder.Record(
+				&events.Event{
+					Object:    workerslicegwrecycler,
+					EventType: events.EventTypeNormal,
+					Reason:    "Sucess",
+					Message:   "FSM current state - delete old gw",
+				},
+			)
 		}
 	} else {
 		switch workerslicegwrecycler.Status.Client.Response {
@@ -101,16 +125,40 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			if err != nil {
 				return ctrl.Result{}, err
 			}
+			r.EventRecorder.Record(
+				&events.Event{
+					Object:    workerslicegwrecycler,
+					EventType: events.EventTypeNormal,
+					Reason:    "Sucess",
+					Message:   "FSM current state - new gw spawned",
+				},
+			)
 		case slicerouter_updated:
 			err := r.FSM.Event(update_routing_table, workerslicegwrecycler, isClient, slicegw)
 			if err != nil {
 				return ctrl.Result{}, err
 			}
+			r.EventRecorder.Record(
+				&events.Event{
+					Object:    workerslicegwrecycler,
+					EventType: events.EventTypeNormal,
+					Reason:    "Sucess",
+					Message:   "FSM current state - slicerouter updated",
+				},
+			)
 		case old_gw_deleted:
 			err := r.FSM.Event(delete_old_gw_pods, workerslicegwrecycler, isClient)
 			if err != nil {
 				return ctrl.Result{}, err
 			}
+			r.EventRecorder.Record(
+				&events.Event{
+					Object:    workerslicegwrecycler,
+					EventType: events.EventTypeNormal,
+					Reason:    "Sucess",
+					Message:   "FSM current state - Old gw pod deleted",
+				},
+			)
 		}
 	}
 	return ctrl.Result{}, nil
