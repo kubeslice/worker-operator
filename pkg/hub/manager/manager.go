@@ -145,6 +145,8 @@ func Start(meshClient client.Client, ctx context.Context) {
 		log.Error(err, "could not create spoke router client for slice gateway reconciler")
 		os.Exit(1)
 	}
+
+	workerSliceGwRecyclerEventRecorder := events.NewEventRecorder(mgr.GetEventRecorderFor("workerslicegwrecycler-controller"))
 	if err := (&workerslicegwrecycler.Reconciler{
 		MeshClient:            meshClient,
 		Log:                   ctrl.Log.WithName("controllers").WithName("workerslicegwrecycler"),
@@ -152,6 +154,7 @@ func Start(meshClient client.Client, ctx context.Context) {
 		Client:                mgr.GetClient(),
 		WorkerGWSidecarClient: workerGWClient,
 		WorkerRouterClient:    workerRouterClient,
+		EventRecorder:         workerSliceGwRecyclerEventRecorder,
 	}).SetupWithManager(mgr); err != nil {
 		log.Error(err, "could not create controller")
 		os.Exit(1)
