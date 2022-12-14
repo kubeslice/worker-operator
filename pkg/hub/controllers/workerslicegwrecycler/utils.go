@@ -153,7 +153,31 @@ func (r *Reconciler) update_routing_table(e *fsm.Event) error {
 			return errors.New("route not yet present")
 		}
 		return nil
-	},retry.Attempts(100),retry.Delay(1 * time.Second))
+	},retry.Attempts(5000),retry.Delay(1 * time.Second))
+
+	
+	// use retry.RetryOnConflict
+	if isClient {
+		workerslicegwrecycler.Status.Client.Response = slicerouter_updated
+		return r.Status().Update(ctx, workerslicegwrecycler)
+	}
+
+	workerslicegwrecycler.Spec.State = slicerouter_updated
+	workerslicegwrecycler.Spec.Request = delete_old_gw_pods
+
+	return r.Update(ctx, workerslicegwrecycler)
+}
+
+func (r *Reconciler) delete_old_gw_pods(e *fsm.Event) error {
+	ctx := context.Background()
+	log := logger.FromContext(ctx).WithName("workerslicegwrecycler")
+
+	log.Info("Deleteing Old gw pods")
+
+	workerslicegwrecycler := e.Args[0].(*spokev1alpha1.WorkerSliceGwRecycler)
+	isClient := e.Args[1].(bool)
+	slicegateway := e.Args[2].(kubeslicev1beta1.SliceGateway)
+	// before deleting old gw_pods delete the route from vl3 router
 
 	retry.Do(func() error {
 		podList := corev1.PodList{}
@@ -202,29 +226,11 @@ func (r *Reconciler) update_routing_table(e *fsm.Event) error {
 		return nil
 	},retry.Attempts(5000),retry.Delay(1 * time.Second))
 
-	// use retry.RetryOnConflict
-	if isClient {
-		workerslicegwrecycler.Status.Client.Response = slicerouter_updated
-		return r.Status().Update(ctx, workerslicegwrecycler)
-	}
-
-	workerslicegwrecycler.Spec.State = slicerouter_updated
-	workerslicegwrecycler.Spec.Request = delete_old_gw_pods
-
-	return r.Update(ctx, workerslicegwrecycler)
-}
-
-func (r *Reconciler) delete_old_gw_pods(e *fsm.Event) error {
-	r.Log.Info("Deleteing Old gw pods")
-	workerslicegwrecycler := e.Args[0].(*spokev1alpha1.WorkerSliceGwRecycler)
-	isClient := e.Args[1].(bool)
-
 	podList := corev1.PodList{}
 	labels := map[string]string{"kubeslice.io/pod-type": "toBeDeleted", "kubeslice.io/slice": workerslicegwrecycler.Spec.SliceName}
 	listOptions := []client.ListOption{
 		client.MatchingLabels(labels),
 	}
-	ctx := context.Background()
 	err := r.MeshClient.List(ctx, &podList, listOptions...)
 	if err != nil {
 		return err
