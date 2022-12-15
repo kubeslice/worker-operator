@@ -733,9 +733,10 @@ func (r *SliceReconciler) createAndLabelAppNamespaces(ctx context.Context, cfgAp
 					continue
 				}
 				log.Info("Namespace created successfully", "namespace", cfgAppNs)
+			} else {
+				log.Error(err, "Failed to get namespace", "namespace", cfgAppNs)
+				continue
 			}
-			log.Error(err, "Failed to get namespace", "namespace", cfgAppNs)
-			continue
 		}
 		// A namespace might not have any labels attached to it. Directly accessing the label map
 		// leads to a crash for such namespaces.
