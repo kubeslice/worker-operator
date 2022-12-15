@@ -50,7 +50,7 @@ const (
 )
 
 var scheme = runtime.NewScheme()
-var log = logger.NewLogger().WithValues("type", "hub")
+var log = logger.NewWrappedLogger().WithValues("type", "hub")
 
 func init() {
 	clientgoscheme.AddToScheme(scheme)

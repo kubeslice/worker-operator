@@ -30,7 +30,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-var log = logger.NewLogger().WithValues("type", "hub")
+var log = logger.NewWrappedLogger().WithValues("type", "hub")
 
 var nodeInfo *NodeInfo
 

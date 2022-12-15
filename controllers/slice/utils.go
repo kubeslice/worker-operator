@@ -20,33 +20,77 @@ package slice
 
 import (
 	"context"
-
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
 	"github.com/kubeslice/worker-operator/controllers"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-func (r *SliceReconciler) cleanupSliceResources(ctx context.Context, slice *kubeslicev1beta1.Slice) {
+func (r *SliceReconciler) cleanupSliceResources(ctx context.Context, slice *kubeslicev1beta1.Slice) error {
 	r.Log.Info("Cleaning the slice resources!!")
 	//cleanup slice namespaces label and netpol
-	r.cleanupSliceNamespaces(ctx, slice)
+	if err := r.cleanupSliceNamespaces(ctx, slice); err != nil {
+		return err
+	}
 	//cleanup slice router network service
-	r.cleanupSliceRouter(ctx, slice.Name)
+	if err := r.cleanupSliceRouter(ctx, slice.Name); err != nil {
+		return err
+	}
 	//cleanup Service Discovery objects - serviceimport and export objects that belong to this slice
-	r.cleanupServiceDiscoveryObjects(ctx, slice.Name)
+	if err := r.cleanupServiceDiscoveryObjects(ctx, slice.Name); err != nil {
+		return err
+	}
+	// remove kubeslice.io/inject label from kubeslice-system , in case this is last slice
+	return r.removeLabel(ctx)
+}
+
+// this func removes the kubeslice.io/inject label from kubeslice-system , once the last slice has been deleted
+func (r *SliceReconciler) removeLabel(ctx context.Context) error {
+
+	listOpts := []client.ListOption{
+		client.InNamespace(ControlPlaneNamespace),
+	}
+	sliceList := kubeslicev1beta1.SliceList{}
+	if err := r.List(ctx, &sliceList, listOpts...); err != nil {
+		return err
+	}
+	if len(sliceList.Items) == 1 {
+		// last slice is being deleted
+		namespace := &corev1.Namespace{}
+		err := r.Get(ctx, types.NamespacedName{Name: ControlPlaneNamespace}, namespace)
+		if err != nil {
+			return err
+		}
+		r.Log.Info("Number of slices", "slices", len(sliceList.Items))
+
+		nsLabels := namespace.ObjectMeta.GetLabels()
+		if nsLabels == nil {
+			return nil
+		}
+		if _, ok := nsLabels[InjectSidecarKey]; ok {
+			delete(nsLabels, InjectSidecarKey)
+			err = r.Update(ctx, namespace)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
 
 func (r *SliceReconciler) cleanupServiceDiscoveryObjects(ctx context.Context, sliceName string) error {
-	var err error
-	if err = r.cleanupServiceImport(ctx, sliceName); err != nil {
-		r.Log.Error(err, "Error cleaning up service import objects.. please remove it manually")
+	if err := r.cleanupServiceImport(ctx, sliceName); err != nil {
+		r.Log.Error(err, "Error cleaning up service import objects.. retrying")
+		return err
 	}
 
-	if err = r.cleanupServiceExport(ctx, sliceName); err != nil {
-		r.Log.Error(err, "Error cleaning up service export objects.. please remove it manually")
+	if err := r.cleanupServiceExport(ctx, sliceName); err != nil {
+		r.Log.Error(err, "Error cleaning up service export objects.. retrying")
+		return err
 	}
-	return err
+	return nil
 }
 
 func (r *SliceReconciler) cleanupServiceImport(ctx context.Context, sliceName string) error {

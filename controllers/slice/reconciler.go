@@ -56,9 +56,9 @@ type SliceReconciler struct {
 	WorkerNetOpClient  WorkerNetOpClientProvider
 }
 
-//+kubebuilder:rbac:groups=networking.kubeslice.io,resources=slice,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=networking.kubeslice.io,resources=slice/status,verbs=get;update;patch
-//+kubebuilder:rbac:groups=networking.kubeslice.io,resources=slice/finalizers,verbs=update
+//+kubebuilder:rbac:groups=networking.kubeslice.io,resources=slices,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=networking.kubeslice.io,resources=slices/status,verbs=get;update;patch
+//+kubebuilder:rbac:groups=networking.kubeslice.io,resources=slices/finalizers,verbs=update
 //+kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=core,resources=pods,verbs=get;list;watch;update
 //+kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list;watch;create;update;patch;delete
@@ -69,7 +69,7 @@ type SliceReconciler struct {
 //+kubebuilder:rbac:groups=networking.istio.io,resources=gateways,verbs=get;list;create;update;watch;delete
 //+kubebuilder:rbac:groups=networking.istio.io,resources=serviceentries,verbs=get;list;create;update;watch;delete
 //+kubebuilder:rbac:groups=networking.istio.io,resources=virtualservices,verbs=get;list;create;update;watch;delete
-//+kubebuilder:webhook:path=/mutate-corev1-pod,mutating=true,failurePolicy=fail,groups="",resources=pods,verbs=create;update,versions=v1,name=webhook.kubeslice.io,admissionReviewVersions=v1,sideEffects=NoneOnDryRun
+//+kubebuilder:webhook:path=/mutate-webhook,mutating=true,failurePolicy=fail,groups="";apps,resources=pods;deployments;statefulsets;daemonsets,verbs=create;update,versions=v1,name=webhook.kubeslice.io,admissionReviewVersions=v1,sideEffects=NoneOnDryRun
 //+kubebuilder:rbac:groups=core,resources=nodes,verbs=get;list;watch
 //+kubebuilder:rbac:groups=core,resources=namespaces,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=networking.k8s.io,resources=networkpolicies,verbs=get;list;watch;create;update;patch;delete
@@ -96,6 +96,28 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 
 	log.Info("reconciling", "slice", slice.Name)
 
+	// label kubeslice-system namespace with kubeslice.io/inject=true label
+	namespace := &corev1.Namespace{}
+	err = r.Get(ctx, types.NamespacedName{Name: "kubeslice-system"}, namespace)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+	// A namespace might not have any labels attached to it. Directly accessing the label map
+	// leads to a crash for such namespaces.
+	// If the label map is nil, create one and use the setter api to attach it to the namespace.
+	nsLabels := namespace.ObjectMeta.GetLabels()
+	if nsLabels == nil {
+		nsLabels = make(map[string]string)
+	}
+	if _, ok := nsLabels[InjectSidecarKey]; !ok {
+		nsLabels[InjectSidecarKey] = "true"
+		namespace.ObjectMeta.SetLabels(nsLabels)
+
+		err = r.Update(ctx, namespace)
+		if err != nil {
+			return ctrl.Result{}, err
+		}
+	}
 	// Examine DeletionTimestamp to determine if object is under deletion
 	// The object is not being deleted, so if it does not have our finalizer,
 	// then lets add the finalizer and update the object. This is equivalent
@@ -324,7 +346,9 @@ func (r *SliceReconciler) handleSliceDeletion(slice *kubeslicev1beta1.Slice, ctx
 			if err != nil {
 				log.Error(err, "Failed to send slice deletetion event to netop")
 			}
-			r.cleanupSliceResources(ctx, slice)
+			if err := r.cleanupSliceResources(ctx, slice); err != nil {
+				return true, ctrl.Result{}, err
+			}
 			controllerutil.RemoveFinalizer(slice, sliceFinalizer)
 			if err := r.Update(ctx, slice); err != nil {
 				return true, ctrl.Result{}, err
@@ -360,6 +384,7 @@ func (r *SliceReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&kubeslicev1beta1.Slice{}).
 		Owns(&appsv1.Deployment{}).
+		Owns(&corev1.Pod{}).
 		Owns(&kubeslicev1beta1.SliceGateway{}).
 		Complete(r)
 }
