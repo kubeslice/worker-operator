@@ -730,6 +730,7 @@ func (r *SliceReconciler) createAndLabelAppNamespaces(ctx context.Context, cfgAp
 				}
 				if err := r.Create(ctx, namespace); err != nil {
 					log.Error(err, "Failed to create namespace", "namespace", cfgAppNs)
+					// if unable to create move to next NS in your list
 					continue
 				}
 				log.Info("Namespace created successfully", "namespace", cfgAppNs)
