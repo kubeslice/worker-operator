@@ -21,9 +21,10 @@ import (
 
 func (r *Reconciler) spawn_new_gw_pod(e *fsm.Event) error {
 	// The client cluster finds the client pod using the client-id field and removes the kubeslice gw label to drive it out of the purview of the gw deployment spec. Once the label is removed, Kubernetes spawns a new pod automatically to honor the number of replicas defined in the gw deployment spec. Once the new pod comes up, the client cluster retrieves the pod info to verify that the new pod has obtained an nsm IP. It then posts an update to the status field
-	// if r.FSM.Current() == new_gw_spawned{
-	// 	return nil
-	// }
+
+	ctx := context.Background()
+	log := logger.FromContext(ctx).WithName("workerslicegwrecycler")
+
 	workerslicegwrecycler := e.Args[0].(*spokev1alpha1.WorkerSliceGwRecycler)
 	isClient := e.Args[1].(bool)
 
@@ -38,7 +39,7 @@ func (r *Reconciler) spawn_new_gw_pod(e *fsm.Event) error {
 		}
 	}
 
-	r.Log.Info("removing label from pods", "pod", gwPod)
+	log.V(1).Info("removing label from pods", "pod", gwPod)
 	delete(gwPod.Labels, "kubeslice.io/pod-type")
 	gwPod.Labels["kubeslice.io/pod-type"] = "toBeDeleted"
 	err := r.MeshClient.Update(context.Background(), &gwPod)
@@ -69,7 +70,6 @@ func (r *Reconciler) spawn_new_gw_pod(e *fsm.Event) error {
 	listOptions := []client.ListOption{
 		client.MatchingLabels(labels),
 	}
-	ctx := context.Background()
 	err = r.MeshClient.List(ctx, &podList, listOptions...)
 	if err != nil {
 		return err
@@ -108,6 +108,8 @@ func (r *Reconciler) update_routing_table(e *fsm.Event) error {
 	slicegateway := e.Args[2].(kubeslicev1beta1.SliceGateway)
 	var nsmIPOfNewGwPod string
 
+	// fsm library used does not has the error handling mechanism for callback currently,
+	// hence we need to retry in case of errors
 	retry.Do(func() error {
 		var gwPod string
 		if isClient {

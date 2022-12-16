@@ -96,6 +96,9 @@ func (hubClient *HubClientConfig) CreateWorkerSliceGwRecycler(ctx context.Contex
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      gwRecyclerName,
 			Namespace: ProjectNamespace,
+			Labels: map[string]string{
+				"slice_name":slice,
+			},
 		},
 		Spec: spokev1alpha1.WorkerSliceGwRecyclerSpec{
 			GwPair: spokev1alpha1.GwPair{

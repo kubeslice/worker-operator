@@ -64,13 +64,14 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	}
 
 	log.Info("reconciling", "workerslicegwrecycler", workerslicegwrecycler.Name)
-	log.Info("current state", "FSM", r.FSM.Current())
+	log.V(1).Info("current state", "FSM", r.FSM.Current())
 	slicegw := kubeslicev1beta1.SliceGateway{}
 
 	if err := r.MeshClient.Get(ctx, types.NamespacedName{Namespace: "kubeslice-system", Name: workerslicegwrecycler.Spec.SliceGwServer}, &slicegw); err != nil {
 		if errors.IsNotFound(err) {
 			if err := r.MeshClient.Get(ctx, types.NamespacedName{Namespace: "kubeslice-system", Name: workerslicegwrecycler.Spec.SliceGwClient}, &slicegw); err != nil {
-				return ctrl.Result{}, err
+				// workergwrecycler not meant for this cluster, return and dont requeue
+				return ctrl.Result{}, nil
 			}
 		}
 	}
