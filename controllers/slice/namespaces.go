@@ -433,7 +433,7 @@ func (r *SliceReconciler) deleteAnnotationsAndLabels(ctx context.Context, slice 
 				}
 				v, ok = podannotations["networkservicemesh.io"]
 				if ok && v == fmt.Sprintf("kernel://vl3-service-%s/nsm0", slice.Name) {
-					delete(podannotations, "ns.networkservicemesh.io")
+					delete(podannotations, "networkservicemesh.io")
 				}
 			}
 			statusannotations := pod.ObjectMeta.GetAnnotations()
@@ -480,7 +480,7 @@ func (r *SliceReconciler) deleteAnnotationsAndLabels(ctx context.Context, slice 
 				}
 				v, ok = podannotations["networkservicemesh.io"]
 				if ok && v == fmt.Sprintf("kernel://vl3-service-%s/nsm0", slice.Name) {
-					delete(podannotations, "ns.networkservicemesh.io")
+					delete(podannotations, "networkservicemesh.io")
 				}
 			}
 			deployannotations := deploy.ObjectMeta.GetAnnotations()
@@ -527,7 +527,7 @@ func (r *SliceReconciler) deleteAnnotationsAndLabels(ctx context.Context, slice 
 				}
 				v, ok = podannotations["networkservicemesh.io"]
 				if ok && v == fmt.Sprintf("kernel://vl3-service-%s/nsm0", slice.Name) {
-					delete(podannotations, "ns.networkservicemesh.io")
+					delete(podannotations, "networkservicemesh.io")
 				}
 			}
 			deployannotations := statefulset.ObjectMeta.GetAnnotations()
@@ -574,7 +574,7 @@ func (r *SliceReconciler) deleteAnnotationsAndLabels(ctx context.Context, slice 
 				}
 				v, ok = podannotations["networkservicemesh.io"]
 				if ok && v == fmt.Sprintf("kernel://vl3-service-%s/nsm0", slice.Name) {
-					delete(podannotations, "ns.networkservicemesh.io")
+					delete(podannotations, "networkservicemesh.io")
 				}
 			}
 			deployannotations := daemonset.ObjectMeta.GetAnnotations()
