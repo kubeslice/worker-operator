@@ -19,6 +19,7 @@ package slice
 
 import (
 	"context"
+	"fmt"
 	"strings"
 
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
@@ -429,6 +430,10 @@ func (r *SliceReconciler) deleteAnnotationsAndLabels(ctx context.Context, slice 
 				if ok && v == "vl3-service-"+slice.Name {
 					delete(podannotations, "ns.networkservicemesh.io")
 				}
+				v, ok = podannotations["networkservicemesh.io"]
+				if ok && v == fmt.Sprintf("kernel://vl3-service-%s/nsm0", slice.Name) {
+					delete(podannotations, "ns.networkservicemesh.io")
+				}
 			}
 			statusannotations := pod.ObjectMeta.GetAnnotations()
 			if statusannotations != nil {
@@ -470,6 +475,10 @@ func (r *SliceReconciler) deleteAnnotationsAndLabels(ctx context.Context, slice 
 			if podannotations != nil {
 				v, ok := podannotations["ns.networkservicemesh.io"]
 				if ok && v == "vl3-service-"+slice.Name {
+					delete(podannotations, "ns.networkservicemesh.io")
+				}
+				v, ok = podannotations["networkservicemesh.io"]
+				if ok && v == fmt.Sprintf("kernel://vl3-service-%s/nsm0", slice.Name) {
 					delete(podannotations, "ns.networkservicemesh.io")
 				}
 			}
@@ -515,6 +524,10 @@ func (r *SliceReconciler) deleteAnnotationsAndLabels(ctx context.Context, slice 
 				if ok && v == "vl3-service-"+slice.Name {
 					delete(podannotations, "ns.networkservicemesh.io")
 				}
+				v, ok = podannotations["networkservicemesh.io"]
+				if ok && v == fmt.Sprintf("kernel://vl3-service-%s/nsm0", slice.Name) {
+					delete(podannotations, "ns.networkservicemesh.io")
+				}
 			}
 			deployannotations := statefulset.ObjectMeta.GetAnnotations()
 			if deployannotations != nil {
@@ -556,6 +569,10 @@ func (r *SliceReconciler) deleteAnnotationsAndLabels(ctx context.Context, slice 
 			if podannotations != nil {
 				v, ok := podannotations["ns.networkservicemesh.io"]
 				if ok && v == "vl3-service-"+slice.Name {
+					delete(podannotations, "ns.networkservicemesh.io")
+				}
+				v, ok = podannotations["networkservicemesh.io"]
+				if ok && v == fmt.Sprintf("kernel://vl3-service-%s/nsm0", slice.Name) {
 					delete(podannotations, "ns.networkservicemesh.io")
 				}
 			}
