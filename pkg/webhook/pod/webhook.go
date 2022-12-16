@@ -198,7 +198,8 @@ func MutateDeployment(deploy *appsv1.Deployment, sliceName string) *appsv1.Deplo
 
 	// Add vl3 annotation to pod template
 	annotations := deploy.Spec.Template.ObjectMeta.Annotations
-	annotations[nsmInjectAnnotaionKey] = "vl3-service-" + sliceName
+	annotations[nsmInjectAnnotaionKey1] = "vl3-service-" + sliceName
+	annotations[nsmInjectAnnotaionKey2] = fmt.Sprintf("kernel://vl3-service-%s/nsm0", sliceName)
 
 	// Add slice identifier labels to pod template
 	labels := deploy.Spec.Template.ObjectMeta.Labels
@@ -218,7 +219,8 @@ func MutateStatefulset(ss *appsv1.StatefulSet, sliceName string) *appsv1.Statefu
 
 	// Add vl3 annotation to pod template
 	annotations := ss.Spec.Template.ObjectMeta.Annotations
-	annotations[nsmInjectAnnotaionKey] = "vl3-service-" + sliceName
+	annotations[nsmInjectAnnotaionKey1] = "vl3-service-" + sliceName
+	annotations[nsmInjectAnnotaionKey2] = fmt.Sprintf("kernel://vl3-service-%s/nsm0", sliceName)
 
 	// Add slice identifier labels to pod template
 	labels := ss.Spec.Template.ObjectMeta.Labels
@@ -238,7 +240,8 @@ func MutateDaemonSet(ds *appsv1.DaemonSet, sliceName string) *appsv1.DaemonSet {
 
 	// Add vl3 annotation to pod template
 	annotations := ds.Spec.Template.ObjectMeta.Annotations
-	annotations[nsmInjectAnnotaionKey] = "vl3-service-" + sliceName
+	annotations[nsmInjectAnnotaionKey1] = "vl3-service-" + sliceName
+	annotations[nsmInjectAnnotaionKey2] = fmt.Sprintf("kernel://vl3-service-%s/nsm0", sliceName)
 
 	// Add slice identifier labels to pod template
 	labels := ds.Spec.Template.ObjectMeta.Labels
