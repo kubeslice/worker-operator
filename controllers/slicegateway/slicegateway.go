@@ -21,6 +21,7 @@ package slicegateway
 import (
 	"context"
 	_ "errors"
+	"fmt"
 	"os"
 	"strconv"
 	"time"
@@ -103,13 +104,12 @@ func (r *SliceGwReconciler) deploymentForGatewayServer(g *kubeslicev1beta1.Slice
 		vpnPullPolicy = corev1.PullPolicy(openVpnServerPullPolicy)
 	}
 
+	nsmAnnotation := fmt.Sprintf("kernel://vl3-service-%s/nsm0", g.Spec.SliceName)
+
 	dep := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      g.Name,
 			Namespace: g.Namespace,
-			Annotations: map[string]string{
-				"ns.networkservicemesh.io": "vl3-service-" + g.Spec.SliceName,
-			},
 		},
 		Spec: appsv1.DeploymentSpec{
 			Replicas: &replicas,
@@ -120,8 +120,9 @@ func (r *SliceGwReconciler) deploymentForGatewayServer(g *kubeslicev1beta1.Slice
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: ls,
 					Annotations: map[string]string{
-						"prometheus.io/port":   "18080",
-						"prometheus.io/scrape": "true",
+						"prometheus.io/port":    "18080",
+						"prometheus.io/scrape":  "true",
+						"networkservicemesh.io": nsmAnnotation,
 					},
 				},
 				Spec: corev1.PodSpec{
@@ -362,13 +363,12 @@ func (r *SliceGwReconciler) deploymentForGatewayClient(g *kubeslicev1beta1.Slice
 		vpnPullPolicy = corev1.PullPolicy(openVpnClientPullPolicy)
 	}
 
+	nsmAnnotation := fmt.Sprintf("kernel://vl3-service-%s/nsm0", g.Spec.SliceName)
+
 	dep := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      g.Name,
 			Namespace: g.Namespace,
-			Annotations: map[string]string{
-				"ns.networkservicemesh.io": "vl3-service-" + g.Spec.SliceName,
-			},
 		},
 		Spec: appsv1.DeploymentSpec{
 			Replicas: &replicas,
@@ -379,8 +379,9 @@ func (r *SliceGwReconciler) deploymentForGatewayClient(g *kubeslicev1beta1.Slice
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: ls,
 					Annotations: map[string]string{
-						"prometheus.io/port":   "18080",
-						"prometheus.io/scrape": "true",
+						"prometheus.io/port":    "18080",
+						"prometheus.io/scrape":  "true",
+						"networkservicemesh.io": nsmAnnotation,
 					},
 				},
 				Spec: corev1.PodSpec{
