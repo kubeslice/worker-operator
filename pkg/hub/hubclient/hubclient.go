@@ -97,7 +97,7 @@ func (hubClient *HubClientConfig) CreateWorkerSliceGwRecycler(ctx context.Contex
 			Name:      gwRecyclerName,
 			Namespace: ProjectNamespace,
 			Labels: map[string]string{
-				"slice_name":slice,
+				"slice_name": slice,
 			},
 		},
 		Spec: spokev1alpha1.WorkerSliceGwRecyclerSpec{

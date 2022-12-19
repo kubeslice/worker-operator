@@ -48,7 +48,7 @@ func (r *Reconciler) spawn_new_gw_pod(e *fsm.Event) error {
 	}
 	// wait till the replicas are back and get the latest spawned pod
 	gwDeploy := appsv1.Deployment{}
-	if isClient{
+	if isClient {
 		wait.Poll(1*time.Second, 60*time.Second, func() (done bool, err error) {
 			err = r.MeshClient.Get(context.Background(), types.NamespacedName{Namespace: "kubeslice-system", Name: workerslicegwrecycler.Spec.SliceGwClient}, &gwDeploy)
 			if err != nil {
@@ -102,7 +102,7 @@ func (r *Reconciler) update_routing_table(e *fsm.Event) error {
 	log := logger.FromContext(ctx).WithName("workerslicegwrecycler")
 
 	log.Info("in update_routing_table", "current_state", r.FSM.Current())
-	
+
 	workerslicegwrecycler := e.Args[0].(*spokev1alpha1.WorkerSliceGwRecycler)
 	isClient := e.Args[1].(bool)
 	slicegateway := e.Args[2].(kubeslicev1beta1.SliceGateway)
@@ -130,7 +130,7 @@ func (r *Reconciler) update_routing_table(e *fsm.Event) error {
 			}
 		}
 
-		log.Info("recycled pod","podname",gwPod)
+		log.Info("recycled pod", "podname", gwPod)
 
 		nsmIPOfNewGwPod = getNsmIp(&slicegateway, gwPod)
 		if nsmIPOfNewGwPod == "" {
@@ -162,9 +162,8 @@ func (r *Reconciler) update_routing_table(e *fsm.Event) error {
 			return errors.New("route not yet present")
 		}
 		return nil
-	},retry.Attempts(5000),retry.Delay(1 * time.Second))
+	}, retry.Attempts(5000), retry.Delay(1*time.Second))
 
-	
 	// use retry.RetryOnConflict
 	if isClient {
 		workerslicegwrecycler.Status.Client.Response = slicerouter_updated
@@ -233,7 +232,7 @@ func (r *Reconciler) delete_old_gw_pods(e *fsm.Event) error {
 			return err
 		}
 		return nil
-	},retry.Attempts(5000),retry.Delay(1 * time.Second))
+	}, retry.Attempts(5000), retry.Delay(1*time.Second))
 
 	podList := corev1.PodList{}
 	labels := map[string]string{"kubeslice.io/pod-type": "toBeDeleted", "kubeslice.io/slice": workerslicegwrecycler.Spec.SliceName}

@@ -106,7 +106,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 				},
 			)
 		case delete_old_gw_pods:
-			err := r.FSM.Event(delete_old_gw_pods, workerslicegwrecycler, isClient,slicegw)
+			err := r.FSM.Event(delete_old_gw_pods, workerslicegwrecycler, isClient, slicegw)
 			if err != nil {
 				return ctrl.Result{}, err
 			}
@@ -148,7 +148,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 				},
 			)
 		case old_gw_deleted:
-			err := r.FSM.Event(delete_old_gw_pods, workerslicegwrecycler, isClient,slicegw)
+			err := r.FSM.Event(delete_old_gw_pods, workerslicegwrecycler, isClient, slicegw)
 			if err != nil {
 				return ctrl.Result{}, err
 			}

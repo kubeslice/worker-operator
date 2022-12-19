@@ -63,13 +63,13 @@ func labelsForSliceGwDeployment(name string, slice string) map[string]string {
 		"networkservicemesh.io/app":                      name,
 		webhook.PodInjectLabelKey:                        "slicegateway",
 		controllers.ApplicationNamespaceSelectorLabelKey: slice,
-		"kubeslice.io/slice-gw":name,
+		"kubeslice.io/slice-gw":                          name,
 	}
 }
 
 func labelsForSliceGwService(name string) map[string]string {
 	return map[string]string{
-		"kubeslice.io/slice-gw":name,
+		"kubeslice.io/slice-gw": name,
 	}
 }
 
@@ -576,7 +576,6 @@ func isGatewayStatusChanged(slicegateway *kubeslicev1beta1.SliceGateway, gwPod *
 		!isGWPodStatusChanged(slicegateway, gwPod)
 }
 
-
 func (r *SliceGwReconciler) ReconcileGwPodStatus(ctx context.Context, slicegateway *kubeslicev1beta1.SliceGateway) (ctrl.Result, error, bool) {
 	log := logger.FromContext(ctx).WithValues("type", "SliceGw")
 	debugLog := log.V(1)
@@ -608,12 +607,12 @@ func (r *SliceGwReconciler) ReconcileGwPodStatus(ctx context.Context, slicegatew
 		if isGatewayStatusChanged(slicegateway, gwPod) {
 			toUpdate = true
 		}
-		if len(slicegateway.Status.GatewayPodStatus) != len(gwPodsInfo){
+		if len(slicegateway.Status.GatewayPodStatus) != len(gwPodsInfo) {
 			toUpdate = true
 		}
 		if status.TunnelStatus.Status == int32(gwsidecarpb.TunnelStatusType_GW_TUNNEL_STATE_DOWN) {
 			if !r.isRouteRemoved(slicegateway, gwPod.PodName) {
-				log.Info("slicegw status down","route not removed,removing route",gwPod.PodName)
+				log.Info("slicegw status down", "route not removed,removing route", gwPod.PodName)
 				err := r.UpdateRoutesInRouter(ctx, slicegateway, gwPod.LocalNsmIP)
 				if err != nil {
 					toReconcile = true
