@@ -71,6 +71,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		if errors.IsNotFound(err) {
 			if err := r.MeshClient.Get(ctx, types.NamespacedName{Namespace: "kubeslice-system", Name: workerslicegwrecycler.Spec.SliceGwClient}, &slicegw); err != nil {
 				// workergwrecycler not meant for this cluster, return and dont requeue
+				log.Error(err, "workergwrecycler not meant for this cluster, return and dont requeue")
 				return ctrl.Result{}, nil
 			}
 		}

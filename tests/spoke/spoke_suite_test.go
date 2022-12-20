@@ -45,7 +45,6 @@ import (
 	"github.com/kubeslice/worker-operator/controllers/slicegateway"
 	"github.com/kubeslice/worker-operator/pkg/cluster"
 	"github.com/kubeslice/worker-operator/pkg/events"
-	"github.com/kubeslice/worker-operator/pkg/hub/controllers/workerslicegwrecycler"
 	hub "github.com/kubeslice/worker-operator/pkg/hub/hubclient"
 	namespace "github.com/kubeslice/worker-operator/pkg/namespace/controllers"
 	"github.com/kubeslice/worker-operator/pkg/networkpolicy"
@@ -216,20 +215,6 @@ var _ = BeforeSuite(func() {
 		EventRecorder: netpolEventRecorder,
 	}).SetupWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())
-
-	workerSliceGwRecyclerEventRecorder := events.NewEventRecorder(k8sManager.GetEventRecorderFor("workerslicegwrecycler-controller"))
-	if err := (&workerslicegwrecycler.Reconciler{
-		MeshClient:            k8sManager.GetClient(),
-		Log:                   ctrl.Log.WithName("controllers").WithName("workerslicegwrecycler"),
-		Scheme:                k8sManager.GetScheme(),
-		Client:                k8sManager.GetClient(),
-		WorkerGWSidecarClient: workerClientSidecarGwEmulator,
-		WorkerRouterClient:    workerClientRouterEmulator,
-		EventRecorder:         workerSliceGwRecyclerEventRecorder,
-	}).SetupWithManager(k8sManager); err != nil {
-		log.Error(err, "could not create controller")
-		os.Exit(1)
-	}
 
 	if os.Getenv("NODE_IP") == "" {
 		err = (&cluster.NodeReconciler{
