@@ -1,11 +1,5 @@
 #!/bin/bash
 
-# Install kubectx and kubens
-echo Installing kubectx and kubens
-git clone https://github.com/ahmetb/kubectx /opt/kubectx
-ln -s /opt/kubectx/kubectx /usr/local/bin/kubectx
-ln -s /opt/kubectx/kubens /usr/local/bin/kubens
-
 # Create controller kind cluster if not present
 if [ ! $(kind get clusters | grep controller) ];then
   kind create cluster --name controller --config .github/workflows/scripts/cluster.yaml --image kindest/node:v1.23.12
@@ -37,8 +31,8 @@ if [ ! $(kind get clusters | grep controller) ];then
   # Switch to Controller cluster...
   kubectx kind-controller
   
-  echo 'kind load Image in controller cluster' 
-  kind load docker-image worker-operator:${GITHUB_HEAD_COMMIT} --name controller
+  # loading docker image into kind netops
+  kind load docker-image netops:${GITHUB_HEAD_COMMIT} --name controller
 
   echo Install the Tigera Calico operator...
   kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/v3.24.1/manifests/tigera-operator.yaml
@@ -98,9 +92,8 @@ if [ ! $(kind get clusters | grep worker) ];then
 
   # Switch to Worker cluster...
   kubectx kind-worker
-  
-  echo 'kind load Image in worker cluster' 
-  kind load docker-image worker-operator:${GITHUB_HEAD_COMMIT} --name worker
+  # loading docker image into kind netops
+  kind load docker-image netops:${GITHUB_HEAD_COMMIT} --name worker
 
   echo Install the Tigera Calico operator...
   kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/v3.24.1/manifests/tigera-operator.yaml
@@ -131,6 +124,7 @@ if [ ! $(kind get clusters | grep worker) ];then
 fi
 
 KUBECONFIG=/home/runner/.kube/kind1.yaml:/home/runner/.kube/kind2.yaml kubectl config view --raw  > /home/runner/.kube/kinde2e.yaml
+
 
 
 if [ ! -f profile/kind.yaml ];then
@@ -170,8 +164,8 @@ WorkerChartOptions:
   Username: ${chartuser}
   Password: ${chartpassword}
   SetStrValues:
-    "operator.image": "worker-operator"
-    "operator.tag": "${GITHUB_HEAD_COMMIT}"
+    "netop.image": "netops"
+    "netop.tag": "${GITHUB_HEAD_COMMIT}"
 IstioBaseChartOptions:
   Release:   "istio-base"
   Chart:     "istio-base"
@@ -191,7 +185,7 @@ TestSuitesEnabled:
   HubSuite: false
   WorkerSuite: true
   IstioSuite: false
-  IntraClusterSuite: true
+  Intraclustersuite: false
 EOF
 
 fi
