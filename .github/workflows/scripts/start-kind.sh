@@ -6,6 +6,7 @@ git clone https://github.com/ahmetb/kubectx /opt/kubectx
 ln -s /opt/kubectx/kubectx /usr/local/bin/kubectx
 ln -s /opt/kubectx/kubens /usr/local/bin/kubens
 
+
 # Create controller kind cluster if not present
 if [ ! $(kind get clusters | grep controller) ];then
   kind create cluster --name controller --config .github/workflows/scripts/cluster.yaml --image kindest/node:v1.23.12
