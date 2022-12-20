@@ -145,7 +145,7 @@ ControllerCluster:
   CertManagerOptions:
     Release: cert-manager
     Chart: cert-manager
-    Repo: "https://raw.githubusercontent.com/kubeslice/dev-charts/gh-pages/"
+    Repo: "https://raw.githubusercontent.com/kubeslice/stable-opensource-charts/gh-pages/"
     Namespace: cert-manager
     Version: 1.7.0
     Username: ${chartuser}
@@ -153,7 +153,7 @@ ControllerCluster:
   HubChartOptions:
     Release: kubeslice-controller
     Chart: kubeslice-controller
-    Repo: "https://raw.githubusercontent.com/kubeslice/dev-charts/gh-pages/"
+    Repo: "https://raw.githubusercontent.com/kubeslice/stable-opensource-charts/gh-pages/"
     Namespace: kubeslice-controller
     Username: ${chartuser}
     Password: ${chartpassword}
@@ -165,7 +165,7 @@ WorkerClusters:
 WorkerChartOptions:
   Release: kubeslice-worker
   Chart: kubeslice-worker
-  Repo: "https://raw.githubusercontent.com/kubeslice/dev-charts/gh-pages/"
+  Repo: "https://raw.githubusercontent.com/kubeslice/stable-opensource-charts/gh-pages/"
   Namespace: kubeslice-system
   Username: ${chartuser}
   Password: ${chartpassword}
@@ -175,14 +175,14 @@ WorkerChartOptions:
 IstioBaseChartOptions:
   Release:   "istio-base"
   Chart:     "istio-base"
-  Repo:      "https://raw.githubusercontent.com/kubeslice/dev-charts/gh-pages/"
+  Repo:      "https://raw.githubusercontent.com/kubeslice/stable-opensource-charts/gh-pages/"
   Username: ${chartuser}
   Password: ${chartpassword}
   Namespace: "istio-system"
 IstioDChartOptions:
   Release:   "istiod"
   Chart:     "istio-discovery"
-  Repo:      "https://raw.githubusercontent.com/kubeslice/dev-charts/gh-pages/"
+  Repo:      "https://raw.githubusercontent.com/kubeslice/stable-opensource-charts/gh-pages/"
   Username: ${chartuser}
   Password: ${chartpassword}
   Namespace: "istio-system"
