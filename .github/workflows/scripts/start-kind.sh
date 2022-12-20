@@ -32,7 +32,7 @@ if [ ! $(kind get clusters | grep controller) ];then
   kubectx kind-controller
   
   # loading docker image into kind 
-  kind load docker-image worker-operator:${GITHUB_HEAD_COMMIT} --name controller
+  kind load docker-image aveshasystems/worker-operator:${GITHUB_HEAD_COMMIT} --name controller
 
   echo Install the Tigera Calico operator...
   kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/v3.24.1/manifests/tigera-operator.yaml
@@ -93,7 +93,7 @@ if [ ! $(kind get clusters | grep worker) ];then
   # Switch to Worker cluster...
   kubectx kind-worker
   # loading docker image into kind 
-  kind load docker-image worker-operator:${GITHUB_HEAD_COMMIT} --name worker
+  kind load docker-image aveshasystems/worker-operator:${GITHUB_HEAD_COMMIT} --name worker
 
   echo Install the Tigera Calico operator...
   kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/v3.24.1/manifests/tigera-operator.yaml
@@ -164,7 +164,7 @@ WorkerChartOptions:
   Username: ${chartuser}
   Password: ${chartpassword}
   SetStrValues:
-    "operator.image": "worker-operator"
+    "operator.image": "aveshasystems/worker-operator"
     "operator.tag": "${GITHUB_HEAD_COMMIT}"
 IstioBaseChartOptions:
   Release:   "istio-base"
