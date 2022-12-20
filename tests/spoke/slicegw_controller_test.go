@@ -20,11 +20,11 @@ package spoke_test
 
 import (
 	"context"
+	nsmv1 "github.com/networkservicemesh/sdk-k8s/pkg/tools/k8s/apis/networkservicemesh.io/v1"
 	"reflect"
 	"time"
 
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
-	nsmv1alpha1 "github.com/networkservicemesh/networkservicemesh/k8s/pkg/apis/networkservice/v1alpha1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
@@ -45,7 +45,7 @@ var _ = Describe("Worker SlicegwController", func() {
 	var createdSliceGw *kubeslicev1beta1.SliceGateway
 	var slice *kubeslicev1beta1.Slice
 	var createdSlice *kubeslicev1beta1.Slice
-	var vl3ServiceEndpoint *nsmv1alpha1.NetworkServiceEndpoint
+	var vl3ServiceEndpoint *nsmv1.NetworkServiceEndpoint
 	var appPod *corev1.Pod
 	Context("With SliceGW CR created", func() {
 
@@ -100,23 +100,20 @@ var _ = Describe("Worker SlicegwController", func() {
 				},
 			}
 
-			vl3ServiceEndpoint = &nsmv1alpha1.NetworkServiceEndpoint{
-				TypeMeta: metav1.TypeMeta{
-					APIVersion: "networkservicemesh.io/v1alpha1",
-					Kind:       "NetworkServiceEndpoint",
-				},
+			vl3ServiceEndpoint = &nsmv1.NetworkServiceEndpoint{
 				ObjectMeta: metav1.ObjectMeta{
-					GenerateName: "vl3-service-" + "test-slice-4",
-					Namespace:    "kubeslice-system",
+					Name:      "vl3-nse-" + "test-slice-4",
+					Namespace: "kubeslice-system",
 					Labels: map[string]string{
 						"app":                "vl3-nse-" + "test-slice-4",
 						"networkservicename": "vl3-service-" + "test-slice-4",
 					},
 				},
-				Spec: nsmv1alpha1.NetworkServiceEndpointSpec{
-					NetworkServiceName: "vl3-service-" + "test-slice-4",
-					Payload:            "IP",
-					NsmName:            "test-node",
+				Spec: nsmv1.NetworkServiceEndpointSpec{
+					Name: "vl3-service-" + "test-slice-4",
+					NetworkServiceNames: []string{
+						"vl3-service-" + "test-slice-4",
+					},
 				},
 			}
 
@@ -417,9 +414,9 @@ var _ = Describe("Worker SlicegwController", func() {
 				Spec: kubeslicev1beta1.SliceSpec{},
 			}
 
-			vl3ServiceEndpoint = &nsmv1alpha1.NetworkServiceEndpoint{
+			vl3ServiceEndpoint = &nsmv1.NetworkServiceEndpoint{
 				TypeMeta: metav1.TypeMeta{
-					APIVersion: "networkservicemesh.io/v1alpha1",
+					APIVersion: "networkservicemesh.io/v1",
 					Kind:       "NetworkServiceEndpoint",
 				},
 				ObjectMeta: metav1.ObjectMeta{
@@ -430,10 +427,11 @@ var _ = Describe("Worker SlicegwController", func() {
 						"networkservicename": "vl3-service-" + "test-slice-del",
 					},
 				},
-				Spec: nsmv1alpha1.NetworkServiceEndpointSpec{
-					NetworkServiceName: "vl3-service-" + "test-slice-del",
-					Payload:            "IP",
-					NsmName:            "test-node",
+				Spec: nsmv1.NetworkServiceEndpointSpec{
+					Name: "vl3-service-" + "test-slice-del",
+					NetworkServiceNames: []string{
+						"vl3-service-" + "test-slice-del",
+					},
 				},
 			}
 		})
