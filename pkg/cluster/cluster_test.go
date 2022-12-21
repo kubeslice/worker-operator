@@ -38,13 +38,13 @@ func TestGetExcludedNsmIps(t *testing.T) {
 		objs        []runtime.Object
 	}{
 		{"filter namespace", "nsm-config", "demo", []string{"192.168.0.0/16", "10.96.0.0/12"}, []runtime.Object{configMap("nsm-config", "demo", `
-prefixes:
+Prefixes:
 - 192.168.0.0/16
 - 10.96.0.0/12		
 `)}},
 
 		{"single prefix data", "nsm-config", "demo", []string{"192.168.0.0/16"}, []runtime.Object{configMap("nsm-config", "demo", `
-prefixes:
+Prefixes:
 - 192.168.0.0/16		
 `)}},
 	}
@@ -144,7 +144,7 @@ func TestCluster_GetClusterInfo(t *testing.T) {
 
 func configMap(name, namespace, data string) *v1.ConfigMap {
 	configMapData := make(map[string]string)
-	configMapData["excluded_prefixes.yaml"] = data
+	configMapData["excluded_prefixes_output.yaml"] = data
 	configMap := v1.ConfigMap{
 		// TypeMeta: metav1.TypeMeta{
 		// 	Kind:       "ConfigMap",
