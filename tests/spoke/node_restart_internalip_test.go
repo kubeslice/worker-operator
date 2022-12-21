@@ -149,7 +149,7 @@ var _ = Describe("NodeRestart Test Suite", func() {
 				},
 			}
 			nsmconfig = configMap("nsm-config", "kubeslice-system", `
- prefixes:
+ Prefixes:
  - 192.168.0.0/16
  - 10.96.0.0/12`)
 			err = k8sClient.Get(ctx, types.NamespacedName{Name: nsmconfig.Name, Namespace: nsmconfig.Namespace}, nsmconfig)

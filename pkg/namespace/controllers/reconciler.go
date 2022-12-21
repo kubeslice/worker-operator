@@ -19,6 +19,7 @@ package namespace
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/go-logr/logr"
 	"github.com/kubeslice/worker-operator/controllers"
@@ -93,6 +94,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		return ctrl.Result{}, err
 	}
 	err = hub.UpdateNamespaceInfoToHub(ctx, r.Hubclient, namespace.Name, sliceName)
+	fmt.Println("namespace name", namespace.Name, "slicename", sliceName)
 	if err != nil {
 		log.Error(err, "Failed to post namespace on controller cluster")
 		return ctrl.Result{}, err
