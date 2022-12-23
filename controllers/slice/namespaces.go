@@ -19,6 +19,7 @@ package slice
 
 import (
 	"context"
+	"fmt"
 	"strings"
 
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
@@ -100,9 +101,10 @@ func (r *SliceReconciler) reconcileAppNamespaces(ctx context.Context, slice *kub
 	// Compare the existing list with the configured list.
 	// If a namespace is not found in the existing list, consider it as an addition event and
 	// label the namespace.
+	// (In case it doesn't exist, first create it & then label the same)
 	// If a namespace is found in the existing list, mark it to indicate that it has been verified
 	// to be valid as it is present in the configured list as well.
-	labeledAppNsList, statusChanged, err := r.labelAppNamespaces(ctx, cfgAppNsList, existingAppNsMap, slice)
+	labeledAppNsList, statusChanged, err := r.createAndLabelAppNamespaces(ctx, cfgAppNsList, existingAppNsMap, slice)
 	if err != nil {
 		return ctrl.Result{}, err, true
 	}
@@ -429,6 +431,10 @@ func (r *SliceReconciler) deleteAnnotationsAndLabels(ctx context.Context, slice 
 				if ok && v == "vl3-service-"+slice.Name {
 					delete(podannotations, "ns.networkservicemesh.io")
 				}
+				v, ok = podannotations["networkservicemesh.io"]
+				if ok && v == fmt.Sprintf("kernel://vl3-service-%s/nsm0", slice.Name) {
+					delete(podannotations, "networkservicemesh.io")
+				}
 			}
 			statusannotations := pod.ObjectMeta.GetAnnotations()
 			if statusannotations != nil {
@@ -471,6 +477,10 @@ func (r *SliceReconciler) deleteAnnotationsAndLabels(ctx context.Context, slice 
 				v, ok := podannotations["ns.networkservicemesh.io"]
 				if ok && v == "vl3-service-"+slice.Name {
 					delete(podannotations, "ns.networkservicemesh.io")
+				}
+				v, ok = podannotations["networkservicemesh.io"]
+				if ok && v == fmt.Sprintf("kernel://vl3-service-%s/nsm0", slice.Name) {
+					delete(podannotations, "networkservicemesh.io")
 				}
 			}
 			deployannotations := deploy.ObjectMeta.GetAnnotations()
@@ -515,6 +525,10 @@ func (r *SliceReconciler) deleteAnnotationsAndLabels(ctx context.Context, slice 
 				if ok && v == "vl3-service-"+slice.Name {
 					delete(podannotations, "ns.networkservicemesh.io")
 				}
+				v, ok = podannotations["networkservicemesh.io"]
+				if ok && v == fmt.Sprintf("kernel://vl3-service-%s/nsm0", slice.Name) {
+					delete(podannotations, "networkservicemesh.io")
+				}
 			}
 			deployannotations := statefulset.ObjectMeta.GetAnnotations()
 			if deployannotations != nil {
@@ -557,6 +571,10 @@ func (r *SliceReconciler) deleteAnnotationsAndLabels(ctx context.Context, slice 
 				v, ok := podannotations["ns.networkservicemesh.io"]
 				if ok && v == "vl3-service-"+slice.Name {
 					delete(podannotations, "ns.networkservicemesh.io")
+				}
+				v, ok = podannotations["networkservicemesh.io"]
+				if ok && v == fmt.Sprintf("kernel://vl3-service-%s/nsm0", slice.Name) {
+					delete(podannotations, "networkservicemesh.io")
 				}
 			}
 			deployannotations := daemonset.ObjectMeta.GetAnnotations()
@@ -705,7 +723,7 @@ func buildAppNamespacesList(slice *kubeslicev1beta1.Slice) []string {
 	}
 	return cfgAppNsList
 }
-func (r *SliceReconciler) labelAppNamespaces(ctx context.Context, cfgAppNsList []string, existingAppNsMap map[string]*nsMarker, slice *kubeslicev1beta1.Slice) ([]string, bool, error) {
+func (r *SliceReconciler) createAndLabelAppNamespaces(ctx context.Context, cfgAppNsList []string, existingAppNsMap map[string]*nsMarker, slice *kubeslicev1beta1.Slice) ([]string, bool, error) {
 	labeledAppNsList := []string{}
 	statusChanged := false
 	log := logger.FromContext(ctx).WithValues("type", "appNamespaces")
@@ -719,8 +737,24 @@ func (r *SliceReconciler) labelAppNamespaces(ctx context.Context, cfgAppNsList [
 		namespace := &corev1.Namespace{}
 		err := r.Get(ctx, types.NamespacedName{Name: cfgAppNs}, namespace)
 		if err != nil {
-			log.Error(err, "Failed to find namespace", "namespace", cfgAppNs)
-			continue
+			// If the namespace doesn't exist on specified cluster then first create it
+			if errors.IsNotFound(err) {
+				log.Info("Namespace is not found. Creating namespace.", "namespace", cfgAppNs)
+				namespace = &corev1.Namespace{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: cfgAppNs,
+					},
+				}
+				if err := r.Create(ctx, namespace); err != nil {
+					log.Error(err, "Failed to create namespace", "namespace", cfgAppNs)
+					// if unable to create move to next NS in your list
+					continue
+				}
+				log.Info("Namespace created successfully", "namespace", cfgAppNs)
+			} else {
+				log.Error(err, "Failed to get namespace", "namespace", cfgAppNs)
+				continue
+			}
 		}
 		// A namespace might not have any labels attached to it. Directly accessing the label map
 		// leads to a crash for such namespaces.

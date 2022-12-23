@@ -46,7 +46,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
-	nsmv1alpha1 "github.com/networkservicemesh/networkservicemesh/k8s/pkg/apis/networkservice/v1alpha1"
+	nsmv1 "github.com/networkservicemesh/sdk-k8s/pkg/tools/k8s/apis/networkservicemesh.io/v1"
 	istiov1beta1 "istio.io/client-go/pkg/apis/networking/v1beta1"
 
 	ocprom "contrib.go.opencensus.io/exporter/prometheus"
@@ -73,7 +73,7 @@ var (
 
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
-	utilruntime.Must(nsmv1alpha1.AddToScheme(scheme))
+	utilruntime.Must(nsmv1.AddToScheme(scheme))
 	utilruntime.Must(istiov1beta1.AddToScheme(scheme))
 	utilruntime.Must(kubeslicev1beta1.AddToScheme(scheme))
 	utilruntime.Must(istiov1beta1.AddToScheme(scheme))

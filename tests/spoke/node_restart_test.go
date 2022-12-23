@@ -20,6 +20,7 @@ package spoke_test
 
 import (
 	"context"
+	nsmv1 "github.com/networkservicemesh/sdk-k8s/pkg/tools/k8s/apis/networkservicemesh.io/v1"
 	"os"
 	"time"
 
@@ -27,7 +28,6 @@ import (
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
 	clusterpkg "github.com/kubeslice/worker-operator/pkg/cluster"
 	hub "github.com/kubeslice/worker-operator/pkg/hub/hubclient"
-	nsmv1alpha1 "github.com/networkservicemesh/networkservicemesh/k8s/pkg/apis/networkservice/v1alpha1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
@@ -41,7 +41,7 @@ var _ = Describe("NodeRestart Test Suite", func() {
 	var sliceGwServer *kubeslicev1beta1.SliceGateway
 	var createdSliceGw *kubeslicev1beta1.SliceGateway
 	var slice *kubeslicev1beta1.Slice
-	var vl3ServiceEndpoint *nsmv1alpha1.NetworkServiceEndpoint
+	var vl3ServiceEndpoint *nsmv1.NetworkServiceEndpoint
 	var node1, node2 *corev1.Node
 	var ns *corev1.Namespace
 	var cluster *hubv1alpha1.Cluster
@@ -129,29 +129,24 @@ var _ = Describe("NodeRestart Test Suite", func() {
 				},
 				Spec: kubeslicev1beta1.SliceSpec{},
 			}
-			vl3ServiceEndpoint = &nsmv1alpha1.NetworkServiceEndpoint{
-				TypeMeta: metav1.TypeMeta{
-					APIVersion: "networkservicemesh.io/v1alpha1",
-					Kind:       "NetworkServiceEndpoint",
-				},
+			vl3ServiceEndpoint = &nsmv1.NetworkServiceEndpoint{
 				ObjectMeta: metav1.ObjectMeta{
-					GenerateName: "vl3-service-" + "test-slice-node",
-					Namespace:    "kubeslice-system",
+					Name:      "vl3-nse-" + "test-slice-node",
+					Namespace: "kubeslice-system",
 					Labels: map[string]string{
 						"app":                "vl3-nse-" + "test-slice-node",
 						"networkservicename": "vl3-service-" + "test-slice-node",
 					},
 				},
-				Spec: nsmv1alpha1.NetworkServiceEndpointSpec{
-					NetworkServiceName: "vl3-service-" + "test-slice-node",
-					Payload:            "IP",
-					NsmName:            "test-node",
+				Spec: nsmv1.NetworkServiceEndpointSpec{
+					Name:                "vl3-service-" + "test-slice-node",
+					NetworkServiceNames: []string{"\"vl3-service-\" + \"test-slice-node\""},
 				},
 			}
 			nsmconfig = configMap("nsm-config", "kubeslice-system", `
-prefixes:
-- 192.168.0.0/16
-- 10.96.0.0/12`)
+Prefixes:
+ - 192.168.0.0/16
+ - 10.96.0.0/12`)
 			err = k8sClient.Get(ctx, types.NamespacedName{Name: nsmconfig.Name, Namespace: nsmconfig.Namespace}, nsmconfig)
 			if errors.IsNotFound(err) {
 				Expect(k8sClient.Create(ctx, nsmconfig)).Should(Succeed())

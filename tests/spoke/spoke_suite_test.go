@@ -20,6 +20,7 @@ package spoke_test
 
 import (
 	"context"
+	nsmv1 "github.com/networkservicemesh/sdk-k8s/pkg/tools/k8s/apis/networkservicemesh.io/v1"
 	"os"
 	"path/filepath"
 	"testing"
@@ -52,7 +53,6 @@ import (
 	workernetop "github.com/kubeslice/worker-operator/tests/emulator/workerclient/netop"
 	workerrouter "github.com/kubeslice/worker-operator/tests/emulator/workerclient/router"
 	workergw "github.com/kubeslice/worker-operator/tests/emulator/workerclient/sidecargw"
-	nsmv1alpha1 "github.com/networkservicemesh/networkservicemesh/k8s/pkg/apis/networkservice/v1alpha1"
 	istiov1beta1 "istio.io/client-go/pkg/apis/networking/v1beta1"
 	//+kubebuilder:scaffold:imports
 )
@@ -101,8 +101,8 @@ var _ = BeforeSuite(func() {
 	Expect(err).NotTo(HaveOccurred())
 	err = istiov1beta1.AddToScheme(scheme.Scheme)
 	Expect(err).NotTo(HaveOccurred())
-	err = nsmv1alpha1.AddToScheme(scheme.Scheme)
-	Expect(err).NotTo(HaveOccurred())
+	err = nsmv1.AddToScheme(scheme.Scheme)
+	Expect(err).ToNot(HaveOccurred())
 
 	//+kubebuilder:scaffold:scheme
 
@@ -162,8 +162,8 @@ var _ = BeforeSuite(func() {
 	testSvcExEventRecorder := events.NewEventRecorder(k8sManager.GetEventRecorderFor("test-SvcEx-controller"))
 
 	err = (&slicegateway.SliceGwReconciler{
-		Client: k8sManager.GetClient(),
-		Scheme: k8sManager.GetScheme(),
+		Client: k8sClient,
+		Scheme: k8sClient.Scheme(),
 		Log:    ctrl.Log.WithName("SliceTest"),
 		EventRecorder: &events.EventRecorder{
 			Recorder: &record.FakeRecorder{},

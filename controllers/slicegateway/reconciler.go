@@ -43,7 +43,7 @@ import (
 	"github.com/kubeslice/worker-operator/controllers"
 	"github.com/kubeslice/worker-operator/pkg/events"
 	"github.com/kubeslice/worker-operator/pkg/logger"
-	nsmv1alpha1 "github.com/networkservicemesh/networkservicemesh/k8s/pkg/apis/networkservice/v1alpha1"
+	nsmv1 "github.com/networkservicemesh/sdk-k8s/pkg/tools/k8s/apis/networkservicemesh.io/v1"
 )
 
 var sliceGwFinalizer = "networking.kubeslice.io/slicegw-finalizer"
@@ -129,7 +129,7 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	// Check if slice router network service endpoint (NSE) is present before spawning slice gateway pod.
 	// Gateways connect to vL3 slice router at startup, hence it is necessary to check if the
 	// NSE present before creating the gateway pods.
-	foundSliceRouterService, err := FindSliceRouterService(ctx, r.Client, sliceName)
+	foundSliceRouterService, err := r.FindSliceRouterService(ctx, r.Client, sliceName)
 	if !foundSliceRouterService {
 		if err != nil {
 			log.Error(err, "Failed to get Network Service EP list for vL3", "Name", "vl3-service-"+sliceName)
@@ -580,22 +580,15 @@ func (r *SliceGwReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Complete(r)
 }
 
-func FindSliceRouterService(ctx context.Context, c client.Client, sliceName string) (bool, error) {
-	vl3NseEpList := &nsmv1alpha1.NetworkServiceEndpointList{}
-	opts := []client.ListOption{
-		client.InNamespace(controllers.ControlPlaneNamespace),
-		client.MatchingLabels{"app": "vl3-nse-" + sliceName,
-			"networkservicename": "vl3-service-" + sliceName},
-	}
-	err := c.List(ctx, vl3NseEpList, opts...)
+func (r *SliceGwReconciler) FindSliceRouterService(ctx context.Context, c client.Client, sliceName string) (bool, error) {
+	vl3NseEp := &nsmv1.NetworkServiceEndpoint{}
+	err := r.Get(ctx, types.NamespacedName{Name: "vl3-nse-" + sliceName, Namespace: controllers.ControlPlaneNamespace}, vl3NseEp)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			return false, nil
 		}
 		return false, err
 	}
-	if len(vl3NseEpList.Items) == 0 {
-		return false, nil
-	}
+
 	return true, nil
 }
