@@ -92,13 +92,15 @@ func (c *Cluster) GetNsmExcludedPrefix(ctx context.Context, configmap, namespace
 	wait.Poll(10*time.Second, 5*time.Minute, func() (bool, error) {
 		err = c.Client.Get(ctx, types.NamespacedName{Namespace: namespace, Name: configmap}, &nsmconfig)
 		if err != nil {
-			return false, fmt.Errorf("can't get configmap %s from namespace %s: %+v ", configmap, namespace, err)
+			log.Error(err, "can't get configmap %s from namespace %s: %+v ", configmap, namespace)
+			return false, nil
+		}
+		if len(nsmconfig.Data) == 0 {
+			log.Error(err, "CNI Subnet not present")
+			return false, nil
 		}
 		return true, nil
 	})
-	if len(nsmconfig.Data) == 0 {
-		return nil, fmt.Errorf("CNI Subnet not present")
-	}
 
 	var cmData map[string]interface{}
 	err = yaml.Unmarshal([]byte(nsmconfig.Data["excluded_prefixes_output.yaml"]), &cmData)
