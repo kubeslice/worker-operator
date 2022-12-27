@@ -107,8 +107,8 @@ func (c *Cluster) GetNsmExcludedPrefix(ctx context.Context, configmap, namespace
 	var nsmconfig corev1.ConfigMap
 	var err error
 	var prefixes []string
-	// wait for 3 minuites and poll every 10 second
-	wait.Poll(10*time.Second, 3*time.Minute, func() (bool, error) {
+	// wait for 5 minuites and poll every 10 second
+	wait.Poll(10*time.Second, 5*time.Minute, func() (bool, error) {
 		err = c.Client.Get(ctx, types.NamespacedName{Namespace: namespace, Name: configmap}, &nsmconfig)
 		if err != nil {
 			log.Info("Error getting nsm configmap", "err", err)
