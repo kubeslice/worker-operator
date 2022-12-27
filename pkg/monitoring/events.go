@@ -2,7 +2,6 @@ package monitoring
 
 import (
 	"fmt"
-	"os"
 
 	zap "go.uber.org/zap"
 	"golang.org/x/net/context"
@@ -16,59 +15,93 @@ import (
 type EventType string
 
 var (
-	ClusterName = os.Getenv("CLUSTER_NAME")
-
 	EventTypeWarning EventType = "Warning"
 	EventTypeNormal  EventType = "Normal"
 )
 
 type EventRecorder struct {
-	client         client.Client
-	logger         *zap.SugaredLogger
-	scheme         *runtime.Scheme
-	releaseVersion string
+	Client    client.Client
+	Logger    *zap.SugaredLogger
+	Scheme    *runtime.Scheme
+	Version   string
+	Cluster   string
+	Tenant    string
+	Slice     string
+	Namespace string
+	Component string
 }
 
 type Event struct {
-	Object        runtime.Object
-	RelatedObject runtime.Object
-	EventType     EventType
-	Reason        string
-	Slice         string
-	Tenant        string
-	Message       string
-	Action        string
+	Object            runtime.Object
+	RelatedObject     runtime.Object
+	EventType         EventType
+	Reason            string
+	Message           string
+	Action            string
+	ReportingInstance string
 }
 
-func NewEventRecorder(client client.Client, scheme *runtime.Scheme, logger *zap.SugaredLogger, version string) *EventRecorder {
+func (er *EventRecorder) Copy() *EventRecorder {
 	return &EventRecorder{
-		client:         client,
-		logger:         logger,
-		scheme:         scheme,
-		releaseVersion: version,
+		Client:  er.Client,
+		Logger:  er.Logger,
+		Scheme:  er.Scheme,
+		Version: er.Version,
+		Cluster: er.Cluster,
+		Tenant:  er.Tenant,
+		Slice:   er.Slice,
 	}
 }
 
+// WithSlice returns a new recorder with added slice name for raising events
+func (er *EventRecorder) WithSlice(slice string) *EventRecorder {
+	e := er.Copy()
+	e.Slice = slice
+	return e
+}
+
+// WithNamespace returns a new recorder with added namespace name
+// If namespace is not provided, recorder will use the object namespace
+func (er *EventRecorder) WithNamespace(ns string) *EventRecorder {
+	e := er.Copy()
+	e.Namespace = ns
+	return e
+}
+
+// WithComponent returns a new recorder with component name added
+func (er *EventRecorder) WithComponent(c string) *EventRecorder {
+	e := er.Copy()
+	e.Component = c
+	return e
+}
+
+// RecordEvent raises a new event with the given fields
+// TODO: events caching and aggregation
 func (er *EventRecorder) RecordEvent(ctx context.Context, e *Event) error {
-	ref, err := reference.GetReference(er.scheme, e.Object)
+	ref, err := reference.GetReference(er.Scheme, e.Object)
 	if err != nil {
-		er.logger.With("error", err).Error("Unable to parse event obj reference")
+		er.Logger.With("error", err).Error("Unable to parse event obj reference")
 		return err
+	}
+
+	ns := er.Namespace
+	if ns == "" {
+		ns = ref.Namespace
 	}
 
 	t := metav1.Now()
 	ev := &corev1.Event{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      fmt.Sprintf("%v.%x", ref.Name, t.UnixNano()),
-			Namespace: ref.Namespace,
+			Namespace: ns,
 			Labels: map[string]string{
-				"sliceCluster":   ClusterName,
-				"sliceNamespace": ref.Namespace,
-				"sliceName":      e.Slice,
-				"sliceTenant":    e.Tenant,
+				"sliceCluster":   er.Cluster,
+				"sliceNamespace": ns,
+				"sliceName":      er.Slice,
+				"sliceTenant":    er.Tenant,
 			},
 			Annotations: map[string]string{
-				"release": er.releaseVersion,
+				"release": er.Version,
 			},
 		},
 		InvolvedObject:      *ref,
@@ -78,26 +111,28 @@ func (er *EventRecorder) RecordEvent(ctx context.Context, e *Event) error {
 		FirstTimestamp:      t,
 		LastTimestamp:       t,
 		Count:               1,
-		ReportingController: "ks",
-		ReportingInstance:   "ks",
+		ReportingController: er.Component,
+		ReportingInstance:   e.ReportingInstance,
 		Source: corev1.EventSource{
-			Component: "kubeslice-monitoring",
+			Component: er.Component,
 		},
 		Action: e.Action,
 		Type:   string(e.EventType),
 	}
 
 	if e.RelatedObject != nil {
-		related, err := reference.GetReference(er.scheme, e.RelatedObject)
+		related, err := reference.GetReference(er.Scheme, e.RelatedObject)
 		if err != nil {
-			er.logger.With("error", err).Error("Unable to parse event related obj reference")
+			er.Logger.With("error", err).Error("Unable to parse event related obj reference")
 			return err
 		}
 		ev.Related = related
 	}
 
-	if err := er.client.Create(ctx, ev); err != nil {
-		er.logger.With("error", err, "event", ev).Error("Unable to create event")
+	er.Logger.Info("raised event", "event", ev)
+
+	if err := er.Client.Create(ctx, ev); err != nil {
+		er.Logger.With("error", err, "event", ev).Error("Unable to create event")
 	}
 	return nil
 }
