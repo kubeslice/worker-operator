@@ -21,6 +21,7 @@ package hub
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -41,6 +42,7 @@ import (
 	"github.com/kubeslice/worker-operator/pkg/cluster"
 	"github.com/kubeslice/worker-operator/pkg/hub/controllers"
 	"github.com/kubeslice/worker-operator/pkg/logger"
+	"github.com/kubeslice/worker-operator/pkg/monitoring"
 )
 
 const (
@@ -61,6 +63,7 @@ func init() {
 
 type HubClientConfig struct {
 	client.Client
+	eventRecorder *monitoring.EventRecorder
 }
 
 type HubClientRpc interface {
@@ -72,7 +75,7 @@ type HubClientRpc interface {
 	UpdateNodeIpInCluster(ctx context.Context, clusterName, nodeIP, namespace string) error
 }
 
-func NewHubClientConfig() (*HubClientConfig, error) {
+func NewHubClientConfig(er *monitoring.EventRecorder) (*HubClientConfig, error) {
 	hubClient, err := client.New(&rest.Config{
 		Host:            os.Getenv("HUB_HOST_ENDPOINT"),
 		BearerTokenFile: HubTokenFile,
@@ -85,7 +88,8 @@ func NewHubClientConfig() (*HubClientConfig, error) {
 	)
 
 	return &HubClientConfig{
-		Client: hubClient,
+		Client:        hubClient,
+		eventRecorder: er,
 	}, err
 }
 
@@ -109,6 +113,12 @@ func (hubClient *HubClientConfig) UpdateNodeIpInCluster(ctx context.Context, clu
 	if err != nil {
 		return err
 	}
+	hubClient.eventRecorder.RecordEvent(ctx, &monitoring.Event{
+		EventType:         monitoring.EventTypeNormal,
+		Reason:            monitoring.EventReasonNodeIpUpdate,
+		Message:           "NodeIp Updated to: " + nodeIP,
+		ReportingInstance: "Controller Reconciler",
+	})
 	return nil
 }
 
@@ -129,7 +139,15 @@ func (hubClient *HubClientConfig) UpdateNodePortForSliceGwServer(ctx context.Con
 
 	sliceGw.Spec.LocalGatewayConfig.NodePort = int(sliceGwNodePort)
 
-	return hubClient.Update(ctx, sliceGw)
+	err = hubClient.Update(ctx, sliceGw)
+	hubClient.eventRecorder.RecordEvent(ctx, &monitoring.Event{
+		EventType:         monitoring.EventTypeNormal,
+		Reason:            monitoring.EventReasonNodePortUpdate,
+		Message:           fmt.Sprintf("NodePort Updated to: %d", sliceGwNodePort),
+		ReportingInstance: "Controller Reconciler",
+	})
+
+	return err
 }
 
 func PostClusterInfoToHub(ctx context.Context, spokeclient client.Client, hubClient client.Client, clusterName, nodeIP string, namespace string) error {

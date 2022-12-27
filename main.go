@@ -24,6 +24,7 @@ import (
 
 	"github.com/kubeslice/worker-operator/pkg/cluster"
 	"github.com/kubeslice/worker-operator/pkg/events"
+	"github.com/kubeslice/worker-operator/pkg/monitoring"
 	namespacecontroller "github.com/kubeslice/worker-operator/pkg/namespace/controllers"
 	"github.com/prometheus/client_golang/prometheus"
 	"go.opencensus.io/stats/view"
@@ -106,6 +107,14 @@ func main() {
 		CertDir:                utils.GetEnvOrDefault("WEBHOOK_CERTS_DIR", "/etc/webhook/certs"),
 	})
 
+	er := &monitoring.EventRecorder{
+		Client:    mgr.GetClient(),
+		Scheme:    mgr.GetScheme(),
+		Logger:    logger.NewLogger(),
+		Cluster:   os.Getenv("CLUSTER_NAME"),
+		Component: "Worker Operator",
+	}
+
 	// Use an environment variable to be able to disable webhooks, so that we can run the operator locally
 	if utils.GetEnvOrDefault("ENABLE_WEBHOOKS", "true") == "true" {
 		mgr.GetWebhookServer().Register("/mutate-webhook", &webhook.Admission{
@@ -131,7 +140,7 @@ func main() {
 		// It helps you to setup customize reporting period to push gateway
 		//view.SetReportingPeriod(10 * time.Millisecond)
 	}
-	hubClient, err := hub.NewHubClientConfig()
+	hubClient, err := hub.NewHubClientConfig(er)
 	if err != nil {
 		setupLog.With("error", err).Error("could not create hub client for slice gateway reconciler")
 		os.Exit(1)
@@ -201,13 +210,6 @@ func main() {
 			setupLog.With("error", err).Error("unable to create controller", "controller", "node")
 			os.Exit(1)
 		}
-	}
-
-	//+kubebuilder:scaffold:builder
-	hubClient, err = hub.NewHubClientConfig()
-	if err != nil {
-		setupLog.With("error", err).Error("could not create hub client for serviceexport reconciler")
-		os.Exit(1)
 	}
 
 	serviceExportEventRecorder := events.NewEventRecorder(mgr.GetEventRecorderFor("serviceExport-controller"))

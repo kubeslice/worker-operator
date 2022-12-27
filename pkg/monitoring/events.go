@@ -68,13 +68,6 @@ func (er *EventRecorder) WithNamespace(ns string) *EventRecorder {
 	return e
 }
 
-// WithComponent returns a new recorder with component name added
-func (er *EventRecorder) WithComponent(c string) *EventRecorder {
-	e := er.Copy()
-	e.Component = c
-	return e
-}
-
 // RecordEvent raises a new event with the given fields
 // TODO: events caching and aggregation
 func (er *EventRecorder) RecordEvent(ctx context.Context, e *Event) error {
