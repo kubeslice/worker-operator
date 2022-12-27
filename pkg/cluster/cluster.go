@@ -85,25 +85,9 @@ func (c *Cluster) getClusterLocation(ctx context.Context) (GeoLocation, error) {
 	return g, nil
 }
 
-func (c *Cluster) GetNsmExcludedPrefix(ctx context.Context, configmap, namespace string) ([]string, error) {
-	var nsmconfig corev1.ConfigMap
-	var err error
-	// wait for 5 minuites and poll for every 10 second
-	wait.Poll(10*time.Second, 5*time.Minute, func() (bool, error) {
-		err = c.Client.Get(ctx, types.NamespacedName{Namespace: namespace, Name: configmap}, &nsmconfig)
-		if err != nil {
-			log.Error(err, "can't get configmap %s from namespace %s: %+v ", configmap, namespace)
-			return false, nil
-		}
-		if len(nsmconfig.Data) == 0 {
-			log.Error(err, "CNI Subnet not present")
-			return false, nil
-		}
-		return true, nil
-	})
-
+func getPrefixes(nsmconfig corev1.ConfigMap) ([]string, error) {
 	var cmData map[string]interface{}
-	err = yaml.Unmarshal([]byte(nsmconfig.Data["excluded_prefixes_output.yaml"]), &cmData)
+	err := yaml.Unmarshal([]byte(nsmconfig.Data["excluded_prefixes_output.yaml"]), &cmData)
 	if err != nil {
 		return nil, fmt.Errorf("yaml unmarshalling error: %+v ", err)
 	}
@@ -115,5 +99,41 @@ func (c *Cluster) GetNsmExcludedPrefix(ctx context.Context, configmap, namespace
 		}
 		return prefixes, nil
 	}
-	return nil, fmt.Errorf("error occured while getting excluded prefixes")
+
+	return nil, fmt.Errorf("failed to read prefixes from configmap")
+}
+
+func (c *Cluster) GetNsmExcludedPrefix(ctx context.Context, configmap, namespace string) ([]string, error) {
+	var nsmconfig corev1.ConfigMap
+	var err error
+	var prefixes []string
+	// wait for 3 minuites and poll every 10 second
+	wait.Poll(10*time.Second, 3*time.Minute, func() (bool, error) {
+		err = c.Client.Get(ctx, types.NamespacedName{Namespace: namespace, Name: configmap}, &nsmconfig)
+		if err != nil {
+			log.Info("Error getting nsm configmap", "err", err)
+			return false, nil
+		}
+		if len(nsmconfig.Data) == 0 {
+			log.Info("prefix data not present")
+			return false, nil
+		}
+		_, ok := nsmconfig.Data["excluded_prefixes_output.yaml"]
+		if !ok {
+			log.Info("cni subnet info not present")
+			return false, nil
+		}
+		prefixes, err = getPrefixes(nsmconfig)
+		if err != nil {
+			log.Info("failed to get prefixes from configmap", "err", err)
+			return false, nil
+		}
+		return true, nil
+	})
+
+	if err != nil || len(prefixes) == 0 {
+		return nil, fmt.Errorf("error occured while getting excluded prefixes. err: %v, prefix len: %v", err, len(prefixes))
+	}
+
+	return prefixes, nil
 }
