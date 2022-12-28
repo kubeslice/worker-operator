@@ -49,7 +49,8 @@
           "prometheus.io/scrape": "true",
           "prometheus.io/path": "/stats/prometheus",
           "sidecar.istio.io/inject": "false",
-          "ns.networkservicemesh.io": "vl3-service-SLICE"
+          "ns.networkservicemesh.io": "vl3-service-SLICE",
+          "networkservicemesh.io": "kernel://vl3-service-SLICE/nsm0"
         }
       },
       "spec": {
