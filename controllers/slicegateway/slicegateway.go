@@ -222,6 +222,10 @@ func (r *SliceGwReconciler) deploymentForGatewayServer(g *kubeslicev1beta1.Slice
 							"/etc/openvpn/openvpn.conf",
 							"90",
 							"ovpn_run",
+							"-e",
+							"topology subnet",
+							"client-config-dir /etc/openvpn/ccd",
+							"#crl-verify /etc/openvpn/crl.pem",
 						},
 						SecurityContext: &corev1.SecurityContext{
 							Privileged:               &privileged,
