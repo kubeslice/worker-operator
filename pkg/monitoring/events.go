@@ -43,13 +43,15 @@ type Event struct {
 
 func (er *EventRecorder) Copy() *EventRecorder {
 	return &EventRecorder{
-		Client:  er.Client,
-		Logger:  er.Logger,
-		Scheme:  er.Scheme,
-		Version: er.Version,
-		Cluster: er.Cluster,
-		Tenant:  er.Tenant,
-		Slice:   er.Slice,
+		Client:    er.Client,
+		Logger:    er.Logger,
+		Scheme:    er.Scheme,
+		Version:   er.Version,
+		Cluster:   er.Cluster,
+		Tenant:    er.Tenant,
+		Slice:     er.Slice,
+		Namespace: er.Namespace,
+		Component: er.Component,
 	}
 }
 

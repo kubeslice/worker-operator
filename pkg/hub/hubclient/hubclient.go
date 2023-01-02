@@ -93,7 +93,7 @@ func NewHubClientConfig(er *monitoring.EventRecorder) (*HubClientConfig, error) 
 	}, err
 }
 
-func (hubClient *HubClientConfig) UpdateNodeIpInCluster(ctx context.Context, clusterName, nodeIP, namespace string) error {
+func (hubClient *HubClientConfig) UpdateNodeIpInCluster(ctx context.Context, clusterName, nodeIP, namespace string, slicegw *kubeslicev1beta1.SliceGateway) error {
 	cluster := &hubv1alpha1.Cluster{}
 	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		err := hubClient.Get(ctx, types.NamespacedName{
@@ -113,11 +113,13 @@ func (hubClient *HubClientConfig) UpdateNodeIpInCluster(ctx context.Context, clu
 	if err != nil {
 		return err
 	}
-	hubClient.eventRecorder.RecordEvent(ctx, &monitoring.Event{
+	hubClient.eventRecorder.WithNamespace(controllers.ControlPlaneNamespace).WithSlice(slicegw.Spec.SliceName).RecordEvent(ctx, &monitoring.Event{
 		EventType:         monitoring.EventTypeNormal,
 		Reason:            monitoring.EventReasonNodeIpUpdate,
 		Message:           "NodeIp Updated to: " + nodeIP,
 		ReportingInstance: "Controller Reconciler",
+		Object:            slicegw,
+		Action:            "NodeIPUpdated",
 	})
 	return nil
 }
@@ -145,6 +147,7 @@ func (hubClient *HubClientConfig) UpdateNodePortForSliceGwServer(ctx context.Con
 		Reason:            monitoring.EventReasonNodePortUpdate,
 		Message:           fmt.Sprintf("NodePort Updated to: %d", sliceGwNodePort),
 		ReportingInstance: "Controller Reconciler",
+		Object:            sliceGw,
 	})
 
 	return err

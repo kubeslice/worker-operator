@@ -112,7 +112,7 @@ func main() {
 		Scheme:    mgr.GetScheme(),
 		Logger:    logger.NewLogger(),
 		Cluster:   os.Getenv("CLUSTER_NAME"),
-		Component: "Worker Operator",
+		Component: "worker-operator",
 	}
 
 	// Use an environment variable to be able to disable webhooks, so that we can run the operator locally
