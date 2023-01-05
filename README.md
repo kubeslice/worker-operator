@@ -45,7 +45,7 @@ helm repo update
 ### Getting Secrets from Controller Cluster (if it's not already done)
 
 The following command will fetch the relevant secrets from the controller cluster
-and copy them to the `secrets` folder. Additionally, it will also output the secrets so that we
+and copy them to the `secrets` folder. Additionally, it will return the secrets so that we
 can use them to populate the helm chart values.
 
 ```console
