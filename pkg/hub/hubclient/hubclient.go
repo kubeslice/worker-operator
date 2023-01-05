@@ -148,6 +148,7 @@ func (hubClient *HubClientConfig) UpdateNodePortForSliceGwServer(ctx context.Con
 		Message:           fmt.Sprintf("NodePort Updated to: %d", sliceGwNodePort),
 		ReportingInstance: "Controller Reconciler",
 		Object:            sliceGw,
+		Action:            "NodePortUpdated",
 	})
 
 	return err
