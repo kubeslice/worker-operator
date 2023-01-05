@@ -46,7 +46,7 @@ helm repo update
 
 The following command will fetch the relevant secrets from the controller cluster
 and copy them to the `secrets` folder. Additionally, it will also output the secrets so that we
-can use them to populate helm chart values.
+can use them to populate the helm chart values.
 
 ```console
 deploy/controller_secret.sh [controller_cluster_context] [project_namespace] [worker_cluster_name]
