@@ -1,7 +1,7 @@
 # Kubeslice Worker Operator
 
 
-The Kubeslice Worker Operator, also known as Slice Operator manages the life-cycle of KubeSlice worker cluster related [custom resource definitions (CRDs)](https://kubernetes.io/docs/tasks/access-kubernetes-api/extend-api-custom-resource-definitions).
+The Kubeslice Worker Operator, also known as Slice Operator manages the lifecycle of KubeSlice worker cluster-related [custom resource definitions (CRDs)](https://kubernetes.io/docs/tasks/access-kubernetes-api/extend-api-custom-resource-definitions).
 The `kubeslice-worker` operator uses Kubebuilder, a framework for building Kubernetes APIs using CRDS.
 
 ## Getting Started
