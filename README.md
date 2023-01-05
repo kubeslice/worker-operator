@@ -14,7 +14,7 @@ Please refer to our documentation on:
 
 ### Prerequisites
 
-Before you begin,make sure the following prerequisites are met:
+Before you begin, make sure the following prerequisites are met:
 * Docker is installed and running on your local machine.
 * A running [`kind`](https://kind.sigs.k8s.io/).
 * [`kubectl`](https://kubernetes.io/docs/tasks/tools/) is installed and configured.
