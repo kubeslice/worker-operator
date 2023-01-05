@@ -16,7 +16,7 @@ Please refer to our documentation on:
 
 Before you begin, make sure the following prerequisites are met:
 * Docker is installed and running on your local machine.
-* A running [`kind`](https://kind.sigs.k8s.io/).
+* A running [`kind`](https://kind.sigs.k8s.io/) cluster.
 * [`kubectl`](https://kubernetes.io/docs/tasks/tools/) is installed and configured.
 * You have prepared the environment to install [`kubeslice-controller`](https://github.com/kubeslice/kubeslice-controller) on the controller cluster and [`worker-operator`](https://github.com/kubeslice/worker-operator) on the worker cluster. For more information, see [Prerequisites](https://kubeslice.io/documentation/open-source/0.5.0/getting-started-with-cloud-clusters/prerequisites/).
 
