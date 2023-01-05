@@ -36,7 +36,7 @@ type NetOpPod struct {
 
 type HubClientProvider interface {
 	UpdateNodePortForSliceGwServer(ctx context.Context, sliceGwNodePort int32, sliceGwName string) error
-	UpdateNodeIpInCluster(ctx context.Context, clusterName, nodeIP, namespace string) error
+	UpdateNodeIpInCluster(ctx context.Context, clusterName, nodeIP, namespace string, slicegateway *kubeslicev1beta1.SliceGateway) error
 	GetClusterNodeIP(ctx context.Context, clusterName, namespace string) (string, error)
 }
 type WorkerGWSidecarClientProvider interface {

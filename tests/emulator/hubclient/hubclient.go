@@ -39,7 +39,7 @@ func NewHubClientEmulator(client client.Client) (*HubClientEmulator, error) {
 	}, nil
 }
 
-func (hubClientEmulator *HubClientEmulator) UpdateNodeIpInCluster(ctx context.Context, clusterName, nodeIP, namespace string) error {
+func (hubClientEmulator *HubClientEmulator) UpdateNodeIpInCluster(ctx context.Context, clusterName, nodeIP, namespace string, slicegw *kubeslicev1beta1.SliceGateway) error {
 	cluster := &hubv1alpha1.Cluster{}
 	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		err := hubClientEmulator.Get(ctx, types.NamespacedName{

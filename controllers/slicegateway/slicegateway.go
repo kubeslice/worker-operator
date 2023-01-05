@@ -752,7 +752,7 @@ func (r *SliceGwReconciler) reconcileNodes(ctx context.Context, slicegateway *ku
 	if !contains(nodeIpList, currentNodeIP) {
 		//nodeIP updated , update the cluster CR
 		log.Info("Mismatch in node IP", "IP in use", currentNodeIP, "IP to be used", nodeIpList[0])
-		err := r.HubClient.UpdateNodeIpInCluster(ctx, os.Getenv("CLUSTER_NAME"), nodeIpList[0], os.Getenv("HUB_PROJECT_NAMESPACE"))
+		err := r.HubClient.UpdateNodeIpInCluster(ctx, os.Getenv("CLUSTER_NAME"), nodeIpList[0], os.Getenv("HUB_PROJECT_NAMESPACE"), slicegateway)
 		if err != nil {
 			return err
 		}
