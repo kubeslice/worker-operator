@@ -600,6 +600,11 @@ func (r *SliceGwReconciler) ReconcileGwPodStatus(ctx context.Context, slicegatew
 		}
 		gwPod.LocalNsmIP = status.NsmStatus.LocalIP
 		gwPod.TunnelStatus = kubeslicev1beta1.TunnelStatus(status.TunnelStatus)
+		gwPod.PeerPodName, err = r.getRemoteGwPodName(ctx, slicegateway.Status.Config.SliceGatewayRemoteVpnIP, gwPod.PodIP)
+		if err != nil {
+			log.Error(err, "Error getting peer pod name %v,pod ip %v", gwPod.PodName, gwPod.PodIP)
+			return ctrl.Result{}, err, true
+		}
 		debugLog.Info("Got gw status", "result", status)
 		if r.isRouteRemoved(slicegateway, gwPod.PodName) {
 			gwPod.RouteRemoved = 1
@@ -779,13 +784,13 @@ func (r *SliceGwReconciler) SyncNetOpConnectionContextAndQos(ctx context.Context
 }
 
 // getRemoteGwPodName returns the remote gw PodName.
-func (r *SliceGwReconciler) getRemoteGwPodName(ctx context.Context, gwRemoteVpnIP string, gwPod corev1.Pod) (string, error) {
+func (r *SliceGwReconciler) getRemoteGwPodName(ctx context.Context, gwRemoteVpnIP string, podIP string) (string, error) {
 	r.Log.Info("calling gw sidecar to get PodName", "type", "slicegw")
-	sidecarGrpcAddress := gwPod.Status.PodIP + ":5000"
+	sidecarGrpcAddress := podIP + ":5000"
 	remoteGwPodName, err := r.WorkerGWSidecarClient.GetSliceGwRemotePodName(ctx, gwRemoteVpnIP, sidecarGrpcAddress)
 	r.Log.Info("slicegw remote pod name", "slicegw", remoteGwPodName)
 	if err != nil {
-		r.Log.Error(err, "Failed to get slicegw remote pod name. PodIp: %v, Local PodName: %v", gwPod.Status.PodIP, gwPod.Name)
+		r.Log.Error(err, "Failed to get slicegw remote pod name. PodIp: %v", podIP)
 		return "", err
 	}
 	return remoteGwPodName, nil

@@ -131,6 +131,8 @@ spec:
                   properties:
                     localNsmIP:
                       type: string
+                    peerPodName:
+                      type: string
                     podIP:
                       type: string
                     podName:

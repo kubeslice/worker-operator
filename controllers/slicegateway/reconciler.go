@@ -285,7 +285,7 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 			// TODO(rahulkumar): get clientID = clientPodName through inband
 			// 1. Call server gw pod to fetch the corresponding client gw pod name
 			gwRemoteVpnIP := sliceGw.Status.Config.SliceGatewayRemoteVpnIP
-			clientID, err := r.getRemoteGwPodName(ctx, gwRemoteVpnIP, *newestPod)
+			clientID, err := r.getRemoteGwPodName(ctx, gwRemoteVpnIP, newestPod.Status.PodIP)
 			if err != nil {
 				log.Error(err, "Error while fetching remote gw podName")
 				// post event to slicegw

@@ -117,6 +117,7 @@ type SliceGatewayList struct {
 
 type GwPodInfo struct {
 	PodName      string       `json:"podName,omitempty"`
+	PeerPodName  string       `json:"peerPodName,omitempty"`
 	PodIP        string       `json:"podIP,omitempty"`
 	LocalNsmIP   string       `json:"localNsmIP,omitempty"`
 	TunnelStatus TunnelStatus `json:"tunnelStatus,omitempty"`
