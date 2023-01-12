@@ -576,6 +576,8 @@ func isGatewayStatusChanged(slicegateway *kubeslicev1beta1.SliceGateway, gwPod *
 		!isGWPodStatusChanged(slicegateway, gwPod)
 }
 
+
+
 func (r *SliceGwReconciler) ReconcileGwPodStatus(ctx context.Context, slicegateway *kubeslicev1beta1.SliceGateway) (ctrl.Result, error, bool) {
 	log := logger.FromContext(ctx).WithValues("type", "SliceGw")
 	debugLog := log.V(1)
@@ -1005,7 +1007,7 @@ func isGWPodStatusChanged(slicegateway *kubeslicev1beta1.SliceGateway, gwPod *ku
 	gwPodStatus := slicegateway.Status.GatewayPodStatus
 	for _, gw := range gwPodStatus {
 		if gw.PodName == gwPod.PodName {
-			return gw.TunnelStatus.Status == gwPod.TunnelStatus.Status
+			return gw.TunnelStatus.Status == gwPod.TunnelStatus.Status && gw.PeerPodName == gwPod.PeerPodName
 		}
 	}
 	return false
