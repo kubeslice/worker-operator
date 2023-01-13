@@ -605,7 +605,7 @@ func (r *SliceGwReconciler) ReconcileGwPodStatus(ctx context.Context, slicegatew
 		gwPod.PeerPodName, err = r.getRemoteGwPodName(ctx, slicegateway.Status.Config.SliceGatewayRemoteVpnIP, gwPod.PodIP)
 		if err != nil {
 			log.Error(err, "Error getting peer pod name %v,pod ip %v", gwPod.PodName, gwPod.PodIP)
-			return ctrl.Result{}, err, true
+			toReconcile = true
 		}
 		debugLog.Info("Got gw status", "result", status)
 		if r.isRouteRemoved(slicegateway, gwPod.PodName) {
