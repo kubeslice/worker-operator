@@ -20,6 +20,7 @@ package slicegateway
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -172,7 +173,7 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	// spin up 2 gw deployments
 	for i := 0; i < 2; i++ {
 		found := &appsv1.Deployment{}
-		err = r.Get(ctx, types.NamespacedName{Name: sliceGwName + "-" + string(i), Namespace: controllers.ControlPlaneNamespace}, found)
+		err = r.Get(ctx, types.NamespacedName{Name: sliceGwName + "-" + fmt.Sprint(i), Namespace: controllers.ControlPlaneNamespace}, found)
 		if err != nil {
 			if errors.IsNotFound(err) {
 				// Define a new deployment
@@ -340,7 +341,7 @@ func (r *SliceGwReconciler) handleSliceGwSvcCreation(ctx context.Context, sliceG
 	var sliceGwNodePorts []int
 	// capping the number of services to be 2 for now
 	for i := 0; i < 2; i++ {
-		err := r.Get(ctx, types.NamespacedName{Name: "svc-" + sliceGwName + "-" + string(i), Namespace: controllers.ControlPlaneNamespace}, foundsvc)
+		err := r.Get(ctx, types.NamespacedName{Name: "svc-" + sliceGwName + "-" + fmt.Sprint(i), Namespace: controllers.ControlPlaneNamespace}, foundsvc)
 		if err != nil {
 			if errors.IsNotFound(err) {
 				svc := r.serviceForGateway(sliceGw, i)

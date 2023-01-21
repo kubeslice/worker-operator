@@ -64,14 +64,14 @@ func labelsForSliceGwDeployment(name string, slice string, i int) map[string]str
 		webhook.PodInjectLabelKey:                        "slicegateway",
 		controllers.ApplicationNamespaceSelectorLabelKey: slice,
 		"kubeslice.io/slice-gw":                          name,
-		"kubeslice.io/slicegateway-pod":                  string(i),
+		"kubeslice.io/slicegateway-pod":                  fmt.Sprint(i),
 	}
 }
 
 func labelsForSliceGwService(name string, i int) map[string]string {
 	return map[string]string{
 		"kubeslice.io/slice-gw":         name,
-		"kubeslice.io/slicegateway-pod": string(i),
+		"kubeslice.io/slicegateway-pod": fmt.Sprint(i),
 	}
 }
 
@@ -126,7 +126,7 @@ func (r *SliceGwReconciler) deploymentForGatewayServer(g *kubeslicev1beta1.Slice
 
 	dep := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      g.Name + "-" + string(i),
+			Name:      g.Name + "-" + fmt.Sprint(i),
 			Namespace: g.Namespace,
 		},
 		Spec: appsv1.DeploymentSpec{
@@ -328,7 +328,7 @@ func (r *SliceGwReconciler) deploymentForGatewayServer(g *kubeslicev1beta1.Slice
 func (r *SliceGwReconciler) serviceForGateway(g *kubeslicev1beta1.SliceGateway, i int) *corev1.Service {
 	svc := &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "svc-" + g.Name + "-" + string(i),
+			Name:      "svc-" + g.Name + "-" + fmt.Sprint(i),
 			Namespace: g.Namespace,
 			Labels: map[string]string{
 				controllers.ApplicationNamespaceSelectorLabelKey: g.Spec.SliceName,
@@ -387,7 +387,7 @@ func (r *SliceGwReconciler) deploymentForGatewayClient(g *kubeslicev1beta1.Slice
 
 	dep := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      g.Name + "-" + string(i),
+			Name:      g.Name + "-" + fmt.Sprint(i),
 			Namespace: g.Namespace,
 		},
 		Spec: appsv1.DeploymentSpec{
