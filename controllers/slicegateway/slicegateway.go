@@ -58,32 +58,40 @@ var (
 )
 
 // labelsForSliceGwDeployment returns the labels for creating slice gw deployment
-func labelsForSliceGwDeployment(name string, slice string) map[string]string {
+func labelsForSliceGwDeployment(name string, slice string, i int) map[string]string {
 	return map[string]string{
 		"networkservicemesh.io/app":                      name,
 		webhook.PodInjectLabelKey:                        "slicegateway",
 		controllers.ApplicationNamespaceSelectorLabelKey: slice,
 		"kubeslice.io/slice-gw":                          name,
+		"kubeslice.io/slicegateway-pod":                  string(i),
 	}
 }
 
-func labelsForSliceGwService(name string) map[string]string {
+func labelsForSliceGwService(name string, i int) map[string]string {
+	return map[string]string{
+		"kubeslice.io/slice-gw":         name,
+		"kubeslice.io/slicegateway-pod": string(i),
+	}
+}
+
+func labelsForSliceGwStatus(name string) map[string]string {
 	return map[string]string{
 		"kubeslice.io/slice-gw": name,
 	}
 }
 
 // deploymentForGateway returns a gateway Deployment object
-func (r *SliceGwReconciler) deploymentForGateway(g *kubeslicev1beta1.SliceGateway) *appsv1.Deployment {
+func (r *SliceGwReconciler) deploymentForGateway(g *kubeslicev1beta1.SliceGateway, i int) *appsv1.Deployment {
 	if g.Status.Config.SliceGatewayHostType == "Server" {
-		return r.deploymentForGatewayServer(g)
+		return r.deploymentForGatewayServer(g, i)
 	} else {
-		return r.deploymentForGatewayClient(g)
+		return r.deploymentForGatewayClient(g, i)
 	}
 }
 
-func (r *SliceGwReconciler) deploymentForGatewayServer(g *kubeslicev1beta1.SliceGateway) *appsv1.Deployment {
-	ls := labelsForSliceGwDeployment(g.Name, g.Spec.SliceName)
+func (r *SliceGwReconciler) deploymentForGatewayServer(g *kubeslicev1beta1.SliceGateway, i int) *appsv1.Deployment {
+	ls := labelsForSliceGwDeployment(g.Name, g.Spec.SliceName, i)
 
 	var replicas int32 = 2
 
@@ -118,7 +126,7 @@ func (r *SliceGwReconciler) deploymentForGatewayServer(g *kubeslicev1beta1.Slice
 
 	dep := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      g.Name,
+			Name:      g.Name + "-" + string(i),
 			Namespace: g.Namespace,
 		},
 		Spec: appsv1.DeploymentSpec{
@@ -317,10 +325,10 @@ func (r *SliceGwReconciler) deploymentForGatewayServer(g *kubeslicev1beta1.Slice
 	return dep
 }
 
-func (r *SliceGwReconciler) serviceForGateway(g *kubeslicev1beta1.SliceGateway) *corev1.Service {
+func (r *SliceGwReconciler) serviceForGateway(g *kubeslicev1beta1.SliceGateway, i int) *corev1.Service {
 	svc := &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "svc-" + g.Name,
+			Name:      "svc-" + g.Name + "-" + string(i),
 			Namespace: g.Namespace,
 			Labels: map[string]string{
 				controllers.ApplicationNamespaceSelectorLabelKey: g.Spec.SliceName,
@@ -328,7 +336,7 @@ func (r *SliceGwReconciler) serviceForGateway(g *kubeslicev1beta1.SliceGateway) 
 		},
 		Spec: corev1.ServiceSpec{
 			Type:     "NodePort",
-			Selector: labelsForSliceGwService(g.Name),
+			Selector: labelsForSliceGwService(g.Name, i),
 			Ports: []corev1.ServicePort{{
 				Port:       11194,
 				Protocol:   corev1.ProtocolUDP,
@@ -336,14 +344,15 @@ func (r *SliceGwReconciler) serviceForGateway(g *kubeslicev1beta1.SliceGateway) 
 			}},
 		},
 	}
-	if g.Status.Config.SliceGatewayNodePort != 0 {
-		svc.Spec.Ports[0].NodePort = int32(g.Status.Config.SliceGatewayNodePort)
-	}
+	//TODO:rework here
+	// if len(g.Status.Config.SliceGatewayNodePorts) != 0 {
+	// 	svc.Spec.Ports[0].NodePort = int32(g.Status.Config.SliceGatewayNodePort)
+	// }
 	ctrl.SetControllerReference(g, svc, r.Scheme)
 	return svc
 }
 
-func (r *SliceGwReconciler) deploymentForGatewayClient(g *kubeslicev1beta1.SliceGateway) *appsv1.Deployment {
+func (r *SliceGwReconciler) deploymentForGatewayClient(g *kubeslicev1beta1.SliceGateway, i int) *appsv1.Deployment {
 	var replicas int32 = 2
 	var privileged = true
 
@@ -356,7 +365,7 @@ func (r *SliceGwReconciler) deploymentForGatewayClient(g *kubeslicev1beta1.Slice
 	vpnImg := "nexus.dev.aveshalabs.io/kubeslice/openvpn-client.alpine.amd64:1.0.0"
 	vpnPullPolicy := corev1.PullAlways
 
-	ls := labelsForSliceGwDeployment(g.Name, g.Spec.SliceName)
+	ls := labelsForSliceGwDeployment(g.Name, g.Spec.SliceName, i)
 
 	if len(gwSidecarImage) != 0 {
 		sidecarImg = gwSidecarImage
@@ -378,7 +387,7 @@ func (r *SliceGwReconciler) deploymentForGatewayClient(g *kubeslicev1beta1.Slice
 
 	dep := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      g.Name,
+			Name:      g.Name + "-" + string(i),
 			Namespace: g.Namespace,
 		},
 		Spec: appsv1.DeploymentSpec{
@@ -482,7 +491,7 @@ func (r *SliceGwReconciler) deploymentForGatewayClient(g *kubeslicev1beta1.Slice
 							"--remote",
 							g.Status.Config.SliceGatewayRemoteGatewayID,
 							"--port",
-							strconv.Itoa(g.Status.Config.SliceGatewayRemoteNodePort),
+							strconv.Itoa(g.Status.Config.SliceGatewayRemoteNodePorts[i]),
 							"--ping-restart",
 							"15",
 							"--proto",
@@ -553,7 +562,7 @@ func (r *SliceGwReconciler) GetGwPodInfo(ctx context.Context, sliceGw *kubeslice
 	gwPodList := make([]*kubeslicev1beta1.GwPodInfo, 0)
 	listOpts := []client.ListOption{
 		client.InNamespace(sliceGw.Namespace),
-		client.MatchingLabels(labelsForSliceGwService(sliceGw.Name)),
+		client.MatchingLabels(labelsForSliceGwStatus(sliceGw.Name)),
 	}
 	if err := r.List(ctx, podList, listOpts...); err != nil {
 		log.Error(err, "Failed to list pods")
@@ -575,8 +584,6 @@ func isGatewayStatusChanged(slicegateway *kubeslicev1beta1.SliceGateway, gwPod *
 		!contains(getLocalNSMIPs(slicegateway), gwPod.LocalNsmIP) ||
 		!isGWPodStatusChanged(slicegateway, gwPod)
 }
-
-
 
 func (r *SliceGwReconciler) ReconcileGwPodStatus(ctx context.Context, slicegateway *kubeslicev1beta1.SliceGateway) (ctrl.Result, error, bool) {
 	log := logger.FromContext(ctx).WithValues("type", "SliceGw")
@@ -602,10 +609,10 @@ func (r *SliceGwReconciler) ReconcileGwPodStatus(ctx context.Context, slicegatew
 		}
 		gwPod.LocalNsmIP = status.NsmStatus.LocalIP
 		gwPod.TunnelStatus = kubeslicev1beta1.TunnelStatus(status.TunnelStatus)
+		// this grpc call fails untill the openvpn tunnel connection is not established, so its better to do not reconcile in case of errors, hence the reconciler does not proceedes further
 		gwPod.PeerPodName, err = r.getRemoteGwPodName(ctx, slicegateway.Status.Config.SliceGatewayRemoteVpnIP, gwPod.PodIP)
 		if err != nil {
 			log.Error(err, "Error getting peer pod name %v,pod ip %v", gwPod.PodName, gwPod.PodIP)
-			toReconcile = true
 		}
 		debugLog.Info("Got gw status", "result", status)
 		if r.isRouteRemoved(slicegateway, gwPod.PodName) {
@@ -830,7 +837,7 @@ func (r *SliceGwReconciler) createEndpointForGatewayServer(slicegateway *kubesli
 	return e
 }
 
-// reconcileNodes gets the current nodeIP in use from controlle cluster CR and compares it with
+// reconcileNodes gets the current nodeIP in use from controller cluster CR and compares it with
 // the current nodeIpList (nodeIpList contains list of externalIPs or a single nodeIP if provided by user)
 // if the nodeIP is no longer available , we update the cluster CR on controller cluster
 func (r *SliceGwReconciler) reconcileNodes(ctx context.Context, slicegateway *kubeslicev1beta1.SliceGateway) error {

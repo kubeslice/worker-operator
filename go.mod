@@ -10,7 +10,7 @@ require (
 	github.com/go-ping/ping v1.1.0 // indirect
 	github.com/golang/protobuf v1.5.2
 	github.com/google/go-cmp v0.5.8
-	github.com/kubeslice/apis v0.0.0-20221124121623-6568a15ca62b
+	github.com/kubeslice/apis v0.1.1-0.20230121064822-782cfda18ff4
 	github.com/kubeslice/gateway-sidecar v0.1.5-0.20221130124917-de196d219417
 	github.com/kubeslice/netops v0.0.0-20220506082959-81fef290c265
 	github.com/kubeslice/router-sidecar v1.3.0-alpha.0.20221201103732-6fc910848807

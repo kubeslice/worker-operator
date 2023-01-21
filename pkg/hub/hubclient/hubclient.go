@@ -23,6 +23,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"reflect"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 
@@ -139,7 +140,7 @@ func (hubClient *HubClientConfig) UpdateNodeIpInCluster(ctx context.Context, clu
 	return nil
 }
 
-func (hubClient *HubClientConfig) UpdateNodePortForSliceGwServer(ctx context.Context, sliceGwNodePort int32, sliceGwName string) error {
+func (hubClient *HubClientConfig) UpdateNodePortForSliceGwServer(ctx context.Context, sliceGwNodePorts []int, sliceGwName string) error {
 	sliceGw := &spokev1alpha1.WorkerSliceGateway{}
 	err := hubClient.Get(ctx, types.NamespacedName{
 		Name:      sliceGwName,
@@ -149,12 +150,12 @@ func (hubClient *HubClientConfig) UpdateNodePortForSliceGwServer(ctx context.Con
 		return err
 	}
 
-	if sliceGw.Spec.LocalGatewayConfig.NodePort == int(sliceGwNodePort) {
+	if reflect.DeepEqual(sliceGw.Spec.LocalGatewayConfig.NodePorts, sliceGwNodePorts) {
 		// No update needed
 		return nil
 	}
 
-	sliceGw.Spec.LocalGatewayConfig.NodePort = int(sliceGwNodePort)
+	sliceGw.Spec.LocalGatewayConfig.NodePorts = sliceGwNodePorts
 
 	return hubClient.Update(ctx, sliceGw)
 }
