@@ -353,7 +353,7 @@ func (r *SliceGwReconciler) serviceForGateway(g *kubeslicev1beta1.SliceGateway, 
 }
 
 func (r *SliceGwReconciler) deploymentForGatewayClient(g *kubeslicev1beta1.SliceGateway, i int) *appsv1.Deployment {
-	var replicas int32 = 2
+	var replicas int32 = 1
 	var privileged = true
 
 	var vpnSecretDefaultMode int32 = 0644
