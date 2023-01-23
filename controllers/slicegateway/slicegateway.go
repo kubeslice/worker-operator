@@ -1070,8 +1070,8 @@ func (r *SliceGwReconciler) isRebalancingRequired(ctx context.Context, sliceGw *
 	//fetch the slicegateway deployment
 	foundDep := &appsv1.Deployment{}
 	var readyReplica int
-	for i:=0;i<2;i++{
-		slicegwkey := types.NamespacedName{Name: sliceGw.Name+"-"+fmt.Sprint(i), Namespace: sliceGw.Namespace}
+	for i := 0; i < 2; i++ {
+		slicegwkey := types.NamespacedName{Name: sliceGw.Name + "-" + fmt.Sprint(i), Namespace: sliceGw.Namespace}
 		err := r.Get(ctx, slicegwkey, foundDep)
 		if err != nil {
 			log.Error(err, "problem getting the deployment")

@@ -11,12 +11,10 @@ import (
 	"github.com/kubeslice/worker-operator/controllers"
 	"github.com/kubeslice/worker-operator/pkg/logger"
 	"github.com/kubeslice/worker-operator/pkg/router"
-	webhook "github.com/kubeslice/worker-operator/pkg/webhook/pod"
 	"github.com/looplab/fsm"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/apimachinery/pkg/util/wait"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -31,84 +29,72 @@ func (r *Reconciler) verify_new_deployment_created(e *fsm.Event) error {
 	deployList := &appsv1.DeploymentList{}
 	gwPod := corev1.Pod{}
 	if isClient {
+		retry.Do(func() error {
+			deployLabels := map[string]string{"kubeslice.io/slice-gw": workerslicegwrecycler.Spec.SliceGwClient}
+			listOpts := []client.ListOption{
+				client.InNamespace(controllers.ControlPlaneNamespace),
+				client.MatchingLabels(deployLabels),
+			}
+			err := r.MeshClient.List(ctx, deployList, listOpts...)
+			if err != nil {
+				log.Error(err, "Failed to List gw deployments")
+				return err
+			}
+			// Check if Number of GW deployments should equal to 3
+			if len(deployList.Items) != 3 {
+				return errors.New("number of GW deployemt should equal to 3")
+			}
+			newGwDeploy, err := r.getNewestGwDeploy(ctx, workerslicegwrecycler.Spec.SliceGwClient)
+			if err != nil {
+				return err
+			}
+
+			if newGwDeploy.Status.Replicas != newGwDeploy.Status.AvailableReplicas {
+				return errors.New("Waiting for gw pod to be up and running")
+			}
+			return nil
+		})
 		if err := r.MeshClient.Get(context.Background(), types.NamespacedName{Namespace: "kubeslice-system", Name: workerslicegwrecycler.Spec.GwPair.ClientID}, &gwPod); err != nil {
 			return err
 		}
-		deployLabels := map[string]string{"kubeslice.io/slice-gw":workerslicegwrecycler.Spec.SliceGwClient}
-		listOpts := []client.ListOption{
-			client.InNamespace(controllers.ControlPlaneNamespace),
-			client.MatchingLabels(deployLabels),
-		}
-		err := r.MeshClient.List(ctx, deployList, listOpts...)
-		if err != nil {
-			r.Log.Error(err, "Failed to List gw deployments")
-			return err
-		}
-		// Check if Number of GW deployments should equal to 3
-		if len(deployList.Items) != 3 {
-			return errors.New("number of GW deployemt should equal to 3")
-		}
-		newGwDeploy, err := r.getNewestGwDeploy(ctx, gwPod.Labels["kubeslice.io/slice-gw"])
-		if err != nil {
-			return err
-		}
-		wait.Poll(1*time.Second, 60*time.Second, func() (done bool, err error) {
-			return newGwDeploy.Status.Replicas == newGwDeploy.Status.AvailableReplicas, nil
-		})
 	} else {
+		retry.Do(func() error {
+			deployLabels := map[string]string{"kubeslice.io/slice-gw": workerslicegwrecycler.Spec.SliceGwServer}
+			listOpts := []client.ListOption{
+				client.InNamespace(controllers.ControlPlaneNamespace),
+				client.MatchingLabels(deployLabels),
+			}
+			err := r.MeshClient.List(ctx, deployList, listOpts...)
+			if err != nil {
+				r.Log.Error(err, "Failed to List gw deployments")
+				return err
+			}
+			// Check if Number of GW deployments should equal to 3
+			if len(deployList.Items) != 3 {
+				return errors.New("number of GW deployemt should equal to 3")
+			}
+			newGwDeploy, err := r.getNewestGwDeploy(ctx, workerslicegwrecycler.Spec.SliceGwServer)
+			if err != nil {
+				return err
+			}
+
+			if newGwDeploy.Status.Replicas != newGwDeploy.Status.AvailableReplicas {
+				return errors.New("Waiting for gw pod to be up and running")
+			}
+			return nil
+		})
 		if err := r.MeshClient.Get(context.Background(), types.NamespacedName{Namespace: "kubeslice-system", Name: workerslicegwrecycler.Spec.GwPair.ServerID}, &gwPod); err != nil {
 			return err
 		}
-		deployLabels := map[string]string{"kubeslice.io/slice-gw":workerslicegwrecycler.Spec.SliceGwServer}
-		listOpts := []client.ListOption{
-			client.InNamespace(controllers.ControlPlaneNamespace),
-			client.MatchingLabels(deployLabels),
-		}
-		err := r.MeshClient.List(ctx, deployList, listOpts...)
-		if err != nil {
-			r.Log.Error(err, "Failed to List gw deployments")
-			return err
-		}
-		// Check if Number of GW deployments should equal to 3
-		if len(deployList.Items) != 3 {
-			return errors.New("number of deployemt should equal to 3")
-		}
-		// Select the newest deploy
-		newGwDeploy, err := r.getNewestGwDeploy(ctx, gwPod.Labels["kubeslice.io/slice-gw"])
-		if err != nil {
-			return err
-		}
-		wait.Poll(1*time.Second, 60*time.Second, func() (done bool, err error) {
-			return newGwDeploy.Status.Replicas == newGwDeploy.Status.AvailableReplicas, nil
-		})
 	}
 
-	log.V(1).Info("removing label from pods", "pod", gwPod)
-	delete(gwPod.Labels, "kubeslice.io/pod-type")
+	// add this label for future reference
 	gwPod.Labels["kubeslice.io/pod-type"] = "toBeDeleted"
-	err = r.MeshClient.Update(context.Background(), &gwPod)
+	err := r.MeshClient.Update(context.Background(), &gwPod)
 	if err != nil {
 		return err
 	}
-	// wait till the replicas are back and get the latest spawned pod
-	gwDeploy := appsv1.Deployment{}
-	if isClient {
-		wait.Poll(1*time.Second, 60*time.Second, func() (done bool, err error) {
-			err = r.MeshClient.Get(context.Background(), types.NamespacedName{Namespace: "kubeslice-system", Name: workerslicegwrecycler.Spec.SliceGwClient}, &gwDeploy)
-			if err != nil {
-				return false, err
-			}
-			return gwDeploy.Status.Replicas == gwDeploy.Status.AvailableReplicas, nil
-		})
-	} else {
-		wait.Poll(1*time.Second, 60*time.Second, func() (done bool, err error) {
-			err = r.MeshClient.Get(context.Background(), types.NamespacedName{Namespace: "kubeslice-system", Name: workerslicegwrecycler.Spec.SliceGwServer}, &gwDeploy)
-			if err != nil {
-				return false, err
-			}
-			return gwDeploy.Status.Replicas == gwDeploy.Status.AvailableReplicas, nil
-		})
-	}
+
 	podList := corev1.PodList{}
 	labels := map[string]string{"kubeslice.io/pod-type": "slicegateway", "kubeslice.io/slice": workerslicegwrecycler.Spec.SliceName}
 	listOptions := []client.ListOption{
@@ -128,14 +114,14 @@ func (r *Reconciler) verify_new_deployment_created(e *fsm.Event) error {
 		}
 	}
 	if isClient {
-		workerslicegwrecycler.Status.Client.Response = "new_gw_spawned"
+		workerslicegwrecycler.Status.Client.Response = new_deployment_created
 		workerslicegwrecycler.Status.Client.RecycledClient = newestPod.Name
 		return r.Status().Update(ctx, workerslicegwrecycler)
 	} else {
 		// progress the FSM to the next state by updating the CR object with the next state: new_gw_spawned
 		workerslicegwrecycler.Spec.GwPair.ClientID = workerslicegwrecycler.Status.Client.RecycledClient
 		workerslicegwrecycler.Spec.GwPair.ServerID = newestPod.Name
-		workerslicegwrecycler.Spec.State = new_gw_spawned
+		workerslicegwrecycler.Spec.State = new_deployment_created
 		workerslicegwrecycler.Spec.Request = update_routing_table
 	}
 	return r.Update(ctx, workerslicegwrecycler)
@@ -287,11 +273,31 @@ func (r *Reconciler) delete_old_gw_pods(e *fsm.Event) error {
 	if err != nil {
 		return err
 	}
-	r.Log.Info("old gw pods to be deleted", "podList", podList)
+	r.Log.Info("old gw deploy to be deleted", "podList", podList)
 	//TODO:add rbac in charts to include delete verb
-	err = r.MeshClient.Delete(ctx, &podList.Items[0])
+	rsName := podList.Items[0].ObjectMeta.OwnerReferences[0].Name
+	rs := appsv1.ReplicaSet{}
+	if err := r.Get(ctx, types.NamespacedName{Namespace: controllers.ControlPlaneNamespace, Name: rsName}, &rs); err != nil {
+		return err
+	}
+	deployName := rs.ObjectMeta.OwnerReferences[0].Name
+	deployToBeDeleted := appsv1.Deployment{}
+	if err := r.Get(ctx, types.NamespacedName{Namespace: controllers.ControlPlaneNamespace, Name: deployName}, &deployToBeDeleted); err != nil {
+		return err
+	}
+	err = r.MeshClient.Delete(ctx, &deployToBeDeleted)
 	if err != nil {
 		return err
+	}
+	if !isClient {
+		nodePortService := corev1.Service{}
+		if err := r.Get(ctx, types.NamespacedName{Namespace: controllers.ControlPlaneNamespace, Name: deployName}, &nodePortService); err != nil {
+			return err
+		}
+		err = r.MeshClient.Delete(ctx, &deployToBeDeleted)
+		if err != nil {
+			return err
+		}
 	}
 	if isClient {
 		workerslicegwrecycler.Status.Client.Response = old_gw_deleted

@@ -61,7 +61,7 @@ type SliceGwReconciler struct {
 	NetOpPods             []NetOpPod
 	EventRecorder         *events.EventRecorder
 	NodeIPs               []string
-	NumberOfGateways int
+	NumberOfGateways      int
 }
 
 func readyToDeployGwClient(sliceGw *kubeslicev1beta1.SliceGateway) bool {
@@ -146,13 +146,13 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	// true if the gateway is openvpn server
 	// Check if the Gw service already exists, if not create a new one if it is a server
 	if isServer(sliceGw) {
-		reconcile, result, sliceGwNodePorts, err = r.handleSliceGwSvcCreation(ctx, sliceGw,r.NumberOfGateways)
+		reconcile, result, sliceGwNodePorts, err = r.handleSliceGwSvcCreation(ctx, sliceGw, r.NumberOfGateways)
 		if reconcile {
 			return result, err
 		}
-		r.NumberOfGateways,err = r.getNumberOfGatewayNodePortServices(ctx,sliceGw)
-		if err!=nil{
-			return ctrl.Result{},err
+		r.NumberOfGateways, err = r.getNumberOfGatewayNodePortServices(ctx, sliceGw)
+		if err != nil {
+			return ctrl.Result{}, err
 		}
 	}
 	// client can be deployed only if remoteNodeIp,SliceGatewayRemoteNodePort abd SliceGatewayRemoteGatewayID is present
@@ -295,13 +295,13 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 				return ctrl.Result{}, err
 			}
 			// spawn a new gw nodeport service
-			r.NumberOfGateways+=1
-			_, _, _, err = r.handleSliceGwSvcCreation(ctx, sliceGw,r.NumberOfGateways)
-			if err!=nil {
+			r.NumberOfGateways += 1
+			_, _, _, err = r.handleSliceGwSvcCreation(ctx, sliceGw, r.NumberOfGateways)
+			if err != nil {
 				//TODO:add an event and log
 				return ctrl.Result{}, err
 			}
-			
+
 			gwRemoteVpnIP := sliceGw.Status.Config.SliceGatewayRemoteVpnIP
 			clientID, err := r.getRemoteGwPodName(ctx, gwRemoteVpnIP, newestPod.Status.PodIP)
 			if err != nil {
@@ -347,19 +347,19 @@ func canDeployGw(sliceGw *kubeslicev1beta1.SliceGateway) bool {
 	return sliceGw.Status.Config.SliceGatewayHostType == "Server" || readyToDeployGwClient(sliceGw)
 }
 
-func (r *SliceGwReconciler) getNumberOfGatewayNodePortServices(ctx context.Context,sliceGw *kubeslicev1beta1.SliceGateway) (int,error) {
+func (r *SliceGwReconciler) getNumberOfGatewayNodePortServices(ctx context.Context, sliceGw *kubeslicev1beta1.SliceGateway) (int, error) {
 	listOpts := []client.ListOption{
 		client.MatchingLabels(map[string]string{
 			"kubeslice.io/slice-gw": sliceGw.Name,
 		}),
 	}
 	services := corev1.ServiceList{}
-	if err := r.List(ctx,&services,listOpts...);err!=nil{
-		return 0,err
+	if err := r.List(ctx, &services, listOpts...); err != nil {
+		return 0, err
 	}
-	return len(services.Items),nil
+	return len(services.Items), nil
 }
-func (r *SliceGwReconciler) handleSliceGwSvcCreation(ctx context.Context, sliceGw *kubeslicev1beta1.SliceGateway,n int) (bool, reconcile.Result, []int, error) {
+func (r *SliceGwReconciler) handleSliceGwSvcCreation(ctx context.Context, sliceGw *kubeslicev1beta1.SliceGateway, n int) (bool, reconcile.Result, []int, error) {
 	log := logger.FromContext(ctx).WithName("slicegw")
 	sliceGwName := sliceGw.Name
 	foundsvc := &corev1.Service{}

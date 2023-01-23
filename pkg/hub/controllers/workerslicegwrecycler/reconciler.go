@@ -17,18 +17,18 @@ import (
 )
 
 const (
-	INIT                string = "init"
-	new_deployment_created      string = "new_deployment_created"
-	slicerouter_updated string = "slicerouter_updated"
-	old_gw_deleted      string = "old_gw_deleted"
-	ERROR               string = "error"
-	END                 string = "end"
+	INIT                   string = "init"
+	new_deployment_created string = "new_deployment_created"
+	slicerouter_updated    string = "slicerouter_updated"
+	old_gw_deleted         string = "old_gw_deleted"
+	ERROR                  string = "error"
+	END                    string = "end"
 )
 
 const (
-	verify_new_deployment_created     string = "verify_new_deployment_created"
-	update_routing_table string = "update_routing_table"
-	delete_old_gw_pods   string = "delete_old_gw_pods"
+	verify_new_deployment_created string = "verify_new_deployment_created"
+	update_routing_table          string = "update_routing_table"
+	delete_old_gw_pods            string = "delete_old_gw_pods"
 )
 
 type Reconciler struct {
@@ -182,9 +182,9 @@ func (r *Reconciler) SetupWithManager(mgr ctrl.Manager) error {
 			{Name: delete_old_gw_pods, Src: []string{INIT, slicerouter_updated}, Dst: old_gw_deleted},
 		},
 		fsm.Callbacks{
-			"enter_new_deployment_created":      func(e *fsm.Event) { r.verify_new_deployment_created(e) },
-			"enter_slicerouter_updated": func(e *fsm.Event) { r.update_routing_table(e) },
-			"enter_old_gw_deleted":      func(e *fsm.Event) { r.delete_old_gw_pods(e) },
+			"enter_new_deployment_created": func(e *fsm.Event) { r.verify_new_deployment_created(e) },
+			"enter_slicerouter_updated":    func(e *fsm.Event) { r.update_routing_table(e) },
+			"enter_old_gw_deleted":         func(e *fsm.Event) { r.delete_old_gw_pods(e) },
 		},
 	)
 	return ctrl.NewControllerManagedBy(mgr).
