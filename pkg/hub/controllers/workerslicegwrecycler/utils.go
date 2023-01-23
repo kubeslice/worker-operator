@@ -24,26 +24,24 @@ func (r *Reconciler) verify_new_deployment_created(e *fsm.Event) error {
 	// we need to verify the number of deployments, shouold be 3 on both client and server and wait till the new pod is up and running and update this new pods name in workerslicegwrecycler object and move the fsm to new state = new_deployment_created
 	ctx := context.Background()
 	log := logger.FromContext(ctx).WithName("workerslicegwrecycler")
+	workerslicegwrecycler := e.Args[0].(*spokev1alpha1.WorkerSliceGwRecycler)
+	isClient := e.Args[1].(bool)
 	// List all the available gw deployments
 	// TODO: Move this redundant code to a func
 	deployList := &appsv1.DeploymentList{}
-	deployLabels := map[string]string{webhook.PodInjectLabelKey: "slicegateway"}
-	listOpts := []client.ListOption{
-		client.InNamespace(controllers.ControlPlaneNamespace),
-		client.MatchingLabels(deployLabels),
-	}
-	err := r.MeshClient.List(ctx, deployList, listOpts...)
-	if err != nil {
-		r.Log.Error(err, "Failed to List gw deployments")
-		return err
-	}
-
-	workerslicegwrecycler := e.Args[0].(*spokev1alpha1.WorkerSliceGwRecycler)
-	isClient := e.Args[1].(bool)
-
 	gwPod := corev1.Pod{}
 	if isClient {
 		if err := r.MeshClient.Get(context.Background(), types.NamespacedName{Namespace: "kubeslice-system", Name: workerslicegwrecycler.Spec.GwPair.ClientID}, &gwPod); err != nil {
+			return err
+		}
+		deployLabels := map[string]string{"kubeslice.io/slice-gw":workerslicegwrecycler.Spec.SliceGwClient}
+		listOpts := []client.ListOption{
+			client.InNamespace(controllers.ControlPlaneNamespace),
+			client.MatchingLabels(deployLabels),
+		}
+		err := r.MeshClient.List(ctx, deployList, listOpts...)
+		if err != nil {
+			r.Log.Error(err, "Failed to List gw deployments")
 			return err
 		}
 		// Check if Number of GW deployments should equal to 3
@@ -59,6 +57,16 @@ func (r *Reconciler) verify_new_deployment_created(e *fsm.Event) error {
 		})
 	} else {
 		if err := r.MeshClient.Get(context.Background(), types.NamespacedName{Namespace: "kubeslice-system", Name: workerslicegwrecycler.Spec.GwPair.ServerID}, &gwPod); err != nil {
+			return err
+		}
+		deployLabels := map[string]string{"kubeslice.io/slice-gw":workerslicegwrecycler.Spec.SliceGwServer}
+		listOpts := []client.ListOption{
+			client.InNamespace(controllers.ControlPlaneNamespace),
+			client.MatchingLabels(deployLabels),
+		}
+		err := r.MeshClient.List(ctx, deployList, listOpts...)
+		if err != nil {
+			r.Log.Error(err, "Failed to List gw deployments")
 			return err
 		}
 		// Check if Number of GW deployments should equal to 3
