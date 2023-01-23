@@ -107,7 +107,7 @@ func (hubClient *HubClientConfig) CreateWorkerSliceGwRecycler(ctx context.Contex
 				ClientID: clientID,
 			},
 			State:         "init",
-			Request:       "spawn_new_gw_pod",
+			Request:       "verify_new_deployment_created",
 			SliceGwServer: sliceGwServer,
 			SliceGwClient: sliceGwClient,
 			SliceName:     slice,

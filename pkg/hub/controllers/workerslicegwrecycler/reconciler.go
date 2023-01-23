@@ -18,7 +18,7 @@ import (
 
 const (
 	INIT                string = "init"
-	new_gw_spawned      string = "new_gw_spawned"
+	new_deployment_created      string = "new_deployment_created"
 	slicerouter_updated string = "slicerouter_updated"
 	old_gw_deleted      string = "old_gw_deleted"
 	ERROR               string = "error"
@@ -26,7 +26,7 @@ const (
 )
 
 const (
-	spawn_new_gw_pod     string = "spawn_new_gw_pod"
+	verify_new_deployment_created     string = "verify_new_deployment_created"
 	update_routing_table string = "update_routing_table"
 	delete_old_gw_pods   string = "delete_old_gw_pods"
 )
@@ -80,8 +80,8 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 
 	if isClient {
 		switch workerslicegwrecycler.Spec.Request {
-		case spawn_new_gw_pod:
-			err := r.FSM.Event(spawn_new_gw_pod, workerslicegwrecycler, isClient)
+		case verify_new_deployment_created:
+			err := r.FSM.Event(verify_new_deployment_created, workerslicegwrecycler, isClient)
 			if err != nil {
 				return ctrl.Result{}, err
 			}
@@ -122,8 +122,8 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		}
 	} else {
 		switch workerslicegwrecycler.Status.Client.Response {
-		case new_gw_spawned:
-			err := r.FSM.Event(spawn_new_gw_pod, workerslicegwrecycler, isClient)
+		case new_deployment_created:
+			err := r.FSM.Event(verify_new_deployment_created, workerslicegwrecycler, isClient)
 			if err != nil {
 				return ctrl.Result{}, err
 			}
@@ -177,12 +177,12 @@ func (r *Reconciler) SetupWithManager(mgr ctrl.Manager) error {
 	r.FSM = fsm.NewFSM(
 		INIT,
 		fsm.Events{
-			{Name: spawn_new_gw_pod, Src: []string{INIT, new_gw_spawned}, Dst: new_gw_spawned},
-			{Name: update_routing_table, Src: []string{INIT, new_gw_spawned, slicerouter_updated}, Dst: slicerouter_updated},
+			{Name: verify_new_deployment_created, Src: []string{INIT, new_deployment_created}, Dst: new_deployment_created},
+			{Name: update_routing_table, Src: []string{INIT, new_deployment_created, slicerouter_updated}, Dst: slicerouter_updated},
 			{Name: delete_old_gw_pods, Src: []string{INIT, slicerouter_updated}, Dst: old_gw_deleted},
 		},
 		fsm.Callbacks{
-			"enter_new_gw_spawned":      func(e *fsm.Event) { r.spawn_new_gw_pod(e) },
+			"enter_new_deployment_created":      func(e *fsm.Event) { r.verify_new_deployment_created(e) },
 			"enter_slicerouter_updated": func(e *fsm.Event) { r.update_routing_table(e) },
 			"enter_old_gw_deleted":      func(e *fsm.Event) { r.delete_old_gw_pods(e) },
 		},

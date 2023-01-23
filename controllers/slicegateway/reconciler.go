@@ -61,6 +61,7 @@ type SliceGwReconciler struct {
 	NetOpPods             []NetOpPod
 	EventRecorder         *events.EventRecorder
 	NodeIPs               []string
+	NumberOfGateways int
 }
 
 func readyToDeployGwClient(sliceGw *kubeslicev1beta1.SliceGateway) bool {
@@ -145,9 +146,13 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	// true if the gateway is openvpn server
 	// Check if the Gw service already exists, if not create a new one if it is a server
 	if isServer(sliceGw) {
-		reconcile, result, sliceGwNodePorts, err = r.handleSliceGwSvcCreation(ctx, sliceGw)
+		reconcile, result, sliceGwNodePorts, err = r.handleSliceGwSvcCreation(ctx, sliceGw,r.NumberOfGateways)
 		if reconcile {
 			return result, err
+		}
+		r.NumberOfGateways,err = r.getNumberOfGatewayNodePortServices(ctx,sliceGw)
+		if err!=nil{
+			return ctrl.Result{},err
 		}
 	}
 	// client can be deployed only if remoteNodeIp,SliceGatewayRemoteNodePort abd SliceGatewayRemoteGatewayID is present
@@ -168,10 +173,11 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		if requeue {
 			return res, err
 		}
+		r.NumberOfGateways = len(sliceGw.Status.Config.SliceGatewayRemoteNodePorts)
 	}
 	// Check if the deployment already exists, if not create a new one
 	// spin up 2 gw deployments
-	for i := 0; i < 2; i++ {
+	for i := 0; i < r.NumberOfGateways; i++ {
 		found := &appsv1.Deployment{}
 		err = r.Get(ctx, types.NamespacedName{Name: sliceGwName + "-" + fmt.Sprint(i), Namespace: controllers.ControlPlaneNamespace}, found)
 		if err != nil {
@@ -251,7 +257,7 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		return res, nil
 	}
 	log.Info("sync QoS with netop pods from slicegw")
-	for i := 0; i > 2; i++ {
+	for i := 0; i < len(sliceGwNodePorts); i++ {
 		err = r.SyncNetOpConnectionContextAndQos(ctx, slice, sliceGw, int32(sliceGwNodePorts[i]))
 		if err != nil {
 			log.Error(err, "Error sending QOS Profile to netop pod")
@@ -288,8 +294,14 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 			if err != nil {
 				return ctrl.Result{}, err
 			}
-			// TODO(rahulkumar): get clientID = clientPodName through inband
-			// 1. Call server gw pod to fetch the corresponding client gw pod name
+			// spawn a new gw nodeport service
+			r.NumberOfGateways+=1
+			_, _, _, err = r.handleSliceGwSvcCreation(ctx, sliceGw,r.NumberOfGateways)
+			if err!=nil {
+				//TODO:add an event and log
+				return ctrl.Result{}, err
+			}
+			
 			gwRemoteVpnIP := sliceGw.Status.Config.SliceGatewayRemoteVpnIP
 			clientID, err := r.getRemoteGwPodName(ctx, gwRemoteVpnIP, newestPod.Status.PodIP)
 			if err != nil {
@@ -334,13 +346,26 @@ func isServer(sliceGw *kubeslicev1beta1.SliceGateway) bool {
 func canDeployGw(sliceGw *kubeslicev1beta1.SliceGateway) bool {
 	return sliceGw.Status.Config.SliceGatewayHostType == "Server" || readyToDeployGwClient(sliceGw)
 }
-func (r *SliceGwReconciler) handleSliceGwSvcCreation(ctx context.Context, sliceGw *kubeslicev1beta1.SliceGateway) (bool, reconcile.Result, []int, error) {
+
+func (r *SliceGwReconciler) getNumberOfGatewayNodePortServices(ctx context.Context,sliceGw *kubeslicev1beta1.SliceGateway) (int,error) {
+	listOpts := []client.ListOption{
+		client.MatchingLabels(map[string]string{
+			"kubeslice.io/slice-gw": sliceGw.Name,
+		}),
+	}
+	services := corev1.ServiceList{}
+	if err := r.List(ctx,&services,listOpts...);err!=nil{
+		return 0,err
+	}
+	return len(services.Items),nil
+}
+func (r *SliceGwReconciler) handleSliceGwSvcCreation(ctx context.Context, sliceGw *kubeslicev1beta1.SliceGateway,n int) (bool, reconcile.Result, []int, error) {
 	log := logger.FromContext(ctx).WithName("slicegw")
 	sliceGwName := sliceGw.Name
 	foundsvc := &corev1.Service{}
 	var sliceGwNodePorts []int
-	// capping the number of services to be 2 for now
-	for i := 0; i < 2; i++ {
+	// capping the number of services to be 2 for now,later i will be equal to number of gateway nodes,eg: i = len(node.GetExternalIpList())
+	for i := 0; i < n; i++ {
 		err := r.Get(ctx, types.NamespacedName{Name: "svc-" + sliceGwName + "-" + fmt.Sprint(i), Namespace: controllers.ControlPlaneNamespace}, foundsvc)
 		if err != nil {
 			if errors.IsNotFound(err) {

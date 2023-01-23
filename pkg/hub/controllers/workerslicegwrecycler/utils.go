@@ -19,9 +19,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-func (r *Reconciler) spawn_new_gw_pod(e *fsm.Event) error {
-	// The client cluster finds the client pod using the client-id field and removes the kubeslice gw label to drive it out of the purview of the gw deployment spec. Once the label is removed, Kubernetes spawns a new pod automatically to honor the number of replicas defined in the gw deployment spec. Once the new pod comes up, the client cluster retrieves the pod info to verify that the new pod has obtained an nsm IP. It then posts an update to the status field
-
+func (r *Reconciler) verify_new_deployment_created(e *fsm.Event) error {
+	// we need to verify the number of deployments, shouold be 3 on both client and server and wait till the new pod is up and running and update this new pods name in workerslicegwrecycler object and move the fsm to new state = new_deployment_created
 	ctx := context.Background()
 	log := logger.FromContext(ctx).WithName("workerslicegwrecycler")
 
