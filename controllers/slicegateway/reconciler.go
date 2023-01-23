@@ -350,7 +350,7 @@ func canDeployGw(sliceGw *kubeslicev1beta1.SliceGateway) bool {
 func (r *SliceGwReconciler) getNumberOfGatewayNodePortServices(ctx context.Context, sliceGw *kubeslicev1beta1.SliceGateway) (int, error) {
 	listOpts := []client.ListOption{
 		client.MatchingLabels(map[string]string{
-			"kubeslice.io/slice-gw": sliceGw.Name,
+			controllers.ApplicationNamespaceSelectorLabelKey: sliceGw.Spec.SliceName,
 		}),
 	}
 	services := corev1.ServiceList{}
