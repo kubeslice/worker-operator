@@ -113,7 +113,7 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	log = log.WithValues("slice", sliceGw.Spec.SliceName)
 	ctx = logger.WithLogger(ctx, log)
 
-	log.Info("reconciling", "slicegateway", sliceGw.Name)
+	log.Info("reconciling", "slicegateway", sliceGw.Name,"NumberOfGateways",r.NumberOfGateways)
 
 	// Check if the slice to which this gateway belongs is created
 	slice, err := controllers.GetSlice(ctx, r.Client, sliceName)
@@ -314,7 +314,7 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 			err = r.HubClient.CreateWorkerSliceGwRecycler(ctx, sliceGw.Name, clientID, newestPod.Name, sliceGwName, sliceGw.Status.Config.SliceGatewayRemoteGatewayID, sliceGw.Spec.SliceName)
 			if err != nil {
 				if errors.IsAlreadyExists(err) {
-					return ctrl.Result{Requeue: true}, nil
+					return ctrl.Result{}, nil
 				}
 				return ctrl.Result{}, err
 			}
