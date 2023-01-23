@@ -89,7 +89,7 @@ func (r *Reconciler) verify_new_deployment_created(e *fsm.Event) error {
 	}
 
 	// add this label for future reference
-	gwPod.Labels["kubeslice.io/pod-type"] = "toBeDeleted"
+	gwPod.Labels["kubeslice.io/gw-pod-type"] = "toBeDeleted"
 	err := r.MeshClient.Update(context.Background(), &gwPod)
 	if err != nil {
 		return err
@@ -219,7 +219,7 @@ func (r *Reconciler) delete_old_gw_pods(e *fsm.Event) error {
 
 	retry.Do(func() error {
 		podList := corev1.PodList{}
-		labels := map[string]string{"kubeslice.io/pod-type": "toBeDeleted", "kubeslice.io/slice": workerslicegwrecycler.Spec.SliceName}
+		labels := map[string]string{"kubeslice.io/gw-pod-type": "toBeDeleted", "kubeslice.io/slice": workerslicegwrecycler.Spec.SliceName}
 		listOptions := []client.ListOption{
 			client.MatchingLabels(labels),
 		}
