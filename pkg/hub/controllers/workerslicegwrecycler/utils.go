@@ -48,7 +48,7 @@ func (r *Reconciler) verify_new_deployment_created(e *fsm.Event) error {
 		if len(deployList.Items) != 3 {
 			return errors.New("number of GW deployemt should equal to 3")
 		}
-		newGwDeploy, err := r.getNewestGwDeploy(ctx)
+		newGwDeploy, err := r.getNewestGwDeploy(ctx, gwPod.Labels["kubeslice.io/slice-gw"])
 		if err != nil {
 			return err
 		}
@@ -74,7 +74,7 @@ func (r *Reconciler) verify_new_deployment_created(e *fsm.Event) error {
 			return errors.New("number of deployemt should equal to 3")
 		}
 		// Select the newest deploy
-		newGwDeploy, err := r.getNewestGwDeploy(ctx)
+		newGwDeploy, err := r.getNewestGwDeploy(ctx, gwPod.Labels["kubeslice.io/slice-gw"])
 		if err != nil {
 			return err
 		}
@@ -316,9 +316,9 @@ func getNsmIp(slicegw *kubeslicev1beta1.SliceGateway, podName string) string {
 	return ""
 }
 
-func (r *Reconciler) getNewestGwDeploy(ctx context.Context) (*appsv1.Deployment, error) {
+func (r *Reconciler) getNewestGwDeploy(ctx context.Context, sliceGwName string) (*appsv1.Deployment, error) {
 	deployList := &appsv1.DeploymentList{}
-	labels := map[string]string{webhook.PodInjectLabelKey: "slicegateway"}
+	labels := map[string]string{"kubeslice.io/slice-gw": sliceGwName}
 	listOpts := []client.ListOption{
 		client.InNamespace(controllers.ControlPlaneNamespace),
 		client.MatchingLabels(labels),
