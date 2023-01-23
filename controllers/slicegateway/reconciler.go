@@ -296,13 +296,11 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 				return ctrl.Result{}, err
 			}
 			// spawn a new gw nodeport service
-			r.NumberOfGateways += 1
 			_, _, _, err = r.handleSliceGwSvcCreation(ctx, sliceGw, r.NumberOfGateways)
 			if err != nil {
 				//TODO:add an event and log
 				return ctrl.Result{}, err
 			}
-
 			gwRemoteVpnIP := sliceGw.Status.Config.SliceGatewayRemoteVpnIP
 			clientID, err := r.getRemoteGwPodName(ctx, gwRemoteVpnIP, newestPod.Status.PodIP)
 			if err != nil {
@@ -325,6 +323,7 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 				}
 				return ctrl.Result{}, err
 			}
+			r.NumberOfGateways += 1
 			r.EventRecorder.Record(
 				&events.Event{
 					Object:    sliceGw,
