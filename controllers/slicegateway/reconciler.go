@@ -287,6 +287,7 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 			)
 			return ctrl.Result{}, err
 		}
+		log.Info("Rebalancing required?","toRebalance",toRebalace)
 		if toRebalace {
 			// start FSM for graceful termination of gateway pods
 			// create workerslicegwrecycler on controller
