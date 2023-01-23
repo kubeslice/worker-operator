@@ -237,17 +237,17 @@ func (r *Reconciler) delete_old_gw_pods(e *fsm.Event) error {
 		nsmIP := status.NsmStatus.LocalIP
 		_, podIP, err := controllers.GetSliceRouterPodNameAndIP(ctx, r.MeshClient, slicegateway.Spec.SliceName)
 		if err != nil {
-			r.Log.Error(err, "Unable to get slice router pod info")
+			log.Error(err, "Unable to get slice router pod info")
 			return err
 		}
 		if podIP == "" {
-			r.Log.Info("Slice router podIP not available yet, requeuing")
+			log.Info("Slice router podIP not available yet, requeuing")
 			return err
 		}
 
 		if slicegateway.Status.Config.SliceGatewayRemoteSubnet == "" ||
 			len(slicegateway.Status.GatewayPodStatus) == 0 {
-			r.Log.Info("Waiting for remote subnet and local nsm IPs. Delaying conn ctx update to router")
+			log.Info("Waiting for remote subnet and local nsm IPs. Delaying conn ctx update to router")
 			return err
 		}
 
@@ -258,7 +258,7 @@ func (r *Reconciler) delete_old_gw_pods(e *fsm.Event) error {
 		}
 		err = r.WorkerRouterClient.UpdateEcmpRoutes(ctx, sidecarGrpcAddress, routeInfo)
 		if err != nil {
-			r.Log.Error(err, "Unable to update ecmp routes in the slice router")
+			log.Error(err, "Unable to update ecmp routes in the slice router")
 			return err
 		}
 		return nil
@@ -273,7 +273,7 @@ func (r *Reconciler) delete_old_gw_pods(e *fsm.Event) error {
 	if err != nil {
 		return err
 	}
-	r.Log.Info("old gw deploy to be deleted", "podList", podList)
+	log.Info("old gw deploy to be deleted", "podList", podList)
 	//TODO:add rbac in charts to include delete verb
 	rsName := podList.Items[0].ObjectMeta.OwnerReferences[0].Name
 	rs := appsv1.ReplicaSet{}
