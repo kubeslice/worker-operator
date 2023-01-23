@@ -1024,7 +1024,7 @@ func getPodAntiAffinity(slice string) *corev1.PodAntiAffinity {
 		PreferredDuringSchedulingIgnoredDuringExecution: []corev1.WeightedPodAffinityTerm{{
 			Weight: 1,
 			PodAffinityTerm: corev1.PodAffinityTerm{
-				TopologyKey: controllers.TopologyKeySelector,
+				TopologyKey: "kubernetes.io/hostname",
 				LabelSelector: &metav1.LabelSelector{
 					MatchExpressions: []metav1.LabelSelectorRequirement{{
 						Key:      controllers.PodTypeSelectorLabelKey,
