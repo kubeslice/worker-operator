@@ -81,6 +81,7 @@ func readyToDeployGwClient(sliceGw *kubeslicev1beta1.SliceGateway) bool {
 
 func (r *SliceGwReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	var sliceGwNodePorts []int
+	var noOfGatewayServices int
 	log := r.Log.WithValues("slicegateway", req.NamespacedName)
 	sliceGw := &kubeslicev1beta1.SliceGateway{}
 	err := r.Get(ctx, req.NamespacedName, sliceGw)
@@ -150,7 +151,7 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		if reconcile {
 			return result, err
 		}
-		r.NumberOfGateways, err = r.getNumberOfGatewayNodePortServices(ctx, sliceGw)
+		noOfGatewayServices, err = r.getNumberOfGatewayNodePortServices(ctx, sliceGw)
 		if err != nil {
 			return ctrl.Result{}, err
 		}
@@ -173,11 +174,11 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		if requeue {
 			return res, err
 		}
-		r.NumberOfGateways = len(sliceGw.Status.Config.SliceGatewayRemoteNodePorts)
+		noOfGatewayServices = len(sliceGw.Status.Config.SliceGatewayRemoteNodePorts)
 	}
 	// Check if the deployment already exists, if not create a new one
 	// spin up 2 gw deployments
-	for i := 0; i < r.NumberOfGateways; i++ {
+	for i := 0; i < noOfGatewayServices; i++ {
 		found := &appsv1.Deployment{}
 		err = r.Get(ctx, types.NamespacedName{Name: sliceGwName + "-" + fmt.Sprint(i), Namespace: controllers.ControlPlaneNamespace}, found)
 		if err != nil {
