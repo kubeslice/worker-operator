@@ -273,7 +273,7 @@ func (r *Reconciler) delete_old_gw_pods(e *fsm.Event) error {
 	if err != nil {
 		return err
 	}
-	log.Info("old gw deploy to be deleted", "podList", podList)
+	log.Info("old gw deploy to be deleted", "podList", len(podList.Items))
 	//TODO:add rbac in charts to include delete verb
 	rsName := podList.Items[0].ObjectMeta.OwnerReferences[0].Name
 	rs := appsv1.ReplicaSet{}
@@ -281,14 +281,17 @@ func (r *Reconciler) delete_old_gw_pods(e *fsm.Event) error {
 		log.Error(err,"error getting replicaset")
 		return err
 	}
+	log.Info("got replica set","rs",rs.Name)
 	deployName := rs.ObjectMeta.OwnerReferences[0].Name
 	deployToBeDeleted := appsv1.Deployment{}
 	if err := r.Get(ctx, types.NamespacedName{Namespace: controllers.ControlPlaneNamespace, Name: deployName}, &deployToBeDeleted); err != nil {
 		log.Error(err,"error getting deployment")
 		return err
 	}
+	log.Info("got deployment","deploy",deployToBeDeleted.Name)
 	err = r.MeshClient.Delete(ctx, &deployToBeDeleted)
 	if err != nil {
+		log.Error(err,"error deleting deployment")
 		return err
 	}
 	if !isClient {
