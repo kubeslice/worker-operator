@@ -278,11 +278,13 @@ func (r *Reconciler) delete_old_gw_pods(e *fsm.Event) error {
 	rsName := podList.Items[0].ObjectMeta.OwnerReferences[0].Name
 	rs := appsv1.ReplicaSet{}
 	if err := r.Get(ctx, types.NamespacedName{Namespace: controllers.ControlPlaneNamespace, Name: rsName}, &rs); err != nil {
+		log.Error(err,"error getting replicaset")
 		return err
 	}
 	deployName := rs.ObjectMeta.OwnerReferences[0].Name
 	deployToBeDeleted := appsv1.Deployment{}
 	if err := r.Get(ctx, types.NamespacedName{Namespace: controllers.ControlPlaneNamespace, Name: deployName}, &deployToBeDeleted); err != nil {
+		log.Error(err,"error getting deployment")
 		return err
 	}
 	err = r.MeshClient.Delete(ctx, &deployToBeDeleted)
