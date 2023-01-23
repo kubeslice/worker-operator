@@ -277,14 +277,14 @@ func (r *Reconciler) delete_old_gw_pods(e *fsm.Event) error {
 	//TODO:add rbac in charts to include delete verb
 	rsName := podList.Items[0].ObjectMeta.OwnerReferences[0].Name
 	rs := appsv1.ReplicaSet{}
-	if err := r.Get(ctx, types.NamespacedName{Namespace: controllers.ControlPlaneNamespace, Name: rsName}, &rs); err != nil {
+	if err := r.MeshClient.Get(ctx, types.NamespacedName{Namespace: controllers.ControlPlaneNamespace, Name: rsName}, &rs); err != nil {
 		log.Error(err,"error getting replicaset")
 		return err
 	}
 	log.Info("got replica set","rs",rs.Name)
 	deployName := rs.ObjectMeta.OwnerReferences[0].Name
 	deployToBeDeleted := appsv1.Deployment{}
-	if err := r.Get(ctx, types.NamespacedName{Namespace: controllers.ControlPlaneNamespace, Name: deployName}, &deployToBeDeleted); err != nil {
+	if err := r.MeshClient.Get(ctx, types.NamespacedName{Namespace: controllers.ControlPlaneNamespace, Name: deployName}, &deployToBeDeleted); err != nil {
 		log.Error(err,"error getting deployment")
 		return err
 	}
@@ -296,7 +296,7 @@ func (r *Reconciler) delete_old_gw_pods(e *fsm.Event) error {
 	}
 	if !isClient {
 		nodePortService := corev1.Service{}
-		if err := r.Get(ctx, types.NamespacedName{Namespace: controllers.ControlPlaneNamespace, Name: deployName}, &nodePortService); err != nil {
+		if err := r.MeshClient.Get(ctx, types.NamespacedName{Namespace: controllers.ControlPlaneNamespace, Name: deployName}, &nodePortService); err != nil {
 			return err
 		}
 		err = r.MeshClient.Delete(ctx, &deployToBeDeleted)
