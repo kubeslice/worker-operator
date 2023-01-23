@@ -11,6 +11,7 @@ import (
 	"github.com/kubeslice/worker-operator/controllers"
 	"github.com/kubeslice/worker-operator/pkg/logger"
 	"github.com/kubeslice/worker-operator/pkg/router"
+	webhook "github.com/kubeslice/worker-operator/pkg/webhook/pod"
 	"github.com/looplab/fsm"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -23,6 +24,19 @@ func (r *Reconciler) verify_new_deployment_created(e *fsm.Event) error {
 	// we need to verify the number of deployments, shouold be 3 on both client and server and wait till the new pod is up and running and update this new pods name in workerslicegwrecycler object and move the fsm to new state = new_deployment_created
 	ctx := context.Background()
 	log := logger.FromContext(ctx).WithName("workerslicegwrecycler")
+	// List all the available gw deployments
+	// TODO: Move this redundant code to a func
+	deployList := &appsv1.DeploymentList{}
+	deployLabels := map[string]string{webhook.PodInjectLabelKey: "slicegateway"}
+	listOpts := []client.ListOption{
+		client.InNamespace(controllers.ControlPlaneNamespace),
+		client.MatchingLabels(deployLabels),
+	}
+	err := r.MeshClient.List(ctx, deployList, listOpts...)
+	if err != nil {
+		r.Log.Error(err, "Failed to List gw deployments")
+		return err
+	}
 
 	workerslicegwrecycler := e.Args[0].(*spokev1alpha1.WorkerSliceGwRecycler)
 	isClient := e.Args[1].(bool)
@@ -32,16 +46,39 @@ func (r *Reconciler) verify_new_deployment_created(e *fsm.Event) error {
 		if err := r.MeshClient.Get(context.Background(), types.NamespacedName{Namespace: "kubeslice-system", Name: workerslicegwrecycler.Spec.GwPair.ClientID}, &gwPod); err != nil {
 			return err
 		}
+		// Check if Number of GW deployments should equal to 3
+		if len(deployList.Items) != 3 {
+			return errors.New("number of GW deployemt should equal to 3")
+		}
+		newGwDeploy, err := r.getNewestGwDeploy(ctx)
+		if err != nil {
+			return err
+		}
+		wait.Poll(1*time.Second, 60*time.Second, func() (done bool, err error) {
+			return newGwDeploy.Status.Replicas == newGwDeploy.Status.AvailableReplicas, nil
+		})
 	} else {
 		if err := r.MeshClient.Get(context.Background(), types.NamespacedName{Namespace: "kubeslice-system", Name: workerslicegwrecycler.Spec.GwPair.ServerID}, &gwPod); err != nil {
 			return err
 		}
+		// Check if Number of GW deployments should equal to 3
+		if len(deployList.Items) != 3 {
+			return errors.New("number of deployemt should equal to 3")
+		}
+		// Select the newest deploy
+		newGwDeploy, err := r.getNewestGwDeploy(ctx)
+		if err != nil {
+			return err
+		}
+		wait.Poll(1*time.Second, 60*time.Second, func() (done bool, err error) {
+			return newGwDeploy.Status.Replicas == newGwDeploy.Status.AvailableReplicas, nil
+		})
 	}
 
 	log.V(1).Info("removing label from pods", "pod", gwPod)
 	delete(gwPod.Labels, "kubeslice.io/pod-type")
 	gwPod.Labels["kubeslice.io/pod-type"] = "toBeDeleted"
-	err := r.MeshClient.Update(context.Background(), &gwPod)
+	err = r.MeshClient.Update(context.Background(), &gwPod)
 	if err != nil {
 		return err
 	}
@@ -269,4 +306,28 @@ func getNsmIp(slicegw *kubeslicev1beta1.SliceGateway, podName string) string {
 		}
 	}
 	return ""
+}
+
+func (r *Reconciler) getNewestGwDeploy(ctx context.Context) (*appsv1.Deployment, error) {
+	deployList := &appsv1.DeploymentList{}
+	labels := map[string]string{webhook.PodInjectLabelKey: "slicegateway"}
+	listOpts := []client.ListOption{
+		client.InNamespace(controllers.ControlPlaneNamespace),
+		client.MatchingLabels(labels),
+	}
+	err := r.MeshClient.List(ctx, deployList, listOpts...)
+	if err != nil {
+		r.Log.Error(err, "Failed to List gw deployments")
+		return &appsv1.Deployment{}, err
+	}
+	newestDeploy := deployList.Items[0]
+	newestDeployDuration := time.Since(deployList.Items[0].CreationTimestamp.Time).Seconds()
+	for _, deploy := range deployList.Items {
+		duration := time.Since(deploy.CreationTimestamp.Time).Seconds()
+		if duration < newestDeployDuration {
+			newestDeployDuration = duration
+			newestDeploy = deploy
+		}
+	}
+	return &newestDeploy, nil
 }
