@@ -93,7 +93,7 @@ func (r *SliceGwReconciler) deploymentForGateway(g *kubeslicev1beta1.SliceGatewa
 func (r *SliceGwReconciler) deploymentForGatewayServer(g *kubeslicev1beta1.SliceGateway, i int) *appsv1.Deployment {
 	ls := labelsForSliceGwDeployment(g.Name, g.Spec.SliceName, i)
 
-	var replicas int32 = 2
+	var replicas int32 = 1
 
 	var vpnSecretDefaultMode int32 = 420
 	var vpnFilesRestrictedMode int32 = 0644
@@ -332,7 +332,7 @@ func (r *SliceGwReconciler) serviceForGateway(g *kubeslicev1beta1.SliceGateway, 
 			Namespace: g.Namespace,
 			Labels: map[string]string{
 				controllers.ApplicationNamespaceSelectorLabelKey: g.Spec.SliceName,
-				
+
 			},
 		},
 		Spec: corev1.ServiceSpec{
