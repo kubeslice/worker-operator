@@ -288,12 +288,7 @@ func (r *Reconciler) delete_old_gw_pods(e *fsm.Event) error {
 		log.Error(err,"error getting deployment")
 		return err
 	}
-	log.Info("got deployment","deploy",deployToBeDeleted.Name)
-	err = r.MeshClient.Delete(ctx, &deployToBeDeleted)
-	if err != nil {
-		log.Error(err,"error deleting deployment")
-		return err
-	}
+
 	if !isClient {
 		nodePortService := corev1.Service{}
 		if err := r.MeshClient.Get(ctx, types.NamespacedName{Namespace: controllers.ControlPlaneNamespace, Name: deployName}, &nodePortService); err != nil {
@@ -304,6 +299,13 @@ func (r *Reconciler) delete_old_gw_pods(e *fsm.Event) error {
 			return err
 		}
 	}
+	log.Info("got deployment","deploy",deployToBeDeleted.Name)
+	err = r.MeshClient.Delete(ctx, &deployToBeDeleted)
+	if err != nil {
+		log.Error(err,"error deleting deployment")
+		return err
+	}
+	
 	if isClient {
 		workerslicegwrecycler.Status.Client.Response = old_gw_deleted
 		return r.Status().Update(ctx, workerslicegwrecycler)

@@ -295,12 +295,7 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 			if err != nil {
 				return ctrl.Result{}, err
 			}
-			// spawn a new gw nodeport service
-			_, _, _, err = r.handleSliceGwSvcCreation(ctx, sliceGw, r.NumberOfGateways+1)
-			if err != nil {
-				//TODO:add an event and log
-				return ctrl.Result{}, err
-			}
+			
 			gwRemoteVpnIP := sliceGw.Status.Config.SliceGatewayRemoteVpnIP
 			clientID, err := r.getRemoteGwPodName(ctx, gwRemoteVpnIP, newestPod.Status.PodIP)
 			if err != nil {
@@ -331,6 +326,12 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 					Message:   "Rebalancing is in progress",
 				},
 			)
+			// spawn a new gw nodeport service
+			_, _, _, err = r.handleSliceGwSvcCreation(ctx, sliceGw, r.NumberOfGateways+1)
+			if err != nil {
+				//TODO:add an event and log
+				return ctrl.Result{}, err
+			}
 		}
 	}
 	return ctrl.Result{Requeue: true}, nil
