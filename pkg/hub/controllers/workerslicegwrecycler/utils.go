@@ -265,7 +265,7 @@ func (r *Reconciler) delete_old_gw_pods(e *fsm.Event) error {
 	}, retry.Attempts(5000), retry.Delay(1*time.Second))
 
 	podList := corev1.PodList{}
-	labels := map[string]string{"kubeslice.io/pod-type": "toBeDeleted", "kubeslice.io/slice": workerslicegwrecycler.Spec.SliceName}
+	labels := map[string]string{"kubeslice.io/gw-pod-type": "toBeDeleted", "kubeslice.io/slice": workerslicegwrecycler.Spec.SliceName}
 	listOptions := []client.ListOption{
 		client.MatchingLabels(labels),
 	}
