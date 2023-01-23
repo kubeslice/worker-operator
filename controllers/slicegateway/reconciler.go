@@ -296,7 +296,7 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 				return ctrl.Result{}, err
 			}
 			// spawn a new gw nodeport service
-			_, _, _, err = r.handleSliceGwSvcCreation(ctx, sliceGw, 3)
+			_, _, _, err = r.handleSliceGwSvcCreation(ctx, sliceGw, r.NumberOfGateways+1)
 			if err != nil {
 				//TODO:add an event and log
 				return ctrl.Result{}, err
