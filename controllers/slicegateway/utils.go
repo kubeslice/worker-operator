@@ -52,3 +52,11 @@ func selectNodePort(nodePort int) bool {
 	}
 	return true
 }
+func checkIfNodePortIsAlreadyUsed(nodePort int) bool {
+	for _,n := range GwMap {
+		if n == nodePort{
+			return true
+		}
+	}
+	return false
+}
