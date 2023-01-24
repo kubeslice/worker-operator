@@ -148,6 +148,7 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	// Check if the Gw service already exists, if not create a new one if it is a server
 	if isServer(sliceGw) {
 		noOfGwServices, err = r.getNumberOfGatewayNodePortServices(ctx, sliceGw)
+		log.Info("Number of gw services present","noOfGwServices",noOfGwServices)
 		if err != nil {
 			return ctrl.Result{}, err
 		}
