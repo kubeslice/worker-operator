@@ -81,7 +81,7 @@ func readyToDeployGwClient(sliceGw *kubeslicev1beta1.SliceGateway) bool {
 
 func (r *SliceGwReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	var sliceGwNodePorts []int
-	var noOfGatewayServices int
+	var noOfGwServices int
 	log := r.Log.WithValues("slicegateway", req.NamespacedName)
 	sliceGw := &kubeslicev1beta1.SliceGateway{}
 	err := r.Get(ctx, req.NamespacedName, sliceGw)
@@ -147,13 +147,20 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	// true if the gateway is openvpn server
 	// Check if the Gw service already exists, if not create a new one if it is a server
 	if isServer(sliceGw) {
-		reconcile, result, sliceGwNodePorts, err = r.handleSliceGwSvcCreation(ctx, sliceGw, r.NumberOfGateways)
-		if reconcile {
-			return result, err
-		}
-		noOfGatewayServices, err = r.getNumberOfGatewayNodePortServices(ctx, sliceGw)
+		noOfGwServices, err = r.getNumberOfGatewayNodePortServices(ctx, sliceGw)
 		if err != nil {
 			return ctrl.Result{}, err
+		}
+		if noOfGwServices > r.NumberOfGateways {
+			reconcile, result, sliceGwNodePorts, err = r.handleSliceGwSvcCreation(ctx, sliceGw, noOfGwServices)
+			if reconcile {
+				return result, err
+			}
+		} else {
+			reconcile, result, sliceGwNodePorts, err = r.handleSliceGwSvcCreation(ctx, sliceGw, r.NumberOfGateways)
+			if reconcile {
+				return result, err
+			}
 		}
 	}
 	// client can be deployed only if remoteNodeIp,SliceGatewayRemoteNodePort abd SliceGatewayRemoteGatewayID is present
@@ -174,11 +181,11 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		if requeue {
 			return res, err
 		}
-		noOfGatewayServices = len(sliceGw.Status.Config.SliceGatewayRemoteNodePorts)
+		r.NumberOfGateways = len(sliceGw.Status.Config.SliceGatewayRemoteNodePorts)
 	}
 	// Check if the deployment already exists, if not create a new one
 	// spin up 2 gw deployments
-	for i := 0; i < noOfGatewayServices; i++ {
+	for i := 0; i < noOfGwServices; i++ {
 		found := &appsv1.Deployment{}
 		err = r.Get(ctx, types.NamespacedName{Name: sliceGwName + "-" + fmt.Sprint(i), Namespace: controllers.ControlPlaneNamespace}, found)
 		if err != nil {
