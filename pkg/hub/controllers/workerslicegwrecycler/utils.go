@@ -291,13 +291,14 @@ func (r *Reconciler) delete_old_gw_pods(e *fsm.Event) error {
 
 	if !isClient {
 		nodePortService := corev1.Service{}
-		if err := r.MeshClient.Get(ctx, types.NamespacedName{Namespace: controllers.ControlPlaneNamespace, Name: deployName}, &nodePortService); err != nil {
+		if err := r.MeshClient.Get(ctx, types.NamespacedName{Namespace: controllers.ControlPlaneNamespace, Name: "svc-"+ deployName}, &nodePortService); err != nil {
 			return err
 		}
 		err = r.MeshClient.Delete(ctx, &deployToBeDeleted)
 		if err != nil {
 			return err
 		}
+		
 	}
 	log.Info("got deployment","deploy",deployToBeDeleted.Name)
 	err = r.MeshClient.Delete(ctx, &deployToBeDeleted)
