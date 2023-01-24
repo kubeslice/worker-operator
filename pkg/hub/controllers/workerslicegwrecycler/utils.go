@@ -192,7 +192,7 @@ func (r *Reconciler) update_routing_table(e *fsm.Event) error {
 			return errors.New("route not yet present")
 		}
 		return nil
-	}, retry.Attempts(5000), retry.Delay(1*time.Second))
+	}, retry.Attempts(5000))
 
 	// use retry.RetryOnConflict
 	if isClient {
@@ -246,7 +246,7 @@ func (r *Reconciler) update_routing_table(e *fsm.Event) error {
 			return err
 		}
 		return nil
-	}, retry.Attempts(5000), retry.Delay(1*time.Second))
+	}, retry.Attempts(5000))
 
 	// delete nodePort Service and Deployment
 	podList := corev1.PodList{}
@@ -352,7 +352,7 @@ func (r *Reconciler) delete_old_gw_pods(e *fsm.Event) error {
 				return err
 			}
 			return nil
-		}, retry.Attempts(5000), retry.Delay(1*time.Second))
+		}, retry.Attempts(5000))
 
 		podList := corev1.PodList{}
 		labels := map[string]string{"kubeslice.io/gw-pod-type": "toBeDeleted", "kubeslice.io/slice": workerslicegwrecycler.Spec.SliceName}
