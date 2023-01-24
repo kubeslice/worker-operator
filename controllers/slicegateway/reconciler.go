@@ -395,19 +395,6 @@ func (r *SliceGwReconciler) getNodePorts(ctx context.Context, sliceGw *kubeslice
 	return nodePorts, nil
 }
 
-func (r *SliceGwReconciler) getGwNodePorts(ctx context.Context, sliceGw *kubeslicev1beta1.SliceGateway) (*corev1.ServiceList, error) {
-	services := &corev1.ServiceList{}
-	listOpts := []client.ListOption{
-		client.MatchingLabels(map[string]string{
-			controllers.ApplicationNamespaceSelectorLabelKey: sliceGw.Spec.SliceName,
-		}),
-	}
-	if err := r.List(ctx, services, listOpts...); err != nil {
-		return nil, err
-	}
-	return services, nil
-}
-
 func (r *SliceGwReconciler) handleSliceGwSvcCreation(ctx context.Context, sliceGw *kubeslicev1beta1.SliceGateway, n int) (bool, reconcile.Result, []int, error) {
 	log := logger.FromContext(ctx).WithName("slicegw")
 	sliceGwName := sliceGw.Name
