@@ -320,12 +320,6 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 				)
 				return ctrl.Result{}, err
 			}
-			// spawn a new gw nodeport service
-			_, _, _, err = r.handleSliceGwSvcCreation(ctx, sliceGw, r.NumberOfGateways+1)
-			if err != nil {
-				//TODO:add an event and log
-				return ctrl.Result{}, err
-			}
 			err = r.HubClient.CreateWorkerSliceGwRecycler(ctx, sliceGw.Name, clientID, newestPod.Name, sliceGwName, sliceGw.Status.Config.SliceGatewayRemoteGatewayID, sliceGw.Spec.SliceName)
 			if err != nil {
 				if errors.IsAlreadyExists(err) {
@@ -341,6 +335,12 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 					Message:   "Rebalancing is in progress",
 				},
 			)
+			// spawn a new gw nodeport service
+			_, _, _, err = r.handleSliceGwSvcCreation(ctx, sliceGw, r.NumberOfGateways+1)
+			if err != nil {
+				//TODO:add an event and log
+				return ctrl.Result{}, err
+			}
 
 		}
 	}
