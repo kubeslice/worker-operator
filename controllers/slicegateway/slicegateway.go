@@ -385,6 +385,21 @@ func (r *SliceGwReconciler) deploymentForGatewayClient(g *kubeslicev1beta1.Slice
 
 	nsmAnnotation := fmt.Sprintf("kernel://vl3-service-%s/nsm0", g.Spec.SliceName)
 
+	// If map is empty then select any one of the nodePort
+	if gwMap == nil {
+		gwMap[g.Name+"-"+fmt.Sprint(i)] = g.Status.Config.SliceGatewayRemoteNodePorts[i]
+	}
+
+	// If val is not present in the map loop through all the nodePorts and select a unique one
+	_, ok := gwMap[g.Name+"-"+fmt.Sprint(i)]
+	if ok {
+		for _, nodePort := range g.Status.Config.SliceGatewayRemoteNodePorts {
+			if selectNodePort(nodePort) {
+				gwMap[g.Name+"-"+fmt.Sprint(i)] = nodePort
+			}
+		}
+	}
+
 	dep := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      g.Name + "-" + fmt.Sprint(i),
@@ -491,7 +506,7 @@ func (r *SliceGwReconciler) deploymentForGatewayClient(g *kubeslicev1beta1.Slice
 							"--remote",
 							g.Status.Config.SliceGatewayRemoteGatewayID,
 							"--port",
-							strconv.Itoa(g.Status.Config.SliceGatewayRemoteNodePorts[i]),
+							strconv.Itoa(gwMap[g.Name+"-"+fmt.Sprint(i)]),
 							"--ping-restart",
 							"15",
 							"--proto",
