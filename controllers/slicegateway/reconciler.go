@@ -341,7 +341,6 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 				//TODO:add an event and log
 				return ctrl.Result{}, err
 			}
-
 		}
 	}
 	return ctrl.Result{Requeue: true}, nil
@@ -369,30 +368,50 @@ func (r *SliceGwReconciler) getNumberOfGatewayNodePortServices(ctx context.Conte
 	}
 	return len(services.Items), nil
 }
+func (r *SliceGwReconciler) getNodePorts(ctx context.Context, sliceGw *kubeslicev1beta1.SliceGateway) ([]int, error) {
+	var nodePorts []int
+	listOpts := []client.ListOption{
+		client.MatchingLabels(map[string]string{
+			controllers.ApplicationNamespaceSelectorLabelKey: sliceGw.Spec.SliceName,
+		}),
+	}
+	services := corev1.ServiceList{}
+	if err := r.List(ctx, &services, listOpts...); err != nil {
+		return nil, err
+	}
+	for _,service := range services.Items{
+		nodePorts = append(nodePorts, int(service.Spec.Ports[0].NodePort))
+	}
+	return nodePorts,nil
+}
+
 func (r *SliceGwReconciler) handleSliceGwSvcCreation(ctx context.Context, sliceGw *kubeslicev1beta1.SliceGateway, n int) (bool, reconcile.Result, []int, error) {
 	log := logger.FromContext(ctx).WithName("slicegw")
 	sliceGwName := sliceGw.Name
 	foundsvc := &corev1.Service{}
 	var sliceGwNodePorts []int
-	// capping the number of services to be 2 for now,later i will be equal to number of gateway nodes,eg: i = len(node.GetExternalIpList())
-	for i := 0; i < n; i++ {
-		err := r.Get(ctx, types.NamespacedName{Name: "svc-" + sliceGwName + "-" + fmt.Sprint(i), Namespace: controllers.ControlPlaneNamespace}, foundsvc)
-		if err != nil {
-			if errors.IsNotFound(err) {
-				svc := r.serviceForGateway(sliceGw, i)
-				log.Info("Creating a new Service", "Namespace", svc.Namespace, "Name", svc.Name)
-				err = r.Create(ctx, svc)
-				if err != nil {
-					log.Error(err, "Failed to create new Service", "Namespace", svc.Namespace, "Name", svc.Name)
-					return true, ctrl.Result{}, nil, err
+	no,_ := r.getNumberOfGatewayNodePortServices(ctx,sliceGw)
+	if no != n {
+		// capping the number of services to be 2 for now,later i will be equal to number of gateway nodes,eg: i = len(node.GetExternalIpList())
+		for i := 0; i < n; i++ {
+			err := r.Get(ctx, types.NamespacedName{Name: "svc-" + sliceGwName + "-" + fmt.Sprint(i), Namespace: controllers.ControlPlaneNamespace}, foundsvc)
+			if err != nil {
+				if errors.IsNotFound(err) {
+					svc := r.serviceForGateway(sliceGw, i)
+					log.Info("Creating a new Service", "Namespace", svc.Namespace, "Name", svc.Name)
+					err = r.Create(ctx, svc)
+					if err != nil {
+						log.Error(err, "Failed to create new Service", "Namespace", svc.Namespace, "Name", svc.Name)
+						return true, ctrl.Result{}, nil, err
+					}
+					return true, ctrl.Result{Requeue: true}, nil, nil
 				}
-				return true, ctrl.Result{Requeue: true}, nil, nil
+				log.Error(err, "Failed to get Service")
+				return true, ctrl.Result{}, nil, err
 			}
-			log.Error(err, "Failed to get Service")
-			return true, ctrl.Result{}, nil, err
 		}
-		sliceGwNodePorts = append(sliceGwNodePorts, int(foundsvc.Spec.Ports[0].NodePort))
 	}
+	sliceGwNodePorts,_ = r.getNodePorts(ctx,sliceGw)
 	err := r.HubClient.UpdateNodePortForSliceGwServer(ctx, sliceGwNodePorts, sliceGwName)
 	if err != nil {
 		log.Error(err, "Failed to update NodePort for sliceGw in the hub")
