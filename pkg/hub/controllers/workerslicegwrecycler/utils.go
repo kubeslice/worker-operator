@@ -11,6 +11,7 @@ import (
 	"github.com/kubeslice/worker-operator/controllers"
 	"github.com/kubeslice/worker-operator/pkg/logger"
 	"github.com/kubeslice/worker-operator/pkg/router"
+	slicegwpkg "github.com/kubeslice/worker-operator/controllers/slicegateway"
 	"github.com/looplab/fsm"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -382,6 +383,7 @@ func (r *Reconciler) delete_old_gw_pods(e *fsm.Event) error {
 		if err != nil {
 			return err
 		}
+		delete(slicegwpkg.GwMap,deployToBeDeleted.Name)
 		workerslicegwrecycler.Status.Client.Response = old_gw_deleted
 		return r.Status().Update(ctx, workerslicegwrecycler)
 	}

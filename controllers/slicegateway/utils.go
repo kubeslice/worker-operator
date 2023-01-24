@@ -44,11 +44,11 @@ func (r *SliceGwReconciler) cleanupSliceGwResources(ctx context.Context, slicegw
 
 func selectNodePort(nodePort int) bool {
 	// Loop through the map
-	for _, v := range gwMap {
+	for _, v := range GwMap {
 		// We found a uniqe match
-		if v != nodePort {
-			return true
+		if v == nodePort {
+			return false
 		}
 	}
-	return false
+	return true
 }

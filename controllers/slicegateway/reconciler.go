@@ -62,11 +62,10 @@ type SliceGwReconciler struct {
 	EventRecorder         *events.EventRecorder
 	NodeIPs               []string
 	NumberOfGateways      int
-	nodePortsUsed         map[string]int
 }
 
 // gwMap holds the mapping between gwPodName and NodePort number
-var gwMap = make(map[string]int)
+var GwMap = make(map[string]int)
 
 func readyToDeployGwClient(sliceGw *kubeslicev1beta1.SliceGateway) bool {
 	return len(sliceGw.Status.Config.SliceGatewayRemoteNodeIPs) > 0 && len(sliceGw.Status.Config.SliceGatewayRemoteNodePorts) != 0 && sliceGw.Status.Config.SliceGatewayRemoteGatewayID != ""
@@ -205,9 +204,9 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 					return ctrl.Result{}, err
 				}
 				// If the value is not present in the map
-				_, ok := gwMap[sliceGw.Name+"-"+fmt.Sprint(i)]
+				_, ok := GwMap[sliceGw.Name+"-"+fmt.Sprint(i)]
 				if !ok {
-					gwMap[sliceGw.Name+"-"+fmt.Sprint(i)] = sliceGw.Status.Config.SliceGatewayRemoteNodePorts[i]
+					GwMap[sliceGw.Name+"-"+fmt.Sprint(i)] = sliceGw.Status.Config.SliceGatewayRemoteNodePorts[i]
 				}
 				return ctrl.Result{Requeue: true}, nil
 			}
