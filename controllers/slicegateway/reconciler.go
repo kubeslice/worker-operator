@@ -62,6 +62,7 @@ type SliceGwReconciler struct {
 	EventRecorder         *events.EventRecorder
 	NodeIPs               []string
 	NumberOfGateways      int
+	nodePortsUsed         map[string]int
 }
 
 // gwMap holds the mapping between gwPodName and NodePort number
@@ -189,6 +190,7 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	}
 	// Check if the deployment already exists, if not create a new one
 	// spin up 2 gw deployments
+	log.Info("Number of gw services present", "noOfGwServices", noOfGwServices)
 	for i := 0; i < noOfGwServices; i++ {
 		found := &appsv1.Deployment{}
 		err = r.Get(ctx, types.NamespacedName{Name: sliceGwName + "-" + fmt.Sprint(i), Namespace: controllers.ControlPlaneNamespace}, found)
