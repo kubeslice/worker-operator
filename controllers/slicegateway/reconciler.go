@@ -114,7 +114,7 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	log = log.WithValues("slice", sliceGw.Spec.SliceName)
 	ctx = logger.WithLogger(ctx, log)
 
-	log.Info("reconciling", "slicegateway", sliceGw.Name,"NumberOfGateways",r.NumberOfGateways)
+	log.Info("reconciling", "slicegateway", sliceGw.Name, "NumberOfGateways", r.NumberOfGateways)
 
 	// Check if the slice to which this gateway belongs is created
 	slice, err := controllers.GetSlice(ctx, r.Client, sliceName)
@@ -295,7 +295,7 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 			)
 			return ctrl.Result{}, err
 		}
-		log.Info("Rebalancing required?","toRebalance",toRebalace)
+		log.Info("Rebalancing required?", "toRebalance", toRebalace)
 		if toRebalace {
 			// start FSM for graceful termination of gateway pods
 			// create workerslicegwrecycler on controller
@@ -303,7 +303,7 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 			if err != nil {
 				return ctrl.Result{}, err
 			}
-			
+
 			gwRemoteVpnIP := sliceGw.Status.Config.SliceGatewayRemoteVpnIP
 			clientID, err := r.getRemoteGwPodName(ctx, gwRemoteVpnIP, newestPod.Status.PodIP)
 			if err != nil {
@@ -340,7 +340,7 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 					Message:   "Rebalancing is in progress",
 				},
 			)
-			
+
 		}
 	}
 	return ctrl.Result{Requeue: true}, nil

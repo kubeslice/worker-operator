@@ -332,7 +332,6 @@ func (r *SliceGwReconciler) serviceForGateway(g *kubeslicev1beta1.SliceGateway, 
 			Namespace: g.Namespace,
 			Labels: map[string]string{
 				controllers.ApplicationNamespaceSelectorLabelKey: g.Spec.SliceName,
-
 			},
 		},
 		Spec: corev1.ServiceSpec{
@@ -1023,7 +1022,7 @@ func isGWPodStatusChanged(slicegateway *kubeslicev1beta1.SliceGateway, gwPod *ku
 func getPodAntiAffinity(slice string) *corev1.PodAntiAffinity {
 	return &corev1.PodAntiAffinity{
 		PreferredDuringSchedulingIgnoredDuringExecution: []corev1.WeightedPodAffinityTerm{{
-			Weight: 100 ,
+			Weight: 100,
 			PodAffinityTerm: corev1.PodAffinityTerm{
 				TopologyKey: "kubernetes.io/hostname",
 				LabelSelector: &metav1.LabelSelector{
