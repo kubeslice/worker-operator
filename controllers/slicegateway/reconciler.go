@@ -405,7 +405,9 @@ func (r *SliceGwReconciler) getDeployments(ctx context.Context,sliceGw *kubeslic
 	listOpts := []client.ListOption{
 		client.MatchingLabels(map[string]string{
 			controllers.ApplicationNamespaceSelectorLabelKey: sliceGw.Spec.SliceName,
+			webhook.PodInjectLabelKey:                        "slicegateway",
 		}),
+		client.InNamespace(controllers.ControlPlaneNamespace),
 	}
 	deployList := appsv1.DeploymentList{}
 	if err := r.List(ctx,&deployList,listOpts...);err!=nil{
