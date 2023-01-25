@@ -189,6 +189,7 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	}
 	// Check if the deployment already exists, if not create a new one
 	// spin up 2 gw deployments
+	log.Info("GwMap","GwMap",GwMap)
 	log.Info("Number of gw services present", "noOfGwServices", noOfGwServices)
 	for i := 0; i < noOfGwServices; i++ {
 		found := &appsv1.Deployment{}
@@ -202,11 +203,6 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 				if err != nil {
 					log.Error(err, "Failed to create new Deployment", "Namespace", dep.Namespace, "Name", dep.Name)
 					return ctrl.Result{}, err
-				}
-				// If the value is not present in the map
-				_, ok := GwMap[sliceGw.Name+"-"+fmt.Sprint(i)]
-				if !ok {
-					GwMap[sliceGw.Name+"-"+fmt.Sprint(i)] = sliceGw.Status.Config.SliceGatewayRemoteNodePorts[i]
 				}
 				return ctrl.Result{Requeue: true}, nil
 			}

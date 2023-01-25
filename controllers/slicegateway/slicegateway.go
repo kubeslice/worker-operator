@@ -389,6 +389,7 @@ func (r *SliceGwReconciler) deploymentForGatewayClient(g *kubeslicev1beta1.Slice
 	if !checkIfNodePortIsAlreadyUsed(g.Status.Config.SliceGatewayRemoteNodePorts[i]){
 		GwMap[g.Name+"-"+fmt.Sprint(i)] = g.Status.Config.SliceGatewayRemoteNodePorts[i]
 	} else {
+		// select nodePort that is not used
 		for _, nodePort := range g.Status.Config.SliceGatewayRemoteNodePorts {
 			if selectNodePort(nodePort) {
 				GwMap[g.Name+"-"+fmt.Sprint(i)] = nodePort
