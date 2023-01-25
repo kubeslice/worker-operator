@@ -192,6 +192,9 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	// spin up 2 gw deployments
 	log.Info("GwMap","GwMap",GwMap)
 	log.Info("Number of gw services present", "noOfGwServices", noOfGwServices)
+	if err := r.reconcileGwMap(ctx,sliceGw);err!=nil{
+		return ctrl.Result{}, err
+	}
 	for i := 0; i < noOfGwServices; i++ {
 		found := &appsv1.Deployment{}
 		err = r.Get(ctx, types.NamespacedName{Name: sliceGwName + "-" + fmt.Sprint(i), Namespace: controllers.ControlPlaneNamespace}, found)
@@ -210,19 +213,21 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 			log.Error(err, "Failed to get Deployment")
 			return ctrl.Result{}, err
 		}
-		// reconcile maop in case operator pod restarted or if entry is not present
-		_,ok := GwMap[sliceGw.Name+"-"+fmt.Sprint(i)]
-		if !ok{
-			for _,c := range found.Spec.Template.Spec.Containers{
-				if c.Name == "kubeslice-sidecar"{
-					for _,env := range c.Env{
-						if env.Name == "NODE_PORT"{
-							nodePort,_ := strconv.Atoi(env.Value)
-							GwMap[sliceGw.Name+"-"+fmt.Sprint(i)] = nodePort
+		// reconcile map in case operator pod restarted or if entry is not present
+		if isClient(sliceGw){
+			_,ok := GwMap[sliceGw.Name+"-"+fmt.Sprint(i)]
+			if !ok{
+				for _,c := range found.Spec.Template.Spec.Containers{
+					if c.Name == "kubeslice-sidecar"{
+						for _,env := range c.Env{
+							if env.Name == "NODE_PORT"{
+								nodePort,_ := strconv.Atoi(env.Value)
+								GwMap[sliceGw.Name+"-"+fmt.Sprint(i)] = nodePort
+							}
 						}
 					}
-				}
-			} 
+				} 
+			}
 		}
 	}
 	//fetch netop pods
@@ -364,6 +369,30 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		}
 	}
 	return ctrl.Result{Requeue: true}, nil
+}
+
+func (r *SliceGwReconciler) reconcileGwMap(ctx context.Context, sliceGw *kubeslicev1beta1.SliceGateway) error {
+	listOpts := []client.ListOption{
+		client.MatchingLabels(map[string]string{
+			controllers.ApplicationNamespaceSelectorLabelKey: sliceGw.Spec.SliceName,
+		}),
+	}
+	deployList := appsv1.DeploymentList{}
+	if err := r.List(ctx,&deployList,listOpts...);err!=nil{
+		return err
+	}
+	for d,_ := range GwMap{
+		found := false
+		for _,deploy := range deployList.Items{
+			if d == deploy.Name{
+				found = true
+			}
+		}
+		if !found{
+			delete(GwMap,d)
+		}
+	}
+	return nil
 }
 
 func isClient(sliceGw *kubeslicev1beta1.SliceGateway) bool {
