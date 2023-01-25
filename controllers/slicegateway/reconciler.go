@@ -21,6 +21,7 @@ package slicegateway
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -208,6 +209,20 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 			}
 			log.Error(err, "Failed to get Deployment")
 			return ctrl.Result{}, err
+		}
+		// reconcile maop in case operator pod restarted or if entry is not present
+		_,ok := GwMap[sliceGw.Name+"-"+fmt.Sprint(i)]
+		if !ok{
+			for _,c := range found.Spec.Template.Spec.Containers{
+				if c.Name == "kubeslice-sidecar"{
+					for _,env := range c.Env{
+						if env.Name == "NODE_PORT"{
+							nodePort,_ := strconv.Atoi(env.Value)
+							GwMap[sliceGw.Name+"-"+fmt.Sprint(i)] = nodePort
+						}
+					}
+				}
+			} 
 		}
 	}
 	//fetch netop pods

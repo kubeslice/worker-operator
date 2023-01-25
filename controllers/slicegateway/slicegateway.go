@@ -464,6 +464,10 @@ func (r *SliceGwReconciler) deploymentForGatewayClient(g *kubeslicev1beta1.Slice
 								Name:  "GW_LOG_LEVEL",
 								Value: os.Getenv("GW_LOG_LEVEL"),
 							},
+							{
+								Name: "NODE_PORT",
+								Value: strconv.Itoa(GwMap[g.Name+"-"+fmt.Sprint(i)]),
+							},
 						},
 						SecurityContext: &corev1.SecurityContext{
 							Privileged:               &privileged,
