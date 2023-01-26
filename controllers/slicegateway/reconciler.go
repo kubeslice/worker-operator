@@ -151,6 +151,8 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	// true if the gateway is openvpn server
 	// Check if the Gw service already exists, if not create a new one if it is a server
 	if isServer(sliceGw) {
+		// during the rebalancing phase noOfGwServices becomes 3,
+		// we cannot directly increment r.NumberOfGateways directly
 		noOfGwServices, err = r.getNumberOfGatewayNodePortServices(ctx, sliceGw)
 		log.Info("Number of gw services present", "noOfGwServices", noOfGwServices)
 		if err != nil {
@@ -190,7 +192,6 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	}
 	// Check if the deployment already exists, if not create a new one
 	// spin up 2 gw deployments
-	log.Info("GwMap", "GwMap", GwMap)
 	log.Info("Number of gw services present", "noOfGwServices", noOfGwServices)
 	if err := r.reconcileGwMap(ctx, sliceGw); err != nil {
 		return ctrl.Result{}, err
@@ -200,9 +201,10 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		return ctrl.Result{}, err
 	}
 	if isServer(sliceGw) {
-		noOfGwServices, err = r.getNumberOfGatewayNodePortServices(ctx, sliceGw)
+		noOfGwServices, _ = r.getNumberOfGatewayNodePortServices(ctx, sliceGw)
 	} else {
 		// fetch the latest slicegw
+		//TODO: check if this is required?
 		_ = r.Get(ctx, req.NamespacedName, sliceGw)
 		noOfGwServices = len(sliceGw.Status.Config.SliceGatewayRemoteNodePorts)
 		log.Info("number of nodeports", "nodeports", sliceGw.Status.Config.SliceGatewayRemoteNodePorts, "len", len(sliceGw.Status.Config.SliceGatewayRemoteNodePorts))
