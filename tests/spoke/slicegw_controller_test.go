@@ -20,9 +20,10 @@ package spoke_test
 
 import (
 	"context"
-	nsmv1 "github.com/networkservicemesh/sdk-k8s/pkg/tools/k8s/apis/networkservicemesh.io/v1"
 	"reflect"
 	"time"
+
+	nsmv1 "github.com/networkservicemesh/sdk-k8s/pkg/tools/k8s/apis/networkservicemesh.io/v1"
 
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
 	. "github.com/onsi/ginkgo/v2"
@@ -311,7 +312,7 @@ var _ = Describe("Worker SlicegwController", func() {
 			createdSliceGw.Status.Config.SliceGatewayHostType = "Client"
 			createdSliceGw.Status.Config.SliceGatewayRemoteGatewayID = "remote-gateway-id"
 			createdSliceGw.Status.Config.SliceGatewayRemoteNodeIPs = []string{"192.168.1.1"}
-			createdSliceGw.Status.Config.SliceGatewayRemoteNodePort = 8080
+			createdSliceGw.Status.Config.SliceGatewayRemoteNodePorts = []int{8080, 8090}
 
 			Eventually(func() bool {
 				err := k8sClient.Status().Update(ctx, createdSliceGw)
@@ -350,7 +351,7 @@ var _ = Describe("Worker SlicegwController", func() {
 				createdSliceGw.Status.Config.SliceGatewayHostType = "Client"
 				createdSliceGw.Status.Config.SliceGatewayRemoteGatewayID = "remote-gateway-id"
 				createdSliceGw.Status.Config.SliceGatewayRemoteNodeIPs = []string{"192.168.1.1"}
-				createdSliceGw.Status.Config.SliceGatewayRemoteNodePort = 8080
+				createdSliceGw.Status.Config.SliceGatewayRemoteNodePorts = []int{8080, 8090}
 
 				err = k8sClient.Status().Update(ctx, createdSliceGw)
 				if err != nil {
@@ -388,7 +389,7 @@ var _ = Describe("Worker SlicegwController", func() {
 				createdSliceGw.Status.Config.SliceGatewayHostType = "Client"
 				createdSliceGw.Status.Config.SliceGatewayRemoteGatewayID = "remote-gateway-id"
 				createdSliceGw.Status.Config.SliceGatewayRemoteNodeIPs = []string{"192.168.1.1"}
-				createdSliceGw.Status.Config.SliceGatewayRemoteNodePort = 8080
+				createdSliceGw.Status.Config.SliceGatewayRemoteNodePorts = []int{8080, 8090}
 
 				err = k8sClient.Status().Update(ctx, createdSliceGw)
 				if err != nil {
