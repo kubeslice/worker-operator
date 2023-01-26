@@ -190,17 +190,25 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	}
 	// Check if the deployment already exists, if not create a new one
 	// spin up 2 gw deployments
-	log.Info("GwMap","GwMap",GwMap)
+	log.Info("GwMap", "GwMap", GwMap)
 	log.Info("Number of gw services present", "noOfGwServices", noOfGwServices)
-	if err := r.reconcileGwMap(ctx,sliceGw);err!=nil{
+	if err := r.reconcileGwMap(ctx, sliceGw); err != nil {
 		return ctrl.Result{}, err
 	}
-
-	deployments,err := r.getDeployments(ctx,sliceGw)
-	if err!=nil{
-		return ctrl.Result{},err
+	deployments, err := r.getDeployments(ctx, sliceGw)
+	if err != nil {
+		return ctrl.Result{}, err
 	}
-	if len(deployments.Items)!= noOfGwServices{
+	if isServer(sliceGw) {
+		noOfGwServices, err = r.getNumberOfGatewayNodePortServices(ctx, sliceGw)
+	} else {
+		// fetch the latest slicegw
+		_ = r.Get(ctx, req.NamespacedName, sliceGw)
+		noOfGwServices = len(sliceGw.Status.Config.SliceGatewayRemoteNodePorts)
+		log.Info("number of nodeports", "nodeports", sliceGw.Status.Config.SliceGatewayRemoteNodePorts, "len", len(sliceGw.Status.Config.SliceGatewayRemoteNodePorts))
+	}
+	log.Info("gw deployments", "deployments", len(deployments.Items))
+	if len(deployments.Items) < noOfGwServices {
 		for i := 0; i < noOfGwServices; i++ {
 			found := &appsv1.Deployment{}
 			err = r.Get(ctx, types.NamespacedName{Name: sliceGwName + "-" + fmt.Sprint(i), Namespace: controllers.ControlPlaneNamespace}, found)
@@ -219,20 +227,24 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 				log.Error(err, "Failed to get Deployment")
 				return ctrl.Result{}, err
 			}
-			// reconcile map in case operator pod restarted or if entry is not present
-			if isClient(sliceGw){
-				_,ok := GwMap[sliceGw.Name+"-"+fmt.Sprint(i)]
-				if !ok{
-					for _,c := range found.Spec.Template.Spec.Containers{
-						if c.Name == "kubeslice-sidecar"{
-							for _,env := range c.Env{
-								if env.Name == "NODE_PORT"{
-									nodePort,_ := strconv.Atoi(env.Value)
-									GwMap[sliceGw.Name+"-"+fmt.Sprint(i)] = nodePort
-								}
+
+		}
+	}
+
+	// reconcile map in case operator pod restarted or if entry is not present
+	if isClient(sliceGw) {
+		for _, deploy := range deployments.Items {
+			_, ok := GwMap[deploy.Name]
+			if !ok {
+				for _, c := range deploy.Spec.Template.Spec.Containers {
+					if c.Name == "kubeslice-sidecar" {
+						for _, env := range c.Env {
+							if env.Name == "NODE_PORT" {
+								nodePort, _ := strconv.Atoi(env.Value)
+								GwMap[deploy.Name] = nodePort
 							}
 						}
-					} 
+					}
 				}
 			}
 		}
@@ -385,23 +397,23 @@ func (r *SliceGwReconciler) reconcileGwMap(ctx context.Context, sliceGw *kubesli
 		}),
 	}
 	deployList := appsv1.DeploymentList{}
-	if err := r.List(ctx,&deployList,listOpts...);err!=nil{
+	if err := r.List(ctx, &deployList, listOpts...); err != nil {
 		return err
 	}
-	for d,_ := range GwMap{
+	for d, _ := range GwMap {
 		found := false
-		for _,deploy := range deployList.Items{
-			if d == deploy.Name{
+		for _, deploy := range deployList.Items {
+			if d == deploy.Name {
 				found = true
 			}
 		}
-		if !found{
-			delete(GwMap,d)
+		if !found {
+			delete(GwMap, d)
 		}
 	}
 	return nil
 }
-func (r *SliceGwReconciler) getDeployments(ctx context.Context,sliceGw *kubeslicev1beta1.SliceGateway) (*appsv1.DeploymentList,error) {
+func (r *SliceGwReconciler) getDeployments(ctx context.Context, sliceGw *kubeslicev1beta1.SliceGateway) (*appsv1.DeploymentList, error) {
 	listOpts := []client.ListOption{
 		client.MatchingLabels(map[string]string{
 			controllers.ApplicationNamespaceSelectorLabelKey: sliceGw.Spec.SliceName,
@@ -410,10 +422,10 @@ func (r *SliceGwReconciler) getDeployments(ctx context.Context,sliceGw *kubeslic
 		client.InNamespace(controllers.ControlPlaneNamespace),
 	}
 	deployList := appsv1.DeploymentList{}
-	if err := r.List(ctx,&deployList,listOpts...);err!=nil{
-		return nil,err
+	if err := r.List(ctx, &deployList, listOpts...); err != nil {
+		return nil, err
 	}
-	return &deployList,nil
+	return &deployList, nil
 }
 
 func isClient(sliceGw *kubeslicev1beta1.SliceGateway) bool {
@@ -431,6 +443,7 @@ func (r *SliceGwReconciler) getNumberOfGatewayNodePortServices(ctx context.Conte
 		client.MatchingLabels(map[string]string{
 			controllers.ApplicationNamespaceSelectorLabelKey: sliceGw.Spec.SliceName,
 		}),
+		client.InNamespace(controllers.ControlPlaneNamespace),
 	}
 	services := corev1.ServiceList{}
 	if err := r.List(ctx, &services, listOpts...); err != nil {

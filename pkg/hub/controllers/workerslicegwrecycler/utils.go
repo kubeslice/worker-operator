@@ -3,15 +3,16 @@ package workerslicegwrecycler
 import (
 	"context"
 	"errors"
+	"os"
 	"time"
 
 	retry "github.com/avast/retry-go"
 	spokev1alpha1 "github.com/kubeslice/apis/pkg/worker/v1alpha1"
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
 	"github.com/kubeslice/worker-operator/controllers"
+	slicegwpkg "github.com/kubeslice/worker-operator/controllers/slicegateway"
 	"github.com/kubeslice/worker-operator/pkg/logger"
 	"github.com/kubeslice/worker-operator/pkg/router"
-	slicegwpkg "github.com/kubeslice/worker-operator/controllers/slicegateway"
 	"github.com/looplab/fsm"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -279,6 +280,26 @@ func (r *Reconciler) update_routing_table(e *fsm.Event) error {
 	if err != nil {
 		return err
 	}
+	log.Info("Deleted the service", "svc", nodePortService.Name)
+	// verify number of services to be equal to 2
+	retry.Do(func() error {
+		listOpts := []client.ListOption{
+			client.MatchingLabels(map[string]string{
+				controllers.ApplicationNamespaceSelectorLabelKey: slicegateway.Spec.SliceName,
+			}),
+			client.InNamespace(controllers.ControlPlaneNamespace),
+		}
+		services := corev1.ServiceList{}
+		if err := r.MeshClient.List(ctx, &services, listOpts...); err != nil {
+			return err
+		}
+		log.Info("number of services", "services", len(services.Items))
+		if len(services.Items) != 2 {
+			return errors.New("services still not decreased to 2")
+		}
+		return nil
+	})
+
 	// delete the deployment
 	deployToBeDeleted := appsv1.Deployment{}
 	if err := r.MeshClient.Get(ctx, types.NamespacedName{Namespace: controllers.ControlPlaneNamespace, Name: deployName}, &deployToBeDeleted); err != nil {
@@ -290,6 +311,23 @@ func (r *Reconciler) update_routing_table(e *fsm.Event) error {
 	if err != nil {
 		return err
 	}
+	log.Info("Deleted the deployment", "deploy", deployToBeDeleted.Name)
+	//wait and verify number of nodePorts are updated in slicegw
+	retry.Do(func() error {
+		sliceGw := &spokev1alpha1.WorkerSliceGateway{}
+		err = r.Get(ctx, types.NamespacedName{
+			Name:      slicegateway.Name,
+			Namespace: os.Getenv("HUB_PROJECT_NAMESPACE"),
+		}, sliceGw)
+		if err != nil {
+			return err
+		}
+		log.Info("number of nodeports", "nodeports", len(sliceGw.Spec.LocalGatewayConfig.NodePorts))
+		if len(sliceGw.Spec.LocalGatewayConfig.NodePorts) != 2 {
+			return errors.New("Waiting for nodePorts to be updated")
+		}
+		return nil
+	}, retry.Attempts(1000))
 
 	workerslicegwrecycler.Spec.State = slicerouter_updated
 	workerslicegwrecycler.Spec.Request = delete_old_gw_pods
@@ -355,6 +393,21 @@ func (r *Reconciler) delete_old_gw_pods(e *fsm.Event) error {
 			return nil
 		}, retry.Attempts(5000))
 
+		retry.Do(func() error {
+			err := r.MeshClient.Get(ctx, types.NamespacedName{
+				Name:      slicegateway.Name,
+				Namespace: controllers.ControlPlaneNamespace,
+			}, &slicegateway)
+			if err != nil {
+				return err
+			}
+			log.Info("number of nodeports", "nodeports", slicegateway.Status.Config.SliceGatewayRemoteNodePorts, "len", len(slicegateway.Status.Config.SliceGatewayRemoteNodePorts))
+			if len(slicegateway.Status.Config.SliceGatewayRemoteNodePorts) != 2 {
+				return errors.New("Waiting for nodePorts to be updated")
+			}
+			return nil
+		})
+
 		podList := corev1.PodList{}
 		labels := map[string]string{"kubeslice.io/gw-pod-type": "toBeDeleted", "kubeslice.io/slice": workerslicegwrecycler.Spec.SliceName}
 		listOptions := []client.ListOption{
@@ -383,7 +436,7 @@ func (r *Reconciler) delete_old_gw_pods(e *fsm.Event) error {
 		if err != nil {
 			return err
 		}
-		delete(slicegwpkg.GwMap,deployToBeDeleted.Name)
+		delete(slicegwpkg.GwMap, deployToBeDeleted.Name)
 		workerslicegwrecycler.Status.Client.Response = old_gw_deleted
 		return r.Status().Update(ctx, workerslicegwrecycler)
 	}

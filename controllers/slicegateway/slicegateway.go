@@ -128,6 +128,10 @@ func (r *SliceGwReconciler) deploymentForGatewayServer(g *kubeslicev1beta1.Slice
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      g.Name + "-" + fmt.Sprint(i),
 			Namespace: g.Namespace,
+			Labels: map[string]string{
+				controllers.ApplicationNamespaceSelectorLabelKey: g.Spec.SliceName,
+				webhook.PodInjectLabelKey:                        "slicegateway",
+			},
 		},
 		Spec: appsv1.DeploymentSpec{
 			Replicas: &replicas,
@@ -386,7 +390,7 @@ func (r *SliceGwReconciler) deploymentForGatewayClient(g *kubeslicev1beta1.Slice
 	nsmAnnotation := fmt.Sprintf("kernel://vl3-service-%s/nsm0", g.Spec.SliceName)
 
 	// If val is present in the map loop through all the nodePorts and select a unique one
-	if !checkIfNodePortIsAlreadyUsed(g.Status.Config.SliceGatewayRemoteNodePorts[i]){
+	if !checkIfNodePortIsAlreadyUsed(g.Status.Config.SliceGatewayRemoteNodePorts[i]) {
 		GwMap[g.Name+"-"+fmt.Sprint(i)] = g.Status.Config.SliceGatewayRemoteNodePorts[i]
 	} else {
 		// select nodePort that is not used
@@ -400,6 +404,10 @@ func (r *SliceGwReconciler) deploymentForGatewayClient(g *kubeslicev1beta1.Slice
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      g.Name + "-" + fmt.Sprint(i),
 			Namespace: g.Namespace,
+			Labels: map[string]string{
+				controllers.ApplicationNamespaceSelectorLabelKey: g.Spec.SliceName,
+				webhook.PodInjectLabelKey:                        "slicegateway",
+			},
 		},
 		Spec: appsv1.DeploymentSpec{
 			Replicas: &replicas,
@@ -465,7 +473,7 @@ func (r *SliceGwReconciler) deploymentForGatewayClient(g *kubeslicev1beta1.Slice
 								Value: os.Getenv("GW_LOG_LEVEL"),
 							},
 							{
-								Name: "NODE_PORT",
+								Name:  "NODE_PORT",
 								Value: strconv.Itoa(GwMap[g.Name+"-"+fmt.Sprint(i)]),
 							},
 						},
@@ -1083,15 +1091,9 @@ func (r *SliceGwReconciler) getNewestPod(slicegw *kubeslicev1beta1.SliceGateway)
 func (r *SliceGwReconciler) isRebalancingRequired(ctx context.Context, sliceGw *kubeslicev1beta1.SliceGateway) (bool, error) {
 	log := r.Log
 	//fetch the slicegateway deployment
-	foundDep := &appsv1.Deployment{}
 	var readyReplica int
-	for i := 0; i < 2; i++ {
-		slicegwkey := types.NamespacedName{Name: sliceGw.Name + "-" + fmt.Sprint(i), Namespace: sliceGw.Namespace}
-		err := r.Get(ctx, slicegwkey, foundDep)
-		if err != nil {
-			log.Error(err, "problem getting the deployment")
-			return false, err
-		}
+	deployments, err := r.getDeployments(ctx, sliceGw)
+	for _, foundDep := range deployments.Items {
 		replicas := foundDep.Status.ReadyReplicas
 		readyReplica += int(replicas)
 	}
@@ -1109,7 +1111,7 @@ func (r *SliceGwReconciler) isRebalancingRequired(ctx context.Context, sliceGw *
 	listOptions := []client.ListOption{
 		client.MatchingLabels(labels),
 	}
-	err := r.Client.List(ctx, &PodList, listOptions...)
+	err = r.Client.List(ctx, &PodList, listOptions...)
 	if err != nil {
 		log.Error(err, "can't fetch pod list:")
 		return false, err

@@ -289,6 +289,9 @@ func updateClusterInfoToHub(ctx context.Context, spokeclient client.Client, hubC
 			hubCluster.Spec.ClusterProperty.GeoLocation.CloudRegion = clusterInfo.ClusterProperty.GeoLocation.CloudRegion
 			hubCluster.Spec.ClusterProperty.GeoLocation.CloudProvider = clusterInfo.ClusterProperty.GeoLocation.CloudProvider
 		}
+		//TODO:remove once deprecated
+		hubCluster.Spec.NodeIP = ""
+
 		hubCluster.Spec.NodeIPs = nodeIPs
 		if err := hubClient.Update(ctx, hubCluster); err != nil {
 			log.Error(err, "Error updating to cluster spec on hub cluster")
