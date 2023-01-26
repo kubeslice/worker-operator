@@ -24,7 +24,6 @@ import (
 	"fmt"
 	"os"
 	"reflect"
-
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 
 	corev1 "k8s.io/api/core/v1"
@@ -119,7 +118,7 @@ func (hubClient *HubClientConfig) CreateWorkerSliceGwRecycler(ctx context.Contex
 	return hubClient.Create(ctx, &workerslicegwrecycler)
 }
 
-func (hubClient *HubClientConfig) UpdateNodeIpInCluster(ctx context.Context, clusterName, nodeIP, namespace string, slicegw *kubeslicev1beta1.SliceGateway) error {
+func (hubClient *HubClientConfig) UpdateNodeIpInCluster(ctx context.Context, clusterName string, nodeIP []string, namespace string, slicegw *kubeslicev1beta1.SliceGateway) error {
 	cluster := &hubv1alpha1.Cluster{}
 	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		err := hubClient.Get(ctx, types.NamespacedName{
@@ -129,7 +128,7 @@ func (hubClient *HubClientConfig) UpdateNodeIpInCluster(ctx context.Context, clu
 		if err != nil {
 			return err
 		}
-		cluster.Spec.NodeIP = nodeIP
+		cluster.Spec.NodeIPs = nodeIP
 		if err := hubClient.Update(ctx, cluster); err != nil {
 			log.Error(err, "Error updating to cluster spec on controller cluster")
 			return err
@@ -143,7 +142,7 @@ func (hubClient *HubClientConfig) UpdateNodeIpInCluster(ctx context.Context, clu
 	hubClient.eventRecorder.WithNamespace(controllers.ControlPlaneNamespace).WithSlice(slicegw.Spec.SliceName).RecordEvent(ctx, &monitoring.Event{
 		EventType:         monitoring.EventTypeNormal,
 		Reason:            monitoring.EventReasonNodeIpUpdate,
-		Message:           "NodeIp Updated to: " + nodeIP,
+		Message:           "NodeIps Updated",
 		ReportingInstance: "Controller Reconciler",
 		Object:            slicegw,
 		Action:            "NodeIPUpdated",

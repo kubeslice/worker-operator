@@ -24,6 +24,7 @@ import (
 	"fmt"
 	"math"
 	"os"
+	"reflect"
 	"strconv"
 	"time"
 
@@ -878,8 +879,8 @@ func (r *SliceGwReconciler) reconcileNodes(ctx context.Context, slicegateway *ku
 	}
 	if !validatenodeipcount(nodeIpList, currentNodeIP) {
 		//nodeIP updated , update the cluster CR
-		log.Info("Mismatch in node IP", "IP in use", currentNodeIP, "IPs to be used", nodeIpList)
-		err := r.HubClient.UpdateNodeIpInCluster(ctx, os.Getenv("CLUSTER_NAME"), os.Getenv("HUB_PROJECT_NAMESPACE"), nodeIpList)
+		log.Info("Mismatch in node IP", "IP in use", currentNodeIP, "IP to be used", nodeIpList)
+		err := r.HubClient.UpdateNodeIpInCluster(ctx, os.Getenv("CLUSTER_NAME"), nodeIpList, os.Getenv("HUB_PROJECT_NAMESPACE"), slicegateway)
 		if err != nil {
 			return err
 		}
@@ -983,12 +984,7 @@ func validateEndpointAddresses(subset corev1.EndpointSubset, remoteNodeIPS []str
 // total -> external ip list of nodes in the k8s cluster
 // current -> ip list present in nodeIPs of cluster cr
 func validatenodeipcount(total, current []string) bool {
-	for _, a := range total {
-		if !contains(current, a) {
-			return false
-		}
-	}
-	return true && len(total) == len(current)
+	return reflect.DeepEqual(total,current)
 }
 func UpdateGWPodStatus(gwPodStatus []*kubeslicev1beta1.GwPodInfo, podName string) []*kubeslicev1beta1.GwPodInfo {
 	index := -1
