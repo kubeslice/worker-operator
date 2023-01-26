@@ -43,6 +43,7 @@ import (
 	"github.com/kubeslice/worker-operator/pkg/cluster"
 	"github.com/kubeslice/worker-operator/pkg/hub/controllers"
 	"github.com/kubeslice/worker-operator/pkg/logger"
+	"github.com/kubeslice/worker-operator/pkg/monitoring"
 )
 
 const (
@@ -63,6 +64,7 @@ func init() {
 
 type HubClientConfig struct {
 	client.Client
+	eventRecorder *monitoring.EventRecorder
 }
 
 type HubClientRpc interface {
@@ -75,7 +77,7 @@ type HubClientRpc interface {
 	CreateWorkerSliceGwRecycler(ctx context.Context, gwRecyclerName, clientID, serverID, sliceGwServer, sliceGwClient, slice string) error
 }
 
-func NewHubClientConfig() (*HubClientConfig, error) {
+func NewHubClientConfig(er *monitoring.EventRecorder) (*HubClientConfig, error) {
 	hubClient, err := client.New(&rest.Config{
 		Host:            os.Getenv("HUB_HOST_ENDPOINT"),
 		BearerTokenFile: HubTokenFile,
@@ -88,7 +90,8 @@ func NewHubClientConfig() (*HubClientConfig, error) {
 	)
 
 	return &HubClientConfig{
-		Client: hubClient,
+		Client:        hubClient,
+		eventRecorder: er,
 	}, err
 }
 
@@ -116,7 +119,7 @@ func (hubClient *HubClientConfig) CreateWorkerSliceGwRecycler(ctx context.Contex
 	return hubClient.Create(ctx, &workerslicegwrecycler)
 }
 
-func (hubClient *HubClientConfig) UpdateNodeIpInCluster(ctx context.Context, clusterName, namespace string, nodeIP []string) error {
+func (hubClient *HubClientConfig) UpdateNodeIpInCluster(ctx context.Context, clusterName, nodeIP, namespace string, slicegw *kubeslicev1beta1.SliceGateway) error {
 	cluster := &hubv1alpha1.Cluster{}
 	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		err := hubClient.Get(ctx, types.NamespacedName{
@@ -126,7 +129,7 @@ func (hubClient *HubClientConfig) UpdateNodeIpInCluster(ctx context.Context, clu
 		if err != nil {
 			return err
 		}
-		cluster.Spec.NodeIPs = nodeIP
+		cluster.Spec.NodeIP = nodeIP
 		if err := hubClient.Update(ctx, cluster); err != nil {
 			log.Error(err, "Error updating to cluster spec on controller cluster")
 			return err
@@ -137,6 +140,14 @@ func (hubClient *HubClientConfig) UpdateNodeIpInCluster(ctx context.Context, clu
 	if err != nil {
 		return err
 	}
+	hubClient.eventRecorder.WithNamespace(controllers.ControlPlaneNamespace).WithSlice(slicegw.Spec.SliceName).RecordEvent(ctx, &monitoring.Event{
+		EventType:         monitoring.EventTypeNormal,
+		Reason:            monitoring.EventReasonNodeIpUpdate,
+		Message:           "NodeIp Updated to: " + nodeIP,
+		ReportingInstance: "Controller Reconciler",
+		Object:            slicegw,
+		Action:            "NodeIPUpdated",
+	})
 	return nil
 }
 
@@ -157,7 +168,17 @@ func (hubClient *HubClientConfig) UpdateNodePortForSliceGwServer(ctx context.Con
 
 	sliceGw.Spec.LocalGatewayConfig.NodePorts = sliceGwNodePorts
 
-	return hubClient.Update(ctx, sliceGw)
+	err = hubClient.Update(ctx, sliceGw)
+	hubClient.eventRecorder.RecordEvent(ctx, &monitoring.Event{
+		EventType:         monitoring.EventTypeNormal,
+		Reason:            monitoring.EventReasonNodePortUpdate,
+		Message:           fmt.Sprintf("NodePorts Updated to: %d", sliceGwNodePorts),
+		ReportingInstance: "Controller Reconciler",
+		Object:            sliceGw,
+		Action:            "NodePortUpdated",
+	})
+
+	return err
 }
 
 func PostClusterInfoToHub(ctx context.Context, spokeclient client.Client, hubClient client.Client, clusterName, namespace string, nodeIPs []string) error {
