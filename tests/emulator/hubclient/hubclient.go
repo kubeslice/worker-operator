@@ -39,7 +39,7 @@ func NewHubClientEmulator(client client.Client) (*HubClientEmulator, error) {
 	}, nil
 }
 
-func (hubClientEmulator *HubClientEmulator) UpdateNodeIpInCluster(ctx context.Context, clusterName, namespace string, nodeIPs []string) error {
+func (hubClientEmulator *HubClientEmulator) UpdateNodeIpInCluster(ctx context.Context, clusterName string, nodeIP []string, namespace string, slicegw *kubeslicev1beta1.SliceGateway) error {
 	cluster := &hubv1alpha1.Cluster{}
 	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		err := hubClientEmulator.Get(ctx, types.NamespacedName{
@@ -49,7 +49,7 @@ func (hubClientEmulator *HubClientEmulator) UpdateNodeIpInCluster(ctx context.Co
 		if err != nil {
 			return err
 		}
-		cluster.Spec.NodeIPs = nodeIPs
+		cluster.Spec.NodeIPs = nodeIP
 		if err := hubClientEmulator.Update(ctx, cluster); err != nil {
 			//log.Error(err, "Error updating to cluster spec on controller cluster")
 			return err
@@ -63,7 +63,7 @@ func (hubClientEmulator *HubClientEmulator) UpdateNodeIpInCluster(ctx context.Co
 }
 
 func (hubClientEmulator *HubClientEmulator) UpdateNodePortForSliceGwServer(
-	ctx context.Context, sliceGwNodePort int32, sliceGwName string) error {
+	ctx context.Context, sliceGwNodePort []int, sliceGwName string) error {
 	return nil
 }
 
