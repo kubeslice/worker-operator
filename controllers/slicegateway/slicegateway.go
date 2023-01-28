@@ -1007,7 +1007,7 @@ func getLocalNSMIPs(slicegateway *kubeslicev1beta1.SliceGateway) []string {
 func getLocalNSMIPsForRouter(slicegateway *kubeslicev1beta1.SliceGateway) []string {
 	nsmIPs := make([]string, 0)
 	for _, gwPod := range slicegateway.Status.GatewayPodStatus {
-		if gwPod.RouteRemoved == 1 {
+		if gwPod.RouteRemoved == 1 || gwPod.LocalNsmIP == "" {
 			continue
 		}
 		nsmIPs = append(nsmIPs, gwPod.LocalNsmIP)
