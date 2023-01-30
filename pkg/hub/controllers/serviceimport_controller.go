@@ -73,9 +73,9 @@ func getMeshServiceImportEpList(svcim *spokev1alpha1.WorkerServiceImport) []kube
 	epList := []kubeslicev1beta1.ServiceEndpoint{}
 	for _, ep := range svcim.Spec.ServiceDiscoveryEndpoints {
 		epList = append(epList, kubeslicev1beta1.ServiceEndpoint{
-			Name: ep.PodName,
-			IP:   ep.NsmIp,
-			//Port:      ep.Port,
+			Name:      ep.PodName,
+			IP:        ep.NsmIp,
+			Port:      ep.Port,
 			ClusterID: ep.Cluster,
 			DNSName:   ep.DnsName,
 		})

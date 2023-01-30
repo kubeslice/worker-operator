@@ -394,12 +394,15 @@ func getNamespaceInfo(onboardNamespace string, ns []hubv1alpha1.NamespacesConfig
 func getHubServiceDiscoveryEps(serviceexport *kubeslicev1beta1.ServiceExport) []hubv1alpha1.ServiceDiscoveryEndpoint {
 	epList := []hubv1alpha1.ServiceDiscoveryEndpoint{}
 
+	port := serviceexport.Spec.Ports[0].ContainerPort
+
 	for _, pod := range serviceexport.Status.Pods {
 		ep := hubv1alpha1.ServiceDiscoveryEndpoint{
 			PodName: pod.Name,
 			Cluster: ClusterName,
 			NsmIp:   pod.NsmIP,
 			DnsName: pod.DNSName,
+			Port:    port,
 		}
 		epList = append(epList, ep)
 	}
@@ -441,12 +444,13 @@ func getHubServiceExportObj(serviceexport *kubeslicev1beta1.ServiceExport) *hubv
 	}
 }
 
-func getHubServiceDiscoveryEp(ep *kubeslicev1beta1.ServicePod) hubv1alpha1.ServiceDiscoveryEndpoint {
+func getHubServiceDiscoveryEpForIngressGw(ep *kubeslicev1beta1.ServicePod) hubv1alpha1.ServiceDiscoveryEndpoint {
 	return hubv1alpha1.ServiceDiscoveryEndpoint{
 		PodName: ep.Name,
 		Cluster: ClusterName,
 		NsmIp:   ep.NsmIP,
 		DnsName: ep.DNSName,
+		Port:    8080,
 	}
 }
 
@@ -469,7 +473,7 @@ func (hubClient *HubClientConfig) UpdateServiceExportEndpointForIngressGw(ctx co
 					ServiceNamespace:          serviceexport.ObjectMeta.Namespace,
 					SourceCluster:             ClusterName,
 					SliceName:                 serviceexport.Spec.Slice,
-					ServiceDiscoveryEndpoints: []hubv1alpha1.ServiceDiscoveryEndpoint{getHubServiceDiscoveryEp(ep)},
+					ServiceDiscoveryEndpoints: []hubv1alpha1.ServiceDiscoveryEndpoint{getHubServiceDiscoveryEpForIngressGw(ep)},
 					ServiceDiscoveryPorts:     getHubServiceDiscoveryPorts(serviceexport),
 				},
 			}
@@ -482,7 +486,7 @@ func (hubClient *HubClientConfig) UpdateServiceExportEndpointForIngressGw(ctx co
 		return err
 	}
 
-	hubSvcEx.Spec.ServiceDiscoveryEndpoints = []hubv1alpha1.ServiceDiscoveryEndpoint{getHubServiceDiscoveryEp(ep)}
+	hubSvcEx.Spec.ServiceDiscoveryEndpoints = []hubv1alpha1.ServiceDiscoveryEndpoint{getHubServiceDiscoveryEpForIngressGw(ep)}
 	hubSvcEx.Spec.ServiceDiscoveryPorts = getHubServiceDiscoveryPorts(serviceexport)
 
 	err = hubClient.Update(ctx, hubSvcEx)
@@ -511,6 +515,8 @@ func (hubClient *HubClientConfig) UpdateServiceExport(ctx context.Context, servi
 	}
 
 	hubSvcEx.Spec = getHubServiceExportObj(serviceexport).Spec
+
+	log.WithValues("serviceexport", serviceexport.Name).Info("Updated serviceexport on hub", "spec", hubSvcEx.Spec)
 
 	err = hubClient.Update(ctx, hubSvcEx)
 	if err != nil {
