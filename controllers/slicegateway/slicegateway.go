@@ -984,7 +984,7 @@ func validateEndpointAddresses(subset corev1.EndpointSubset, remoteNodeIPS []str
 // total -> external ip list of nodes in the k8s cluster
 // current -> ip list present in nodeIPs of cluster cr
 func validatenodeipcount(total, current []string) bool {
-	return reflect.DeepEqual(total,current)
+	return reflect.DeepEqual(total, current)
 }
 func UpdateGWPodStatus(gwPodStatus []*kubeslicev1beta1.GwPodInfo, podName string) []*kubeslicev1beta1.GwPodInfo {
 	index := -1
@@ -1089,6 +1089,10 @@ func (r *SliceGwReconciler) isRebalancingRequired(ctx context.Context, sliceGw *
 	//fetch the slicegateway deployment
 	var readyReplica int
 	deployments, err := r.getDeployments(ctx, sliceGw)
+	if err != nil {
+		log.Error(err, "Error while fetching deployments")
+		return false, err
+	}
 	for _, foundDep := range deployments.Items {
 		replicas := foundDep.Status.ReadyReplicas
 		readyReplica += int(replicas)
@@ -1154,63 +1158,4 @@ func (r *SliceGwReconciler) isRebalancingRequired(ctx context.Context, sliceGw *
 		}
 	}
 	return false, nil
-}
-
-func (r *SliceGwReconciler) findAndRemovePodFromNode(ctx context.Context) error {
-	log := r.Log
-	newestPod, err := getNewestPod(r.Client)
-	if err != nil {
-		log.Error(err, "unable to fetch the newest pod")
-		return err
-	}
-	log.Info("removing label from pods", "pod", newestPod)
-	delete(newestPod.Labels, controllers.PodTypeSelectorLabelKey)
-	newestPod.Labels["kubeslice.io/pod-type"] = "toBeDeleted"
-	err = r.Client.Update(ctx, newestPod)
-	if err != nil {
-		return err
-	}
-	return nil
-
-}
-
-// This method deletes gw pods with label kubeslice.io/pod-type=toBeDeleted, this label is added to the pods during rebalancing
-func (r *SliceGwReconciler) deleteOlderGWPods(ctx context.Context, slicegw *kubeslicev1beta1.SliceGateway) error {
-	log := r.Log
-	typeToBeDeleted := corev1.Pod{}
-	labels := map[string]string{controllers.PodTypeSelectorLabelKey: "toBeDeleted"}
-	delOpts := []client.DeleteAllOfOption{
-		client.InNamespace(slicegw.Namespace),
-		client.MatchingLabels(labels),
-		client.MatchingFields{"status.phase": "Running"},
-		client.GracePeriodSeconds(5),
-	}
-	err := r.Client.DeleteAllOf(ctx, &typeToBeDeleted, delOpts...)
-	if err != nil {
-		log.Error(err, "unable to delete old gw pods")
-		return err
-	}
-	return nil
-}
-func getNewestPod(c client.Client) (*corev1.Pod, error) {
-	PodList := corev1.PodList{}
-	labels := map[string]string{controllers.PodTypeSelectorLabelKey: "slicegateway"}
-	listOptions := []client.ListOption{
-		client.MatchingLabels(labels),
-	}
-	ctx := context.Background()
-	err := c.List(ctx, &PodList, listOptions...)
-	if err != nil {
-		return &corev1.Pod{}, err
-	}
-	newestPod := PodList.Items[0]
-	newestPodDuration := time.Since(PodList.Items[0].CreationTimestamp.Time).Seconds()
-	for _, pod := range PodList.Items {
-		duration := time.Since(pod.CreationTimestamp.Time).Seconds()
-		if duration < newestPodDuration {
-			newestPodDuration = duration
-			newestPod = pod
-		}
-	}
-	return &newestPod, nil
 }

@@ -158,6 +158,7 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		if err != nil {
 			return ctrl.Result{}, err
 		}
+		// This condition will be true during rebalancing
 		if noOfGwServices > r.NumberOfGateways {
 			reconcile, result, sliceGwNodePorts, err = r.handleSliceGwSvcCreation(ctx, sliceGw, noOfGwServices)
 			if reconcile {
