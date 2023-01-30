@@ -13,13 +13,14 @@ require (
 	github.com/kubeslice/apis v0.1.1
 	github.com/kubeslice/gateway-sidecar v0.2.0
 	github.com/kubeslice/netops v0.0.0-20220506082959-81fef290c265
-	github.com/kubeslice/router-sidecar v1.2.0
+	github.com/kubeslice/router-sidecar v1.4.0
 	github.com/looplab/fsm v0.3.0
 	github.com/networkservicemesh/sdk-k8s v1.6.1
 	github.com/onsi/ginkgo/v2 v2.1.3
 	github.com/onsi/gomega v1.18.1
 	github.com/prometheus/client_golang v1.13.0
 	github.com/stretchr/testify v1.8.0
+	github.com/vishvananda/netlink v1.2.1-beta.2.0.20220812183158-d44b87fd4d3f // indirect
 	github.com/vishvananda/netns v0.0.0-20211101163701-50045581ed74 // indirect
 	go.opencensus.io v0.23.0
 	go.uber.org/atomic v1.9.0 // indirect

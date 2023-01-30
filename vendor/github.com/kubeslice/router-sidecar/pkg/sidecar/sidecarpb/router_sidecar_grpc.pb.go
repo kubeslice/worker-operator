@@ -27,6 +27,8 @@ type SliceRouterSidecarServiceClient interface {
 	UpdateSliceGwConnectionContext(ctx context.Context, in *SliceGwConContext, opts ...grpc.CallOption) (*SidecarResponse, error)
 	// Provides connection information of all clients connected to the slice router
 	GetSliceRouterClientConnectionInfo(ctx context.Context, in *empty.Empty, opts ...grpc.CallOption) (*ClientConnectionInfo, error)
+	// Verify route add Verifies if the route is present
+	GetRouteInKernel(ctx context.Context, in *VerifyRouteAddRequest, opts ...grpc.CallOption) (*VerifyRouteAddResponse, error)
 	// Updates Ecmp routes in the router
 	UpdateEcmpRoutes(ctx context.Context, in *EcmpUpdateInfo, opts ...grpc.CallOption) (*SidecarResponse, error)
 }
@@ -57,6 +59,15 @@ func (c *sliceRouterSidecarServiceClient) GetSliceRouterClientConnectionInfo(ctx
 	return out, nil
 }
 
+func (c *sliceRouterSidecarServiceClient) GetRouteInKernel(ctx context.Context, in *VerifyRouteAddRequest, opts ...grpc.CallOption) (*VerifyRouteAddResponse, error) {
+	out := new(VerifyRouteAddResponse)
+	err := c.cc.Invoke(ctx, "/router.SliceRouterSidecarService/GetRouteInKernel", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *sliceRouterSidecarServiceClient) UpdateEcmpRoutes(ctx context.Context, in *EcmpUpdateInfo, opts ...grpc.CallOption) (*SidecarResponse, error) {
 	out := new(SidecarResponse)
 	err := c.cc.Invoke(ctx, "/router.SliceRouterSidecarService/UpdateEcmpRoutes", in, out, opts...)
@@ -74,6 +85,8 @@ type SliceRouterSidecarServiceServer interface {
 	UpdateSliceGwConnectionContext(context.Context, *SliceGwConContext) (*SidecarResponse, error)
 	// Provides connection information of all clients connected to the slice router
 	GetSliceRouterClientConnectionInfo(context.Context, *empty.Empty) (*ClientConnectionInfo, error)
+	// Verify route add Verifies if the route is present
+	GetRouteInKernel(context.Context, *VerifyRouteAddRequest) (*VerifyRouteAddResponse, error)
 	// Updates Ecmp routes in the router
 	UpdateEcmpRoutes(context.Context, *EcmpUpdateInfo) (*SidecarResponse, error)
 	mustEmbedUnimplementedSliceRouterSidecarServiceServer()
@@ -88,6 +101,9 @@ func (UnimplementedSliceRouterSidecarServiceServer) UpdateSliceGwConnectionConte
 }
 func (UnimplementedSliceRouterSidecarServiceServer) GetSliceRouterClientConnectionInfo(context.Context, *empty.Empty) (*ClientConnectionInfo, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetSliceRouterClientConnectionInfo not implemented")
+}
+func (UnimplementedSliceRouterSidecarServiceServer) GetRouteInKernel(context.Context, *VerifyRouteAddRequest) (*VerifyRouteAddResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetRouteInKernel not implemented")
 }
 func (UnimplementedSliceRouterSidecarServiceServer) UpdateEcmpRoutes(context.Context, *EcmpUpdateInfo) (*SidecarResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method UpdateEcmpRoutes not implemented")
@@ -142,6 +158,24 @@ func _SliceRouterSidecarService_GetSliceRouterClientConnectionInfo_Handler(srv i
 	return interceptor(ctx, in, info, handler)
 }
 
+func _SliceRouterSidecarService_GetRouteInKernel_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(VerifyRouteAddRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SliceRouterSidecarServiceServer).GetRouteInKernel(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/router.SliceRouterSidecarService/GetRouteInKernel",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SliceRouterSidecarServiceServer).GetRouteInKernel(ctx, req.(*VerifyRouteAddRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _SliceRouterSidecarService_UpdateEcmpRoutes_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(EcmpUpdateInfo)
 	if err := dec(in); err != nil {
@@ -174,6 +208,10 @@ var SliceRouterSidecarService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetSliceRouterClientConnectionInfo",
 			Handler:    _SliceRouterSidecarService_GetSliceRouterClientConnectionInfo_Handler,
+		},
+		{
+			MethodName: "GetRouteInKernel",
+			Handler:    _SliceRouterSidecarService_GetRouteInKernel_Handler,
 		},
 		{
 			MethodName: "UpdateEcmpRoutes",

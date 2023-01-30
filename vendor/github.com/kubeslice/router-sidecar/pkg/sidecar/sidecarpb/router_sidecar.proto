@@ -53,6 +53,18 @@ message SliceGwConContext {
     repeated string localNsmGwPeerIPList = 8;
 }
 
+message VerifyRouteAddRequest {
+    // IP address on the nsm interface on the client/server
+    string nsmIP = 1;
+    // Remote slice-gw NSM subnet
+    string dstIP = 2;
+}
+
+message VerifyRouteAddResponse {
+    // isRoutePresent checks if route is present
+    bool isRoutePresent = 1;
+}
+
 message EcmpUpdateInfo{
     // Remote slice-gw NSM subnet
     string remoteSliceGwNsmSubnet = 1;
@@ -84,6 +96,8 @@ service SliceRouterSidecarService {
     rpc UpdateSliceGwConnectionContext(SliceGwConContext) returns (SidecarResponse) {}
     // Provides connection information of all clients connected to the slice router
     rpc GetSliceRouterClientConnectionInfo(google.protobuf.Empty) returns (ClientConnectionInfo) {}
+    // Verify route add Verifies if the route is present
+    rpc GetRouteInKernel(VerifyRouteAddRequest) returns (VerifyRouteAddResponse) {}
     // Updates Ecmp routes in the router
     rpc UpdateEcmpRoutes(EcmpUpdateInfo) returns (SidecarResponse) {}
 }

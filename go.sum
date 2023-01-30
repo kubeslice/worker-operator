@@ -813,8 +813,8 @@ github.com/kubeslice/gateway-sidecar v0.2.0 h1:Ja3fIUivuSjUFQ4lPCt79ATq99BxslvAF
 github.com/kubeslice/gateway-sidecar v0.2.0/go.mod h1:nM1+Wjud2vk44cUg+9iwBbWTpqI+2Ecbn9NuaHEs9aY=
 github.com/kubeslice/netops v0.0.0-20220506082959-81fef290c265 h1:2NWAlXUz3z7bNk9JW8w0EGlB6iJqV2q77v74etzf60I=
 github.com/kubeslice/netops v0.0.0-20220506082959-81fef290c265/go.mod h1:E7YaL2XM2a7ifLp37F8gYuUX2oVPlKEeQqmHUe0LP7Q=
-github.com/kubeslice/router-sidecar v1.2.0 h1:at57ZmJxgPL3hODenRVtk65XIXDpCmkK9TyZMcSr60k=
-github.com/kubeslice/router-sidecar v1.2.0/go.mod h1:rvdAkgiWwuRSPxtPh0OhnIxQjeZxEBWhgpbRM7tEq2Y=
+github.com/kubeslice/router-sidecar v1.4.0 h1:UX2HBoLfFhc2b5mdFx9pj3kQZJffav70zaiPUWcYu1s=
+github.com/kubeslice/router-sidecar v1.4.0/go.mod h1:xsK4UGxt9YUZr7i7Ig5BHwW+5R9GcJyon3RnH0A5SdU=
 github.com/leodido/go-urn v1.2.0/go.mod h1:+8+nEpDfqqsY+g338gtMEUOtuK+4dEMhiQEgxpxOKII=
 github.com/lib/pq v1.10.4/go.mod h1:AlVN5x4E4T544tWzH6hKfbfQvm3HdbOxrmggDNAPY9o=
 github.com/linuxkit/virtsock v0.0.0-20201010232012-f8cee7dfc7a3/go.mod h1:3r6x7q95whyfWQpmGZTu3gk3v2YkMi05HEzl7Tf7YEo=
