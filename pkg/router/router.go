@@ -30,10 +30,18 @@ import (
 
 type SliceRouterConnCtx struct {
 	RemoteSliceGwNsmSubnet string
-	LocalNsmGwPeerIP       string
+	LocalNsmGwPeerIPs      []string
 }
 
 type routerSidecarClient struct {
+}
+type UpdateEcmpInfo struct {
+	RemoteSliceGwNsmSubnet string
+	NsmIpToDelete          string
+}
+type GetRouteConfig struct {
+	RemoteSliceGwNsmSubnet string
+	NsmIp                  string
 }
 
 func NewWorkerRouterClientProvider() (*routerSidecarClient, error) {
@@ -75,7 +83,7 @@ func (worker routerSidecarClient) SendConnectionContext(ctx context.Context, ser
 
 	msg := &sidecar.SliceGwConContext{
 		RemoteSliceGwNsmSubnet: sliceRouterConnCtx.RemoteSliceGwNsmSubnet,
-		LocalNsmGwPeerIP:       sliceRouterConnCtx.LocalNsmGwPeerIP,
+		LocalNsmGwPeerIPList:   sliceRouterConnCtx.LocalNsmGwPeerIPs,
 	}
 
 	client := sidecar.NewSliceRouterSidecarServiceClient(conn)
@@ -83,4 +91,33 @@ func (worker routerSidecarClient) SendConnectionContext(ctx context.Context, ser
 	_, err = client.UpdateSliceGwConnectionContext(ctx, msg)
 
 	return err
+}
+func (worker routerSidecarClient) UpdateEcmpRoutes(ctx context.Context, serverAddr string, sliceRouterConnCtx *UpdateEcmpInfo) error {
+	conn, err := grpc.Dial(serverAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+	msg := &sidecar.EcmpUpdateInfo{
+		RemoteSliceGwNsmSubnet: sliceRouterConnCtx.RemoteSliceGwNsmSubnet,
+		NsmIPToRemove:          sliceRouterConnCtx.NsmIpToDelete,
+	}
+	client := sidecar.NewSliceRouterSidecarServiceClient(conn)
+	_, err = client.UpdateEcmpRoutes(ctx, msg)
+	return err
+}
+
+func (worker routerSidecarClient) GetRouteInKernel(ctx context.Context, serverAddr string, sliceRouterConnCtx *GetRouteConfig) (*sidecar.VerifyRouteAddResponse, error) {
+	conn, err := grpc.Dial(serverAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		return nil, err
+	}
+	defer conn.Close()
+	msg := &sidecar.VerifyRouteAddRequest{
+		NsmIP: sliceRouterConnCtx.NsmIp,
+		DstIP: sliceRouterConnCtx.RemoteSliceGwNsmSubnet,
+	}
+	client := sidecar.NewSliceRouterSidecarServiceClient(conn)
+	res, err := client.GetRouteInKernel(ctx, msg)
+	return res, err
 }

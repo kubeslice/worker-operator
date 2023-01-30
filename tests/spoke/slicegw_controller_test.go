@@ -20,9 +20,10 @@ package spoke_test
 
 import (
 	"context"
-	nsmv1 "github.com/networkservicemesh/sdk-k8s/pkg/tools/k8s/apis/networkservicemesh.io/v1"
 	"reflect"
 	"time"
+
+	nsmv1 "github.com/networkservicemesh/sdk-k8s/pkg/tools/k8s/apis/networkservicemesh.io/v1"
 
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
 	. "github.com/onsi/ginkgo/v2"
@@ -44,6 +45,7 @@ var _ = Describe("Worker SlicegwController", func() {
 	var sliceGw *kubeslicev1beta1.SliceGateway
 	var createdSliceGw *kubeslicev1beta1.SliceGateway
 	var slice *kubeslicev1beta1.Slice
+	var svc *corev1.Service
 	var createdSlice *kubeslicev1beta1.Slice
 	var vl3ServiceEndpoint *nsmv1.NetworkServiceEndpoint
 	var appPod *corev1.Pod
@@ -66,6 +68,18 @@ var _ = Describe("Worker SlicegwController", func() {
 					Namespace: CONTROL_PLANE_NS,
 				},
 				Spec: kubeslicev1beta1.SliceSpec{},
+			}
+			svc = &corev1.Service{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "kubeslice-dns",
+					Namespace: "kubeslice-system",
+				},
+				Spec: corev1.ServiceSpec{
+					ClusterIP: "10.0.0.20",
+					Ports: []corev1.ServicePort{{
+						Port: 52,
+					}},
+				},
 			}
 			labels := map[string]string{
 				"kubeslice.io/slice":         "test-slice-4",
@@ -148,12 +162,14 @@ var _ = Describe("Worker SlicegwController", func() {
 					Expect(k8sClient.Delete(ctx, founddepl)).Should(Succeed())
 					return true
 				}, time.Second*40, time.Millisecond*250).Should(BeTrue())
-
+				Expect(k8sClient.Delete(ctx, svc)).Should(Succeed())
 			})
 		})
 
 		It("should create a gw nodeport service if gw type is Server", func() {
 			ctx := context.Background()
+
+			Expect(k8sClient.Create(ctx, svc)).Should(Succeed())
 			Expect(k8sClient.Create(ctx, slice)).Should(Succeed())
 			Expect(k8sClient.Create(ctx, vl3ServiceEndpoint)).Should(Succeed())
 			Expect(k8sClient.Create(ctx, sliceGw)).Should(Succeed())
@@ -187,6 +203,7 @@ var _ = Describe("Worker SlicegwController", func() {
 
 		It("Should create a deployment for gw server", func() {
 			ctx := context.Background()
+			Expect(k8sClient.Create(ctx, svc)).Should(Succeed())
 			Expect(k8sClient.Create(ctx, slice)).Should(Succeed())
 			Expect(k8sClient.Create(ctx, vl3ServiceEndpoint)).Should(Succeed())
 			Expect(k8sClient.Create(ctx, sliceGw)).Should(Succeed())
@@ -223,7 +240,7 @@ var _ = Describe("Worker SlicegwController", func() {
 
 			Eventually(func() bool {
 				err := k8sClient.Get(ctx, deplKey, founddepl)
-				return err == nil
+				return err == nil && *founddepl.Spec.Replicas == 2
 			}, time.Second*40, time.Millisecond*250).Should(BeTrue())
 
 			Expect(founddepl.Spec.Template.Spec.Containers[1].Name).Should(Equal("kubeslice-openvpn-server"))
@@ -232,6 +249,7 @@ var _ = Describe("Worker SlicegwController", func() {
 		It("Should create a finalizer for the slicegw cr created", func() {
 			ctx := context.Background()
 
+			Expect(k8sClient.Create(ctx, svc)).Should(Succeed())
 			Eventually(func() bool {
 				err := k8sClient.Create(ctx, slice)
 				return err == nil
@@ -273,6 +291,7 @@ var _ = Describe("Worker SlicegwController", func() {
 
 		It("Should create a deployment for gw client", func() {
 			ctx := context.Background()
+			Expect(k8sClient.Create(ctx, svc)).Should(Succeed())
 			Expect(k8sClient.Create(ctx, slice)).Should(Succeed())
 			Expect(k8sClient.Create(ctx, vl3ServiceEndpoint)).Should(Succeed())
 			Expect(k8sClient.Create(ctx, sliceGw)).Should(Succeed())
@@ -292,8 +311,8 @@ var _ = Describe("Worker SlicegwController", func() {
 
 			createdSliceGw.Status.Config.SliceGatewayHostType = "Client"
 			createdSliceGw.Status.Config.SliceGatewayRemoteGatewayID = "remote-gateway-id"
-			createdSliceGw.Status.Config.SliceGatewayRemoteNodeIP = "192.168.1.1"
-			createdSliceGw.Status.Config.SliceGatewayRemoteNodePort = 8080
+			createdSliceGw.Status.Config.SliceGatewayRemoteNodeIPs = []string{"192.168.1.1"}
+			createdSliceGw.Status.Config.SliceGatewayRemoteNodePorts = []int{8080, 8090}
 
 			Eventually(func() bool {
 				err := k8sClient.Status().Update(ctx, createdSliceGw)
@@ -310,13 +329,14 @@ var _ = Describe("Worker SlicegwController", func() {
 
 			Eventually(func() bool {
 				err := k8sClient.Get(ctx, deplKey, founddepl)
-				return err == nil
+				return err == nil && *founddepl.Spec.Replicas == 2
 			}, time.Second*40, time.Millisecond*250).Should(BeTrue())
 
 			Expect(founddepl.Spec.Template.Spec.Containers[1].Name).Should(Equal("kubeslice-openvpn-client"))
 		})
 		It("Should create create headless service for gw client", func() {
 			ctx := context.Background()
+			Expect(k8sClient.Create(ctx, svc)).Should(Succeed())
 			Expect(k8sClient.Create(ctx, slice)).Should(Succeed())
 			Expect(k8sClient.Create(ctx, vl3ServiceEndpoint)).Should(Succeed())
 			Expect(k8sClient.Create(ctx, sliceGw)).Should(Succeed())
@@ -330,8 +350,8 @@ var _ = Describe("Worker SlicegwController", func() {
 				}
 				createdSliceGw.Status.Config.SliceGatewayHostType = "Client"
 				createdSliceGw.Status.Config.SliceGatewayRemoteGatewayID = "remote-gateway-id"
-				createdSliceGw.Status.Config.SliceGatewayRemoteNodeIP = "192.168.1.1"
-				createdSliceGw.Status.Config.SliceGatewayRemoteNodePort = 8080
+				createdSliceGw.Status.Config.SliceGatewayRemoteNodeIPs = []string{"192.168.1.1"}
+				createdSliceGw.Status.Config.SliceGatewayRemoteNodePorts = []int{8080, 8090}
 
 				err = k8sClient.Status().Update(ctx, createdSliceGw)
 				if err != nil {
@@ -354,6 +374,7 @@ var _ = Describe("Worker SlicegwController", func() {
 		})
 		It("Should create create endpoint for gw client", func() {
 			ctx := context.Background()
+			Expect(k8sClient.Create(ctx, svc)).Should(Succeed())
 			Expect(k8sClient.Create(ctx, slice)).Should(Succeed())
 			Expect(k8sClient.Create(ctx, vl3ServiceEndpoint)).Should(Succeed())
 			Expect(k8sClient.Create(ctx, sliceGw)).Should(Succeed())
@@ -367,8 +388,8 @@ var _ = Describe("Worker SlicegwController", func() {
 				}
 				createdSliceGw.Status.Config.SliceGatewayHostType = "Client"
 				createdSliceGw.Status.Config.SliceGatewayRemoteGatewayID = "remote-gateway-id"
-				createdSliceGw.Status.Config.SliceGatewayRemoteNodeIP = "192.168.1.1"
-				createdSliceGw.Status.Config.SliceGatewayRemoteNodePort = 8080
+				createdSliceGw.Status.Config.SliceGatewayRemoteNodeIPs = []string{"192.168.1.1"}
+				createdSliceGw.Status.Config.SliceGatewayRemoteNodePorts = []int{8080, 8090}
 
 				err = k8sClient.Status().Update(ctx, createdSliceGw)
 				if err != nil {
@@ -389,7 +410,7 @@ var _ = Describe("Worker SlicegwController", func() {
 			}, time.Second*30, time.Millisecond*250).Should(BeTrue())
 			Expect(endpointFound.Name).To(Equal(createdSliceGw.Status.Config.SliceGatewayRemoteGatewayID))
 			//ip should be same as remote node IP
-			Expect(endpointFound.Subsets[0].Addresses[0].IP).To(Equal(createdSliceGw.Status.Config.SliceGatewayRemoteNodeIP))
+			Expect(endpointFound.Subsets[0].Addresses[0].IP).To(Equal(createdSliceGw.Status.Config.SliceGatewayRemoteNodeIPs[0]))
 		})
 	})
 

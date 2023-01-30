@@ -36,6 +36,8 @@ jobs:
       with:
           image-ref: worker-operator:${{ steps.vars.outputs.sha_commit }}
           format: 'table'
+<<<<<<< HEAD
+=======
           output: 'scan.txt'
 
     - name: check files
@@ -70,6 +72,7 @@ jobs:
       with:
           name: trivy-scan
           path: scan.txt
+>>>>>>> f5766f60844b82934c9b1e5717ff85641eab6adb
     
     - name: build kind clusters
       run: |
