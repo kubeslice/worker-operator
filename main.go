@@ -24,6 +24,7 @@ import (
 
 	"github.com/kubeslice/worker-operator/pkg/cluster"
 	"github.com/kubeslice/worker-operator/pkg/events"
+	"github.com/kubeslice/worker-operator/pkg/monitoring"
 	namespacecontroller "github.com/kubeslice/worker-operator/pkg/namespace/controllers"
 	"github.com/prometheus/client_golang/prometheus"
 	"go.opencensus.io/stats/view"
@@ -46,7 +47,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
-	nsmv1alpha1 "github.com/networkservicemesh/networkservicemesh/k8s/pkg/apis/networkservice/v1alpha1"
+	nsmv1 "github.com/networkservicemesh/sdk-k8s/pkg/tools/k8s/apis/networkservicemesh.io/v1"
 	istiov1beta1 "istio.io/client-go/pkg/apis/networking/v1beta1"
 
 	ocprom "contrib.go.opencensus.io/exporter/prometheus"
@@ -73,7 +74,7 @@ var (
 
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
-	utilruntime.Must(nsmv1alpha1.AddToScheme(scheme))
+	utilruntime.Must(nsmv1.AddToScheme(scheme))
 	utilruntime.Must(istiov1beta1.AddToScheme(scheme))
 	utilruntime.Must(kubeslicev1beta1.AddToScheme(scheme))
 	utilruntime.Must(istiov1beta1.AddToScheme(scheme))
@@ -106,6 +107,14 @@ func main() {
 		CertDir:                utils.GetEnvOrDefault("WEBHOOK_CERTS_DIR", "/etc/webhook/certs"),
 	})
 
+	er := &monitoring.EventRecorder{
+		Client:    mgr.GetClient(),
+		Scheme:    mgr.GetScheme(),
+		Logger:    logger.NewLogger(),
+		Cluster:   os.Getenv("CLUSTER_NAME"),
+		Component: "worker-operator",
+	}
+
 	// Use an environment variable to be able to disable webhooks, so that we can run the operator locally
 	if utils.GetEnvOrDefault("ENABLE_WEBHOOKS", "true") == "true" {
 		mgr.GetWebhookServer().Register("/mutate-webhook", &webhook.Admission{
@@ -131,7 +140,7 @@ func main() {
 		// It helps you to setup customize reporting period to push gateway
 		//view.SetReportingPeriod(10 * time.Millisecond)
 	}
-	hubClient, err := hub.NewHubClientConfig()
+	hubClient, err := hub.NewHubClientConfig(er)
 	if err != nil {
 		setupLog.With("error", err).Error("could not create hub client for slice gateway reconciler")
 		os.Exit(1)
@@ -187,6 +196,7 @@ func main() {
 		WorkerNetOpClient:     workerNetOPClient,
 		EventRecorder:         sliceGwEventRecorder,
 		NodeIPs:               nodeIP,
+		NumberOfGateways:      2,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.With("error", err).Error("unable to create controller", "controller", "SliceGw")
 		os.Exit(1)
@@ -201,13 +211,6 @@ func main() {
 			setupLog.With("error", err).Error("unable to create controller", "controller", "node")
 			os.Exit(1)
 		}
-	}
-
-	//+kubebuilder:scaffold:builder
-	hubClient, err = hub.NewHubClientConfig()
-	if err != nil {
-		setupLog.With("error", err).Error("could not create hub client for serviceexport reconciler")
-		os.Exit(1)
 	}
 
 	serviceExportEventRecorder := events.NewEventRecorder(mgr.GetEventRecorderFor("serviceExport-controller"))

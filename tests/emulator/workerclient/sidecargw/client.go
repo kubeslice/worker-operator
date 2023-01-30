@@ -29,3 +29,6 @@ func (ClientEmulator *ClientEmulator) SendConnectionContext(ctx context.Context,
 func (ClientEmulator *ClientEmulator) UpdateSliceQosProfile(ctx context.Context, serverAddr string, slice *kubeslicev1beta1.Slice) error {
 	return nil
 }
+func (ClientEmulator *ClientEmulator) GetSliceGwRemotePodName(ctx context.Context, gwRemoteVpnIP string, serverAddr string) (string, error) {
+	return "slicegw-blue-cluster-1-cluster2", nil
+}

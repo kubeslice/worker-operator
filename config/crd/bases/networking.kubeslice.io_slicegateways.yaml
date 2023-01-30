@@ -78,9 +78,11 @@ spec:
                   sliceGatewayName:
                     description: Slice Gateway Name
                     type: string
-                  sliceGatewayNodePort:
+                  sliceGatewayNodePorts:
                     description: Node port
-                    type: integer
+                    items:
+                      type: integer
+                    type: array
                   sliceGatewayRemoteClusterId:
                     description: Remote Cluster ID
                     type: string
@@ -92,9 +94,11 @@ spec:
                     items:
                       type: string
                     type: array
-                  sliceGatewayRemoteNodePort:
+                  sliceGatewayRemoteNodePorts:
                     description: Remote Node Port
-                    type: integer
+                    items:
+                      type: integer
+                    type: array
                   sliceGatewayRemoteSubnet:
                     description: Remote Node Subnet
                     type: string
@@ -130,6 +134,8 @@ spec:
                 items:
                   properties:
                     localNsmIP:
+                      type: string
+                    peerPodName:
                       type: string
                     podIP:
                       type: string

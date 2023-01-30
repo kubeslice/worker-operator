@@ -20,6 +20,7 @@ package hub_test
 
 import (
 	"context"
+	"os"
 	"path/filepath"
 	"testing"
 	"time"
@@ -40,6 +41,9 @@ import (
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
 	"github.com/kubeslice/worker-operator/pkg/events"
 	"github.com/kubeslice/worker-operator/pkg/hub/controllers"
+	"github.com/kubeslice/worker-operator/pkg/hub/controllers/workerslicegwrecycler"
+	workerrouter "github.com/kubeslice/worker-operator/tests/emulator/workerclient/router"
+	workergw "github.com/kubeslice/worker-operator/tests/emulator/workerclient/sidecargw"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 )
 
@@ -111,6 +115,12 @@ var _ = BeforeSuite(func() {
 	})
 	Expect(err).ToNot(HaveOccurred())
 
+	workerClientSidecarGwEmulator, err := workergw.NewClientEmulator()
+	Expect(err).ToNot(HaveOccurred())
+
+	workerClientRouterEmulator, err := workerrouter.NewClientEmulator()
+	Expect(err).ToNot(HaveOccurred())
+
 	testSliceEventRecorder := events.NewEventRecorder(k8sManager.GetEventRecorderFor("test-slice-controller"))
 	sr := &controllers.SliceReconciler{
 		MeshClient:    k8sClient,
@@ -157,6 +167,19 @@ var _ = BeforeSuite(func() {
 		})).
 		Complete(serviceImportReconciler)
 	Expect(err).ToNot(HaveOccurred())
+
+	workerSliceGwRecyclerEventRecorder := events.NewEventRecorder(k8sManager.GetEventRecorderFor("workerslicegwrecycler-controller"))
+	if err := (&workerslicegwrecycler.Reconciler{
+		MeshClient:            k8sClient,
+		Log:                   ctrl.Log.WithName("controllers").WithName("workerslicegwrecycler"),
+		Scheme:                k8sManager.GetScheme(),
+		Client:                k8sClient,
+		WorkerGWSidecarClient: workerClientSidecarGwEmulator,
+		WorkerRouterClient:    workerClientRouterEmulator,
+		EventRecorder:         workerSliceGwRecyclerEventRecorder,
+	}).SetupWithManager(k8sManager); err != nil {
+		os.Exit(1)
+	}
 	go func() {
 		defer GinkgoRecover()
 		err = k8sManager.Start(ctx)

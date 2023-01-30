@@ -50,11 +50,11 @@ type SliceGatewayConfig struct {
 	// Host Type : server or client
 	SliceGatewayHostType string `json:"sliceGatewayHostType,omitempty"`
 	// Node port
-	SliceGatewayNodePort int `json:"sliceGatewayNodePort,omitempty"`
+	SliceGatewayNodePorts []int `json:"sliceGatewayNodePorts,omitempty"`
 	// Remote Node IPs
 	SliceGatewayRemoteNodeIPs []string `json:"sliceGatewayRemoteNodeIps,omitempty"`
 	// Remote Node Port
-	SliceGatewayRemoteNodePort int `json:"sliceGatewayRemoteNodePort,omitempty"`
+	SliceGatewayRemoteNodePorts []int `json:"sliceGatewayRemoteNodePorts,omitempty"`
 	// Remote Node Subnet
 	SliceGatewayRemoteSubnet string `json:"sliceGatewayRemoteSubnet,omitempty"`
 	// Remote VPN IP
@@ -117,6 +117,7 @@ type SliceGatewayList struct {
 
 type GwPodInfo struct {
 	PodName      string       `json:"podName,omitempty"`
+	PeerPodName  string       `json:"peerPodName,omitempty"`
 	PodIP        string       `json:"podIP,omitempty"`
 	LocalNsmIP   string       `json:"localNsmIP,omitempty"`
 	TunnelStatus TunnelStatus `json:"tunnelStatus,omitempty"`

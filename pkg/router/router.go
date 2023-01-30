@@ -39,6 +39,10 @@ type UpdateEcmpInfo struct {
 	RemoteSliceGwNsmSubnet string
 	NsmIpToDelete          string
 }
+type GetRouteConfig struct {
+	RemoteSliceGwNsmSubnet string
+	NsmIp                  string
+}
 
 func NewWorkerRouterClientProvider() (*routerSidecarClient, error) {
 	return &routerSidecarClient{}, nil
@@ -101,4 +105,19 @@ func (worker routerSidecarClient) UpdateEcmpRoutes(ctx context.Context, serverAd
 	client := sidecar.NewSliceRouterSidecarServiceClient(conn)
 	_, err = client.UpdateEcmpRoutes(ctx, msg)
 	return err
+}
+
+func (worker routerSidecarClient) GetRouteInKernel(ctx context.Context, serverAddr string, sliceRouterConnCtx *GetRouteConfig) (*sidecar.VerifyRouteAddResponse, error) {
+	conn, err := grpc.Dial(serverAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		return nil, err
+	}
+	defer conn.Close()
+	msg := &sidecar.VerifyRouteAddRequest{
+		NsmIP: sliceRouterConnCtx.NsmIp,
+		DstIP: sliceRouterConnCtx.RemoteSliceGwNsmSubnet,
+	}
+	client := sidecar.NewSliceRouterSidecarServiceClient(conn)
+	res, err := client.GetRouteInKernel(ctx, msg)
+	return res, err
 }

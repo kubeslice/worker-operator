@@ -26,7 +26,7 @@ import (
 	"time"
 
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
-	nsmv1alpha1 "github.com/networkservicemesh/networkservicemesh/k8s/pkg/apis/networkservice/v1alpha1"
+	nsmv1 "github.com/networkservicemesh/sdk-k8s/pkg/tools/k8s/apis/networkservicemesh.io/v1"
 
 	"github.com/kubeslice/worker-operator/controllers"
 	"github.com/kubeslice/worker-operator/pkg/logger"
@@ -34,7 +34,6 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -54,6 +53,7 @@ func labelsForSliceRouterDeployment(name string) map[string]string {
 	return map[string]string{
 		"networkservicemesh.io/app":                      "vl3-nse-" + name,
 		"networkservicemesh.io/impl":                     "vl3-service-" + name,
+		"spiffe.io/spiffe-id":                            "true",
 		webhook.PodInjectLabelKey:                        "router",
 		controllers.ApplicationNamespaceSelectorLabelKey: name,
 	}
@@ -109,33 +109,24 @@ func (r *SliceReconciler) getContainerSpecForSliceRouter(s *kubeslicev1beta1.Sli
 		ImagePullPolicy: vl3ImagePullPolicy,
 		Env: []corev1.EnvVar{
 			{
-				Name:  "DATAPLANE",
-				Value: dataplane,
+				Name:  "SPIFFE_ENDPOINT_SOCKET",
+				Value: "unix:///run/spire/sockets/agent.sock",
 			},
 			{
-				Name:  "ENDPOINT_NETWORK_SERVICE",
+				Name:  "NSM_CONNECT_TO",
+				Value: "unix:///var/lib/networkservicemesh/nsm.io.sock",
+			},
+			{
+				Name:  "NSM_SERVICE_NAMES",
 				Value: "vl3-service-" + s.Name,
 			},
 			{
-				Name:  "ENDPOINT_LABELS",
-				Value: "app=" + "vl3-nse-" + s.Name,
+				Name:  "NSM_LABELS",
+				Value: "app:" + "vl3-nse-" + s.Name,
 			},
 			{
-				Name:  "TRACER_ENABLED",
-				Value: "true",
-			},
-			{
-				Name:  "NSREGISTRY_ADDR",
-				Value: "nsmgr." + controllers.ControlPlaneNamespace,
-			},
-			{
-				Name:  "NSREGISTRY_PORT",
-				Value: "5000",
-			},
-		},
-		Resources: corev1.ResourceRequirements{
-			Limits: corev1.ResourceList{
-				"networkservicemesh.io/socket": *resource.NewQuantity(1, resource.DecimalExponent),
+				Name:  "NSM_NAME",
+				Value: "vl3-nse-" + s.Name,
 			},
 		},
 		SecurityContext: &corev1.SecurityContext{
@@ -143,23 +134,27 @@ func (r *SliceReconciler) getContainerSpecForSliceRouter(s *kubeslicev1beta1.Sli
 		},
 	}
 
+	dnsConfig := fmt.Sprintf("[{\"dns_server_ips\": [\"%s\"], \"search_domains\": [\"slice.local\"]}]", s.Status.DNSIP)
+
 	if dataplane == nsmDataplaneKernel {
 		sliceRouterContainer.Env = append(sliceRouterContainer.Env,
 			corev1.EnvVar{
-				Name:  "IP_ADDRESS",
+				Name:  "NSM_VL3_PREFIX",
 				Value: s.Status.SliceConfig.ClusterSubnetCIDR,
 			},
 			corev1.EnvVar{
-				Name:  "DST_ROUTES",
-				Value: s.Status.SliceConfig.SliceSubnet,
+				Name:  "NSM_DNS_CONFIGS",
+				Value: dnsConfig,
 			},
-			corev1.EnvVar{
-				Name:  "DNS_NAMESERVERS",
-				Value: s.Status.DNSIP,
+		)
+		sliceRouterContainer.VolumeMounts = append(sliceRouterContainer.VolumeMounts,
+			corev1.VolumeMount{
+				Name:      "spire-agent-socket",
+				MountPath: "/run/spire/sockets",
 			},
-			corev1.EnvVar{
-				Name:  "DNS_DOMAINS",
-				Value: "slice.local",
+			corev1.VolumeMount{
+				Name:      "nsm-socket",
+				MountPath: "/var/lib/networkservicemesh",
 			},
 		)
 	}
@@ -224,12 +219,32 @@ func (r *SliceReconciler) getContainerSpecForSliceRouterSidecar(dataplane string
 }
 
 func (r *SliceReconciler) getVolumeSpecForSliceRouter(s *kubeslicev1beta1.Slice, dataplane string) []corev1.Volume {
+	var spireHostPathType corev1.HostPathType = "Directory"
+	var nsmHostPathType corev1.HostPathType = "DirectoryOrCreate"
 	sliceRouterVolumeSpec := []corev1.Volume{{
 		Name: "shared-volume",
 		VolumeSource: corev1.VolumeSource{
 			EmptyDir: &corev1.EmptyDirVolumeSource{},
 		},
 	},
+		{
+			Name: "spire-agent-socket",
+			VolumeSource: corev1.VolumeSource{
+				HostPath: &corev1.HostPathVolumeSource{
+					Path: "/run/spire/sockets",
+					Type: &spireHostPathType,
+				},
+			},
+		},
+		{
+			Name: "nsm-socket",
+			VolumeSource: corev1.VolumeSource{
+				HostPath: &corev1.HostPathVolumeSource{
+					Path: "/var/lib/networkservicemesh",
+					Type: &nsmHostPathType,
+				},
+			},
+		},
 	}
 
 	if dataplane == nsmDataplaneVpp {
@@ -460,7 +475,7 @@ func sliceConfigDefined(slice *kubeslicev1beta1.Slice) bool {
 func (r *SliceReconciler) cleanupSliceRouter(ctx context.Context, sliceName string) error {
 	log := logger.FromContext(ctx)
 
-	vl3Nse := &nsmv1alpha1.NetworkService{}
+	vl3Nse := &nsmv1.NetworkService{}
 	err := r.Get(ctx, types.NamespacedName{Name: "vl3-service-" + sliceName, Namespace: controllers.ControlPlaneNamespace}, vl3Nse)
 	if err != nil {
 		if errors.IsNotFound(err) {

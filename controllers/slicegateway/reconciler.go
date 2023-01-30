@@ -20,6 +20,8 @@ package slicegateway
 
 import (
 	"context"
+	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -43,7 +45,7 @@ import (
 	"github.com/kubeslice/worker-operator/controllers"
 	"github.com/kubeslice/worker-operator/pkg/events"
 	"github.com/kubeslice/worker-operator/pkg/logger"
-	nsmv1alpha1 "github.com/networkservicemesh/networkservicemesh/k8s/pkg/apis/networkservice/v1alpha1"
+	nsmv1 "github.com/networkservicemesh/sdk-k8s/pkg/tools/k8s/apis/networkservicemesh.io/v1"
 )
 
 var sliceGwFinalizer = "networking.kubeslice.io/slicegw-finalizer"
@@ -60,10 +62,14 @@ type SliceGwReconciler struct {
 	NetOpPods             []NetOpPod
 	EventRecorder         *events.EventRecorder
 	NodeIPs               []string
+	NumberOfGateways      int
 }
 
+// gwMap holds the mapping between gwPodName and NodePort number
+var GwMap = make(map[string]int)
+
 func readyToDeployGwClient(sliceGw *kubeslicev1beta1.SliceGateway) bool {
-	return len(sliceGw.Status.Config.SliceGatewayRemoteNodeIPs) > 0 && sliceGw.Status.Config.SliceGatewayRemoteNodePort != 0 && sliceGw.Status.Config.SliceGatewayRemoteGatewayID != ""
+	return len(sliceGw.Status.Config.SliceGatewayRemoteNodeIPs) > 0 && len(sliceGw.Status.Config.SliceGatewayRemoteNodePorts) != 0 && sliceGw.Status.Config.SliceGatewayRemoteGatewayID != ""
 }
 
 //+kubebuilder:rbac:groups=networking.kubeslice.io,resources=slicegateways,verbs=get;list;watch;create;update;patch;delete
@@ -78,7 +84,8 @@ func readyToDeployGwClient(sliceGw *kubeslicev1beta1.SliceGateway) bool {
 //+kubebuilder:rbac:groups=core,resources=nodes,verbs=get;list;watch;
 
 func (r *SliceGwReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	var sliceGwNodePort int32
+	var sliceGwNodePorts []int
+	var noOfGwServices int
 	log := r.Log.WithValues("slicegateway", req.NamespacedName)
 	sliceGw := &kubeslicev1beta1.SliceGateway{}
 	err := r.Get(ctx, req.NamespacedName, sliceGw)
@@ -111,7 +118,7 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	log = log.WithValues("slice", sliceGw.Spec.SliceName)
 	ctx = logger.WithLogger(ctx, log)
 
-	log.Info("reconciling", "slicegateway", sliceGw.Name)
+	log.Info("reconciling", "slicegateway", sliceGw.Name, "NumberOfGateways", r.NumberOfGateways)
 
 	// Check if the slice to which this gateway belongs is created
 	slice, err := controllers.GetSlice(ctx, r.Client, sliceName)
@@ -129,7 +136,7 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	// Check if slice router network service endpoint (NSE) is present before spawning slice gateway pod.
 	// Gateways connect to vL3 slice router at startup, hence it is necessary to check if the
 	// NSE present before creating the gateway pods.
-	foundSliceRouterService, err := FindSliceRouterService(ctx, r.Client, sliceName)
+	foundSliceRouterService, err := r.FindSliceRouterService(ctx, r.Client, sliceName)
 	if !foundSliceRouterService {
 		if err != nil {
 			log.Error(err, "Failed to get Network Service EP list for vL3", "Name", "vl3-service-"+sliceName)
@@ -144,9 +151,24 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	// true if the gateway is openvpn server
 	// Check if the Gw service already exists, if not create a new one if it is a server
 	if isServer(sliceGw) {
-		reconcile, result, sliceGwNodePort, err = r.handleSliceGwSvcCreation(ctx, sliceGw)
-		if reconcile {
-			return result, err
+		// during the rebalancing phase noOfGwServices becomes 3,
+		// we cannot directly increment r.NumberOfGateways directly
+		noOfGwServices, err = r.getNumberOfGatewayNodePortServices(ctx, sliceGw)
+		log.Info("Number of gw services present", "noOfGwServices", noOfGwServices)
+		if err != nil {
+			return ctrl.Result{}, err
+		}
+		// This condition will be true during rebalancing
+		if noOfGwServices > r.NumberOfGateways {
+			reconcile, result, sliceGwNodePorts, err = r.handleSliceGwSvcCreation(ctx, sliceGw, noOfGwServices)
+			if reconcile {
+				return result, err
+			}
+		} else {
+			reconcile, result, sliceGwNodePorts, err = r.handleSliceGwSvcCreation(ctx, sliceGw, r.NumberOfGateways)
+			if reconcile {
+				return result, err
+			}
 		}
 	}
 	// client can be deployed only if remoteNodeIp,SliceGatewayRemoteNodePort abd SliceGatewayRemoteGatewayID is present
@@ -167,24 +189,68 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		if requeue {
 			return res, err
 		}
+		noOfGwServices = len(sliceGw.Status.Config.SliceGatewayRemoteNodePorts)
 	}
 	// Check if the deployment already exists, if not create a new one
-	found := &appsv1.Deployment{}
-	err = r.Get(ctx, types.NamespacedName{Name: sliceGwName, Namespace: controllers.ControlPlaneNamespace}, found)
+	// spin up 2 gw deployments
+	log.Info("Number of gw services present", "noOfGwServices", noOfGwServices)
+	if err := r.reconcileGwMap(ctx, sliceGw); err != nil {
+		return ctrl.Result{}, err
+	}
+	deployments, err := r.getDeployments(ctx, sliceGw)
 	if err != nil {
-		if errors.IsNotFound(err) {
-			// Define a new deployment
-			dep := r.deploymentForGateway(sliceGw)
-			log.Info("Creating a new Deployment", "Namespace", dep.Namespace, "Name", dep.Name)
-			err = r.Create(ctx, dep)
+		return ctrl.Result{}, err
+	}
+	if isServer(sliceGw) {
+		noOfGwServices, _ = r.getNumberOfGatewayNodePortServices(ctx, sliceGw)
+	} else {
+		// fetch the latest slicegw
+		//TODO: check if this is required?
+		_ = r.Get(ctx, req.NamespacedName, sliceGw)
+		noOfGwServices = len(sliceGw.Status.Config.SliceGatewayRemoteNodePorts)
+		log.Info("number of nodeports", "nodeports", sliceGw.Status.Config.SliceGatewayRemoteNodePorts, "len", len(sliceGw.Status.Config.SliceGatewayRemoteNodePorts))
+	}
+	log.Info("gw deployments", "deployments", len(deployments.Items))
+	if len(deployments.Items) < noOfGwServices {
+		for i := 0; i < noOfGwServices; i++ {
+			found := &appsv1.Deployment{}
+			err = r.Get(ctx, types.NamespacedName{Name: sliceGwName + "-" + fmt.Sprint(i), Namespace: controllers.ControlPlaneNamespace}, found)
 			if err != nil {
-				log.Error(err, "Failed to create new Deployment", "Namespace", dep.Namespace, "Name", dep.Name)
+				if errors.IsNotFound(err) {
+					// Define a new deployment
+					dep := r.deploymentForGateway(sliceGw, i)
+					log.Info("Creating a new Deployment", "Namespace", dep.Namespace, "Name", dep.Name)
+					err = r.Create(ctx, dep)
+					if err != nil {
+						log.Error(err, "Failed to create new Deployment", "Namespace", dep.Namespace, "Name", dep.Name)
+						return ctrl.Result{}, err
+					}
+					return ctrl.Result{Requeue: true}, nil
+				}
+				log.Error(err, "Failed to get Deployment")
 				return ctrl.Result{}, err
 			}
-			return ctrl.Result{Requeue: true}, nil
+
 		}
-		log.Error(err, "Failed to get Deployment")
-		return ctrl.Result{}, err
+	}
+
+	// reconcile map in case operator pod restarted or if entry is not present
+	if isClient(sliceGw) {
+		for _, deploy := range deployments.Items {
+			_, ok := GwMap[deploy.Name]
+			if !ok {
+				for _, c := range deploy.Spec.Template.Spec.Containers {
+					if c.Name == "kubeslice-sidecar" {
+						for _, env := range c.Env {
+							if env.Name == "NODE_PORT" {
+								nodePort, _ := strconv.Atoi(env.Value)
+								GwMap[deploy.Name] = nodePort
+							}
+						}
+					}
+				}
+			}
+		}
 	}
 	//fetch netop pods
 	err = r.getNetOpPods(ctx, sliceGw)
@@ -247,40 +313,122 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		return res, nil
 	}
 	log.Info("sync QoS with netop pods from slicegw")
-	err = r.SyncNetOpConnectionContextAndQos(ctx, slice, sliceGw, sliceGwNodePort)
-	if err != nil {
-		log.Error(err, "Error sending QOS Profile to netop pod")
-		//post event to slicegw
-		r.EventRecorder.Record(
-			&events.Event{
-				Object:    sliceGw,
-				EventType: events.EventTypeWarning,
-				Reason:    "Error",
-				Message:   "Failed to send QOS Profile to netop pod",
-			},
-		)
-		return ctrl.Result{}, err
+	for i := 0; i < len(sliceGwNodePorts); i++ {
+		err = r.SyncNetOpConnectionContextAndQos(ctx, slice, sliceGw, int32(sliceGwNodePorts[i]))
+		if err != nil {
+			log.Error(err, "Error sending QOS Profile to netop pod")
+			//post event to slicegw
+			r.EventRecorder.Record(
+				&events.Event{
+					Object:    sliceGw,
+					EventType: events.EventTypeWarning,
+					Reason:    "Error",
+					Message:   "Failed to send QOS Profile to netop pod",
+				},
+			)
+			return ctrl.Result{}, err
+		}
 	}
-	toRebalace, err := r.isRebalancingRequired(ctx, sliceGw)
-	if err != nil {
-		log.Error(err, "Unable to rebalace gw pods")
-		return ctrl.Result{}, err
-	}
-	if toRebalace {
-		log.Info("rebalacing gw pods", "rebalance:", toRebalace)
-		err := r.findAndRemovePodFromNode(ctx)
+	if isServer(sliceGw) {
+		toRebalace, err := r.isRebalancingRequired(ctx, sliceGw)
 		if err != nil {
 			log.Error(err, "Unable to rebalace gw pods")
+			r.EventRecorder.Record(
+				&events.Event{
+					Object:    sliceGw,
+					EventType: events.EventTypeWarning,
+					Reason:    "Error",
+					Message:   "Failed to check if rebalancing required",
+				},
+			)
 			return ctrl.Result{}, err
 		}
-		log.Info("deleting older pods after rebalancing")
-		err = r.deleteOlderGWPods(ctx, sliceGw)
-		if err != nil {
-			log.Error(err, "Unable to delete older gw pods")
-			return ctrl.Result{}, err
+		log.Info("Rebalancing required?", "toRebalance", toRebalace)
+		if toRebalace {
+			// start FSM for graceful termination of gateway pods
+			// create workerslicegwrecycler on controller
+			newestPod, err := r.getNewestPod(sliceGw)
+			if err != nil {
+				return ctrl.Result{}, err
+			}
+
+			gwRemoteVpnIP := sliceGw.Status.Config.SliceGatewayRemoteVpnIP
+			clientID, err := r.getRemoteGwPodName(ctx, gwRemoteVpnIP, newestPod.Status.PodIP)
+			if err != nil {
+				log.Error(err, "Error while fetching remote gw podName")
+				// post event to slicegw
+				r.EventRecorder.Record(
+					&events.Event{
+						Object:    sliceGw,
+						EventType: events.EventTypeWarning,
+						Reason:    "Error",
+						Message:   "Failed to get remote gw podName",
+					},
+				)
+				return ctrl.Result{}, err
+			}
+			err = r.HubClient.CreateWorkerSliceGwRecycler(ctx, sliceGw.Name, clientID, newestPod.Name, sliceGwName, sliceGw.Status.Config.SliceGatewayRemoteGatewayID, sliceGw.Spec.SliceName)
+			if err != nil {
+				if errors.IsAlreadyExists(err) {
+					return ctrl.Result{}, nil
+				}
+				return ctrl.Result{}, err
+			}
+			r.EventRecorder.Record(
+				&events.Event{
+					Object:    sliceGw,
+					EventType: events.EventTypeNormal,
+					Reason:    "Success",
+					Message:   "Rebalancing is in progress",
+				},
+			)
+			// spawn a new gw nodeport service
+			_, _, _, err = r.handleSliceGwSvcCreation(ctx, sliceGw, r.NumberOfGateways+1)
+			if err != nil {
+				//TODO:add an event and log
+				return ctrl.Result{}, err
+			}
 		}
 	}
-	return ctrl.Result{}, nil
+	return ctrl.Result{Requeue: true}, nil
+}
+
+func (r *SliceGwReconciler) reconcileGwMap(ctx context.Context, sliceGw *kubeslicev1beta1.SliceGateway) error {
+	listOpts := []client.ListOption{
+		client.MatchingLabels(map[string]string{
+			controllers.ApplicationNamespaceSelectorLabelKey: sliceGw.Spec.SliceName,
+		}),
+	}
+	deployList := appsv1.DeploymentList{}
+	if err := r.List(ctx, &deployList, listOpts...); err != nil {
+		return err
+	}
+	for d, _ := range GwMap {
+		found := false
+		for _, deploy := range deployList.Items {
+			if d == deploy.Name {
+				found = true
+			}
+		}
+		if !found {
+			delete(GwMap, d)
+		}
+	}
+	return nil
+}
+func (r *SliceGwReconciler) getDeployments(ctx context.Context, sliceGw *kubeslicev1beta1.SliceGateway) (*appsv1.DeploymentList, error) {
+	listOpts := []client.ListOption{
+		client.MatchingLabels(map[string]string{
+			controllers.ApplicationNamespaceSelectorLabelKey: sliceGw.Spec.SliceName,
+			webhook.PodInjectLabelKey:                        "slicegateway",
+		}),
+		client.InNamespace(controllers.ControlPlaneNamespace),
+	}
+	deployList := appsv1.DeploymentList{}
+	if err := r.List(ctx, &deployList, listOpts...); err != nil {
+		return nil, err
+	}
+	return &deployList, nil
 }
 
 func isClient(sliceGw *kubeslicev1beta1.SliceGateway) bool {
@@ -292,30 +440,65 @@ func isServer(sliceGw *kubeslicev1beta1.SliceGateway) bool {
 func canDeployGw(sliceGw *kubeslicev1beta1.SliceGateway) bool {
 	return sliceGw.Status.Config.SliceGatewayHostType == "Server" || readyToDeployGwClient(sliceGw)
 }
-func (r *SliceGwReconciler) handleSliceGwSvcCreation(ctx context.Context, sliceGw *kubeslicev1beta1.SliceGateway) (bool, reconcile.Result, int32, error) {
-	log := logger.FromContext(ctx).WithName("slicegw-create-service")
-	sliceGwName := sliceGw.Name
 
-	foundsvc := &corev1.Service{}
-	err := r.Get(ctx, types.NamespacedName{Name: "svc-" + sliceGwName, Namespace: controllers.ControlPlaneNamespace}, foundsvc)
-	if err != nil {
-		if errors.IsNotFound(err) {
-
-			svc := r.serviceForGateway(sliceGw)
-			log.Info("Creating a new Service", "Namespace", svc.Namespace, "Name", svc.Name)
-			err = r.Create(ctx, svc)
-			if err != nil {
-				log.Error(err, "Failed to create new Service", "Namespace", svc.Namespace, "Name", svc.Name)
-				return true, ctrl.Result{}, 0, err
-			}
-			return true, ctrl.Result{Requeue: true}, 0, nil
-		}
-		log.Error(err, "Failed to get Service")
-		return true, ctrl.Result{}, 0, err
+func (r *SliceGwReconciler) getNumberOfGatewayNodePortServices(ctx context.Context, sliceGw *kubeslicev1beta1.SliceGateway) (int, error) {
+	listOpts := []client.ListOption{
+		client.MatchingLabels(map[string]string{
+			controllers.ApplicationNamespaceSelectorLabelKey: sliceGw.Spec.SliceName,
+		}),
+		client.InNamespace(controllers.ControlPlaneNamespace),
 	}
+	services := corev1.ServiceList{}
+	if err := r.List(ctx, &services, listOpts...); err != nil {
+		return 0, err
+	}
+	return len(services.Items), nil
+}
+func (r *SliceGwReconciler) getNodePorts(ctx context.Context, sliceGw *kubeslicev1beta1.SliceGateway) ([]int, error) {
+	var nodePorts []int
+	listOpts := []client.ListOption{
+		client.MatchingLabels(map[string]string{
+			controllers.ApplicationNamespaceSelectorLabelKey: sliceGw.Spec.SliceName,
+		}),
+	}
+	services := corev1.ServiceList{}
+	if err := r.List(ctx, &services, listOpts...); err != nil {
+		return nil, err
+	}
+	for _, service := range services.Items {
+		nodePorts = append(nodePorts, int(service.Spec.Ports[0].NodePort))
+	}
+	return nodePorts, nil
+}
 
-	sliceGwNodePort := foundsvc.Spec.Ports[0].NodePort
-	err = r.HubClient.UpdateNodePortForSliceGwServer(ctx, sliceGwNodePort, sliceGwName)
+func (r *SliceGwReconciler) handleSliceGwSvcCreation(ctx context.Context, sliceGw *kubeslicev1beta1.SliceGateway, n int) (bool, reconcile.Result, []int, error) {
+	log := logger.FromContext(ctx).WithName("slicegw")
+	sliceGwName := sliceGw.Name
+	foundsvc := &corev1.Service{}
+	var sliceGwNodePorts []int
+	no, _ := r.getNumberOfGatewayNodePortServices(ctx, sliceGw)
+	if no != n {
+		// capping the number of services to be 2 for now,later i will be equal to number of gateway nodes,eg: i = len(node.GetExternalIpList())
+		for i := 0; i < n; i++ {
+			err := r.Get(ctx, types.NamespacedName{Name: "svc-" + sliceGwName + "-" + fmt.Sprint(i), Namespace: controllers.ControlPlaneNamespace}, foundsvc)
+			if err != nil {
+				if errors.IsNotFound(err) {
+					svc := r.serviceForGateway(sliceGw, i)
+					log.Info("Creating a new Service", "Namespace", svc.Namespace, "Name", svc.Name)
+					err = r.Create(ctx, svc)
+					if err != nil {
+						log.Error(err, "Failed to create new Service", "Namespace", svc.Namespace, "Name", svc.Name)
+						return true, ctrl.Result{}, nil, err
+					}
+					return true, ctrl.Result{Requeue: true}, nil, nil
+				}
+				log.Error(err, "Failed to get Service")
+				return true, ctrl.Result{}, nil, err
+			}
+		}
+	}
+	sliceGwNodePorts, _ = r.getNodePorts(ctx, sliceGw)
+	err := r.HubClient.UpdateNodePortForSliceGwServer(ctx, sliceGwNodePorts, sliceGwName)
 	if err != nil {
 		log.Error(err, "Failed to update NodePort for sliceGw in the hub")
 
@@ -327,13 +510,13 @@ func (r *SliceGwReconciler) handleSliceGwSvcCreation(ctx context.Context, sliceG
 				Message:   "Unable to post NodePort to kubeslice-controller cluster",
 			},
 		)
-		return true, ctrl.Result{}, sliceGwNodePort, err
+		return true, ctrl.Result{}, sliceGwNodePorts, err
 	}
 
 	if err := r.reconcileNodes(ctx, sliceGw); err != nil {
-		return true, ctrl.Result{}, sliceGwNodePort, err
+		return true, ctrl.Result{}, sliceGwNodePorts, err
 	}
-	return false, reconcile.Result{}, sliceGwNodePort, nil
+	return false, reconcile.Result{}, sliceGwNodePorts, nil
 }
 
 func (r *SliceGwReconciler) handleSliceGwDeletion(sliceGw *kubeslicev1beta1.SliceGateway, ctx context.Context) (bool, reconcile.Result, error) {
@@ -544,22 +727,15 @@ func (r *SliceGwReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Complete(r)
 }
 
-func FindSliceRouterService(ctx context.Context, c client.Client, sliceName string) (bool, error) {
-	vl3NseEpList := &nsmv1alpha1.NetworkServiceEndpointList{}
-	opts := []client.ListOption{
-		client.InNamespace(controllers.ControlPlaneNamespace),
-		client.MatchingLabels{"app": "vl3-nse-" + sliceName,
-			"networkservicename": "vl3-service-" + sliceName},
-	}
-	err := c.List(ctx, vl3NseEpList, opts...)
+func (r *SliceGwReconciler) FindSliceRouterService(ctx context.Context, c client.Client, sliceName string) (bool, error) {
+	vl3NseEp := &nsmv1.NetworkServiceEndpoint{}
+	err := r.Get(ctx, types.NamespacedName{Name: "vl3-nse-" + sliceName, Namespace: controllers.ControlPlaneNamespace}, vl3NseEp)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			return false, nil
 		}
 		return false, err
 	}
-	if len(vl3NseEpList.Items) == 0 {
-		return false, nil
-	}
+
 	return true, nil
 }

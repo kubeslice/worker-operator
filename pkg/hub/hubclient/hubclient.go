@@ -23,7 +23,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
-
+	"reflect"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 
 	corev1 "k8s.io/api/core/v1"
@@ -42,6 +42,7 @@ import (
 	"github.com/kubeslice/worker-operator/pkg/cluster"
 	"github.com/kubeslice/worker-operator/pkg/hub/controllers"
 	"github.com/kubeslice/worker-operator/pkg/logger"
+	"github.com/kubeslice/worker-operator/pkg/monitoring"
 )
 
 const (
@@ -62,6 +63,7 @@ func init() {
 
 type HubClientConfig struct {
 	client.Client
+	eventRecorder *monitoring.EventRecorder
 }
 
 type HubClientRpc interface {
@@ -71,9 +73,10 @@ type HubClientRpc interface {
 		ep *kubeslicev1beta1.ServicePod) error
 	UpdateAppNamespaces(ctx context.Context, sliceConfigName string, onboardedNamespaces []string) error
 	UpdateNodeIpInCluster(ctx context.Context, clusterName, nodeIP, namespace string) error
+	CreateWorkerSliceGwRecycler(ctx context.Context, gwRecyclerName, clientID, serverID, sliceGwServer, sliceGwClient, slice string) error
 }
 
-func NewHubClientConfig() (*HubClientConfig, error) {
+func NewHubClientConfig(er *monitoring.EventRecorder) (*HubClientConfig, error) {
 	hubClient, err := client.New(&rest.Config{
 		Host:            os.Getenv("HUB_HOST_ENDPOINT"),
 		BearerTokenFile: HubTokenFile,
@@ -86,11 +89,36 @@ func NewHubClientConfig() (*HubClientConfig, error) {
 	)
 
 	return &HubClientConfig{
-		Client: hubClient,
+		Client:        hubClient,
+		eventRecorder: er,
 	}, err
 }
 
-func (hubClient *HubClientConfig) UpdateNodeIpInCluster(ctx context.Context, clusterName, namespace string, nodeIP []string) error {
+func (hubClient *HubClientConfig) CreateWorkerSliceGwRecycler(ctx context.Context, gwRecyclerName, clientID, serverID, sliceGwServer, sliceGwClient, slice string) error {
+	workerslicegwrecycler := spokev1alpha1.WorkerSliceGwRecycler{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      gwRecyclerName,
+			Namespace: ProjectNamespace,
+			Labels: map[string]string{
+				"slice_name": slice,
+			},
+		},
+		Spec: spokev1alpha1.WorkerSliceGwRecyclerSpec{
+			GwPair: spokev1alpha1.GwPair{
+				ServerID: serverID,
+				ClientID: clientID,
+			},
+			State:         "init",
+			Request:       "verify_new_deployment_created",
+			SliceGwServer: sliceGwServer,
+			SliceGwClient: sliceGwClient,
+			SliceName:     slice,
+		},
+	}
+	return hubClient.Create(ctx, &workerslicegwrecycler)
+}
+
+func (hubClient *HubClientConfig) UpdateNodeIpInCluster(ctx context.Context, clusterName string, nodeIP []string, namespace string, slicegw *kubeslicev1beta1.SliceGateway) error {
 	cluster := &hubv1alpha1.Cluster{}
 	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		err := hubClient.Get(ctx, types.NamespacedName{
@@ -111,10 +139,18 @@ func (hubClient *HubClientConfig) UpdateNodeIpInCluster(ctx context.Context, clu
 	if err != nil {
 		return err
 	}
+	hubClient.eventRecorder.WithNamespace(controllers.ControlPlaneNamespace).WithSlice(slicegw.Spec.SliceName).RecordEvent(ctx, &monitoring.Event{
+		EventType:         monitoring.EventTypeNormal,
+		Reason:            monitoring.EventReasonNodeIpUpdate,
+		Message:           "NodeIps Updated",
+		ReportingInstance: "Controller Reconciler",
+		Object:            slicegw,
+		Action:            "NodeIPUpdated",
+	})
 	return nil
 }
 
-func (hubClient *HubClientConfig) UpdateNodePortForSliceGwServer(ctx context.Context, sliceGwNodePort int32, sliceGwName string) error {
+func (hubClient *HubClientConfig) UpdateNodePortForSliceGwServer(ctx context.Context, sliceGwNodePorts []int, sliceGwName string) error {
 	sliceGw := &spokev1alpha1.WorkerSliceGateway{}
 	err := hubClient.Get(ctx, types.NamespacedName{
 		Name:      sliceGwName,
@@ -124,14 +160,24 @@ func (hubClient *HubClientConfig) UpdateNodePortForSliceGwServer(ctx context.Con
 		return err
 	}
 
-	if sliceGw.Spec.LocalGatewayConfig.NodePort == int(sliceGwNodePort) {
+	if reflect.DeepEqual(sliceGw.Spec.LocalGatewayConfig.NodePorts, sliceGwNodePorts) {
 		// No update needed
 		return nil
 	}
 
-	sliceGw.Spec.LocalGatewayConfig.NodePort = int(sliceGwNodePort)
+	sliceGw.Spec.LocalGatewayConfig.NodePorts = sliceGwNodePorts
 
-	return hubClient.Update(ctx, sliceGw)
+	err = hubClient.Update(ctx, sliceGw)
+	hubClient.eventRecorder.RecordEvent(ctx, &monitoring.Event{
+		EventType:         monitoring.EventTypeNormal,
+		Reason:            monitoring.EventReasonNodePortUpdate,
+		Message:           fmt.Sprintf("NodePorts Updated to: %d", sliceGwNodePorts),
+		ReportingInstance: "Controller Reconciler",
+		Object:            sliceGw,
+		Action:            "NodePortUpdated",
+	})
+
+	return err
 }
 
 func PostClusterInfoToHub(ctx context.Context, spokeclient client.Client, hubClient client.Client, clusterName, namespace string, nodeIPs []string) error {
@@ -263,6 +309,9 @@ func updateClusterInfoToHub(ctx context.Context, spokeclient client.Client, hubC
 			hubCluster.Spec.ClusterProperty.GeoLocation.CloudRegion = clusterInfo.ClusterProperty.GeoLocation.CloudRegion
 			hubCluster.Spec.ClusterProperty.GeoLocation.CloudProvider = clusterInfo.ClusterProperty.GeoLocation.CloudProvider
 		}
+		//TODO:remove once deprecated
+		hubCluster.Spec.NodeIP = ""
+
 		hubCluster.Spec.NodeIPs = nodeIPs
 		if err := hubClient.Update(ctx, hubCluster); err != nil {
 			log.Error(err, "Error updating to cluster spec on hub cluster")

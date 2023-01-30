@@ -3,6 +3,7 @@ package sidecargw
 import (
 	"context"
 
+	sidecar "github.com/kubeslice/router-sidecar/pkg/sidecar/sidecarpb"
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
 
 	"github.com/kubeslice/worker-operator/pkg/router"
@@ -28,4 +29,10 @@ func (ClientEmulator *ClientEmulator) SendConnectionContext(ctx context.Context,
 
 func (ClientEmulator *ClientEmulator) UpdateEcmpRoutes(ctx context.Context, serverAddr string, ecmpInfo *router.UpdateEcmpInfo) error {
 	return nil
+}
+
+func (ClientEmulator *ClientEmulator) GetRouteInKernel(ctx context.Context, serverAddr string, sliceRouterConnCtx *router.GetRouteConfig) (*sidecar.VerifyRouteAddResponse, error) {
+	return &sidecar.VerifyRouteAddResponse{
+		IsRoutePresent: true,
+	}, nil
 }

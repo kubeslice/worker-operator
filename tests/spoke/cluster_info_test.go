@@ -75,7 +75,7 @@ var _ = Describe("ClusterInfoUpdate", func() {
 				Status: hubv1alpha1.ClusterStatus{},
 			}
 			nsmconfig = configMap("nsm-config", "kubeslice-system", `
-prefixes:
+Prefixes:
 - 192.168.0.0/16
 - 10.96.0.0/12`)
 
@@ -194,7 +194,7 @@ prefixes:
 
 func configMap(name, namespace, data string) *corev1.ConfigMap {
 	configMapData := make(map[string]string)
-	configMapData["excluded_prefixes.yaml"] = data
+	configMapData["excluded_prefixes_output.yaml"] = data
 	configMap := corev1.ConfigMap{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "ConfigMap",
