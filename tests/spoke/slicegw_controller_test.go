@@ -20,6 +20,7 @@ package spoke_test
 
 import (
 	"context"
+	nsmv1 "github.com/networkservicemesh/sdk-k8s/pkg/tools/k8s/apis/networkservicemesh.io/v1"
 	"reflect"
 	"time"
 
