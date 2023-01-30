@@ -23,7 +23,7 @@ type Check interface {
 	// MessageHandler handles the message and returns message handling status.
 	MessageHandler(msg interface{}) (err error)
 	// Status to provide the status of the check
-	Status() (details interface{}, err error)
+	Status() (details *TunnelInterfaceStatus, err error)
 	// Stop the status of the check
 	Stop() (err error)
 }

@@ -17,7 +17,10 @@
 
 package status
 
-import "time"
+import (
+	"sync"
+	"time"
+)
 
 // Config defines a health Check and it's scheduling timing requirements.
 type Config struct {
@@ -41,4 +44,5 @@ type TunnelInterfaceStatus struct {
 	RxRate       uint64 `json:"rxRate,omitempty"`
 	PacketLoss   uint64 `json:"packetLoss,omitempty"`
 	Status       uint64 `json:"status,omitempty"`
+	sync.Mutex
 }

@@ -99,7 +99,7 @@ func (t *TunnelChecker) Execute(interface{}) (err error) {
 }
 
 // Status to provide the Tunnel status
-func (t *TunnelChecker) Status() (details interface{}, err error) {
+func (t *TunnelChecker) Status() (details *TunnelInterfaceStatus, err error) {
 	if t.tunStatus == nil {
 		return nil, errors.New("Tunnel is not Up")
 	}
@@ -190,6 +190,8 @@ func (t *TunnelChecker) startPing(host string) error {
 // onFinishCb is called when ping is finished.
 func (t *TunnelChecker) onFinishCb(stats *ping.Statistics) {
 	if t.tunStatus != nil {
+		t.tunStatus.Lock()
+		defer t.tunStatus.Unlock()
 		t.tunStatus.PacketLoss = uint64(stats.PacketLoss)
 		t.tunStatus.Latency = uint64(stats.AvgRtt / time.Millisecond)
 		t.log.Infof("Latency :%v\t Packet Loss:%v\t", t.tunStatus.Latency, t.tunStatus.PacketLoss)

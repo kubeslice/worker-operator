@@ -63,24 +63,29 @@ func getGwPodStatus() (*GwPodStatus, error) {
 	}
 
 	podStatus.NsmIntfStatus = &nsmIntfStatus
-
+	var tunnelStatus TunnelInterfaceStatus
 	if statusMonitor != nil {
 		// Get the monitor status checks
 		checks := statusMonitor.Checks()
+		log.Info("checks","checks",checks)
 		for _, v := range checks {
 			stats, err := v.Status()
+			log.Info("stats","stats ",stats)
 			if err != nil {
-				continue
+				// this means that tunnel is not established
+				tunnelStatus.Status = TunnelStatusType_GW_TUNNEL_STATE_DOWN
+				podStatus.TunnelStatus = &tunnelStatus
+				log.Infof("pod status : %v", podStatus)
+				return podStatus,nil
 			}
-			tunStat := *stats.(*status.TunnelInterfaceStatus)
-			tunnelStatus := TunnelInterfaceStatus{
-				NetInterface: tunStat.NetInterface,
-				LocalIP:      tunStat.LocalIP,
-				PeerIP:       tunStat.PeerIP,
-				Latency:      tunStat.Latency,
-				TxRate:       tunStat.TxRate,
-				RxRate:       tunStat.RxRate,
-				PacketLoss:   tunStat.PacketLoss,
+			tunnelStatus = TunnelInterfaceStatus{
+				NetInterface: stats.NetInterface,
+				LocalIP:      stats.LocalIP,
+				PeerIP:       stats.PeerIP,
+				Latency:      stats.Latency,
+				TxRate:       stats.TxRate,
+				RxRate:       stats.RxRate,
+				PacketLoss:   stats.PacketLoss,
 				Status:       TunnelStatusType_GW_TUNNEL_STATE_UP,
 			}
 			if tunnelStatus.PacketLoss > 80 || tunnelStatus.NetInterface == "" {
