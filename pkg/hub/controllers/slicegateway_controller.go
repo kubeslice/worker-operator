@@ -32,6 +32,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -79,27 +80,40 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req reconcile.Request
 	if err != nil {
 		return reconcile.Result{}, err
 	}
-	meshSliceGw.Status.Config = kubeslicev1beta1.SliceGatewayConfig{
-		SliceName:                   sliceGw.Spec.SliceName,
-		SliceGatewayID:              sliceGw.Spec.LocalGatewayConfig.GatewayName,
-		SliceGatewaySubnet:          sliceGw.Spec.LocalGatewayConfig.GatewaySubnet,
-		SliceGatewayRemoteSubnet:    sliceGw.Spec.RemoteGatewayConfig.GatewaySubnet,
-		SliceGatewayHostType:        sliceGw.Spec.GatewayHostType,
-		SliceGatewayRemoteNodeIPs:   sliceGw.Spec.RemoteGatewayConfig.NodeIps,
-		SliceGatewayRemoteNodePorts: sliceGw.Spec.RemoteGatewayConfig.NodePorts,
-		SliceGatewayRemoteClusterID: sliceGw.Spec.RemoteGatewayConfig.ClusterName,
-		SliceGatewayRemoteGatewayID: sliceGw.Spec.RemoteGatewayConfig.GatewayName,
-		SliceGatewayLocalVpnIP:      sliceGw.Spec.LocalGatewayConfig.VpnIp,
-		SliceGatewayRemoteVpnIP:     sliceGw.Spec.RemoteGatewayConfig.VpnIp,
-		SliceGatewayName:            strconv.Itoa(sliceGw.Spec.GatewayNumber),
-	}
-	err = r.MeshClient.Status().Update(ctx, meshSliceGw)
+	err = retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		sliceGwRef := client.ObjectKey{
+			Name:      sliceGwName,
+			Namespace: ControlPlaneNamespace,
+		}
+		err := r.MeshClient.Get(ctx, sliceGwRef, meshSliceGw)
+		if err != nil {
+			return err
+		}
+		meshSliceGw.Status.Config = kubeslicev1beta1.SliceGatewayConfig{
+			SliceName:                   sliceGw.Spec.SliceName,
+			SliceGatewayID:              sliceGw.Spec.LocalGatewayConfig.GatewayName,
+			SliceGatewaySubnet:          sliceGw.Spec.LocalGatewayConfig.GatewaySubnet,
+			SliceGatewayRemoteSubnet:    sliceGw.Spec.RemoteGatewayConfig.GatewaySubnet,
+			SliceGatewayHostType:        sliceGw.Spec.GatewayHostType,
+			SliceGatewayRemoteNodeIPs:   sliceGw.Spec.RemoteGatewayConfig.NodeIps,
+			SliceGatewayRemoteNodePorts: sliceGw.Spec.RemoteGatewayConfig.NodePorts,
+			SliceGatewayRemoteClusterID: sliceGw.Spec.RemoteGatewayConfig.ClusterName,
+			SliceGatewayRemoteGatewayID: sliceGw.Spec.RemoteGatewayConfig.GatewayName,
+			SliceGatewayLocalVpnIP:      sliceGw.Spec.LocalGatewayConfig.VpnIp,
+			SliceGatewayRemoteVpnIP:     sliceGw.Spec.RemoteGatewayConfig.VpnIp,
+			SliceGatewayName:            strconv.Itoa(sliceGw.Spec.GatewayNumber),
+		}
+		err = r.MeshClient.Status().Update(ctx, meshSliceGw)
+		if err != nil {
+			log.Error(err, "unable to update sliceGw status in spoke cluster", "sliceGw", sliceGwName)
+			return err
+		}
+		return nil
+	})
 	if err != nil {
-		log.Error(err, "unable to update sliceGw status in spoke cluster", "sliceGw", sliceGwName)
 		return reconcile.Result{}, err
 	}
-
-	return reconcile.Result{}, err
+	return reconcile.Result{}, nil
 }
 
 func (r *SliceGwReconciler) InjectClient(c client.Client) error {
