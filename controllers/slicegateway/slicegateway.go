@@ -984,7 +984,7 @@ func validateEndpointAddresses(subset corev1.EndpointSubset, remoteNodeIPS []str
 // total -> external ip list of nodes in the k8s cluster
 // current -> ip list present in nodeIPs of cluster cr
 func validatenodeipcount(total, current []string) bool {
-	return reflect.DeepEqual(total,current)
+	return reflect.DeepEqual(total, current)
 }
 func UpdateGWPodStatus(gwPodStatus []*kubeslicev1beta1.GwPodInfo, podName string) []*kubeslicev1beta1.GwPodInfo {
 	index := -1
