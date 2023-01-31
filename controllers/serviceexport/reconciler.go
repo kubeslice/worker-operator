@@ -231,7 +231,7 @@ func (r *Reconciler) handleServiceExportDeletion(ctx context.Context, serviceexp
 			return true, ctrl.Result{}, err
 		}
 	}
-	return false, ctrl.Result{}, nil
+	return true, ctrl.Result{}, nil
 }
 
 // labelServiceExportWithSlice adds a label to the serviceexport object
