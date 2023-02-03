@@ -167,7 +167,7 @@ func (r *Reconciler) handleServiceImportDeletion(ctx context.Context, serviceimp
 			return true, ctrl.Result{}, err
 		}
 	}
-	return false, ctrl.Result{}, nil
+	return true, ctrl.Result{}, nil
 }
 
 func (r *Reconciler) updateServiceImportPorts(ctx context.Context, serviceimport *kubeslicev1beta1.ServiceImport) (ctrl.Result, error) {

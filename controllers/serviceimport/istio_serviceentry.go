@@ -85,17 +85,11 @@ func (r *Reconciler) ReconcileServiceEntries(ctx context.Context, serviceimport 
 func (r *Reconciler) serviceEntryForEndpoint(serviceImport *kubeslicev1beta1.ServiceImport, endpoint *kubeslicev1beta1.ServiceEndpoint, ns string) *istiov1beta1.ServiceEntry {
 	p := serviceImport.Spec.Ports[0]
 
-	// TODO: This is a hack. Need a better way to set targetPort for ingress gw.
-	targetPort := p.ContainerPort
-	if endpoint.Name == serviceImport.Name+"-"+serviceImport.ObjectMeta.Namespace+"-ingress" {
-		targetPort = 8080
-	}
-
 	ports := []*networkingv1beta1.Port{{
 		Name:       p.Name,
 		Protocol:   string(p.Protocol),
 		Number:     uint32(p.ContainerPort),
-		TargetPort: uint32(targetPort),
+		TargetPort: uint32(endpoint.Port),
 	}}
 
 	se := &istiov1beta1.ServiceEntry{
