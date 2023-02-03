@@ -58,6 +58,12 @@ var _ = Describe("ClusterInfoUpdate", func() {
 							Address: "35.235.10.1",
 						},
 					},
+					Conditions: []corev1.NodeCondition{
+						{
+							Type: corev1.NodeReady,
+							Status: corev1.ConditionTrue,
+						},
+					},
 				},
 			}
 
