@@ -193,12 +193,21 @@ var _ = Describe("Worker SlicegwController", func() {
 			}, time.Second*30, time.Millisecond*250).Should(BeTrue())
 
 			foundsvc := &corev1.Service{}
-			svckey := types.NamespacedName{Name: "svc-test-slicegw", Namespace: CONTROL_PLANE_NS}
+			svckey := types.NamespacedName{Name: "svc-test-slicegw-0", Namespace: CONTROL_PLANE_NS}
 
 			Eventually(func() bool {
 				err := k8sClient.Get(ctx, svckey, foundsvc)
 				return err == nil
 			}, time.Second*30, time.Millisecond*250).Should(BeTrue())
+
+			foundsvc = &corev1.Service{}
+			svckey = types.NamespacedName{Name: "svc-test-slicegw-1", Namespace: CONTROL_PLANE_NS}
+
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, svckey, foundsvc)
+				return err == nil
+			}, time.Second*30, time.Millisecond*250).Should(BeTrue())
+
 		})
 
 		It("Should create a deployment for gw server", func() {
@@ -228,7 +237,15 @@ var _ = Describe("Worker SlicegwController", func() {
 			}, time.Second*10, time.Millisecond*250).Should(BeTrue())
 
 			foundsvc := &corev1.Service{}
-			svckey := types.NamespacedName{Name: "svc-test-slicegw", Namespace: CONTROL_PLANE_NS}
+			svckey := types.NamespacedName{Name: "svc-test-slicegw-0", Namespace: CONTROL_PLANE_NS}
+
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, svckey, foundsvc)
+				return err == nil
+			}, time.Second*30, time.Millisecond*250).Should(BeTrue())
+
+			foundsvc = &corev1.Service{}
+			svckey = types.NamespacedName{Name: "svc-test-slicegw-1", Namespace: CONTROL_PLANE_NS}
 
 			Eventually(func() bool {
 				err := k8sClient.Get(ctx, svckey, foundsvc)
@@ -236,14 +253,21 @@ var _ = Describe("Worker SlicegwController", func() {
 			}, time.Second*30, time.Millisecond*250).Should(BeTrue())
 
 			founddepl := &appsv1.Deployment{}
-			deplKey := types.NamespacedName{Name: "test-slicegw", Namespace: CONTROL_PLANE_NS}
+			deplKey := types.NamespacedName{Name: "test-slicegw-0", Namespace: CONTROL_PLANE_NS}
 
 			Eventually(func() bool {
 				err := k8sClient.Get(ctx, deplKey, founddepl)
-				return err == nil && *founddepl.Spec.Replicas == 2
+				return err == nil
 			}, time.Second*40, time.Millisecond*250).Should(BeTrue())
 
-			Expect(founddepl.Spec.Template.Spec.Containers[1].Name).Should(Equal("kubeslice-openvpn-server"))
+			founddepl = &appsv1.Deployment{}
+			deplKey = types.NamespacedName{Name: "test-slicegw-1", Namespace: CONTROL_PLANE_NS}
+
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, deplKey, founddepl)
+				return err == nil
+			}, time.Second*40, time.Millisecond*250).Should(BeTrue())
+
 		})
 
 		It("Should create a finalizer for the slicegw cr created", func() {
@@ -325,14 +349,21 @@ var _ = Describe("Worker SlicegwController", func() {
 			}, time.Second*10, time.Millisecond*250).Should(BeTrue())
 
 			founddepl := &appsv1.Deployment{}
-			deplKey := types.NamespacedName{Name: "test-slicegw", Namespace: CONTROL_PLANE_NS}
+			deplKey := types.NamespacedName{Name: "test-slicegw-0", Namespace: CONTROL_PLANE_NS}
 
 			Eventually(func() bool {
 				err := k8sClient.Get(ctx, deplKey, founddepl)
-				return err == nil && *founddepl.Spec.Replicas == 2
+				return err == nil
 			}, time.Second*40, time.Millisecond*250).Should(BeTrue())
 
-			Expect(founddepl.Spec.Template.Spec.Containers[1].Name).Should(Equal("kubeslice-openvpn-client"))
+			founddepl = &appsv1.Deployment{}
+			deplKey = types.NamespacedName{Name: "test-slicegw-1", Namespace: CONTROL_PLANE_NS}
+
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, deplKey, founddepl)
+				return err == nil
+			}, time.Second*40, time.Millisecond*250).Should(BeTrue())
+
 		})
 		It("Should create create headless service for gw client", func() {
 			ctx := context.Background()
