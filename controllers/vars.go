@@ -44,4 +44,6 @@ var (
 const (
 	ApplicationNamespaceSelectorLabelKey = "kubeslice.io/slice"
 	NodeTypeSelectorLabelKey             = "kubeslice.io/node-type"
+	PodTypeSelectorLabelKey              = "kubeslice.io/pod-type"
+	TopologyKeySelector                  = "topology.kubeslice.io/gateway"
 )

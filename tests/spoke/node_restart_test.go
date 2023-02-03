@@ -68,6 +68,12 @@ var _ = Describe("NodeRestart Test Suite", func() {
 							Address: "35.235.10.1",
 						},
 					},
+					Conditions: []corev1.NodeCondition{
+						{
+							Type:   corev1.NodeReady,
+							Status: corev1.ConditionTrue,
+						},
+					},
 				},
 			}
 			Expect(k8sClient.Create(ctx, node1)).Should(Succeed())
@@ -87,6 +93,12 @@ var _ = Describe("NodeRestart Test Suite", func() {
 						{
 							Type:    corev1.NodeExternalIP,
 							Address: "35.235.10.2",
+						},
+					},
+					Conditions: []corev1.NodeCondition{
+						{
+							Type:   corev1.NodeReady,
+							Status: corev1.ConditionTrue,
 						},
 					},
 				},
@@ -171,14 +183,14 @@ Prefixes:
 			nodeIP, err := clusterpkg.GetNodeIP(k8sClient)
 			Expect(err).To(BeNil())
 			//post GeoLocation and other metadata to cluster CR on Hub cluster
-			err = hub.PostClusterInfoToHub(ctx, k8sClient, k8sClient, "cluster-node", nodeIP, "kubeslice-cisco")
+			err = hub.PostClusterInfoToHub(ctx, k8sClient, k8sClient, "cluster-node", "kubeslice-cisco", nodeIP)
 			Expect(err).To(BeNil())
 			//get the cluster object
 			Eventually(func() bool {
 				err := k8sClient.Get(ctx, types.NamespacedName{Name: cluster.Name, Namespace: cluster.Namespace}, cluster)
 				return err == nil
 			}, time.Second*10, time.Millisecond*250).Should(BeTrue())
-			Expect(cluster.Spec.NodeIP).Should(Equal(nodeIP))
+			Expect(cluster.Spec.NodeIPs).Should(Equal(nodeIP))
 
 			// start the reconcilers
 			Expect(k8sClient.Create(ctx, slice)).Should(Succeed())
@@ -214,7 +226,7 @@ Prefixes:
 				if err != nil {
 					return false
 				}
-				return cluster.Spec.NodeIP == "35.235.10.2"
+				return cluster.Spec.NodeIPs[0] == "35.235.10.2"
 			}, time.Second*60, time.Millisecond*250).Should(BeTrue())
 		})
 	})

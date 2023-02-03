@@ -50,11 +50,11 @@ type SliceGatewayConfig struct {
 	// Host Type : server or client
 	SliceGatewayHostType string `json:"sliceGatewayHostType,omitempty"`
 	// Node port
-	SliceGatewayNodePort int `json:"sliceGatewayNodePort,omitempty"`
-	// Remote Node IP
-	SliceGatewayRemoteNodeIP string `json:"sliceGatewayRemoteNodeIp,omitempty"`
+	SliceGatewayNodePorts []int `json:"sliceGatewayNodePorts,omitempty"`
+	// Remote Node IPs
+	SliceGatewayRemoteNodeIPs []string `json:"sliceGatewayRemoteNodeIps,omitempty"`
 	// Remote Node Port
-	SliceGatewayRemoteNodePort int `json:"sliceGatewayRemoteNodePort,omitempty"`
+	SliceGatewayRemoteNodePorts []int `json:"sliceGatewayRemoteNodePorts,omitempty"`
 	// Remote Node Subnet
 	SliceGatewayRemoteSubnet string `json:"sliceGatewayRemoteSubnet,omitempty"`
 	// Remote VPN IP
@@ -73,20 +73,20 @@ type SliceGatewayStatus struct {
 	Config SliceGatewayConfig `json:"config,omitempty"`
 	// ConfigUpdatedOn is the time when Config updated from backend
 	ConfigUpdatedOn int64 `json:"configUpdatedOn,omitempty"`
-	// PodName is the name of the gateway pod running in cluster
+	// Deprecated PodName is the name of the gateway pod running in cluster
 	PodName string `json:"podName,omitempty"`
+	// PodNames is the list of names of the gateway pods running in cluster
+	PodNames []string `json:"podNames,omitempty"`
 	// PodStatus shows whether gateway pod is healthy
 	PodStatus string `json:"podStatus,omitempty"`
-	// PodIP is the Ip of the gateway pod running in cluster
-	PodIP string `json:"podIp,omitempty"`
-	// LocalIP is the gateway tunnel ip
-	LocalIP string `json:"localIp,omitempty"`
+	// PodIPs is the list of Ip of the gateway pods running in cluster
+	PodIPs []string `json:"podIps,omitempty"`
 	// PeerIP is the gateway tunnel peer ip
 	PeerIP string `json:"peerIp,omitempty"`
-	// LocalNsmIP is the IP on the nsm interface to Slice Router
-	LocalNsmIP string `json:"localNsmIp,omitempty"`
 	// ConnectionContextUpdated is the time when context updated in pod
 	ConnectionContextUpdatedOn int64 `json:"connectionContextUpdatedOn,omitempty"`
+	//gatewayPodStatus is a list that consists of status of individual gatewaypods
+	GatewayPodStatus []*GwPodInfo `json:"gatewayPodStatus,omitempty"`
 }
 
 // +kubebuilder:object:root=true
@@ -113,6 +113,25 @@ type SliceGatewayList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []SliceGateway `json:"items"`
+}
+
+type GwPodInfo struct {
+	PodName      string       `json:"podName,omitempty"`
+	PeerPodName  string       `json:"peerPodName,omitempty"`
+	PodIP        string       `json:"podIP,omitempty"`
+	LocalNsmIP   string       `json:"localNsmIP,omitempty"`
+	TunnelStatus TunnelStatus `json:"tunnelStatus,omitempty"`
+	RouteRemoved int32        `json:"routeRemoved,omitempty"`
+}
+type TunnelStatus struct {
+	IntfName   string `json:"IntfName,omitempty"`
+	LocalIP    string `json:"LocalIP,omitempty"`
+	RemoteIP   string `json:"RemoteIP,omitempty"`
+	Latency    uint64 `json:"Latency,omitempty"`
+	TxRate     uint64 `json:"TxRate,omitempty"`
+	RxRate     uint64 `json:"RxRate,omitempty"`
+	PacketLoss uint64 `json:"PacketLoss,omitempty"`
+	Status     int32  `json:"Status,omitempty"`
 }
 
 func init() {

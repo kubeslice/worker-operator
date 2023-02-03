@@ -58,6 +58,12 @@ var _ = Describe("ClusterInfoUpdate", func() {
 							Address: "35.235.10.1",
 						},
 					},
+					Conditions: []corev1.NodeCondition{
+						{
+							Type:   corev1.NodeReady,
+							Status: corev1.ConditionTrue,
+						},
+					},
 				},
 			}
 
@@ -100,9 +106,9 @@ Prefixes:
 
 			nodeIP, err := clusterpkg.GetNodeIP(k8sClient)
 			Expect(err).To(BeNil())
-			Expect(nodeIP).Should(Equal("35.235.10.1"))
+			Expect(nodeIP[0]).Should(Equal("35.235.10.1"))
 			//post GeoLocation and other metadata to cluster CR on Hub cluster
-			err = hub.PostClusterInfoToHub(ctx, k8sClient, k8sClient, "cluster-1", nodeIP, "kubeslice-cisco")
+			err = hub.PostClusterInfoToHub(ctx, k8sClient, k8sClient, "cluster-1", "kubeslice-cisco", nodeIP)
 			Expect(err).To(BeNil())
 
 			//get the cluster object
@@ -110,8 +116,7 @@ Prefixes:
 				err := k8sClient.Get(ctx, types.NamespacedName{Name: cluster.Name, Namespace: cluster.Namespace}, cluster)
 				return err == nil
 			}, time.Second*10, time.Millisecond*250).Should(BeTrue())
-
-			Expect(cluster.Spec.NodeIP).Should(Equal("35.235.10.1"))
+			Expect(cluster.Spec.NodeIPs[0]).Should(Equal("35.235.10.1"))
 			Expect(cluster.Spec.ClusterProperty.GeoLocation.CloudProvider).Should(Equal("gcp"))
 			Expect(cluster.Spec.ClusterProperty.GeoLocation.CloudRegion).Should(Equal("us-east-1"))
 			Expect(cluster.Status.CniSubnet).Should(Equal([]string{"192.168.0.0/16", "10.96.0.0/12"}))
@@ -136,7 +141,9 @@ Prefixes:
 					Name:      "cluster-2",
 					Namespace: PROJECT_NS,
 				},
-				Spec:   hubv1alpha1.ClusterSpec{},
+				Spec: hubv1alpha1.ClusterSpec{
+					NodeIPs: []string{"35.235.10.1"},
+				},
 				Status: hubv1alpha1.ClusterStatus{},
 			}
 			os.Setenv("CLUSTER_NAME", cluster.Name)

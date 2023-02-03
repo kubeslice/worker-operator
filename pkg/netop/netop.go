@@ -128,8 +128,8 @@ func (spoke netopSidecarClient) SendConnectionContext(ctx context.Context, serve
 		RemoteSliceGwVpnIP:     gw.Status.Config.SliceGatewayRemoteVpnIP,
 		RemoteSliceGwHostType:  remoteGwType,
 		RemoteSliceGwNsmSubnet: gw.Status.Config.SliceGatewayRemoteSubnet,
-		RemoteSliceGwNodeIP:    gw.Status.Config.SliceGatewayRemoteNodeIP,
-		RemoteSliceGwNodePort:  strconv.Itoa(gw.Status.Config.SliceGatewayRemoteNodePort),
+		RemoteSliceGwNodeIP:    gw.Status.Config.SliceGatewayRemoteNodeIPs[0],
+		RemoteSliceGwNodePort:  strconv.Itoa(int(sliceGwNodePort)),
 	}
 	_, err = client.UpdateConnectionContext(ctx, c)
 	return err

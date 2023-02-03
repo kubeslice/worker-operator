@@ -21,6 +21,7 @@ package cluster
 import (
 	"context"
 	"errors"
+
 	"github.com/go-logr/logr"
 	"github.com/kubeslice/worker-operator/controllers"
 	corev1 "k8s.io/api/core/v1"
@@ -50,6 +51,8 @@ func (r *NodeReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 		// no gateway nodes found
 		return ctrl.Result{}, errors.New("no gateway nodes available")
 	}
+	// filter ready nodes
+	nodeList = filterAvailableNodes(nodeList)
 	// we first fetch available external IPs , if none is available. We reconcile for Internal IPs
 	nodeIpArr := []corev1.NodeAddress{}
 	for i := 0; i < len(nodeList.Items); i++ {
@@ -82,6 +85,19 @@ func (r *NodeReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 	}
 	log.Info("node IPs", "nodeInfo.NodeIPList", nodeInfo.NodeIPList)
 	return ctrl.Result{}, nil
+}
+
+func filterAvailableNodes(nodes corev1.NodeList) corev1.NodeList {
+	var availableNodes corev1.NodeList
+	for _, node := range nodes.Items {
+		for _, condition := range node.Status.Conditions {
+			if condition.Type == corev1.NodeReady && condition.Status == corev1.ConditionTrue {
+				availableNodes.Items = append(availableNodes.Items, node)
+				break
+			}
+		}
+	}
+	return availableNodes
 }
 
 func sameStringSlice(x, y []string) bool {

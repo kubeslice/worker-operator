@@ -33,13 +33,14 @@ type NetOpPod struct {
 	PodName string
 	Node    string
 }
-
 type HubClientProvider interface {
-	UpdateNodePortForSliceGwServer(ctx context.Context, sliceGwNodePort int32, sliceGwName string) error
-	UpdateNodeIpInCluster(ctx context.Context, clusterName, nodeIP, namespace string, slicegateway *kubeslicev1beta1.SliceGateway) error
-	GetClusterNodeIP(ctx context.Context, clusterName, namespace string) (string, error)
+	UpdateNodePortForSliceGwServer(ctx context.Context, sliceGwNodePort []int, sliceGwName string) error
+	GetClusterNodeIP(ctx context.Context, clusterName, namespace string) ([]string, error)
+	CreateWorkerSliceGwRecycler(ctx context.Context, gwRecyclerName, clientID, serverID, sliceGwServer, sliceGwClient, slice string) error
+	UpdateNodeIpInCluster(ctx context.Context, clusterName string, nodeIP []string, namespace string, slicegateway *kubeslicev1beta1.SliceGateway) error
 }
 type WorkerGWSidecarClientProvider interface {
+	GetSliceGwRemotePodName(ctx context.Context, gwRemoteVpnIP string, serverAddr string) (string, error)
 	GetStatus(ctx context.Context, serverAddr string) (*gwsidecar.GwStatus, error)
 	SendConnectionContext(ctx context.Context, serverAddr string, gwConnCtx *gwsidecar.GwConnectionContext) error
 	UpdateSliceQosProfile(ctx context.Context, serverAddr string, slice *kubeslicev1beta1.Slice) error
@@ -48,6 +49,7 @@ type WorkerGWSidecarClientProvider interface {
 type WorkerRouterClientProvider interface {
 	GetClientConnectionInfo(ctx context.Context, addr string) ([]kubeslicev1beta1.AppPod, error)
 	SendConnectionContext(ctx context.Context, serverAddr string, sliceRouterConnCtx *router.SliceRouterConnCtx) error
+	UpdateEcmpRoutes(ctx context.Context, serverAddr string, ecmpUpdateInfo *router.UpdateEcmpInfo) error
 }
 type WorkerNetOpClientProvider interface {
 	UpdateSliceQosProfile(ctx context.Context, addr string, slice *kubeslicev1beta1.Slice) error

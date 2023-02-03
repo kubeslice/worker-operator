@@ -44,6 +44,10 @@ enum ClassType {
     TBF = 1;
 }
 
+enum TunnelStatusType {
+    GW_TUNNEL_STATE_UP = 0;
+    GW_TUNNEL_STATE_DOWN = 1;
+}
 // Slice QoS Profile 
 message SliceQosProfile {
     // Name of the slice
@@ -80,7 +84,11 @@ message TunnelInterfaceStatus  {
     uint64 txRate       = 5;
     // Receive Rate
     uint64 rxRate       = 6;
-}
+    //Packet loss
+    uint64  packetLoss = 7;
+    //Status
+    TunnelStatusType status = 8;
+}   
 
 // NsmInterfaceStatus represents the status of NSM Interface to Slice Router.
 message NsmInterfaceStatus {
@@ -96,12 +104,19 @@ message GwPodStatus {
     string nodeIP                         = 1;
     // Gateway Pod IP.
     string gatewayPodIP                   = 2;
+    // Gateway Pod Name.
+    string gatewayPodName                 = 3;
     // The Tunnel Interface Status.
     TunnelInterfaceStatus tunnelStatus    = 4;
     // NSM Interface Status
     NsmInterfaceStatus  nsmIntfStatus     = 5;
 }
 
+// RemoteGwVpnIP represents remote SliceGwPod VPN IP
+message RemoteGwVpnIP {
+    // Remote Slice Gateway VPN IP.
+    string remoteGwVpnIP = 1;
+}
 
 // SliceGwConnectionContext - Slice Gateway Connection Context.
 message SliceGwConnectionContext {
@@ -136,6 +151,8 @@ message SliceGwConnectionContext {
 service GwSidecarService {
     // The Interface to get the Pod status.
     rpc GetStatus(google.protobuf.Empty) returns (GwPodStatus) {}
+    // The Interface to get the Remote Gw Pod Name.
+    rpc GetSliceGwRemotePodName(RemoteGwVpnIP) returns (GwPodStatus) {}
     // The Interface to update the connection context. It also adds the route.
     rpc UpdateConnectionContext(SliceGwConnectionContext) returns (SidecarResponse) {}
     // Update Slice QoS Profile

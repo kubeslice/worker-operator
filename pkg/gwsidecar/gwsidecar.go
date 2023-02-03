@@ -24,6 +24,7 @@ import (
 	empty "github.com/golang/protobuf/ptypes/empty"
 	sidecar "github.com/kubeslice/gateway-sidecar/pkg/sidecar/sidecarpb"
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
+	"github.com/kubeslice/worker-operator/pkg/logger"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
@@ -32,16 +33,16 @@ type NsmStatus struct {
 	IntfName string
 	LocalIP  string
 }
-
 type TunnelStatus struct {
-	IntfName string
-	LocalIP  string
-	RemoteIP string
-	Latency  uint64
-	TxRate   uint64
-	RxRate   uint64
+	IntfName   string
+	LocalIP    string
+	RemoteIP   string
+	Latency    uint64
+	TxRate     uint64
+	RxRate     uint64
+	PacketLoss uint64
+	Status     int32
 }
-
 type GwStatus struct {
 	NsmStatus
 	TunnelStatus
@@ -57,6 +58,25 @@ type gwSidecarClient struct {
 
 func NewWorkerGWSidecarClientProvider() (*gwSidecarClient, error) {
 	return &gwSidecarClient{}, nil
+}
+
+func (worker gwSidecarClient) GetSliceGwRemotePodName(ctx context.Context, gwRemoteVpnIP string, serverAddr string) (string, error) {
+	conn, err := grpc.Dial(serverAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		return "", err
+	}
+	defer conn.Close()
+	client := sidecar.NewGwSidecarServiceClient(conn)
+
+	gwPodIP := &sidecar.RemoteGwVpnIP{
+		RemoteGwVpnIP: gwRemoteVpnIP,
+	}
+
+	res, err := client.GetSliceGwRemotePodName(ctx, gwPodIP)
+	if err != nil {
+		return "", err
+	}
+	return res.GatewayPodName, nil
 }
 
 // GetStatus retrieves sidecar status
@@ -83,10 +103,14 @@ func (worker gwSidecarClient) GetStatus(ctx context.Context, serverAddr string) 
 	}
 	if res.TunnelStatus != nil {
 		gwStatus.TunnelStatus = TunnelStatus{
-			IntfName: res.TunnelStatus.NetInterface,
-			LocalIP:  res.TunnelStatus.LocalIP,
-			RemoteIP: res.TunnelStatus.PeerIP,
+			IntfName:   res.TunnelStatus.NetInterface,
+			LocalIP:    res.TunnelStatus.LocalIP,
+			RemoteIP:   res.TunnelStatus.PeerIP,
+			PacketLoss: res.TunnelStatus.PacketLoss,
+			Status:     int32(res.TunnelStatus.Status),
 		}
+	} else {
+		gwStatus.TunnelStatus.Status = int32(sidecar.TunnelStatusType_GW_TUNNEL_STATE_DOWN)
 	}
 
 	return gwStatus, err
@@ -94,6 +118,7 @@ func (worker gwSidecarClient) GetStatus(ctx context.Context, serverAddr string) 
 
 // SendConnectionContext sends connection context info to sidecar
 func (worker gwSidecarClient) SendConnectionContext(ctx context.Context, serverAddr string, gwConnCtx *GwConnectionContext) error {
+	log := logger.FromContext(ctx)
 	conn, err := grpc.Dial(serverAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		return err
@@ -106,6 +131,8 @@ func (worker gwSidecarClient) SendConnectionContext(ctx context.Context, serverA
 		RemoteSliceGwVpnIP:     gwConnCtx.RemoteSliceGwVpnIP,
 		RemoteSliceGwNsmSubnet: gwConnCtx.RemoteSliceGwNsmSubnet,
 	}
+
+	log.Info("SliceGwConnectionContext", "SliceGwConnectionContext", msg)
 
 	_, err = client.UpdateConnectionContext(ctx, msg)
 
