@@ -2,14 +2,21 @@ package controllers
 
 import (
 	"context"
+	"fmt"
+	"os"
 	"reflect"
 	"time"
 
 	hubv1alpha1 "github.com/kubeslice/apis/pkg/controller/v1alpha1"
+	"github.com/kubeslice/worker-operator/controllers"
 	"github.com/kubeslice/worker-operator/pkg/cluster"
 	"github.com/kubeslice/worker-operator/pkg/events"
 	"github.com/kubeslice/worker-operator/pkg/logger"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
@@ -38,53 +45,137 @@ func (r *ClusterReconciler) Reconcile(ctx context.Context, req reconcile.Request
 
 	log.Info("got cluster CR from hub", "cluster", cr)
 
+	// Ugly way to check if the reconciler is running for the first time
+	// Will later be replaced with health check lastUpdatedOn field
+	// Once https://github.com/kubeslice/apis/pull/17 is merged
+	if len(cr.Spec.NodeIPs) == 0 {
+		log.Info("updating cluster info on controller")
+		if err := r.updateClusterInfo(ctx, cr); err != nil {
+			log.Info("cluster info updated")
+			return reconcile.Result{}, err
+		}
+		if err := r.updateDashboardCreds(ctx, cr); err != nil {
+			log.Info("dashboard creds updated")
+			return reconcile.Result{}, err
+		}
+	}
+
+	// TODO: remaining health check stuff
+
+	return reconcile.Result{RequeueAfter: ReconcileInterval}, nil
+}
+
+func (r *ClusterReconciler) updateClusterInfo(ctx context.Context, cr *hubv1alpha1.Cluster) error {
+	log := logger.FromContext(ctx)
 	// Populate NodeIPs if not already updated
 	// Only needed to do the initial update. Later updates will be done by node reconciler
 	if cr.Spec.NodeIPs == nil || len(cr.Spec.NodeIPs) == 0 {
 		nodeIPs, err := cluster.GetNodeIP(r.MeshClient)
 		if err != nil {
 			log.Error(err, "Error Getting nodeIP")
-			return reconcile.Result{}, err
+			return err
 		}
 		cr.Spec.NodeIPs = nodeIPs
 		if err := r.Update(ctx, cr); err != nil {
 			log.Error(err, "Error updating to cluster spec on hub cluster")
-			return reconcile.Result{}, err
+			return err
 		}
-		return reconcile.Result{RequeueAfter: ReconcileInterval}, nil
+		return nil
 	}
 
 	cl := cluster.NewCluster(r.MeshClient, clusterName)
 	clusterInfo, err := cl.GetClusterInfo(ctx)
 	if err != nil {
 		log.Error(err, "Error getting clusterInfo")
-		return reconcile.Result{}, err
+		return err
 	}
 	if clusterInfo.ClusterProperty.GeoLocation.CloudProvider == GCP || clusterInfo.ClusterProperty.GeoLocation.CloudProvider == AWS || clusterInfo.ClusterProperty.GeoLocation.CloudProvider == AZURE {
 		cr.Spec.ClusterProperty.GeoLocation.CloudRegion = clusterInfo.ClusterProperty.GeoLocation.CloudRegion
 		cr.Spec.ClusterProperty.GeoLocation.CloudProvider = clusterInfo.ClusterProperty.GeoLocation.CloudProvider
 		if err := r.Update(ctx, cr); err != nil {
 			log.Error(err, "Error updating ClusterProperty on hub cluster")
-			return reconcile.Result{}, err
+			return err
 		}
 	}
 	cniSubnet, err := cl.GetNsmExcludedPrefix(ctx, "nsm-config", "kubeslice-system")
 	if err != nil {
 		log.Error(err, "Error getting cni Subnet")
-		return reconcile.Result{}, err
+		return err
 	}
 	if !reflect.DeepEqual(cr.Status.CniSubnet, cniSubnet) {
 		cr.Status.CniSubnet = cniSubnet
 		if err := r.Status().Update(ctx, cr); err != nil {
 			log.Error(err, "Error updating cniSubnet to cluster status on hub cluster")
-			return reconcile.Result{}, err
+			return err
 		}
 	}
+	return nil
+}
 
-	// TODO: update namespaces on hub
-	// TODO: post dashboard creds
+func (r *ClusterReconciler) updateDashboardCreds(ctx context.Context, cr *hubv1alpha1.Cluster) error {
+	log := logger.FromContext(ctx)
+	sa := &corev1.ServiceAccount{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      KubeSliceDashboardSA,
+			Namespace: controllers.ControlPlaneNamespace,
+		},
+	}
+	if err := r.Get(ctx, types.NamespacedName{Name: sa.Name, Namespace: controllers.ControlPlaneNamespace}, sa); err != nil {
+		log.Error(err, "Error getting service account")
+		return err
+	}
 
-	return reconcile.Result{RequeueAfter: ReconcileInterval}, nil
+	if len(sa.Secrets) == 0 {
+		err := fmt.Errorf("ServiceAccount has no secret")
+		log.Error(err, "Error getting service account secret")
+		return err
+	}
+
+	secret := &corev1.Secret{}
+	err := r.Get(ctx, types.NamespacedName{Name: sa.Secrets[0].Name, Namespace: controllers.ControlPlaneNamespace}, secret)
+	if err != nil {
+		log.Error(err, "Error getting service account's secret")
+		return err
+	}
+
+	secretName := os.Getenv("CLUSTER_NAME") + HubSecretSuffix
+	if secret.Data == nil {
+		return fmt.Errorf("dashboard secret data is nil")
+	}
+	token, ok := secret.Data["token"]
+	if !ok {
+		return fmt.Errorf("token not present in dashboard secret")
+	}
+	cacrt, ok := secret.Data["ca.crt"]
+	if !ok {
+		return fmt.Errorf("ca.crt not present in dashboard secret")
+	}
+
+	secretData := map[string][]byte{
+		"token":  token,
+		"ca.crt": cacrt,
+	}
+	hubSecret := corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      secretName,
+			Namespace: os.Getenv("HUB_PROJECT_NAMESPACE"),
+		},
+		Data: secretData,
+	}
+	log.Info("creating secret on hub", "hubSecret", hubSecret.Name)
+	err = r.Create(ctx, &hubSecret)
+	if apierrors.IsAlreadyExists(err) {
+		err = r.Update(ctx, &hubSecret)
+	}
+
+	if err != nil {
+		return err
+	}
+	cr.Spec.ClusterProperty.Monitoring.KubernetesDashboard.Endpoint = os.Getenv("CLUSTER_ENDPOINT")
+	cr.Spec.ClusterProperty.Monitoring.KubernetesDashboard.AccessToken = secretName
+	cr.Spec.ClusterProperty.Monitoring.KubernetesDashboard.Enabled = true
+	log.Info("Posting cluster creds to hub cluster", "cluster", os.Getenv("CLUSTER_NAME"))
+	return r.Update(ctx, cr)
 }
 
 func (r *ClusterReconciler) getCluster(ctx context.Context, req reconcile.Request) (*hubv1alpha1.Cluster, error) {
