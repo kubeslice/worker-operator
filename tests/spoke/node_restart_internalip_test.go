@@ -68,6 +68,12 @@ var _ = Describe("NodeRestart Test Suite", func() {
 							Address: "35.235.10.1",
 						},
 					},
+					Conditions: []corev1.NodeCondition{
+						{
+							Type: corev1.NodeReady,
+							Status: corev1.ConditionTrue,
+						},
+					},
 				},
 			}
 			Expect(k8sClient.Create(ctx, node1)).Should(Succeed())
@@ -87,6 +93,12 @@ var _ = Describe("NodeRestart Test Suite", func() {
 						{
 							Type:    corev1.NodeInternalIP,
 							Address: "35.235.10.2",
+						},
+					},
+					Conditions: []corev1.NodeCondition{
+						{
+							Type: corev1.NodeReady,
+							Status: corev1.ConditionTrue,
 						},
 					},
 				},
