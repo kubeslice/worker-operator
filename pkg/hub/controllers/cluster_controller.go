@@ -36,7 +36,8 @@ type ClusterReconciler struct {
 }
 
 func (r *ClusterReconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
-	log := logger.FromContext(ctx)
+	log := logger.FromContext(ctx).WithName("cluster-reconciler")
+	ctx = logger.WithLogger(ctx, log)
 
 	cr, err := r.getCluster(ctx, req)
 	if cr == nil {
