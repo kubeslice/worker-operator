@@ -48,16 +48,17 @@ func (r *ClusterReconciler) Reconcile(ctx context.Context, req reconcile.Request
 	// Ugly way to check if the reconciler is running for the first time
 	// Will later be replaced with health check lastUpdatedOn field
 	// Once https://github.com/kubeslice/apis/pull/17 is merged
-	if len(cr.Spec.NodeIPs) == 0 {
+	if true {
 		log.Info("updating cluster info on controller")
 		if err := r.updateClusterInfo(ctx, cr); err != nil {
-			log.Info("cluster info updated")
-			return reconcile.Result{}, err
+			log.Error(err, "unable to update cluster info")
 		}
+		log.Info("cluster info updated")
 		if err := r.updateDashboardCreds(ctx, cr); err != nil {
-			log.Info("dashboard creds updated")
+			log.Error(err, "unable to update dashboard creds")
 			return reconcile.Result{}, err
 		}
+		log.Info("dashboard creds updated")
 	}
 
 	// TODO: remaining health check stuff
@@ -67,28 +68,13 @@ func (r *ClusterReconciler) Reconcile(ctx context.Context, req reconcile.Request
 
 func (r *ClusterReconciler) updateClusterInfo(ctx context.Context, cr *hubv1alpha1.Cluster) error {
 	log := logger.FromContext(ctx)
-	// Populate NodeIPs if not already updated
-	// Only needed to do the initial update. Later updates will be done by node reconciler
-	if cr.Spec.NodeIPs == nil || len(cr.Spec.NodeIPs) == 0 {
-		nodeIPs, err := cluster.GetNodeIP(r.MeshClient)
-		if err != nil {
-			log.Error(err, "Error Getting nodeIP")
-			return err
-		}
-		cr.Spec.NodeIPs = nodeIPs
-		if err := r.Update(ctx, cr); err != nil {
-			log.Error(err, "Error updating to cluster spec on hub cluster")
-			return err
-		}
-		return nil
-	}
-
 	cl := cluster.NewCluster(r.MeshClient, clusterName)
 	clusterInfo, err := cl.GetClusterInfo(ctx)
 	if err != nil {
 		log.Error(err, "Error getting clusterInfo")
 		return err
 	}
+	log.Info("got clusterinfo", "ci", clusterInfo)
 	if clusterInfo.ClusterProperty.GeoLocation.CloudProvider == GCP || clusterInfo.ClusterProperty.GeoLocation.CloudProvider == AWS || clusterInfo.ClusterProperty.GeoLocation.CloudProvider == AZURE {
 		cr.Spec.ClusterProperty.GeoLocation.CloudRegion = clusterInfo.ClusterProperty.GeoLocation.CloudRegion
 		cr.Spec.ClusterProperty.GeoLocation.CloudProvider = clusterInfo.ClusterProperty.GeoLocation.CloudProvider
@@ -109,18 +95,36 @@ func (r *ClusterReconciler) updateClusterInfo(ctx context.Context, cr *hubv1alph
 			return err
 		}
 	}
+
+	// Populate NodeIPs if not already updated
+	// Only needed to do the initial update. Later updates will be done by node reconciler
+	if cr.Spec.NodeIPs == nil || len(cr.Spec.NodeIPs) == 0 {
+		nodeIPs, err := cluster.GetNodeIP(r.MeshClient)
+		if err != nil {
+			log.Error(err, "Error Getting nodeIP")
+			return err
+		}
+		cr.Spec.NodeIPs = nodeIPs
+		if err := r.Update(ctx, cr); err != nil {
+			log.Error(err, "Error updating to cluster spec on hub cluster")
+			return err
+		}
+	}
+
 	return nil
 }
 
 func (r *ClusterReconciler) updateDashboardCreds(ctx context.Context, cr *hubv1alpha1.Cluster) error {
 	log := logger.FromContext(ctx)
+	log.Info("Updating kubernetes dashboard creds")
+
 	sa := &corev1.ServiceAccount{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      KubeSliceDashboardSA,
 			Namespace: controllers.ControlPlaneNamespace,
 		},
 	}
-	if err := r.Get(ctx, types.NamespacedName{Name: sa.Name, Namespace: controllers.ControlPlaneNamespace}, sa); err != nil {
+	if err := r.MeshClient.Get(ctx, types.NamespacedName{Name: sa.Name, Namespace: controllers.ControlPlaneNamespace}, sa); err != nil {
 		log.Error(err, "Error getting service account")
 		return err
 	}
@@ -132,7 +136,7 @@ func (r *ClusterReconciler) updateDashboardCreds(ctx context.Context, cr *hubv1a
 	}
 
 	secret := &corev1.Secret{}
-	err := r.Get(ctx, types.NamespacedName{Name: sa.Secrets[0].Name, Namespace: controllers.ControlPlaneNamespace}, secret)
+	err := r.MeshClient.Get(ctx, types.NamespacedName{Name: sa.Secrets[0].Name, Namespace: controllers.ControlPlaneNamespace}, secret)
 	if err != nil {
 		log.Error(err, "Error getting service account's secret")
 		return err
