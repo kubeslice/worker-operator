@@ -26,8 +26,6 @@ import (
 
 	hubv1alpha1 "github.com/kubeslice/apis/pkg/controller/v1alpha1"
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
-	clusterpkg "github.com/kubeslice/worker-operator/pkg/cluster"
-	hub "github.com/kubeslice/worker-operator/pkg/hub/hubclient"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
@@ -180,17 +178,16 @@ Prefixes:
 			os.Setenv("CLUSTER_NAME", cluster.Name)
 			os.Setenv("HUB_PROJECT_NAMESPACE", PROJECT_NS)
 			ctx := context.Background()
-			nodeIP, err := clusterpkg.GetNodeIP(k8sClient)
-			Expect(err).To(BeNil())
-			//post GeoLocation and other metadata to cluster CR on Hub cluster
-			err = hub.PostClusterInfoToHub(ctx, k8sClient, k8sClient, "cluster-node", "kubeslice-cisco", nodeIP)
-			Expect(err).To(BeNil())
+
 			//get the cluster object
 			Eventually(func() bool {
 				err := k8sClient.Get(ctx, types.NamespacedName{Name: cluster.Name, Namespace: cluster.Namespace}, cluster)
 				return err == nil
 			}, time.Second*10, time.Millisecond*250).Should(BeTrue())
-			Expect(cluster.Spec.NodeIPs).Should(Equal(nodeIP))
+
+			// set nodeip as ip of node1
+			cluster.Spec.NodeIPs = []string{node1.Status.Addresses[0].Address}
+			Expect(k8sClient.Update(ctx, cluster)).Should(Succeed())
 
 			// start the reconcilers
 			Expect(k8sClient.Create(ctx, slice)).Should(Succeed())
@@ -203,7 +200,7 @@ Prefixes:
 			}, time.Second*10, time.Millisecond*250).Should(BeTrue())
 
 			createdSliceGw.Status.Config.SliceGatewayHostType = "Server"
-			err = retry.RetryOnConflict(retry.DefaultRetry, func() error {
+			err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 				err := k8sClient.Get(ctx, slicegwkey, createdSliceGw)
 				if err != nil {
 					return err
@@ -231,3 +228,20 @@ Prefixes:
 		})
 	})
 })
+
+func configMap(name, namespace, data string) *corev1.ConfigMap {
+	configMapData := make(map[string]string)
+	configMapData["excluded_prefixes_output.yaml"] = data
+	configMap := corev1.ConfigMap{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "ConfigMap",
+			APIVersion: "v1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+		},
+		Data: configMapData,
+	}
+	return &configMap
+}
