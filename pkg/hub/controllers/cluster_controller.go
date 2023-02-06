@@ -45,15 +45,12 @@ func (r *ClusterReconciler) Reconcile(ctx context.Context, req reconcile.Request
 
 	log.Info("got cluster CR from hub", "cluster", cr)
 
-	// Ugly way to check if the reconciler is running for the first time
-	// Will later be replaced with health check lastUpdatedOn field
-	// Once https://github.com/kubeslice/apis/pull/17 is merged
-	if true {
+	// Post NodeIP and GeoLocation info only on first run or if the reconciler wasn't run for a while
+	if cr.Status.ClusterHealth == nil || time.Since(cr.Status.ClusterHealth.LastUpdated.Time) > time.Minute {
 		log.Info("updating cluster info on controller")
 		if err := r.updateClusterInfo(ctx, cr); err != nil {
 			log.Error(err, "unable to update cluster info")
 		}
-		log.Info("cluster info updated")
 		if err := r.updateDashboardCreds(ctx, cr); err != nil {
 			log.Error(err, "unable to update dashboard creds")
 			return reconcile.Result{}, err
@@ -61,7 +58,14 @@ func (r *ClusterReconciler) Reconcile(ctx context.Context, req reconcile.Request
 		log.Info("dashboard creds updated")
 	}
 
-	// TODO: remaining health check stuff
+	if cr.Status.ClusterHealth == nil {
+		cr.Status.ClusterHealth = &hubv1alpha1.ClusterHealth{}
+	}
+
+	cr.Status.ClusterHealth.LastUpdated = metav1.Now()
+	if err := r.Status().Update(ctx, cr); err != nil {
+		log.Error(err, "unable to update cluster CR")
+	}
 
 	return reconcile.Result{RequeueAfter: ReconcileInterval}, nil
 }
