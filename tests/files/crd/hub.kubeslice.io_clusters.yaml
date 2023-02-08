@@ -49,6 +49,12 @@ spec:
                       cloudRegion:
                         description: CloudRegion is the region of the cloud
                         type: string
+                      latitude:
+                        description: Latitude is the latitude of the cluster
+                        type: string
+                      longitude:
+                        description: Longitude is the longitude of the cluster
+                        type: string
                     type: object
                   monitoring:
                     description: Monitoring contains the Kubernetes Monitoring Dashboard
@@ -103,6 +109,41 @@ spec:
           status:
             description: ClusterStatus defines the observed state of Cluster
             properties:
+              clusterHealth:
+                description: ClusterHealth shows the health of the worker cluster
+                properties:
+                  clusterHealthStatus:
+                    description: ClusterHealthStatus shows the overall health status
+                      of the cluster
+                    enum:
+                    - Normal
+                    - Warning
+                    type: string
+                  componentStatuses:
+                    description: ComponentStatuses shows the health status of individual
+                      components in the cluster
+                    items:
+                      properties:
+                        component:
+                          description: Component name
+                          type: string
+                        componentHealthStatus:
+                          enum:
+                          - Normal
+                          - Warning
+                          - Error
+                          type: string
+                      required:
+                      - component
+                      - componentHealthStatus
+                      type: object
+                    type: array
+                  lastUpdated:
+                    description: LastUpdated is the timestamp when healthstatus was
+                      updated
+                    format: date-time
+                    type: string
+                type: object
               cniSubnet:
                 description: CniSubnet is the podip and service ip subnet of CNI
                 items:

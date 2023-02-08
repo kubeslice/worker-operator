@@ -25,4 +25,6 @@ import (
 var (
 	ControlPlaneNamespace = "kubeslice-system"
 	clusterName           = os.Getenv("CLUSTER_NAME")
+	HubSecretSuffix       = "-kubernetes-dashboard"
+	KubeSliceDashboardSA  = "kubeslice-kubernetes-dashboard"
 )
