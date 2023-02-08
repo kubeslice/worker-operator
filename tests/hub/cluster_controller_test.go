@@ -198,6 +198,15 @@ Prefixes:
 			Expect(cluster.Spec.ClusterProperty.Monitoring.KubernetesDashboard.Endpoint).
 				Should(Equal(hostname))
 		})
+		It("Should update cluster CR with health status", func() {
+			//get the cluster object
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, types.NamespacedName{Name: cluster.Name, Namespace: cluster.Namespace}, cluster)
+				return err == nil
+			}, time.Second*10, time.Millisecond*250).Should(BeTrue())
+
+			Expect(cluster.Status.ClusterHealth.LastUpdated).ShouldNot(BeNil())
+		})
 	})
 })
 
