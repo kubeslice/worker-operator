@@ -461,6 +461,7 @@ func (r *SliceGwReconciler) getNodePorts(ctx context.Context, sliceGw *kubeslice
 	listOpts := []client.ListOption{
 		client.MatchingLabels(map[string]string{
 			controllers.ApplicationNamespaceSelectorLabelKey: sliceGw.Spec.SliceName,
+			"kubeslice.io/slicegw":sliceGw.Name,
 		}),
 	}
 	services := corev1.ServiceList{}
