@@ -421,6 +421,7 @@ func (r *SliceGwReconciler) getDeployments(ctx context.Context, sliceGw *kubesli
 		client.MatchingLabels(map[string]string{
 			controllers.ApplicationNamespaceSelectorLabelKey: sliceGw.Spec.SliceName,
 			webhook.PodInjectLabelKey:                        "slicegateway",
+			"kubeslice.io/slicegw":                           sliceGw.Name,
 		}),
 		client.InNamespace(controllers.ControlPlaneNamespace),
 	}
@@ -445,6 +446,7 @@ func (r *SliceGwReconciler) getNumberOfGatewayNodePortServices(ctx context.Conte
 	listOpts := []client.ListOption{
 		client.MatchingLabels(map[string]string{
 			controllers.ApplicationNamespaceSelectorLabelKey: sliceGw.Spec.SliceName,
+			"kubeslice.io/slicegw":                           sliceGw.Name,
 		}),
 		client.InNamespace(controllers.ControlPlaneNamespace),
 	}
