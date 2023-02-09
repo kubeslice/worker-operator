@@ -132,6 +132,7 @@ func (r *SliceGwReconciler) deploymentForGatewayServer(g *kubeslicev1beta1.Slice
 			Labels: map[string]string{
 				controllers.ApplicationNamespaceSelectorLabelKey: g.Spec.SliceName,
 				webhook.PodInjectLabelKey:                        "slicegateway",
+				"kubeslice.io/slicegw":                           g.Name,
 			},
 		},
 		Spec: appsv1.DeploymentSpec{
@@ -337,6 +338,7 @@ func (r *SliceGwReconciler) serviceForGateway(g *kubeslicev1beta1.SliceGateway, 
 			Namespace: g.Namespace,
 			Labels: map[string]string{
 				controllers.ApplicationNamespaceSelectorLabelKey: g.Spec.SliceName,
+				"kubeslice.io/slicegw":                           g.Name,
 			},
 		},
 		Spec: corev1.ServiceSpec{
@@ -1062,7 +1064,8 @@ func getPodAntiAffinity(slice string) *corev1.PodAntiAffinity {
 
 func (r *SliceGwReconciler) getNewestPod(slicegw *kubeslicev1beta1.SliceGateway) (*corev1.Pod, error) {
 	PodList := corev1.PodList{}
-	labels := map[string]string{"kubeslice.io/pod-type": "slicegateway", controllers.ApplicationNamespaceSelectorLabelKey: slicegw.Spec.SliceName}
+	labels := map[string]string{"kubeslice.io/pod-type": "slicegateway", controllers.ApplicationNamespaceSelectorLabelKey: slicegw.Spec.SliceName,
+		"kubeslice.io/slicegw": slicegw.Name}
 	listOptions := []client.ListOption{
 		client.MatchingLabels(labels),
 	}
