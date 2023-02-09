@@ -212,6 +212,9 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 	appPods, err := r.getAppPods(ctx, slice)
 	debugLog.Info("app pods", "pods", appPods, "err", err)
 
+	// expose the number of app pods metric of a slice
+	r.exposeMetric(appPods, slice)
+
 	if isAppPodStatusChanged(appPods, slice.Status.AppPods) {
 		log.Info("App pod status changed")
 		return r.handleAppPodStatusChange(appPods, slice, ctx)
@@ -255,8 +258,7 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 	}, nil
 }
 
-func (r *SliceReconciler) handleAppPodStatusChange(appPods []kubeslicev1beta1.AppPod, slice *kubeslicev1beta1.Slice, ctx context.Context) (reconcile.Result, error) {
-	log := logger.FromContext(ctx).WithName("app-pod-update")
+func (r *SliceReconciler) exposeMetric(appPods []kubeslicev1beta1.AppPod, slice *kubeslicev1beta1.Slice) {
 	// this extra check is needed when current app pods are zero and slice status has old app pods
 	// then it doesn't goes to app pods loop hence it don't update the app pods metrics count to zero
 	// Set no. of app pods in prometheus metrics
@@ -273,6 +275,11 @@ func (r *SliceReconciler) handleAppPodStatusChange(appPods []kubeslicev1beta1.Ap
 	for namespace, pods := range mapAppPodsPerNamespace {
 		metrics.RecordAppPodsCount(len(pods), controllers.ClusterName, slice.Name, namespace)
 	}
+}
+
+func (r *SliceReconciler) handleAppPodStatusChange(appPods []kubeslicev1beta1.AppPod, slice *kubeslicev1beta1.Slice, ctx context.Context) (reconcile.Result, error) {
+	log := logger.FromContext(ctx).WithName("app-pod-update")
+
 	slice.Status.AppPods = appPods
 	slice.Status.AppPodsUpdatedOn = time.Now().Unix()
 	err := r.Status().Update(ctx, slice)
