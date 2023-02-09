@@ -397,6 +397,7 @@ func (r *SliceGwReconciler) reconcileGwMap(ctx context.Context, sliceGw *kubesli
 	listOpts := []client.ListOption{
 		client.MatchingLabels(map[string]string{
 			controllers.ApplicationNamespaceSelectorLabelKey: sliceGw.Spec.SliceName,
+			"kubeslice.io/slicegw":sliceGw.Name,
 		}),
 	}
 	deployList := appsv1.DeploymentList{}
