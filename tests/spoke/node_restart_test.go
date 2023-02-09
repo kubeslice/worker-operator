@@ -228,20 +228,3 @@ Prefixes:
 		})
 	})
 })
-
-func configMap(name, namespace, data string) *corev1.ConfigMap {
-	configMapData := make(map[string]string)
-	configMapData["excluded_prefixes_output.yaml"] = data
-	configMap := corev1.ConfigMap{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       "ConfigMap",
-			APIVersion: "v1",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: namespace,
-		},
-		Data: configMapData,
-	}
-	return &configMap
-}
