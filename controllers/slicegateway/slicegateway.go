@@ -1065,7 +1065,7 @@ func getPodAntiAffinity(slice string) *corev1.PodAntiAffinity {
 func (r *SliceGwReconciler) getNewestPod(slicegw *kubeslicev1beta1.SliceGateway) (*corev1.Pod, error) {
 	PodList := corev1.PodList{}
 	labels := map[string]string{"kubeslice.io/pod-type": "slicegateway", controllers.ApplicationNamespaceSelectorLabelKey: slicegw.Spec.SliceName,
-		"kubeslice.io/slicegw": slicegw.Name}
+		"kubeslice.io/slice-gw": slicegw.Name}
 	listOptions := []client.ListOption{
 		client.MatchingLabels(labels),
 	}
