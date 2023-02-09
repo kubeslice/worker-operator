@@ -95,7 +95,7 @@ var _ = Describe("NodeRestart Test Suite", func() {
 					},
 					Conditions: []corev1.NodeCondition{
 						{
-							Type: corev1.NodeReady,
+							Type:   corev1.NodeReady,
 							Status: corev1.ConditionTrue,
 						},
 					},
