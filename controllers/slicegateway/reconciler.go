@@ -105,7 +105,7 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	// then lets add the finalizer and update the object. This is equivalent
 	// registering our finalizer.
 	// The object is being deleted
-	//cheanup Gateway related resources
+	// cheanup Gateway related resources
 	// Stop reconciliation as the item is being deleted
 	reconcile, result, err := r.handleSliceGwDeletion(sliceGw, ctx)
 	if reconcile {
