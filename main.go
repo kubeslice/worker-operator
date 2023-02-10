@@ -160,7 +160,6 @@ func main() {
 	clientForHubMgr, err := client.New(ctrl.GetConfigOrDie(), client.Options{
 		Scheme: scheme,
 	})
-
 	//check if user has provided NODE_IP as env variable, if not fetch the ExternalIP from gateway nodes
 	nodeIP, err := cluster.GetNodeIP(clientForHubMgr)
 	if err != nil {
@@ -278,6 +277,18 @@ func main() {
 		setupLog.Info("starting hub manager")
 		manager.Start(clientForHubMgr, ctx)
 	}()
+
+	//post GeoLocation and other metadata to cluster CR on Hub cluster
+	err = hub.PostClusterInfoToHub(ctx, clientForHubMgr, hubClient, os.Getenv("CLUSTER_NAME"), os.Getenv("HUB_PROJECT_NAMESPACE"), nodeIP)
+	if err != nil {
+		setupLog.With("error", err).Error("could not post Cluster Info to Hub")
+	}
+
+	//post dashboard creds cluster CR on Hub cluster
+	err = hub.PostDashboardCredsToHub(ctx, clientForHubMgr, hubClient)
+	if err != nil {
+		setupLog.With("error", err).Error("could not post Dasboard Creds to Hub")
+	}
 
 	setupLog.Info("starting manager")
 	if err := mgr.Start(ctx); err != nil {
