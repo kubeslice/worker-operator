@@ -63,12 +63,55 @@ func (r *ClusterReconciler) Reconcile(ctx context.Context, req reconcile.Request
 		cr.Status.ClusterHealth = &hubv1alpha1.ClusterHealth{}
 	}
 
+	r.updateClusterHealth(ctx, cr)
+
 	cr.Status.ClusterHealth.LastUpdated = metav1.Now()
 	if err := r.Status().Update(ctx, cr); err != nil {
 		log.Error(err, "unable to update cluster CR")
 	}
 
 	return reconcile.Result{RequeueAfter: ReconcileInterval}, nil
+}
+
+func (r *ClusterReconciler) updateClusterHealth(ctx context.Context, cr *hubv1alpha1.Cluster) error {
+	log := logger.FromContext(ctx)
+
+	podList := &corev1.PodList{}
+	listOpts := []client.ListOption{
+		client.MatchingLabels(map[string]string{
+			"app": "nsmgr",
+		}),
+		client.InNamespace(controllers.ControlPlaneNamespace),
+	}
+	if err := r.MeshClient.List(ctx, podList, listOpts...); err != nil {
+		log.Error(err, "Failed to list pods")
+		return err
+	}
+
+	pods := podList.Items
+	cs := hubv1alpha1.ComponentStatus{
+		Component: "nsmgr",
+	}
+	if len(pods) == 0 {
+		log.Error(fmt.Errorf("No nsmgr pods running"), "nsm unhealthy")
+		cs.ComponentHealthStatus = hubv1alpha1.ComponentHealthStatusError
+		cr.Status.ClusterHealth.ComponentStatuses = append(cr.Status.ClusterHealth.ComponentStatuses, cs)
+		return nil
+	}
+
+	for _, pod := range pods {
+		if pod.Status.Phase != corev1.PodRunning {
+			log.Info("nsmgr is not healthy")
+			cs.ComponentHealthStatus = hubv1alpha1.ComponentHealthStatusError
+			cr.Status.ClusterHealth.ComponentStatuses = append(cr.Status.ClusterHealth.ComponentStatuses, cs)
+			return nil
+		}
+	}
+
+	cs.ComponentHealthStatus = hubv1alpha1.ComponentHealthStatusNormal
+	cr.Status.ClusterHealth.ComponentStatuses = append(cr.Status.ClusterHealth.ComponentStatuses, cs)
+
+	return nil
 }
 
 func (r *ClusterReconciler) updateClusterInfo(ctx context.Context, cr *hubv1alpha1.Cluster) error {
