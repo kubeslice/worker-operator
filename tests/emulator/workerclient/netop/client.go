@@ -25,6 +25,6 @@ func (ClientEmulator *ClientEmulator) SendSliceLifeCycleEventToNetOp(ctx context
 	return nil
 }
 
-func (ClientEmulator *ClientEmulator) SendConnectionContext(ctx context.Context, serverAddr string, gw *kubeslicev1beta1.SliceGateway, sliceGwNodePort int32) error {
+func (ClientEmulator *ClientEmulator) SendConnectionContext(ctx context.Context, serverAddr string, gw *kubeslicev1beta1.SliceGateway, sliceGwNodePorts []int) error {
 	return nil
 }
