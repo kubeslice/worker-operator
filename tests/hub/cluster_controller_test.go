@@ -198,15 +198,114 @@ Prefixes:
 			Expect(cluster.Spec.ClusterProperty.Monitoring.KubernetesDashboard.Endpoint).
 				Should(Equal(hostname))
 		})
-		It("Should update cluster CR with health status", func() {
-			//get the cluster object
+	})
+	Context("Cluster health check", func() {
+		var ns *corev1.Namespace
+		var cluster *hubv1alpha1.Cluster
+		var operatorSecret *corev1.Secret
+		var sa *corev1.ServiceAccount
+		var pods []*corev1.Pod
+
+		BeforeEach(func() {
+			ns = &corev1.Namespace{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: PROJECT_NS,
+				},
+			}
+			cluster = &hubv1alpha1.Cluster{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      CLUSTER_NAME,
+					Namespace: PROJECT_NS,
+				},
+				Spec:   hubv1alpha1.ClusterSpec{},
+				Status: hubv1alpha1.ClusterStatus{},
+			}
+			os.Setenv("HUB_PROJECT_NAMESPACE", PROJECT_NS)
+			os.Setenv("CLUSTER_NAME", CLUSTER_NAME)
+			operatorSecret = getSecret("kubeslice-kubernetes-dashboard", CONTROL_PLANE_NS)
+			sa = getSA("kubeslice-kubernetes-dashboard", CONTROL_PLANE_NS, operatorSecret.Name)
+			Expect(k8sClient.Create(ctx, ns))
+			Expect(k8sClient.Create(ctx, operatorSecret))
+			Expect(k8sClient.Create(ctx, sa))
+			Expect(k8sClient.Create(ctx, cluster))
+
+			DeferCleanup(func() {
+				k8sClient.Delete(ctx, cluster)
+				k8sClient.Delete(ctx, operatorSecret)
+				k8sClient.Delete(ctx, sa)
+
+				// Wait for cluster CR to be cleaned up
+				GinkgoWriter.Println("deleting")
+				Eventually(func() bool {
+					err := k8sClient.Get(ctx, types.NamespacedName{Name: cluster.Name, Namespace: cluster.Namespace}, cluster)
+					return err != nil && errors.IsNotFound(err)
+				}, time.Second*10, time.Second*1).Should(BeTrue())
+				// time.Sleep(30*time.Second)
+
+				// delete all pods which were created for checking health status
+				for _, pod := range pods {
+					k8sClient.Delete(ctx, pod)
+					pods = []*corev1.Pod{}
+				}
+			})
+		})
+
+		It("Should update cluster CR with health status updated time", func() {
 			Eventually(func() bool {
 				err := k8sClient.Get(ctx, types.NamespacedName{Name: cluster.Name, Namespace: cluster.Namespace}, cluster)
-				return err == nil
-			}, time.Second*10, time.Millisecond*250).Should(BeTrue())
+				return err == nil && cluster.Status.ClusterHealth != nil
+			}, time.Second*10, time.Second*1).Should(BeTrue())
+			last := cluster.Status.ClusterHealth.LastUpdated
 
-			Expect(cluster.Status.ClusterHealth.LastUpdated).ShouldNot(BeNil())
+			// LastUpdated should be updated every few seconds
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, types.NamespacedName{Name: cluster.Name, Namespace: cluster.Namespace}, cluster)
+				return err == nil && cluster.Status.ClusterHealth != nil && !cluster.Status.ClusterHealth.LastUpdated.Equal(&last)
+			}, time.Second*20, time.Second*1).Should(BeTrue())
 		})
+
+		It("Should update cluster CR with nsmgr pod status as error", func() {
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, types.NamespacedName{Name: cluster.Name, Namespace: cluster.Namespace}, cluster)
+				GinkgoWriter.Println(cluster)
+				return err == nil && cluster.Status.ClusterHealth != nil
+			}, time.Second*10, time.Second*1).Should(BeTrue())
+			Expect(cluster.Status.ClusterHealth.ComponentStatuses).Should(HaveLen(1))
+			Expect(cluster.Status.ClusterHealth.ComponentStatuses[0].Component).Should(Equal("nsmgr"))
+			Expect(string(cluster.Status.ClusterHealth.ComponentStatuses[0].ComponentHealthStatus)).Should(Equal(hubv1alpha1.ComponentHealthStatusError))
+		})
+
+		It("Should update cluster CR with nsmgr pod status as normal when nsmgr pod is running", func() {
+			pods := []*corev1.Pod{{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "nsmgr",
+					Labels: map[string]string{
+						"app": "nsmgr",
+					},
+					Namespace: "kubeslice-system",
+				},
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{{
+						Name:  "nsmgr",
+						Image: "nsmgr",
+					}},
+				},
+			}}
+			Expect(k8sClient.Create(ctx, pods[0])).ToNot(HaveOccurred())
+
+			pods[0].Status.Phase = corev1.PodRunning
+			Expect(k8sClient.Status().Update(ctx, pods[0])).ToNot(HaveOccurred())
+
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, types.NamespacedName{Name: cluster.Name, Namespace: cluster.Namespace}, cluster)
+				GinkgoWriter.Println(cluster)
+				return err == nil && cluster.Status.ClusterHealth != nil
+			}, time.Second*10, time.Second*1).Should(BeTrue())
+			Expect(cluster.Status.ClusterHealth.ComponentStatuses).Should(HaveLen(1))
+			Expect(cluster.Status.ClusterHealth.ComponentStatuses[0].Component).Should(Equal("nsmgr"))
+			Expect(string(cluster.Status.ClusterHealth.ComponentStatuses[0].ComponentHealthStatus)).Should(Equal(hubv1alpha1.ComponentHealthStatusNormal))
+		})
+
 	})
 })
 

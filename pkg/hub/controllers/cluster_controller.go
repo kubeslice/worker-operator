@@ -52,18 +52,22 @@ func (r *ClusterReconciler) Reconcile(ctx context.Context, req reconcile.Request
 		if err := r.updateClusterInfo(ctx, cr); err != nil {
 			log.Error(err, "unable to update cluster info")
 		}
+	}
+
+	// Update dashboard creds if it hasn't already
+	if !r.isDashboardCredsUpdated(ctx, cr) {
 		if err := r.updateDashboardCreds(ctx, cr); err != nil {
 			log.Error(err, "unable to update dashboard creds")
-			return reconcile.Result{}, err
 		}
-		log.Info("dashboard creds updated")
 	}
 
 	if cr.Status.ClusterHealth == nil {
 		cr.Status.ClusterHealth = &hubv1alpha1.ClusterHealth{}
 	}
 
-	r.updateClusterHealth(ctx, cr)
+	if err := r.updateClusterHealthStatus(ctx, cr); err != nil {
+		log.Error(err, "unable to update cluster health status")
+	}
 
 	cr.Status.ClusterHealth.LastUpdated = metav1.Now()
 	if err := r.Status().Update(ctx, cr); err != nil {
@@ -73,8 +77,9 @@ func (r *ClusterReconciler) Reconcile(ctx context.Context, req reconcile.Request
 	return reconcile.Result{RequeueAfter: ReconcileInterval}, nil
 }
 
-func (r *ClusterReconciler) updateClusterHealth(ctx context.Context, cr *hubv1alpha1.Cluster) error {
+func (r *ClusterReconciler) updateClusterHealthStatus(ctx context.Context, cr *hubv1alpha1.Cluster) error {
 	log := logger.FromContext(ctx)
+	cr.Status.ClusterHealth.ComponentStatuses = []hubv1alpha1.ComponentStatus{}
 
 	podList := &corev1.PodList{}
 	listOpts := []client.ListOption{
@@ -160,6 +165,10 @@ func (r *ClusterReconciler) updateClusterInfo(ctx context.Context, cr *hubv1alph
 	}
 
 	return nil
+}
+
+func (r *ClusterReconciler) isDashboardCredsUpdated(ctx context.Context, cr *hubv1alpha1.Cluster) bool {
+	return cr.Spec.ClusterProperty.Monitoring.KubernetesDashboard.Enabled
 }
 
 func (r *ClusterReconciler) updateDashboardCreds(ctx context.Context, cr *hubv1alpha1.Cluster) error {
