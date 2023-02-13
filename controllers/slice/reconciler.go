@@ -305,6 +305,14 @@ func (r *SliceReconciler) handleDnsSvc(ctx context.Context, slice *kubeslicev1be
 		if errors.IsNotFound(err) {
 			log.Error(err, "dns not found")
 			log.Info("DNS service not found in the cluster, probably coredns is not deployed; continuing")
+			r.EventRecorder.Record(
+				&events.Event{
+					Object:    slice,
+					EventType: events.EventTypeWarning,
+					Reason:    "Error",
+					Message:   "Failed to find DNS service in the cluster",
+				},
+			)
 		} else {
 			log.Error(err, "Unable to find DNS Service")
 			return true, ctrl.Result{}, err
@@ -317,6 +325,14 @@ func (r *SliceReconciler) handleDnsSvc(ctx context.Context, slice *kubeslicev1be
 			log.Error(err, "Failed to update Slice status for dns")
 			return true, ctrl.Result{}, err
 		}
+		r.EventRecorder.Record(
+			&events.Event{
+				Object:    slice,
+				EventType: events.EventTypeNormal,
+				Reason:    "Success",
+				Message:   "Updated slice with DNS IP",
+			},
+		)
 		return true, ctrl.Result{}, nil
 	}
 	return false, reconcile.Result{}, nil
@@ -354,6 +370,14 @@ func (r *SliceReconciler) handleSliceDeletion(slice *kubeslicev1beta1.Slice, ctx
 			if err := r.Update(ctx, slice); err != nil {
 				return true, ctrl.Result{}, err
 			}
+			r.EventRecorder.Record(
+				&events.Event{
+					Object:    slice,
+					EventType: events.EventTypeNormal,
+					Reason:    "Success",
+					Message:   "Delete slice " + slice.Name,
+				},
+			)
 		}
 		return true, ctrl.Result{}, nil
 	}
