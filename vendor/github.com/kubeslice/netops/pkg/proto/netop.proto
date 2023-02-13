@@ -93,7 +93,7 @@ message NetOpConnectionContext {
     // Local slice gateway Node IP
     string localSliceGwNodeIP = 6;
     // Local slice gateway Node Port
-    string localSliceGwNodePort = 7;
+    repeated string localSliceGwNodePorts = 7;
     // Remote slice gateway ID
     string remoteSliceGwId = 8;
     // Remote slice gateway VPN IP
@@ -105,7 +105,7 @@ message NetOpConnectionContext {
     // Remote slice gateway Node IP
     string remoteSliceGwNodeIP = 12;
     // Remote slice gateway Node Port
-    string remoteSliceGwNodePort = 13;
+    repeated string remoteSliceGwNodePorts = 13;
 }
 
 service NetOpsService {
