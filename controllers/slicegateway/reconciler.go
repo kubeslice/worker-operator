@@ -190,6 +190,7 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 			return res, err
 		}
 		noOfGwServices = len(sliceGw.Status.Config.SliceGatewayRemoteNodePorts)
+		sliceGwNodePorts = sliceGw.Status.Config.SliceGatewayRemoteNodePorts
 	}
 	// Check if the deployment already exists, if not create a new one
 	// spin up 2 gw deployments
