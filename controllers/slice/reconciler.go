@@ -157,10 +157,13 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 		//post event to slice
 		r.EventRecorder.Record(
 			&events.Event{
-				Object:    slice,
-				EventType: events.EventTypeWarning,
-				Reason:    "Error",
-				Message:   "Failed to sync QoS profile with netop pods",
+				Object:              slice,
+				EventType:           events.EventTypeWarning,
+				Reason:              "Error",
+				Message:             "Failed to sync QoS profile with netop pods",
+				Action:              "Failed to sync QoS profile, will reconcile",
+				ReportingController: "slice",
+				Note:                err.Error(),
 			},
 		)
 	}
@@ -175,10 +178,13 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 			//post event to slice
 			r.EventRecorder.Record(
 				&events.Event{
-					Object:    slice,
-					EventType: events.EventTypeWarning,
-					Reason:    "Error",
-					Message:   "Failed to install egress",
+					Object:              slice,
+					EventType:           events.EventTypeWarning,
+					Reason:              "Error",
+					Message:             "Failed to install egress",
+					Action:              "Failed to install ingress, will reconcile",
+					ReportingController: "slice",
+					Note:                err.Error(),
 				},
 			)
 			return ctrl.Result{}, nil
@@ -193,10 +199,13 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 			//post event to slice
 			r.EventRecorder.Record(
 				&events.Event{
-					Object:    slice,
-					EventType: events.EventTypeWarning,
-					Reason:    "Error",
-					Message:   "Failed to install ingress",
+					Object:              slice,
+					EventType:           events.EventTypeWarning,
+					Reason:              "Error",
+					Message:             "Failed to install ingress",
+					Action:              "Failed to install ingress, will reconcile",
+					ReportingController: "slice",
+					Note:                err.Error(),
 				},
 			)
 			return ctrl.Result{}, nil
@@ -236,10 +245,12 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 			//post event to slice
 			r.EventRecorder.Record(
 				&events.Event{
-					Object:    slice,
-					EventType: events.EventTypeWarning,
-					Reason:    "Error",
-					Message:   "Failed to update app pod list in kubeslice-controller cluster",
+					Object:              slice,
+					EventType:           events.EventTypeWarning,
+					Reason:              "Error",
+					Message:             "Failed to update app pod list in kubeslice-controller cluster",
+					ReportingController: "slice",
+					Note:                err.Error(),
 				},
 			)
 			return ctrl.Result{}, err
@@ -307,10 +318,13 @@ func (r *SliceReconciler) handleDnsSvc(ctx context.Context, slice *kubeslicev1be
 			log.Info("DNS service not found in the cluster, probably coredns is not deployed; continuing")
 			r.EventRecorder.Record(
 				&events.Event{
-					Object:    slice,
-					EventType: events.EventTypeWarning,
-					Reason:    "Error",
-					Message:   "Failed to find DNS service in the cluster",
+					Object:              slice,
+					EventType:           events.EventTypeWarning,
+					Reason:              "Error",
+					Message:             "Failed to find DNS service in the cluster",
+					Action:              "DNS service not found in the cluster, probably coredns is not deployed; continuing",
+					ReportingController: "slice",
+					Note:                err.Error(),
 				},
 			)
 		} else {
@@ -327,10 +341,13 @@ func (r *SliceReconciler) handleDnsSvc(ctx context.Context, slice *kubeslicev1be
 		}
 		r.EventRecorder.Record(
 			&events.Event{
-				Object:    slice,
-				EventType: events.EventTypeNormal,
-				Reason:    "Success",
-				Message:   "Updated slice with DNS IP",
+				Object:              slice,
+				EventType:           events.EventTypeNormal,
+				Reason:              "Success",
+				Message:             "Updated slice with DNS IP",
+				Action:              "Success",
+				ReportingController: "slice",
+				Note:                "Update slice " + slice.Name + "with DNS IP " + slice.Status.DNSIP,
 			},
 		)
 		return true, ctrl.Result{}, nil
@@ -372,10 +389,13 @@ func (r *SliceReconciler) handleSliceDeletion(slice *kubeslicev1beta1.Slice, ctx
 			}
 			r.EventRecorder.Record(
 				&events.Event{
-					Object:    slice,
-					EventType: events.EventTypeNormal,
-					Reason:    "Success",
-					Message:   "Delete slice " + slice.Name,
+					Object:              slice,
+					EventType:           events.EventTypeNormal,
+					Reason:              "Success",
+					Message:             "Delete slice " + slice.Name,
+					Action:              "Slice Delete",
+					ReportingController: "slice",
+					Note:                "Slice " + slice.Name + " deleted",
 				},
 			)
 		}

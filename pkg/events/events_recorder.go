@@ -41,10 +41,13 @@ func NewEventRecorder(recorder record.EventRecorder) *EventRecorder {
 }
 
 type Event struct {
-	Object    runtime.Object
-	EventType EventType
-	Reason    string
-	Message   string
+	Object              runtime.Object
+	EventType           EventType
+	Reason              string
+	Message             string
+	Action              string
+	ReportingController string
+	Note                string
 }
 
 func (recorder *EventRecorder) Record(event *Event) {
