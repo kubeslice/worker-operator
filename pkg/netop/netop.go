@@ -98,7 +98,7 @@ func (spoke netopSidecarClient) SendSliceLifeCycleEventToNetOp(ctx context.Conte
 }
 
 // SendConnectionContext sends sonnectioncontext to netop sidecar
-func (spoke netopSidecarClient) SendConnectionContext(ctx context.Context, serverAddr string, gw *kubeslicev1beta1.SliceGateway, sliceGwNodePort int32) error {
+func (spoke netopSidecarClient) SendConnectionContext(ctx context.Context, serverAddr string, gw *kubeslicev1beta1.SliceGateway, sliceGwNodePorts []int) error {
 	conn, err := grpc.Dial(serverAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		return err
@@ -122,15 +122,23 @@ func (spoke netopSidecarClient) SendConnectionContext(ctx context.Context, serve
 		LocalSliceGwHostType:  gwType,
 		LocalSliceGwNsmSubnet: gw.Status.Config.SliceGatewaySubnet,
 		//LocalSliceGwNodeIP:    nodeIP,
-		LocalSliceGwNodePort: strconv.Itoa(int(sliceGwNodePort)),
+		LocalSliceGwNodePorts: convertIntSliceToStringSlice(sliceGwNodePorts),
 
 		RemoteSliceGwId:        gw.Status.Config.SliceGatewayRemoteGatewayID,
 		RemoteSliceGwVpnIP:     gw.Status.Config.SliceGatewayRemoteVpnIP,
 		RemoteSliceGwHostType:  remoteGwType,
 		RemoteSliceGwNsmSubnet: gw.Status.Config.SliceGatewayRemoteSubnet,
 		RemoteSliceGwNodeIP:    gw.Status.Config.SliceGatewayRemoteNodeIPs[0],
-		RemoteSliceGwNodePort:  strconv.Itoa(int(sliceGwNodePort)),
+		RemoteSliceGwNodePorts: convertIntSliceToStringSlice(sliceGwNodePorts),
 	}
 	_, err = client.UpdateConnectionContext(ctx, c)
 	return err
+}
+
+func convertIntSliceToStringSlice(intSlice []int) []string {
+	res := []string{}
+	for _, v := range intSlice {
+		res = append(res, strconv.Itoa(int(v)))
+	}
+	return res
 }

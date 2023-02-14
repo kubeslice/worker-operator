@@ -99,7 +99,7 @@ github.com/kubeslice/gateway-sidecar/pkg/metrics
 github.com/kubeslice/gateway-sidecar/pkg/nettools
 github.com/kubeslice/gateway-sidecar/pkg/sidecar/sidecarpb
 github.com/kubeslice/gateway-sidecar/pkg/status
-# github.com/kubeslice/netops v0.0.0-20220506082959-81fef290c265
+# github.com/kubeslice/netops v0.1.3-0.20230213131437-ab9e8614f587
 ## explicit
 github.com/kubeslice/netops/pkg/proto
 # github.com/kubeslice/router-sidecar v1.4.0
