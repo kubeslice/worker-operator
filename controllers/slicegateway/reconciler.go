@@ -190,6 +190,7 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 			return res, err
 		}
 		noOfGwServices = len(sliceGw.Status.Config.SliceGatewayRemoteNodePorts)
+		sliceGwNodePorts = sliceGw.Status.Config.SliceGatewayRemoteNodePorts
 	}
 	// Check if the deployment already exists, if not create a new one
 	// spin up 2 gw deployments
@@ -314,22 +315,21 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	if requeue {
 		return res, nil
 	}
+
 	log.Info("sync QoS with netop pods from slicegw")
-	for i := 0; i < len(sliceGwNodePorts); i++ {
-		err = r.SyncNetOpConnectionContextAndQos(ctx, slice, sliceGw, int32(sliceGwNodePorts[i]))
-		if err != nil {
-			log.Error(err, "Error sending QOS Profile to netop pod")
-			//post event to slicegw
-			r.EventRecorder.Record(
-				&events.Event{
-					Object:    sliceGw,
-					EventType: events.EventTypeWarning,
-					Reason:    "Error",
-					Message:   "Failed to send QOS Profile to netop pod",
-				},
-			)
-			return ctrl.Result{}, err
-		}
+	err = r.SyncNetOpConnectionContextAndQos(ctx, slice, sliceGw, sliceGwNodePorts)
+	if err != nil {
+		log.Error(err, "Error sending QOS Profile to netop pod")
+		//post event to slicegw
+		r.EventRecorder.Record(
+			&events.Event{
+				Object:    sliceGw,
+				EventType: events.EventTypeWarning,
+				Reason:    "Error",
+				Message:   "Failed to send QOS Profile to netop pod",
+			},
+		)
+		return ctrl.Result{}, err
 	}
 	if isServer(sliceGw) {
 		toRebalace, err := r.isRebalancingRequired(ctx, sliceGw)
