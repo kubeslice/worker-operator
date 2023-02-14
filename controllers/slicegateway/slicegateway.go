@@ -1111,7 +1111,7 @@ func (r *SliceGwReconciler) isRebalancingRequired(ctx context.Context, sliceGw *
 	//check if rebalancing is required
 	nodeToPodMap := make(map[string]int32)
 	PodList := corev1.PodList{}
-	labels := map[string]string{controllers.PodTypeSelectorLabelKey: "slicegateway"}
+	labels := map[string]string{controllers.PodTypeSelectorLabelKey: "slicegateway","kubeslice.io/slice-gw":sliceGw.Name}
 	listOptions := []client.ListOption{
 		client.MatchingLabels(labels),
 	}
