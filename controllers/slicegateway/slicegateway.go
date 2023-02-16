@@ -132,6 +132,7 @@ func (r *SliceGwReconciler) deploymentForGatewayServer(g *kubeslicev1beta1.Slice
 			Labels: map[string]string{
 				controllers.ApplicationNamespaceSelectorLabelKey: g.Spec.SliceName,
 				webhook.PodInjectLabelKey:                        "slicegateway",
+				"kubeslice.io/slicegw":                           g.Name,
 			},
 		},
 		Spec: appsv1.DeploymentSpec{
@@ -337,6 +338,7 @@ func (r *SliceGwReconciler) serviceForGateway(g *kubeslicev1beta1.SliceGateway, 
 			Namespace: g.Namespace,
 			Labels: map[string]string{
 				controllers.ApplicationNamespaceSelectorLabelKey: g.Spec.SliceName,
+				"kubeslice.io/slicegw":                           g.Name,
 			},
 		},
 		Spec: corev1.ServiceSpec{
@@ -792,7 +794,7 @@ func (r *SliceGwReconciler) SendConnectionContextToSliceRouter(ctx context.Conte
 	return ctrl.Result{}, nil, false
 }
 
-func (r *SliceGwReconciler) SyncNetOpConnectionContextAndQos(ctx context.Context, slice *kubeslicev1beta1.Slice, slicegw *kubeslicev1beta1.SliceGateway, sliceGwNodePort int32) error {
+func (r *SliceGwReconciler) SyncNetOpConnectionContextAndQos(ctx context.Context, slice *kubeslicev1beta1.Slice, slicegw *kubeslicev1beta1.SliceGateway, sliceGwNodePorts []int) error {
 	log := logger.FromContext(ctx).WithValues("type", "SliceGw")
 	debugLog := log.V(1)
 
@@ -801,7 +803,7 @@ func (r *SliceGwReconciler) SyncNetOpConnectionContextAndQos(ctx context.Context
 		debugLog.Info("syncing netop pod", "podName", n.PodName)
 		sidecarGrpcAddress := n.PodIP + ":5000"
 
-		err := r.WorkerNetOpClient.SendConnectionContext(ctx, sidecarGrpcAddress, slicegw, sliceGwNodePort)
+		err := r.WorkerNetOpClient.SendConnectionContext(ctx, sidecarGrpcAddress, slicegw, sliceGwNodePorts)
 		if err != nil {
 			log.Error(err, "Failed to send conn ctx to netop. PodIp: %v, PodName: %v", n.PodIP, n.PodName)
 			return err
@@ -1062,7 +1064,8 @@ func getPodAntiAffinity(slice string) *corev1.PodAntiAffinity {
 
 func (r *SliceGwReconciler) getNewestPod(slicegw *kubeslicev1beta1.SliceGateway) (*corev1.Pod, error) {
 	PodList := corev1.PodList{}
-	labels := map[string]string{"kubeslice.io/pod-type": "slicegateway", controllers.ApplicationNamespaceSelectorLabelKey: slicegw.Spec.SliceName}
+	labels := map[string]string{"kubeslice.io/pod-type": "slicegateway", controllers.ApplicationNamespaceSelectorLabelKey: slicegw.Spec.SliceName,
+		"kubeslice.io/slicegw": slicegw.Name}
 	listOptions := []client.ListOption{
 		client.MatchingLabels(labels),
 	}

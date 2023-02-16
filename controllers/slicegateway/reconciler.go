@@ -190,6 +190,7 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 			return res, err
 		}
 		noOfGwServices = len(sliceGw.Status.Config.SliceGatewayRemoteNodePorts)
+		sliceGwNodePorts = sliceGw.Status.Config.SliceGatewayRemoteNodePorts
 	}
 	// Check if the deployment already exists, if not create a new one
 	// spin up 2 gw deployments
@@ -312,22 +313,21 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	if requeue {
 		return res, nil
 	}
+
 	log.Info("sync QoS with netop pods from slicegw")
-	for i := 0; i < len(sliceGwNodePorts); i++ {
-		err = r.SyncNetOpConnectionContextAndQos(ctx, slice, sliceGw, int32(sliceGwNodePorts[i]))
-		if err != nil {
-			log.Error(err, "Error sending QOS Profile to netop pod")
-			//post event to slicegw
-			r.EventRecorder.Record(
-				&events.Event{
-					Object:    sliceGw,
-					EventType: events.EventTypeWarning,
-					Reason:    "Error",
-					Message:   "Failed to send QOS Profile to netop pod",
-				},
-			)
-			return ctrl.Result{}, err
-		}
+	err = r.SyncNetOpConnectionContextAndQos(ctx, slice, sliceGw, sliceGwNodePorts)
+	if err != nil {
+		log.Error(err, "Error sending QOS Profile to netop pod")
+		//post event to slicegw
+		r.EventRecorder.Record(
+			&events.Event{
+				Object:    sliceGw,
+				EventType: events.EventTypeWarning,
+				Reason:    "Error",
+				Message:   "Failed to send QOS Profile to netop pod",
+			},
+		)
+		return ctrl.Result{}, err
 	}
 	if isServer(sliceGw) {
 		toRebalace, err := r.isRebalancingRequired(ctx, sliceGw)
@@ -397,6 +397,7 @@ func (r *SliceGwReconciler) reconcileGwMap(ctx context.Context, sliceGw *kubesli
 	listOpts := []client.ListOption{
 		client.MatchingLabels(map[string]string{
 			controllers.ApplicationNamespaceSelectorLabelKey: sliceGw.Spec.SliceName,
+			"kubeslice.io/slicegw":                           sliceGw.Name,
 		}),
 	}
 	deployList := appsv1.DeploymentList{}
@@ -421,6 +422,7 @@ func (r *SliceGwReconciler) getDeployments(ctx context.Context, sliceGw *kubesli
 		client.MatchingLabels(map[string]string{
 			controllers.ApplicationNamespaceSelectorLabelKey: sliceGw.Spec.SliceName,
 			webhook.PodInjectLabelKey:                        "slicegateway",
+			"kubeslice.io/slicegw":                           sliceGw.Name,
 		}),
 		client.InNamespace(controllers.ControlPlaneNamespace),
 	}
@@ -445,6 +447,7 @@ func (r *SliceGwReconciler) getNumberOfGatewayNodePortServices(ctx context.Conte
 	listOpts := []client.ListOption{
 		client.MatchingLabels(map[string]string{
 			controllers.ApplicationNamespaceSelectorLabelKey: sliceGw.Spec.SliceName,
+			"kubeslice.io/slicegw":                           sliceGw.Name,
 		}),
 		client.InNamespace(controllers.ControlPlaneNamespace),
 	}
@@ -459,6 +462,7 @@ func (r *SliceGwReconciler) getNodePorts(ctx context.Context, sliceGw *kubeslice
 	listOpts := []client.ListOption{
 		client.MatchingLabels(map[string]string{
 			controllers.ApplicationNamespaceSelectorLabelKey: sliceGw.Spec.SliceName,
+			"kubeslice.io/slicegw":                           sliceGw.Name,
 		}),
 	}
 	services := corev1.ServiceList{}
