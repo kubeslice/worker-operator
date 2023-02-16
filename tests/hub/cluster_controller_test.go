@@ -198,15 +198,256 @@ Prefixes:
 			Expect(cluster.Spec.ClusterProperty.Monitoring.KubernetesDashboard.Endpoint).
 				Should(Equal(hostname))
 		})
-		It("Should update cluster CR with health status", func() {
-			//get the cluster object
+	})
+	Context("Cluster health check", func() {
+		var ns, nsSpire, nsIstio *corev1.Namespace
+		var cluster *hubv1alpha1.Cluster
+		var operatorSecret *corev1.Secret
+		var sa *corev1.ServiceAccount
+		var pods []*corev1.Pod
+
+		BeforeEach(func() {
+			ns = &corev1.Namespace{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: PROJECT_NS,
+				},
+			}
+			nsSpire = &corev1.Namespace{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "spire",
+				},
+			}
+			nsIstio = &corev1.Namespace{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "istio-system",
+				},
+			}
+			cluster = &hubv1alpha1.Cluster{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      CLUSTER_NAME,
+					Namespace: PROJECT_NS,
+				},
+				Spec:   hubv1alpha1.ClusterSpec{},
+				Status: hubv1alpha1.ClusterStatus{},
+			}
+			os.Setenv("HUB_PROJECT_NAMESPACE", PROJECT_NS)
+			os.Setenv("CLUSTER_NAME", CLUSTER_NAME)
+			operatorSecret = getSecret("kubeslice-kubernetes-dashboard", CONTROL_PLANE_NS)
+			sa = getSA("kubeslice-kubernetes-dashboard", CONTROL_PLANE_NS, operatorSecret.Name)
+			Expect(k8sClient.Create(ctx, ns))
+			Expect(k8sClient.Create(ctx, nsSpire))
+			Expect(k8sClient.Create(ctx, nsIstio))
+			Expect(k8sClient.Create(ctx, operatorSecret))
+			Expect(k8sClient.Create(ctx, sa))
+			Expect(k8sClient.Create(ctx, cluster))
+
+			DeferCleanup(func() {
+				k8sClient.Delete(ctx, cluster)
+				k8sClient.Delete(ctx, operatorSecret)
+				k8sClient.Delete(ctx, sa)
+
+				// Wait for cluster CR to be cleaned up
+				Eventually(func() bool {
+					err := k8sClient.Get(ctx, types.NamespacedName{Name: cluster.Name, Namespace: cluster.Namespace}, cluster)
+					return err != nil && errors.IsNotFound(err)
+				}, time.Second*10, time.Second*1).Should(BeTrue())
+
+				// delete all pods which were created for checking health status
+				for _, pod := range pods {
+					k8sClient.Delete(ctx, pod)
+					pods = []*corev1.Pod{}
+				}
+			})
+		})
+
+		It("Should update cluster CR with health status updated time", func() {
 			Eventually(func() bool {
 				err := k8sClient.Get(ctx, types.NamespacedName{Name: cluster.Name, Namespace: cluster.Namespace}, cluster)
-				return err == nil
-			}, time.Second*10, time.Millisecond*250).Should(BeTrue())
+				return err == nil && cluster.Status.ClusterHealth != nil
+			}, time.Second*10, time.Second*1).Should(BeTrue())
+			last := cluster.Status.ClusterHealth.LastUpdated
 
-			Expect(cluster.Status.ClusterHealth.LastUpdated).ShouldNot(BeNil())
+			// LastUpdated should be updated every few seconds
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, types.NamespacedName{Name: cluster.Name, Namespace: cluster.Namespace}, cluster)
+				return err == nil && cluster.Status.ClusterHealth != nil && !cluster.Status.ClusterHealth.LastUpdated.Equal(&last)
+			}, time.Second*20, time.Second*1).Should(BeTrue())
 		})
+
+		It("Should update cluster CR with compoent status as error for all", func() {
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, types.NamespacedName{Name: cluster.Name, Namespace: cluster.Namespace}, cluster)
+				GinkgoWriter.Println(cluster)
+				return err == nil && cluster.Status.ClusterHealth != nil
+			}, time.Second*10, time.Second*1).Should(BeTrue())
+			cs := cluster.Status.ClusterHealth.ComponentStatuses
+
+			Expect(cs).Should(HaveLen(6))
+
+			for _, c := range cs {
+				Expect(string(c.ComponentHealthStatus)).Should(Equal("Error"))
+			}
+		})
+
+		It("Should update cluster CR with component status as normal when pods running", func() {
+			pods := []*corev1.Pod{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "nsmgr",
+						Labels: map[string]string{
+							"app": "nsmgr",
+						},
+						Namespace: "kubeslice-system",
+					},
+					Spec: corev1.PodSpec{
+						Containers: []corev1.Container{{
+							Name:  "nsmgr",
+							Image: "nsmgr",
+						}},
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "forwarder",
+						Labels: map[string]string{
+							"app": "forwarder-kernel",
+						},
+						Namespace: "kubeslice-system",
+					},
+					Spec: corev1.PodSpec{
+						Containers: []corev1.Container{{
+							Name:  "test",
+							Image: "test",
+						}},
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "admission-webhook",
+						Labels: map[string]string{
+							"app": "admission-webhook-k8s",
+						},
+						Namespace: "kubeslice-system",
+					},
+					Spec: corev1.PodSpec{
+						Containers: []corev1.Container{{
+							Name:  "test",
+							Image: "test",
+						}},
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "netop",
+						Labels: map[string]string{
+							"app":                   "app_net_op",
+							"kubeslice.io/pod-type": "netop",
+						},
+						Namespace: "kubeslice-system",
+					},
+					Spec: corev1.PodSpec{
+						Containers: []corev1.Container{{
+							Name:  "test",
+							Image: "test",
+						}},
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "spire-agent",
+						Labels: map[string]string{
+							"app": "spire-agent",
+						},
+						Namespace: "spire",
+					},
+					Spec: corev1.PodSpec{
+						Containers: []corev1.Container{{
+							Name:  "test",
+							Image: "test",
+						}},
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "spire-server",
+						Labels: map[string]string{
+							"app": "spire-server",
+						},
+						Namespace: "spire",
+					},
+					Spec: corev1.PodSpec{
+						Containers: []corev1.Container{{
+							Name:  "test",
+							Image: "test",
+						}},
+					},
+				},
+			}
+			for _, pod := range pods {
+				Expect(k8sClient.Create(ctx, pod)).ToNot(HaveOccurred())
+				pod.Status.Phase = corev1.PodRunning
+				Expect(k8sClient.Status().Update(ctx, pod)).ToNot(HaveOccurred())
+			}
+
+			// wait for next reconcile loop
+			time.Sleep(10 * time.Second)
+
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, types.NamespacedName{Name: cluster.Name, Namespace: cluster.Namespace}, cluster)
+				return err == nil && cluster.Status.ClusterHealth != nil
+			}, time.Second*10, time.Second*1).Should(BeTrue())
+
+			cs := cluster.Status.ClusterHealth.ComponentStatuses
+			Expect(cs).Should(HaveLen(6))
+
+			for i, c := range cs {
+				Expect(c.Component).Should(Equal(pods[i].ObjectMeta.Name))
+				Expect(string(c.ComponentHealthStatus)).Should(Equal("Normal"))
+			}
+
+		})
+
+		It("Should update cluster CR with istio status", func() {
+			pods := []*corev1.Pod{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "istiod",
+						Labels: map[string]string{
+							"app":   "istiod",
+							"istio": "pilot",
+						},
+						Namespace: "istio-system",
+					},
+					Spec: corev1.PodSpec{
+						Containers: []corev1.Container{{
+							Name:  "test",
+							Image: "test",
+						}},
+					},
+				},
+			}
+			for _, pod := range pods {
+				Expect(k8sClient.Create(ctx, pod)).ToNot(HaveOccurred())
+				pod.Status.Phase = corev1.PodRunning
+				Expect(k8sClient.Status().Update(ctx, pod)).ToNot(HaveOccurred())
+			}
+
+			// wait for next reconcile loop
+			time.Sleep(10 * time.Second)
+
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, types.NamespacedName{Name: cluster.Name, Namespace: cluster.Namespace}, cluster)
+				return err == nil && cluster.Status.ClusterHealth != nil
+			}, time.Second*10, time.Second*1).Should(BeTrue())
+
+			cs := cluster.Status.ClusterHealth.ComponentStatuses
+			Expect(cs).Should(HaveLen(7))
+
+			Expect(cs[6].Component).Should(Equal(("istiod")))
+			Expect(string(cs[6].ComponentHealthStatus)).Should(Equal("Normal"))
+
+		})
+
 	})
 })
 

@@ -52,15 +52,21 @@ func (r *ClusterReconciler) Reconcile(ctx context.Context, req reconcile.Request
 		if err := r.updateClusterInfo(ctx, cr); err != nil {
 			log.Error(err, "unable to update cluster info")
 		}
+	}
+
+	// Update dashboard creds if it hasn't already
+	if !r.isDashboardCredsUpdated(ctx, cr) {
 		if err := r.updateDashboardCreds(ctx, cr); err != nil {
 			log.Error(err, "unable to update dashboard creds")
-			return reconcile.Result{}, err
 		}
-		log.Info("dashboard creds updated")
 	}
 
 	if cr.Status.ClusterHealth == nil {
 		cr.Status.ClusterHealth = &hubv1alpha1.ClusterHealth{}
+	}
+
+	if err := r.updateClusterHealthStatus(ctx, cr); err != nil {
+		log.Error(err, "unable to update cluster health status")
 	}
 
 	cr.Status.ClusterHealth.LastUpdated = metav1.Now()
@@ -69,6 +75,122 @@ func (r *ClusterReconciler) Reconcile(ctx context.Context, req reconcile.Request
 	}
 
 	return reconcile.Result{RequeueAfter: ReconcileInterval}, nil
+}
+
+type component struct {
+	name          string
+	labels        map[string]string
+	ns            string
+	ignoreMissing bool
+}
+
+var components = []component{
+	{
+		name: "nsmgr",
+		labels: map[string]string{
+			"app": "nsmgr",
+		},
+		ns: controllers.ControlPlaneNamespace,
+	},
+	{
+		name: "forwarder",
+		labels: map[string]string{
+			"app": "forwarder-kernel",
+		},
+		ns: controllers.ControlPlaneNamespace,
+	},
+	{
+		name: "admission-webhook",
+		labels: map[string]string{
+			"app": "admission-webhook-k8s",
+		},
+		ns: controllers.ControlPlaneNamespace,
+	},
+	{
+		name: "netop",
+		labels: map[string]string{
+			"app":                   "app_net_op",
+			"kubeslice.io/pod-type": "netop",
+		},
+		ns: controllers.ControlPlaneNamespace,
+	},
+	{
+		name: "spire-agent",
+		labels: map[string]string{
+			"app": "spire-agent",
+		},
+		ns: "spire",
+	},
+	{
+		name: "spire-server",
+		labels: map[string]string{
+			"app": "spire-server",
+		},
+		ns: "spire",
+	},
+	{
+		name: "istiod",
+		labels: map[string]string{
+			"app":   "istiod",
+			"istio": "pilot",
+		},
+		ns:            "istio-system",
+		ignoreMissing: true,
+	},
+}
+
+func (r *ClusterReconciler) updateClusterHealthStatus(ctx context.Context, cr *hubv1alpha1.Cluster) error {
+	log := logger.FromContext(ctx)
+	cr.Status.ClusterHealth.ComponentStatuses = []hubv1alpha1.ComponentStatus{}
+
+	for _, c := range components {
+		cs, err := r.getComponentStatus(ctx, &c)
+		if err != nil {
+			log.Error(err, "unable to fetch component status")
+		}
+		if cs != nil {
+			cr.Status.ClusterHealth.ComponentStatuses = append(cr.Status.ClusterHealth.ComponentStatuses, *cs)
+		}
+	}
+
+	return nil
+}
+
+func (r *ClusterReconciler) getComponentStatus(ctx context.Context, c *component) (*hubv1alpha1.ComponentStatus, error) {
+	log := logger.FromContext(ctx)
+	podList := &corev1.PodList{}
+	listOpts := []client.ListOption{
+		client.MatchingLabels(c.labels),
+		client.InNamespace(c.ns),
+	}
+	if err := r.MeshClient.List(ctx, podList, listOpts...); err != nil {
+		log.Error(err, "Failed to list pods", "pod", c.name)
+		return nil, err
+	}
+
+	pods := podList.Items
+	cs := &hubv1alpha1.ComponentStatus{
+		Component: c.name,
+	}
+	if len(pods) == 0 && c.ignoreMissing {
+		return nil, nil
+	}
+	if len(pods) == 0 {
+		log.Error(fmt.Errorf("No pods running"), "unhealthy", "pod", c.name)
+		cs.ComponentHealthStatus = hubv1alpha1.ComponentHealthStatusError
+		return cs, nil
+	}
+
+	for _, pod := range pods {
+		if pod.Status.Phase != corev1.PodRunning {
+			log.Info("pod is not healthy", "component", c.name)
+			cs.ComponentHealthStatus = hubv1alpha1.ComponentHealthStatusError
+			return cs, nil
+		}
+	}
+
+	cs.ComponentHealthStatus = hubv1alpha1.ComponentHealthStatusNormal
+	return cs, nil
 }
 
 func (r *ClusterReconciler) updateClusterInfo(ctx context.Context, cr *hubv1alpha1.Cluster) error {
@@ -117,6 +239,10 @@ func (r *ClusterReconciler) updateClusterInfo(ctx context.Context, cr *hubv1alph
 	}
 
 	return nil
+}
+
+func (r *ClusterReconciler) isDashboardCredsUpdated(ctx context.Context, cr *hubv1alpha1.Cluster) bool {
+	return cr.Spec.ClusterProperty.Monitoring.KubernetesDashboard.Enabled
 }
 
 func (r *ClusterReconciler) updateDashboardCreds(ctx context.Context, cr *hubv1alpha1.Cluster) error {
