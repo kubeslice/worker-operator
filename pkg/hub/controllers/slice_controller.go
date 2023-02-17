@@ -335,7 +335,7 @@ func (r *SliceReconciler) updateSliceHealth(ctx context.Context, slice *spokev1a
 			if cs.ComponentHealthStatus != spokev1alpha1.ComponentHealthStatusNormal {
 				slice.Status.SliceHealth.SliceHealthStatus = spokev1alpha1.SliceHealthStatusWarning
 			}
-			log.Info("GOURISH", "component ", c.name, " status ", cs.ComponentHealthStatus)
+			log.Info("component ", c.name, " status ", cs.ComponentHealthStatus)
 		}
 	}
 	return nil
