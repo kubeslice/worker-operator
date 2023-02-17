@@ -284,6 +284,8 @@ Prefixes:
 
 			Expect(cs).Should(HaveLen(6))
 
+			Expect(string(cluster.Status.ClusterHealth.ClusterHealthStatus)).Should(Equal("Warning"))
+
 			for _, c := range cs {
 				Expect(string(c.ComponentHealthStatus)).Should(Equal("Error"))
 			}
@@ -399,6 +401,8 @@ Prefixes:
 
 			cs := cluster.Status.ClusterHealth.ComponentStatuses
 			Expect(cs).Should(HaveLen(6))
+
+			Expect(string(cluster.Status.ClusterHealth.ClusterHealthStatus)).Should(Equal("Normal"))
 
 			for i, c := range cs {
 				Expect(c.Component).Should(Equal(pods[i].ObjectMeta.Name))

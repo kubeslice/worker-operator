@@ -38,6 +38,7 @@ import (
 	"github.com/kubeslice/worker-operator/pkg/events"
 	sidecar "github.com/kubeslice/worker-operator/pkg/gwsidecar"
 	"github.com/kubeslice/worker-operator/pkg/hub/controllers"
+	hubCluster "github.com/kubeslice/worker-operator/pkg/hub/controllers/cluster"
 	"github.com/kubeslice/worker-operator/pkg/hub/controllers/workerslicegwrecycler"
 	"github.com/kubeslice/worker-operator/pkg/logger"
 	"github.com/kubeslice/worker-operator/pkg/router"
@@ -163,7 +164,7 @@ func Start(meshClient client.Client, ctx context.Context) {
 	}
 
 	spokeClusterEventRecorder := events.NewEventRecorder(mgr.GetEventRecorderFor("cluster-controller"))
-	clusterReconciler := &controllers.ClusterReconciler{
+	clusterReconciler := &hubCluster.Reconciler{
 		MeshClient:    meshClient,
 		EventRecorder: spokeClusterEventRecorder,
 	}

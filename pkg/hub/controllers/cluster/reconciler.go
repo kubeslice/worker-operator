@@ -1,4 +1,4 @@
-package controllers
+package cluster
 
 import (
 	"context"
@@ -29,13 +29,13 @@ const (
 	ReconcileInterval = 10 * time.Second
 )
 
-type ClusterReconciler struct {
+type Reconciler struct {
 	client.Client
 	MeshClient    client.Client
 	EventRecorder *events.EventRecorder
 }
 
-func (r *ClusterReconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
+func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
 	log := logger.FromContext(ctx).WithName("cluster-reconciler")
 	ctx = logger.WithLogger(ctx, log)
 
@@ -77,71 +77,10 @@ func (r *ClusterReconciler) Reconcile(ctx context.Context, req reconcile.Request
 	return reconcile.Result{RequeueAfter: ReconcileInterval}, nil
 }
 
-type component struct {
-	name          string
-	labels        map[string]string
-	ns            string
-	ignoreMissing bool
-}
-
-var components = []component{
-	{
-		name: "nsmgr",
-		labels: map[string]string{
-			"app": "nsmgr",
-		},
-		ns: controllers.ControlPlaneNamespace,
-	},
-	{
-		name: "forwarder",
-		labels: map[string]string{
-			"app": "forwarder-kernel",
-		},
-		ns: controllers.ControlPlaneNamespace,
-	},
-	{
-		name: "admission-webhook",
-		labels: map[string]string{
-			"app": "admission-webhook-k8s",
-		},
-		ns: controllers.ControlPlaneNamespace,
-	},
-	{
-		name: "netop",
-		labels: map[string]string{
-			"app":                   "app_net_op",
-			"kubeslice.io/pod-type": "netop",
-		},
-		ns: controllers.ControlPlaneNamespace,
-	},
-	{
-		name: "spire-agent",
-		labels: map[string]string{
-			"app": "spire-agent",
-		},
-		ns: "spire",
-	},
-	{
-		name: "spire-server",
-		labels: map[string]string{
-			"app": "spire-server",
-		},
-		ns: "spire",
-	},
-	{
-		name: "istiod",
-		labels: map[string]string{
-			"app":   "istiod",
-			"istio": "pilot",
-		},
-		ns:            "istio-system",
-		ignoreMissing: true,
-	},
-}
-
-func (r *ClusterReconciler) updateClusterHealthStatus(ctx context.Context, cr *hubv1alpha1.Cluster) error {
+func (r *Reconciler) updateClusterHealthStatus(ctx context.Context, cr *hubv1alpha1.Cluster) error {
 	log := logger.FromContext(ctx)
 	cr.Status.ClusterHealth.ComponentStatuses = []hubv1alpha1.ComponentStatus{}
+	cr.Status.ClusterHealth.ClusterHealthStatus = hubv1alpha1.ClusterHealthStatusNormal
 
 	for _, c := range components {
 		cs, err := r.getComponentStatus(ctx, &c)
@@ -150,13 +89,16 @@ func (r *ClusterReconciler) updateClusterHealthStatus(ctx context.Context, cr *h
 		}
 		if cs != nil {
 			cr.Status.ClusterHealth.ComponentStatuses = append(cr.Status.ClusterHealth.ComponentStatuses, *cs)
+			if cs.ComponentHealthStatus != hubv1alpha1.ComponentHealthStatusNormal {
+				cr.Status.ClusterHealth.ClusterHealthStatus = hubv1alpha1.ClusterHealthStatusWarning
+			}
 		}
 	}
 
 	return nil
 }
 
-func (r *ClusterReconciler) getComponentStatus(ctx context.Context, c *component) (*hubv1alpha1.ComponentStatus, error) {
+func (r *Reconciler) getComponentStatus(ctx context.Context, c *component) (*hubv1alpha1.ComponentStatus, error) {
 	log := logger.FromContext(ctx)
 	podList := &corev1.PodList{}
 	listOpts := []client.ListOption{
@@ -193,7 +135,7 @@ func (r *ClusterReconciler) getComponentStatus(ctx context.Context, c *component
 	return cs, nil
 }
 
-func (r *ClusterReconciler) updateClusterInfo(ctx context.Context, cr *hubv1alpha1.Cluster) error {
+func (r *Reconciler) updateClusterInfo(ctx context.Context, cr *hubv1alpha1.Cluster) error {
 	log := logger.FromContext(ctx)
 	cl := cluster.NewCluster(r.MeshClient, clusterName)
 	clusterInfo, err := cl.GetClusterInfo(ctx)
@@ -241,11 +183,11 @@ func (r *ClusterReconciler) updateClusterInfo(ctx context.Context, cr *hubv1alph
 	return nil
 }
 
-func (r *ClusterReconciler) isDashboardCredsUpdated(ctx context.Context, cr *hubv1alpha1.Cluster) bool {
+func (r *Reconciler) isDashboardCredsUpdated(ctx context.Context, cr *hubv1alpha1.Cluster) bool {
 	return cr.Spec.ClusterProperty.Monitoring.KubernetesDashboard.Enabled
 }
 
-func (r *ClusterReconciler) updateDashboardCreds(ctx context.Context, cr *hubv1alpha1.Cluster) error {
+func (r *Reconciler) updateDashboardCreds(ctx context.Context, cr *hubv1alpha1.Cluster) error {
 	log := logger.FromContext(ctx)
 	log.Info("Updating kubernetes dashboard creds")
 
@@ -313,7 +255,7 @@ func (r *ClusterReconciler) updateDashboardCreds(ctx context.Context, cr *hubv1a
 	return r.Update(ctx, cr)
 }
 
-func (r *ClusterReconciler) getCluster(ctx context.Context, req reconcile.Request) (*hubv1alpha1.Cluster, error) {
+func (r *Reconciler) getCluster(ctx context.Context, req reconcile.Request) (*hubv1alpha1.Cluster, error) {
 	hubCluster := &hubv1alpha1.Cluster{}
 	log := logger.FromContext(ctx)
 	err := r.Get(ctx, req.NamespacedName, hubCluster)
@@ -329,7 +271,7 @@ func (r *ClusterReconciler) getCluster(ctx context.Context, req reconcile.Reques
 	return hubCluster, nil
 }
 
-func (r *ClusterReconciler) InjectClient(c client.Client) error {
+func (r *Reconciler) InjectClient(c client.Client) error {
 	r.Client = c
 	return nil
 }
