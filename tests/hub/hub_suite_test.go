@@ -42,6 +42,7 @@ import (
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
 	"github.com/kubeslice/worker-operator/pkg/events"
 	"github.com/kubeslice/worker-operator/pkg/hub/controllers"
+	"github.com/kubeslice/worker-operator/pkg/hub/controllers/cluster"
 	"github.com/kubeslice/worker-operator/pkg/hub/controllers/workerslicegwrecycler"
 	workerrouter "github.com/kubeslice/worker-operator/tests/emulator/workerclient/router"
 	workergw "github.com/kubeslice/worker-operator/tests/emulator/workerclient/sidecargw"
@@ -185,7 +186,7 @@ var _ = BeforeSuite(func() {
 	}
 
 	spokeClusterEventRecorder := events.NewEventRecorder(k8sManager.GetEventRecorderFor("cluster-controller"))
-	clusterReconciler := &controllers.ClusterReconciler{
+	clusterReconciler := &cluster.Reconciler{
 		MeshClient:    k8sClient,
 		EventRecorder: spokeClusterEventRecorder,
 	}
