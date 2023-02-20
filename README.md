@@ -104,7 +104,7 @@ The image is set as `docker.io/aveshasystems/worker-operator:$(VERSION)` in the 
 
 ### Deploy the Worker Operator on a Cluster
 
-Create the chart values file called `yourvaluesfile.yaml`.
+Create a chart values file called `yourvaluesfile.yaml`.
 Refer to [values.yaml](https://github.com/kubeslice/charts/blob/master/charts/kubeslice-worker/values.yaml) to create `yourvaluesfile.yaml` and update the operator image subsection to use the local image.
 
 From the sample: 
