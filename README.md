@@ -8,8 +8,8 @@ The `kubeslice-worker` operator uses Kubebuilder, a framework for building Kuber
 It is strongly recommended that you use a released version.
 
 Please refer to our documentation on:
-- [Install KubeSlice on cloud clusters](https://kubeslice.io/documentation/open-source/0.5.0/getting-started-with-cloud-clusters/installing-kubeslice/installing-the-kubeslice-controller)
-- [Install KubeSlice on kind clusters](https://kubeslice.io/documentation/open-source/0.5.0/tutorials/kind-install-kubeslice-controller)
+- [Install KubeSlice on cloud clusters](https://kubeslice.io/documentation/open-source/0.6.0/getting-started-with-cloud-clusters/installing-kubeslice/installing-the-kubeslice-controller)
+- [Install KubeSlice on kind clusters](https://kubeslice.io/documentation/open-source/0.6.0/tutorials/kind-install-kubeslice-controller)
 
 ## Install `kubeslice-worker` on a Kind Cluster
 
@@ -69,7 +69,7 @@ deploy/controller_secret.sh gke_avesha-dev_us-east1-c_xxxx kubeslice-cisco my-aw
    ```
 
 2. Edit the `VERSION` variable in the Makefile to change the docker tag to be built.
-Image is set as `docker.io/aveshasystems/worker-operator:$(VERSION)` in the Makefile. Modify this if required.
+The image is set as `docker.io/aveshasystems/worker-operator:$(VERSION)` in the Makefile. Modify this if required.
 
    ```console
    make docker-build
@@ -78,7 +78,7 @@ Image is set as `docker.io/aveshasystems/worker-operator:$(VERSION)` in the Make
 
 ### Run the Local Image on a Kind Cluster
 
-1. You can load the worker operator on your kind cluster using the following command:
+1. You can load the Worker Operator on your kind cluster using the following command:
 
    ```console
    kind load docker-image <my-custom-image>:<unique-tag> --name <cluster-name>
@@ -102,9 +102,9 @@ Image is set as `docker.io/aveshasystems/worker-operator:$(VERSION)` in the Make
    docker exec -it kind-control-plane crictl images
    ```
 
-### Deploy on a Cluster
+### Deploy the Worker Operator on a Cluster
 
-Create a chart values file, `yourvaluesfile.yaml`.
+Create the chart values file called `yourvaluesfile.yaml`.
 Refer to [values.yaml](https://github.com/kubeslice/charts/blob/master/charts/kubeslice-worker/values.yaml) to create `yourvaluesfile.yaml` and update the operator image subsection to use the local image.
 
 From the sample: 
