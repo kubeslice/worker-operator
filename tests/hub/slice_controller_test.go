@@ -255,5 +255,186 @@ var _ = Describe("Hub SliceController", func() {
 		})
 
 	})
+	Context("Slice health check", func() {
+		var hubSlice *workerv1alpha1.WorkerSliceConfig
+		var pods []*corev1.Pod
+		var ipamOcter = 16
+		BeforeEach(func() {
+			hubSlice = &workerv1alpha1.WorkerSliceConfig{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-slice-4",
+					Namespace: PROJECT_NS,
+					Labels: map[string]string{
+						"worker-cluster": CLUSTER_NAME,
+					},
+				},
+				Spec: workerv1alpha1.WorkerSliceConfigSpec{
+					SliceName:        "test-slice-4",
+					IpamClusterOctet: ipamOcter,
+					ExternalGatewayConfig: workerv1alpha1.ExternalGatewayConfig{
+						Ingress: workerv1alpha1.ExternalGatewayConfigOptions{
+							Enabled: true,
+						},
+						Egress: workerv1alpha1.ExternalGatewayConfigOptions{
+							Enabled: true,
+						},
+						NsIngress: workerv1alpha1.ExternalGatewayConfigOptions{
+							Enabled: true,
+						},
+					},
+				},
+			}
+			Expect(k8sClient.Create(ctx, hubSlice)).Should(Succeed())
+			DeferCleanup(func() {
+				Expect(k8sClient.Delete(ctx, hubSlice)).Should(Succeed())
+				Eventually(func() bool {
+					err := k8sClient.Get(ctx, types.NamespacedName{Namespace: hubSlice.Namespace, Name: hubSlice.Name}, hubSlice)
+					return errors.IsNotFound(err)
+				}, time.Second*10, time.Millisecond*250).Should(BeTrue())
+				// delete all pods which were created for checking health status
+				for _, pod := range pods {
+					k8sClient.Delete(ctx, pod)
+					pods = []*corev1.Pod{}
+				}
+			})
+		})
 
+		It("Should update slice CR with health status updated time", func() {
+			Expect(k8sClient.Create(ctx, hubSlice)).Should(Succeed())
+			sliceKey := types.NamespacedName{Name: hubSlice.Name, Namespace: hubSlice.Namespace}
+
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, sliceKey, hubSlice)
+				return err == nil && hubSlice.Status.SliceHealth != nil
+			}, time.Second*10, time.Second*1).Should(BeTrue())
+			last := hubSlice.Status.SliceHealth.LastUpdated
+
+			// LastUpdated should be updated every few seconds
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, sliceKey, hubSlice)
+				return err == nil && hubSlice.Status.SliceHealth != nil && !hubSlice.Status.SliceHealth.LastUpdated.Equal(&last)
+			}, time.Second*20, time.Second*1).Should(BeTrue())
+		})
+
+		It("Should update slice CR with component status as error for all", func() {
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, types.NamespacedName{Name: hubSlice.Name, Namespace: hubSlice.Namespace}, hubSlice)
+				GinkgoWriter.Println(hubSlice)
+				return err == nil && hubSlice.Status.SliceHealth != nil
+			}, time.Second*10, time.Second*1).Should(BeTrue())
+			cs := hubSlice.Status.SliceHealth.ComponentStatuses
+
+			Expect(cs).Should(HaveLen(3))
+
+			Expect(string(hubSlice.Status.SliceHealth.SliceHealthStatus)).Should(Equal("Warning"))
+
+			for _, c := range cs {
+				Expect(string(c.ComponentHealthStatus)).Should(Equal("Error"))
+			}
+		})
+
+		It("Should update slice CR with component status as normal when pods running", func() {
+			pods := []*corev1.Pod{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "dns",
+						Labels: map[string]string{
+							"app": "kubeslice-dns",
+						},
+						Namespace: "kubeslice-system",
+					},
+					Spec: corev1.PodSpec{
+						Containers: []corev1.Container{{
+							Name:  "test",
+							Image: "test",
+						}},
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "slicegateway",
+						Labels: map[string]string{
+							"kubeslice.io/pod-type": "slicegateway",
+						},
+						Namespace: "kubeslice-system",
+					},
+					Spec: corev1.PodSpec{
+						Containers: []corev1.Container{{
+							Name:  "test",
+							Image: "test",
+						}},
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "slicerouter",
+						Labels: map[string]string{
+							"kubeslice.io/pod-type": "router",
+						},
+						Namespace: "kubeslice-system",
+					},
+					Spec: corev1.PodSpec{
+						Containers: []corev1.Container{{
+							Name:  "test",
+							Image: "test",
+						}},
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "egress",
+						Labels: map[string]string{
+							"istio": "egressgateway",
+						},
+						Namespace: "kubeslice-system",
+					},
+					Spec: corev1.PodSpec{
+						Containers: []corev1.Container{{
+							Name:  "test",
+							Image: "test",
+						}},
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "ingress",
+						Labels: map[string]string{
+							"istio": "ingressgateway",
+						},
+						Namespace: "kubeslice-system",
+					},
+					Spec: corev1.PodSpec{
+						Containers: []corev1.Container{{
+							Name:  "test",
+							Image: "test",
+						}},
+					},
+				},
+			}
+			for _, pod := range pods {
+				Expect(k8sClient.Create(ctx, pod)).ToNot(HaveOccurred())
+				pod.Status.Phase = corev1.PodRunning
+				Expect(k8sClient.Status().Update(ctx, pod)).ToNot(HaveOccurred())
+			}
+
+			// wait for next reconcile loop
+			time.Sleep(10 * time.Second)
+
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, types.NamespacedName{Name: hubSlice.Name, Namespace: hubSlice.Namespace}, hubSlice)
+				return err == nil && hubSlice.Status.SliceHealth != nil
+			}, time.Second*10, time.Second*1).Should(BeTrue())
+
+			cs := hubSlice.Status.SliceHealth.ComponentStatuses
+			Expect(cs).Should(HaveLen(5))
+
+			Expect(string(hubSlice.Status.SliceHealth.SliceHealthStatus)).Should(Equal("Normal"))
+
+			for i, c := range cs {
+				Expect(c.Component).Should(Equal(pods[i].ObjectMeta.Name))
+				Expect(string(c.ComponentHealthStatus)).Should(Equal("Normal"))
+			}
+
+		})
+	})
 })

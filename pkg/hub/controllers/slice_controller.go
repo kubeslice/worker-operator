@@ -335,7 +335,6 @@ func (r *SliceReconciler) updateSliceHealth(ctx context.Context, slice *spokev1a
 			if cs.ComponentHealthStatus != spokev1alpha1.ComponentHealthStatusNormal {
 				slice.Status.SliceHealth.SliceHealthStatus = spokev1alpha1.SliceHealthStatusWarning
 			}
-			log.Info("component ", c.name, " status ", cs.ComponentHealthStatus)
 		}
 	}
 	return nil
@@ -360,7 +359,7 @@ func (r *SliceReconciler) getComponentStatus(ctx context.Context, c *component) 
 		return nil, nil
 	}
 	if len(pods) == 0 {
-		log.Error(fmt.Errorf("no pods running"), "unhealthy pod", c.name)
+		log.Error(fmt.Errorf("no pods running"), "unhealthy", "pod", c.name)
 		cs.ComponentHealthStatus = spokev1alpha1.ComponentHealthStatusError
 		return cs, nil
 	}
