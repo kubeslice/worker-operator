@@ -101,6 +101,14 @@ var _ = Describe("ServiceExportController", func() {
 					err := k8sClient.Get(ctx, types.NamespacedName{Name: dnssvc.Name, Namespace: dnssvc.Namespace}, dnssvc)
 					return errors.IsNotFound(err)
 				}, time.Second*30, time.Millisecond*250).Should(BeTrue())
+
+				Expect(k8sClient.Delete(ctx, slice)).Should(Succeed())
+				Eventually(func() bool {
+					err := k8sClient.Get(ctx, types.NamespacedName{Name: slice.Name, Namespace: slice.Namespace}, slice)
+					return errors.IsNotFound(err)
+				}, time.Second*30, time.Millisecond*250).Should(BeTrue())
+
+				log.Info("cleaned up after test")
 			})
 
 		})
@@ -293,6 +301,7 @@ var _ = Describe("ServiceExportController", func() {
 			}, time.Second*30, time.Millisecond*250).Should(BeTrue())
 
 		})
+
 		It("Should Add a slice label to service export", func() {
 			err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 				err := k8sClient.Get(ctx, types.NamespacedName{
