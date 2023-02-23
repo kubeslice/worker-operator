@@ -26,6 +26,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/util/retry"
@@ -88,9 +89,29 @@ var _ = Describe("ServiceImportController", func() {
 			DeferCleanup(func() {
 				ctx := context.Background()
 				Expect(k8sClient.Delete(ctx, svcim)).Should(Succeed())
+				Eventually(func() bool {
+					err := k8sClient.Get(ctx, types.NamespacedName{Name: svcim.Name, Namespace: svcim.Namespace}, svcim)
+					return errors.IsNotFound(err)
+				}, time.Second*30, time.Millisecond*250).Should(BeTrue())
+
 				Expect(k8sClient.Delete(ctx, dnscm)).Should(Succeed())
+				Eventually(func() bool {
+					err := k8sClient.Get(ctx, types.NamespacedName{Name: dnscm.Name, Namespace: dnscm.Namespace}, dnscm)
+					return errors.IsNotFound(err)
+				}, time.Second*30, time.Millisecond*250).Should(BeTrue())
+
 				Expect(k8sClient.Delete(ctx, dnssvc)).Should(Succeed())
+				Eventually(func() bool {
+					err := k8sClient.Get(ctx, types.NamespacedName{Name: dnssvc.Name, Namespace: dnssvc.Namespace}, dnssvc)
+					return errors.IsNotFound(err)
+				}, time.Second*30, time.Millisecond*250).Should(BeTrue())
+
 				Expect(k8sClient.Delete(ctx, slice)).Should(Succeed())
+				Eventually(func() bool {
+					err := k8sClient.Get(ctx, types.NamespacedName{Name: slice.Name, Namespace: slice.Namespace}, slice)
+					return errors.IsNotFound(err)
+				}, time.Second*30, time.Millisecond*250).Should(BeTrue())
+
 			})
 		})
 
