@@ -189,12 +189,6 @@ var _ = Describe("ServiceExportController", func() {
 			Expect(k8sClient.Create(ctx, dnssvc)).Should(Succeed())
 			Expect(k8sClient.Create(ctx, slice)).Should(Succeed())
 
-			err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-				slice.Status.ApplicationNamespaces = []string{"default"}
-				return k8sClient.Status().Update(ctx, slice)
-			})
-			Expect(err).To(BeNil())
-
 			// Cleanup after each test
 			DeferCleanup(func() {
 				ctx := context.Background()
@@ -229,6 +223,7 @@ var _ = Describe("ServiceExportController", func() {
 					return err
 				}
 				createdSlice.Status.SliceConfig = &kubeslicev1beta1.SliceConfig{}
+				createdSlice.Status.ApplicationNamespaces = []string{"default"}
 				return k8sClient.Status().Update(ctx, createdSlice)
 			})
 			Expect(err).To(BeNil())
@@ -262,6 +257,7 @@ var _ = Describe("ServiceExportController", func() {
 					return err
 				}
 				createdSlice.Status.SliceConfig = &kubeslicev1beta1.SliceConfig{}
+				createdSlice.Status.ApplicationNamespaces = []string{"default"}
 				return k8sClient.Status().Update(ctx, createdSlice)
 			})
 			Expect(err).To(BeNil())
@@ -315,6 +311,7 @@ var _ = Describe("ServiceExportController", func() {
 					return err
 				}
 				createdSlice.Status.SliceConfig = &kubeslicev1beta1.SliceConfig{}
+				createdSlice.Status.ApplicationNamespaces = []string{"default"}
 				return k8sClient.Status().Update(ctx, createdSlice)
 			})
 			Expect(err).To(BeNil())
@@ -344,6 +341,7 @@ var _ = Describe("ServiceExportController", func() {
 					return err
 				}
 				createdSlice.Status.SliceConfig = &kubeslicev1beta1.SliceConfig{}
+				createdSlice.Status.ApplicationNamespaces = []string{"default"}
 				return k8sClient.Status().Update(ctx, createdSlice)
 			})
 			Expect(err).To(BeNil())
