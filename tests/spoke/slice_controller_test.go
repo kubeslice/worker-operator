@@ -209,6 +209,10 @@ var _ = Describe("SliceController", func() {
 			}
 			DeferCleanup(func() {
 				Expect(k8sClient.Delete(ctx, svc)).Should(Succeed())
+				Eventually(func() bool {
+					err := k8sClient.Get(ctx, types.NamespacedName{Name: slice.Name, Namespace: slice.Namespace}, slice)
+					return errors.IsNotFound(err)
+				}, time.Second*30, time.Millisecond*250).Should(BeTrue())
 			})
 		})
 
