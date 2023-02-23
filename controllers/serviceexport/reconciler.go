@@ -20,6 +20,7 @@ package serviceexport
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -103,6 +104,23 @@ func (r Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resul
 		log.Info("serviceexport updated with initial status")
 
 		return ctrl.Result{Requeue: true}, nil
+	}
+
+	slice, err := controllers.GetSlice(ctx, r.Client, serviceexport.Spec.Slice)
+	if err != nil {
+		log.Error(err, "Unable to fetch slice for serviceexport")
+		return ctrl.Result{RequeueAfter: controllers.ReconcileInterval}, nil
+	}
+
+	if !arrayContainsString(slice.Status.ApplicationNamespaces, serviceexport.Namespace) {
+		log.Error(fmt.Errorf("Serviceexport ns is not part of the slice"), "Couldn't onboard serviceexport")
+		if serviceexport.Status.ExportStatus != kubeslicev1beta1.ExportStatusPending {
+			serviceexport.Status.ExportStatus = kubeslicev1beta1.ExportStatusPending
+			if err := r.Status().Update(ctx, serviceexport); err != nil {
+				log.Error(err, "unable to update serviceexport status")
+			}
+		}
+		return ctrl.Result{RequeueAfter: controllers.ReconcileInterval}, nil
 	}
 
 	if serviceexport.Status.ExposedPorts != portListToDisplayString(serviceexport.Spec.Ports) {

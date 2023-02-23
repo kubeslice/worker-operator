@@ -77,6 +77,9 @@ var _ = Describe("ClusterInfoUpdate", func() {
 			DeferCleanup(func() {
 				ctx := context.Background()
 				Expect(k8sClient.Delete(ctx, cluster)).Should(Succeed())
+				Expect(k8sClient.Delete(ctx, slice)).Should(Succeed())
+				Expect(k8sClient.Delete(ctx, ns)).Should(Succeed())
+				Expect(k8sClient.Delete(ctx, applicationNS)).Should(Succeed())
 			})
 		})
 
@@ -135,7 +138,8 @@ var _ = Describe("ClusterInfoUpdate", func() {
 			DeferCleanup(func() {
 				ctx := context.Background()
 				k8sClient.Delete(ctx, cluster)
-
+				Expect(k8sClient.Delete(ctx, ns)).Should(Succeed())
+				Expect(k8sClient.Delete(ctx, applicationNS)).Should(Succeed())
 			})
 		})
 		It("Should not update cluster CR with namespace", func() {
