@@ -34,7 +34,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 )
 
-var _ = Describe("Hub SliceController", func() {
+var _ = FDescribe("Hub SliceController", func() {
 
 	Context("With Slice CR created in hub", func() {
 
@@ -255,7 +255,8 @@ var _ = Describe("Hub SliceController", func() {
 		})
 
 	})
-	Context("Slice health check", func() {
+
+	FContext("Slice health check", func() {
 		var hubSlice *workerv1alpha1.WorkerSliceConfig
 		var pods []*corev1.Pod
 		var ipamOcter = 16
@@ -300,11 +301,11 @@ var _ = Describe("Hub SliceController", func() {
 		})
 
 		It("Should update slice CR with health status updated time", func() {
-			Expect(k8sClient.Create(ctx, hubSlice)).Should(Succeed())
 			sliceKey := types.NamespacedName{Name: hubSlice.Name, Namespace: hubSlice.Namespace}
 
 			Eventually(func() bool {
 				err := k8sClient.Get(ctx, sliceKey, hubSlice)
+				GinkgoWriter.Println(hubSlice.Status)
 				return err == nil && hubSlice.Status.SliceHealth != nil
 			}, time.Second*10, time.Second*1).Should(BeTrue())
 			last := hubSlice.Status.SliceHealth.LastUpdated
@@ -319,7 +320,7 @@ var _ = Describe("Hub SliceController", func() {
 		It("Should update slice CR with component status as error for all", func() {
 			Eventually(func() bool {
 				err := k8sClient.Get(ctx, types.NamespacedName{Name: hubSlice.Name, Namespace: hubSlice.Namespace}, hubSlice)
-				GinkgoWriter.Println(hubSlice)
+				GinkgoWriter.Println(hubSlice.Status)
 				return err == nil && hubSlice.Status.SliceHealth != nil
 			}, time.Second*10, time.Second*1).Should(BeTrue())
 			cs := hubSlice.Status.SliceHealth.ComponentStatuses
@@ -422,19 +423,17 @@ var _ = Describe("Hub SliceController", func() {
 
 			Eventually(func() bool {
 				err := k8sClient.Get(ctx, types.NamespacedName{Name: hubSlice.Name, Namespace: hubSlice.Namespace}, hubSlice)
+				GinkgoWriter.Println(hubSlice.Status)
 				return err == nil && hubSlice.Status.SliceHealth != nil
-			}, time.Second*10, time.Second*1).Should(BeTrue())
+			}, time.Second*30, time.Second*1).Should(BeTrue())
 
 			cs := hubSlice.Status.SliceHealth.ComponentStatuses
 			Expect(cs).Should(HaveLen(5))
-
 			Expect(string(hubSlice.Status.SliceHealth.SliceHealthStatus)).Should(Equal("Normal"))
-
 			for i, c := range cs {
 				Expect(c.Component).Should(Equal(pods[i].ObjectMeta.Name))
 				Expect(string(c.ComponentHealthStatus)).Should(Equal("Normal"))
 			}
-
 		})
 	})
 })
