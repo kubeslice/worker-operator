@@ -34,7 +34,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 )
 
-var _ = FDescribe("Hub SliceController", func() {
+var _ = Describe("Hub SliceController", func() {
 
 	Context("With Slice CR created in hub", func() {
 
@@ -256,7 +256,7 @@ var _ = FDescribe("Hub SliceController", func() {
 
 	})
 
-	FContext("Slice health check", func() {
+	Context("Slice health check", func() {
 		var hubSlice *workerv1alpha1.WorkerSliceConfig
 		var pods []*corev1.Pod
 		var ipamOcter = 16
