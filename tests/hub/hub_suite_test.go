@@ -161,6 +161,7 @@ var _ = BeforeSuite(func() {
 	serviceImportReconciler := &controllers.ServiceImportReconciler{
 		MeshClient:    k8sClient,
 		EventRecorder: testSvcimEventRecorder,
+		Client:        k8sClient,
 	}
 
 	err = builder.
