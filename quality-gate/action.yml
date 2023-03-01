@@ -49,15 +49,15 @@ runs:
         echo "##[set-output name=SKIPPED_TESTS;]${SKIPPED_TESTS}"
         echo "##[set-output name=UNKNOWN_TESTS;]${UNKNOWN_TESTS}"
         $MIN_PERCENTAGE = [int]${{ inputs.MINIMUM_PASS_PERCENTAGE }}
-        echo "Minimum Percentage required is : $MIN_PERCENTAGE "
+        echo "Minimum Percentage required is : $MIN_PERCENTAGE " > result-summary.txt
         $PASSED_TESTS = [int]${PASSED_TESTS}
-        Write-Output "Passed Tests: $PASSED_TESTS"
+        Write-Output "Passed Tests: $PASSED_TESTS" >> result-summary.txt
         $FAILED_TESTS = [int]$FAILED_TESTS
-        Write-Output "Failed Tests: $FAILED_TESTS"
+        Write-Output "Failed Tests: $FAILED_TESTS" >> result-summary.txt
         $SKIPPED_TESTS = [int]$SKIPPED_TESTS
-        Write-Output "Skipped Tests: $SKIPPED_TESTS"
+        Write-Output "Skipped Tests: $SKIPPED_TESTS" >> result-summary.txt
         $UNKNOWN_TESTS = [int]$UNKNOWN_TESTS
-        Write-Output "Unkown Tests: $UNKNOWN_TESTS"        
+        Write-Output "Unkown Tests: $UNKNOWN_TESTS"  >> result-summary.txt      
         $TOTAL_TESTS = $PASSED_TESTS + $FAILED_TESTS + $SKIPPED_TESTS + $UNKNOWN_TESTS
         Write-Output "Total Tests: $TOTAL_TESTS"
         if ( ($FAILED_TESTS + $SKIPPED_TESTS) -ne 0 ) {
@@ -66,15 +66,15 @@ runs:
           }
           else
           {
-            Write-Output "None of the tests failed"
+            Write-Output "None of the tests failed" >> result-summary.txt
             exit 0
           }
         if ( $PASS_PERCENTAGE_INT -ge $MIN_PERCENTAGE ) {
-          Write-Output "Achieved Pass Percentage of $PASS_PERCENTAGE_STRING, which is greater than or equal to Minium Percentage Set: $MIN_PERCENTAGE "
+          Write-Output "Achieved Pass Percentage of $PASS_PERCENTAGE_STRING, which is greater than or equal to Minium Percentage Set: $MIN_PERCENTAGE " >> result-summary.txt
           exit 0
         }
         else {
-          Write-Output "Minimum Pass Percentage Required is $MIN_PERCENTAGE, But Achieved is $PASS_PERCENTAGE_STRING"
+          Write-Output "Minimum Pass Percentage Required is $MIN_PERCENTAGE, But Achieved is $PASS_PERCENTAGE_STRING" >> result-summary.txt
           exit 1
         }
         
@@ -88,4 +88,4 @@ runs:
         echo "Skipped Tests: ${SKIPPED_TESTS}" >> $GITHUB_STEP_SUMMARY
         echo "Total Tests: ${SKIPPED_TESTS}" >> $GITHUB_STEP_SUMMARY
         echo "Unknown Tests: ${UNKNOWN_TESTS}" >> $GITHUB_STEP_SUMMARY
-        echo "Pass Percentage Achieved: ${PASS_PERCENTAGE_STRING}" >> $GITHUB_STEP_SUMMARY
+        echo "Pass Percentage Achieved: ${PASS_PERCENTAGE_STRING}" >> $GITHUB_STEP_SUMMARY 
