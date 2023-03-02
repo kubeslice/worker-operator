@@ -36,8 +36,6 @@ jobs:
       with:
           image-ref: worker-operator:${{ steps.vars.outputs.sha_commit }}
           format: 'table'
-<<<<<<< HEAD
-=======
           output: 'scan.txt'
 
     - name: check files
@@ -72,7 +70,6 @@ jobs:
       with:
           name: trivy-scan
           path: scan.txt
->>>>>>> f5766f60844b82934c9b1e5717ff85641eab6adb
     
     - name: build kind clusters
       run: |
@@ -143,21 +140,31 @@ jobs:
           github-username: ${{github.actor}}
           token: ${{ secrets.TOKEN }}
 
-    - name: Send mail
-      uses: dawidd6/action-send-mail@v3
-      with:
-       server_address: smtp.gmail.com
-       server_port: 465
-       username: ${{secrets.MAIL_USERNAME}}
-       password: ${{secrets.MAIL_PASSWORD}}
-       subject: Github Actions job result
-       to: ${{ steps.test.outputs.email }}
-       from: ${{github.actor}}
-       body: Build job of ${{github.repository}} completed successfully! and the report url is https://kubeslice.github.io/e2e-allure-reports/Kind-${{ github.event.repository.name }}-${{ steps.date.outputs.date }}-${{ github.base_ref }}-${{ github.run_number }}/index.html
-
+   
     - name: Run Quality Gate Check
       uses: ./quality-gate
       with:
          ENABLE_QUALITY_GATE: true
          MINIMUM_PASS_PERCENTAGE: 75 
          ALLURE_BEHAVIORS_CSV: '/home/runner/work/${{ github.event.repository.name }}/${{ github.event.repository.name }}/allure-history/Kind-${{ github.event.repository.name }}-${{ steps.date.outputs.date }}-${{ github.base_ref }}-${{ github.run_number }}/data/behaviors.csv'
+    
+    - name: Send mail
+      if: always()
+      uses: dawidd6/action-send-mail@v3
+      with:
+       server_address: smtp.gmail.com
+       server_port: 465
+       username: ${{secrets.MAIL_USERNAME}}
+       password: ${{secrets.MAIL_PASSWORD}}
+       cc: nishant.singh@aveshasystems.com
+       subject: Worker-Operator | end-to-end-test | ${{ steps.date.outputs.date }}
+       to: richie@aveshasystems.com
+       from: no-reply@aveshasystems.com
+       attachments: result-summary.txt
+       body: Pipeline for the repo ${{github.repository}} is triggered by ${{github.actor}} from the branch ${{ steps.branch-name.outputs.current_branch }} !
+             Run id for the pipeline is ${{ github.run_id }} .
+             Check your logs in github action here https://github.com/kubeslice/worker-operator/actions/runs/${{ github.run_id }} .
+             for downloading the logs zip file in your local use this API url in curl command https://api.github.com/repos/kubeslice/worker-operator/actions/runs/${{ github.run_id }}/logs
+             the report url is https://kubeslice.github.io/e2e-allure-reports/Kind-${{ github.event.repository.name }}-${{ steps.date.outputs.date }}-${{ github.base_ref }}-${{ github.run_number }}/index.html. 
+             for looking all the allure reports (including old ones ) please visit at https://kubeslice.github.io/e2e-allure-reports/ .
+             please look result-summary.txt file for more info regarding test cases ( please note you will get result-summary.txt file only if your quality gate check steps ran successfully ).
