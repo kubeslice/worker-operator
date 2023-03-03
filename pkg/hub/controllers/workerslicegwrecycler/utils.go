@@ -26,13 +26,15 @@ func (r *Reconciler) verify_new_deployment_created(e *fsm.Event) error {
 	log := logger.FromContext(ctx).WithName("workerslicegwrecycler")
 	workerslicegwrecycler := e.Args[0].(*spokev1alpha1.WorkerSliceGwRecycler)
 	isClient := e.Args[1].(bool)
+	var slicegateway string
 	// List all the available gw deployments
 	// TODO: Move this redundant code to a func
 	deployList := &appsv1.DeploymentList{}
 	gwPod := corev1.Pod{}
 	if isClient {
 		retry.Do(func() error {
-			deployLabels := map[string]string{"kubeslice.io/slice-gw": workerslicegwrecycler.Spec.SliceGwClient}
+			slicegateway = workerslicegwrecycler.Spec.SliceGwClient
+			deployLabels := map[string]string{"kubeslice.io/slicegw": workerslicegwrecycler.Spec.SliceGwClient}
 			listOpts := []client.ListOption{
 				client.InNamespace(controllers.ControlPlaneNamespace),
 				client.MatchingLabels(deployLabels),
@@ -61,7 +63,8 @@ func (r *Reconciler) verify_new_deployment_created(e *fsm.Event) error {
 		}
 	} else {
 		retry.Do(func() error {
-			deployLabels := map[string]string{"kubeslice.io/slice-gw": workerslicegwrecycler.Spec.SliceGwServer}
+			slicegateway = workerslicegwrecycler.Spec.SliceGwServer
+			deployLabels := map[string]string{"kubeslice.io/slicegw": workerslicegwrecycler.Spec.SliceGwServer}
 			listOpts := []client.ListOption{
 				client.InNamespace(controllers.ControlPlaneNamespace),
 				client.MatchingLabels(deployLabels),
@@ -98,7 +101,7 @@ func (r *Reconciler) verify_new_deployment_created(e *fsm.Event) error {
 	}
 
 	podList := corev1.PodList{}
-	labels := map[string]string{"kubeslice.io/pod-type": "slicegateway", "kubeslice.io/slice": workerslicegwrecycler.Spec.SliceName}
+	labels := map[string]string{"kubeslice.io/pod-type": "slicegateway", "kubeslice.io/slice": workerslicegwrecycler.Spec.SliceName,"kubeslice.io/slice-gw":slicegateway}
 	listOptions := []client.ListOption{
 		client.MatchingLabels(labels),
 	}
@@ -462,7 +465,7 @@ func getNsmIp(slicegw *kubeslicev1beta1.SliceGateway, podName string) string {
 
 func (r *Reconciler) getNewestGwDeploy(ctx context.Context, sliceGwName string) (*appsv1.Deployment, error) {
 	deployList := &appsv1.DeploymentList{}
-	labels := map[string]string{"kubeslice.io/slice-gw": sliceGwName}
+	labels := map[string]string{"kubeslice.io/slicegw": sliceGwName}
 	listOpts := []client.ListOption{
 		client.InNamespace(controllers.ControlPlaneNamespace),
 		client.MatchingLabels(labels),

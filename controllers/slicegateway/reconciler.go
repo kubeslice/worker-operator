@@ -198,9 +198,27 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	if err := r.reconcileGwMap(ctx, sliceGw); err != nil {
 		return ctrl.Result{}, err
 	}
+	
 	deployments, err := r.getDeployments(ctx, sliceGw)
 	if err != nil {
 		return ctrl.Result{}, err
+	}
+	if isClient(sliceGw) {
+		for _, deploy := range deployments.Items {
+			_, ok := GwMap[deploy.Name]
+			if !ok {
+				for _, c := range deploy.Spec.Template.Spec.Containers {
+					if c.Name == "kubeslice-sidecar" {
+						for _, env := range c.Env {
+							if env.Name == "NODE_PORT" {
+								nodePort, _ := strconv.Atoi(env.Value)
+								GwMap[deploy.Name] = nodePort
+							}
+						}
+					}
+				}
+			}
+		}
 	}
 	if isServer(sliceGw) {
 		noOfGwServices, _ = r.getNumberOfGatewayNodePortServices(ctx, sliceGw)
@@ -236,23 +254,7 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	}
 
 	// reconcile map in case operator pod restarted or if entry is not present
-	if isClient(sliceGw) {
-		for _, deploy := range deployments.Items {
-			_, ok := GwMap[deploy.Name]
-			if !ok {
-				for _, c := range deploy.Spec.Template.Spec.Containers {
-					if c.Name == "kubeslice-sidecar" {
-						for _, env := range c.Env {
-							if env.Name == "NODE_PORT" {
-								nodePort, _ := strconv.Atoi(env.Value)
-								GwMap[deploy.Name] = nodePort
-							}
-						}
-					}
-				}
-			}
-		}
-	}
+	
 	//fetch netop pods
 	err = r.getNetOpPods(ctx, sliceGw)
 	if err != nil {

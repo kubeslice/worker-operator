@@ -392,6 +392,7 @@ func (r *SliceGwReconciler) deploymentForGatewayClient(g *kubeslicev1beta1.Slice
 
 	nsmAnnotation := fmt.Sprintf("kernel://vl3-service-%s/nsm0", g.Spec.SliceName)
 
+	r.Log.Info("gwMap","gwMap",GwMap)
 	// If val is present in the map loop through all the nodePorts and select a unique one
 	if !checkIfNodePortIsAlreadyUsed(g.Status.Config.SliceGatewayRemoteNodePorts[i]) {
 		GwMap[g.Name+"-"+fmt.Sprint(i)] = g.Status.Config.SliceGatewayRemoteNodePorts[i]
@@ -410,6 +411,7 @@ func (r *SliceGwReconciler) deploymentForGatewayClient(g *kubeslicev1beta1.Slice
 			Labels: map[string]string{
 				controllers.ApplicationNamespaceSelectorLabelKey: g.Spec.SliceName,
 				webhook.PodInjectLabelKey:                        "slicegateway",
+				"kubeslice.io/slicegw":                           g.Name,
 			},
 		},
 		Spec: appsv1.DeploymentSpec{
@@ -1065,7 +1067,7 @@ func getPodAntiAffinity(slice string) *corev1.PodAntiAffinity {
 func (r *SliceGwReconciler) getNewestPod(slicegw *kubeslicev1beta1.SliceGateway) (*corev1.Pod, error) {
 	PodList := corev1.PodList{}
 	labels := map[string]string{"kubeslice.io/pod-type": "slicegateway", controllers.ApplicationNamespaceSelectorLabelKey: slicegw.Spec.SliceName,
-		"kubeslice.io/slicegw": slicegw.Name}
+		"kubeslice.io/slice-gw": slicegw.Name}
 	listOptions := []client.ListOption{
 		client.MatchingLabels(labels),
 	}
@@ -1110,7 +1112,7 @@ func (r *SliceGwReconciler) isRebalancingRequired(ctx context.Context, sliceGw *
 	//check if rebalancing is required
 	nodeToPodMap := make(map[string]int32)
 	PodList := corev1.PodList{}
-	labels := map[string]string{controllers.PodTypeSelectorLabelKey: "slicegateway"}
+	labels := map[string]string{controllers.PodTypeSelectorLabelKey: "slicegateway","kubeslice.io/slice-gw":sliceGw.Name}
 	listOptions := []client.ListOption{
 		client.MatchingLabels(labels),
 	}
