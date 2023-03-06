@@ -36,8 +36,10 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/client-go/util/retry"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	gwsidecarpb "github.com/kubeslice/gateway-sidecar/pkg/sidecar/sidecarpb"
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
@@ -392,7 +394,7 @@ func (r *SliceGwReconciler) deploymentForGatewayClient(g *kubeslicev1beta1.Slice
 
 	nsmAnnotation := fmt.Sprintf("kernel://vl3-service-%s/nsm0", g.Spec.SliceName)
 
-	r.Log.Info("gwMap","gwMap",GwMap)
+	r.Log.Info("gwMap", "gwMap", GwMap)
 	// If val is present in the map loop through all the nodePorts and select a unique one
 	if !checkIfNodePortIsAlreadyUsed(g.Status.Config.SliceGatewayRemoteNodePorts[i]) {
 		GwMap[g.Name+"-"+fmt.Sprint(i)] = g.Status.Config.SliceGatewayRemoteNodePorts[i]
@@ -718,7 +720,7 @@ func (r *SliceGwReconciler) UpdateRoutesInRouter(ctx context.Context, slicegatew
 	}
 	return nil
 }
-func (r *SliceGwReconciler) SendConnectionContextAndQosToGwPod(ctx context.Context, slice *kubeslicev1beta1.Slice, slicegateway *kubeslicev1beta1.SliceGateway) (ctrl.Result, error, bool) {
+func (r *SliceGwReconciler) SendConnectionContextAndQosToGwPod(ctx context.Context, slice *kubeslicev1beta1.Slice, slicegateway *kubeslicev1beta1.SliceGateway, req reconcile.Request) (ctrl.Result, error, bool) {
 	log := logger.FromContext(ctx).WithValues("type", "SliceGw")
 
 	gwPodsInfo, err := r.GetGwPodInfo(ctx, slicegateway)
@@ -749,8 +751,16 @@ func (r *SliceGwReconciler) SendConnectionContextAndQosToGwPod(ctx context.Conte
 			return ctrl.Result{RequeueAfter: 10 * time.Second}, err, true
 		}
 
-		slicegateway.Status.ConnectionContextUpdatedOn = time.Now().Unix()
-		err = r.Status().Update(ctx, slicegateway)
+		err = retry.RetryOnConflict(retry.DefaultRetry, func() error {
+			err := r.Get(ctx, req.NamespacedName, slicegateway)
+			slicegateway.Status.ConnectionContextUpdatedOn = time.Now().Unix()
+			err = r.Status().Update(ctx, slicegateway)
+			if err != nil {
+				log.Error(err, "Failed to update SliceGateway status for conn ctx update in retry loop")
+				return err
+			}
+			return nil
+		})
 		if err != nil {
 			log.Error(err, "Failed to update SliceGateway status for conn ctx update")
 			return ctrl.Result{}, err, true
@@ -1112,7 +1122,7 @@ func (r *SliceGwReconciler) isRebalancingRequired(ctx context.Context, sliceGw *
 	//check if rebalancing is required
 	nodeToPodMap := make(map[string]int32)
 	PodList := corev1.PodList{}
-	labels := map[string]string{controllers.PodTypeSelectorLabelKey: "slicegateway","kubeslice.io/slice-gw":sliceGw.Name}
+	labels := map[string]string{controllers.PodTypeSelectorLabelKey: "slicegateway", "kubeslice.io/slice-gw": sliceGw.Name}
 	listOptions := []client.ListOption{
 		client.MatchingLabels(labels),
 	}
