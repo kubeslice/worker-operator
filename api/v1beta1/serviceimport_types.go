@@ -44,6 +44,9 @@ type ServiceImportSpec struct {
 	DNSName string `json:"dnsName"`
 	// Ports which should be exposed through the service
 	Ports []ServicePort `json:"ports"`
+	// Alias names for the exported service. The service could be addressed by the alias names
+	// in addition to the slice.local name.
+	Aliases []string `json:"aliases,omitempty"`
 }
 
 // ImportStatus is the status of Service Discovery reconciliation
@@ -83,6 +86,7 @@ type ServiceImportStatus struct {
 // +kubebuilder:printcolumn:name="Port(s)",type=string,JSONPath=`.status.exposedPorts`
 // +kubebuilder:printcolumn:name="Endpoints",type=integer,JSONPath=`.status.availableEndpoints`
 // +kubebuilder:printcolumn:name="Status",type=string,JSONPath=`.status.importStatus`
+// +kubebuilder:printcolumn:name="Alias",type=string,JSONPath=`.spec.aliases`
 // +kubebuilder:resource:path=serviceimports,singular=serviceimport,shortName=svcim
 
 // ServiceImport is the Schema for the serviceimports API

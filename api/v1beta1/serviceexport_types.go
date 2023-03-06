@@ -64,6 +64,9 @@ type ServiceExportSpec struct {
 	IngressEnabled bool `json:"ingressEnabled,omitempty"`
 	// Ports which should be exposed through the service
 	Ports []ServicePort `json:"ports"`
+	// Alias names for the exported service. The service could be addressed by the alias names
+	// in addition to the slice.local name.
+	Aliases []string `json:"aliases,omitempty"`
 }
 
 // ExportStatus is the status of Service Discovery reconciliation
@@ -118,6 +121,7 @@ type ServiceExportStatus struct {
 // +kubebuilder:printcolumn:name="Port(s)",type=string,JSONPath=`.status.exposedPorts`
 // +kubebuilder:printcolumn:name="Endpoints",type=integer,JSONPath=`.status.availableEndpoints`
 // +kubebuilder:printcolumn:name="Status",type=string,JSONPath=`.status.exportStatus`
+// +kubebuilder:printcolumn:name="Alias",type=string,JSONPath=`.spec.aliases`
 // +kubebuilder:resource:path=serviceexports,singular=serviceexport,shortName=svcex
 
 // ServiceExport is the Schema for the serviceexports API

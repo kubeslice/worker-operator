@@ -97,6 +97,7 @@ func getMeshServiceImportObj(svcim *spokev1alpha1.WorkerServiceImport) *kubeslic
 			Slice:   svcim.Spec.SliceName,
 			DNSName: svcim.Spec.ServiceName + "." + svcim.Spec.ServiceNamespace + ".svc.slice.local",
 			Ports:   getMeshServiceImportPortList(svcim),
+			Aliases: svcim.Spec.Aliases,
 		},
 	}
 }
@@ -146,6 +147,7 @@ func (r *ServiceImportReconciler) Reconcile(ctx context.Context, req reconcile.R
 	}
 
 	meshSvcIm.Spec.Ports = getMeshServiceImportPortList(svcim)
+	meshSvcIm.Spec.Aliases = svcim.Spec.Aliases
 	err = r.MeshClient.Update(ctx, meshSvcIm)
 	if err != nil {
 		log.Error(err, "unable to update service import in spoke cluster", "serviceimport", svcim.Name)
