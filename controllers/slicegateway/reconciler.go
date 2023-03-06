@@ -198,7 +198,7 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	if err := r.reconcileGwMap(ctx, sliceGw); err != nil {
 		return ctrl.Result{}, err
 	}
-	
+
 	deployments, err := r.getDeployments(ctx, sliceGw)
 	if err != nil {
 		return ctrl.Result{}, err
@@ -254,7 +254,7 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	}
 
 	// reconcile map in case operator pod restarted or if entry is not present
-	
+
 	//fetch netop pods
 	err = r.getNetOpPods(ctx, sliceGw)
 	if err != nil {

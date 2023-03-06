@@ -101,7 +101,7 @@ func (r *Reconciler) verify_new_deployment_created(e *fsm.Event) error {
 	}
 
 	podList := corev1.PodList{}
-	labels := map[string]string{"kubeslice.io/pod-type": "slicegateway", "kubeslice.io/slice": workerslicegwrecycler.Spec.SliceName,"kubeslice.io/slice-gw":slicegateway}
+	labels := map[string]string{"kubeslice.io/pod-type": "slicegateway", "kubeslice.io/slice": workerslicegwrecycler.Spec.SliceName, "kubeslice.io/slice-gw": slicegateway}
 	listOptions := []client.ListOption{
 		client.MatchingLabels(labels),
 	}
