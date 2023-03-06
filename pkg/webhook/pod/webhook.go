@@ -190,11 +190,14 @@ func MutatePod(pod *corev1.Pod, sliceName string) *corev1.Pod {
 
 func MutateDeployment(deploy *appsv1.Deployment, sliceName string) *appsv1.Deployment {
 	// Add injection status to deployment annotations
+	if deploy.ObjectMeta.Annotations == nil {
+		deploy.ObjectMeta.Annotations = map[string]string{}
+	}
+	deploy.ObjectMeta.Annotations[AdmissionWebhookAnnotationStatusKey] = "injected"
+
 	if deploy.Spec.Template.ObjectMeta.Annotations == nil {
 		deploy.Spec.Template.ObjectMeta.Annotations = map[string]string{}
 	}
-
-	deploy.Spec.Template.ObjectMeta.Annotations[AdmissionWebhookAnnotationStatusKey] = "injected"
 
 	// Add vl3 annotation to pod template
 	annotations := deploy.Spec.Template.ObjectMeta.Annotations
@@ -211,11 +214,14 @@ func MutateDeployment(deploy *appsv1.Deployment, sliceName string) *appsv1.Deplo
 
 func MutateStatefulset(ss *appsv1.StatefulSet, sliceName string) *appsv1.StatefulSet {
 	// Add injection status to statefulset annotations
+	if ss.ObjectMeta.Annotations == nil {
+		ss.ObjectMeta.Annotations = map[string]string{}
+	}
+	ss.ObjectMeta.Annotations[AdmissionWebhookAnnotationStatusKey] = "injected"
+
 	if ss.Spec.Template.ObjectMeta.Annotations == nil {
 		ss.Spec.Template.ObjectMeta.Annotations = map[string]string{}
 	}
-
-	ss.Spec.Template.ObjectMeta.Annotations[AdmissionWebhookAnnotationStatusKey] = "injected"
 
 	// Add vl3 annotation to pod template
 	annotations := ss.Spec.Template.ObjectMeta.Annotations
@@ -232,11 +238,14 @@ func MutateStatefulset(ss *appsv1.StatefulSet, sliceName string) *appsv1.Statefu
 
 func MutateDaemonSet(ds *appsv1.DaemonSet, sliceName string) *appsv1.DaemonSet {
 	// Add injection status to statefulset annotations
+	if ds.ObjectMeta.Annotations == nil {
+		ds.ObjectMeta.Annotations = map[string]string{}
+	}
+	ds.ObjectMeta.Annotations[AdmissionWebhookAnnotationStatusKey] = "injected"
+
 	if ds.Spec.Template.ObjectMeta.Annotations == nil {
 		ds.Spec.Template.ObjectMeta.Annotations = map[string]string{}
 	}
-
-	ds.Spec.Template.ObjectMeta.Annotations[AdmissionWebhookAnnotationStatusKey] = "injected"
 
 	// Add vl3 annotation to pod template
 	annotations := ds.Spec.Template.ObjectMeta.Annotations

@@ -435,12 +435,9 @@ func (r *SliceReconciler) deleteAnnotationsAndLabels(ctx context.Context, slice 
 				if ok && v == fmt.Sprintf("kernel://vl3-service-%s/nsm0", slice.Name) {
 					delete(podannotations, "networkservicemesh.io")
 				}
-			}
-			statusannotations := pod.ObjectMeta.GetAnnotations()
-			if statusannotations != nil {
-				_, ok := statusannotations["kubeslice.io/status"]
+				_, ok = podannotations["kubeslice.io/status"]
 				if ok {
-					delete(statusannotations, "kubeslice.io/status")
+					delete(podannotations, "kubeslice.io/status")
 				}
 			}
 			if err := r.Update(ctx, &pod); err != nil {
@@ -530,11 +527,11 @@ func (r *SliceReconciler) deleteAnnotationsAndLabels(ctx context.Context, slice 
 					delete(podannotations, "networkservicemesh.io")
 				}
 			}
-			deployannotations := statefulset.ObjectMeta.GetAnnotations()
-			if deployannotations != nil {
-				_, ok := deployannotations["kubeslice.io/status"]
+			ssannotations := statefulset.ObjectMeta.GetAnnotations()
+			if ssannotations != nil {
+				_, ok := ssannotations["kubeslice.io/status"]
 				if ok {
-					delete(deployannotations, "kubeslice.io/status")
+					delete(ssannotations, "kubeslice.io/status")
 				}
 			}
 			if err := r.Update(ctx, &statefulset); err != nil {
@@ -577,11 +574,11 @@ func (r *SliceReconciler) deleteAnnotationsAndLabels(ctx context.Context, slice 
 					delete(podannotations, "networkservicemesh.io")
 				}
 			}
-			deployannotations := daemonset.ObjectMeta.GetAnnotations()
-			if deployannotations != nil {
-				_, ok := deployannotations["kubeslice.io/status"]
+			dsannotations := daemonset.ObjectMeta.GetAnnotations()
+			if dsannotations != nil {
+				_, ok := dsannotations["kubeslice.io/status"]
 				if ok {
-					delete(deployannotations, "kubeslice.io/status")
+					delete(dsannotations, "kubeslice.io/status")
 				}
 			}
 			if err := r.Update(ctx, &daemonset); err != nil {
