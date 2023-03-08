@@ -326,7 +326,7 @@ func (r *SliceReconciler) updateSliceHealth(ctx context.Context, slice *spokev1a
 	slice.Status.SliceHealth.ComponentStatuses = []spokev1alpha1.ComponentStatus{}
 	slice.Status.SliceHealth.SliceHealthStatus = spokev1alpha1.ComponentHealthStatusNormal
 	for _, c := range components {
-		cs, err := r.getComponentStatus(ctx, &c)
+		cs, err := r.getComponentStatus(ctx, &c, slice.Name)
 		if err != nil {
 			log.Error(err, "unable to fetch component status")
 		}
@@ -340,8 +340,13 @@ func (r *SliceReconciler) updateSliceHealth(ctx context.Context, slice *spokev1a
 	return nil
 }
 
-func (r *SliceReconciler) getComponentStatus(ctx context.Context, c *component) (*spokev1alpha1.ComponentStatus, error) {
+func (r *SliceReconciler) getComponentStatus(ctx context.Context, c *component, sliceName string) (*spokev1alpha1.ComponentStatus, error) {
 	log := logger.FromContext(ctx)
+	for i := range components {
+		if components[i].name != "dns" {
+			components[i].labels["kubeslice.io/slice"] = sliceName
+		}
+	}
 	podList := &corev1.PodList{}
 	listOpts := []client.ListOption{
 		client.MatchingLabels(c.labels),

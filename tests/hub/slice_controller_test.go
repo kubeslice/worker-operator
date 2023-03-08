@@ -356,6 +356,7 @@ var _ = Describe("Hub SliceController", func() {
 						Name: "slicegateway",
 						Labels: map[string]string{
 							"kubeslice.io/pod-type": "slicegateway",
+							"kubeslice.io/slice":    "test-slice-4",
 						},
 						Namespace: "kubeslice-system",
 					},
@@ -371,6 +372,7 @@ var _ = Describe("Hub SliceController", func() {
 						Name: "slicerouter",
 						Labels: map[string]string{
 							"kubeslice.io/pod-type": "router",
+							"kubeslice.io/slice":    "test-slice-4",
 						},
 						Namespace: "kubeslice-system",
 					},
@@ -385,7 +387,8 @@ var _ = Describe("Hub SliceController", func() {
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "egress",
 						Labels: map[string]string{
-							"istio": "egressgateway",
+							"istio":              "egressgateway",
+							"kubeslice.io/slice": "test-slice-4",
 						},
 						Namespace: "kubeslice-system",
 					},
@@ -400,7 +403,8 @@ var _ = Describe("Hub SliceController", func() {
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "ingress",
 						Labels: map[string]string{
-							"istio": "ingressgateway",
+							"istio":              "ingressgateway",
+							"kubeslice.io/slice": "test-slice-4",
 						},
 						Namespace: "kubeslice-system",
 					},
