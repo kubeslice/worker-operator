@@ -112,6 +112,9 @@ type ServiceExportStatus struct {
 	IngressGwEnabled bool `json:"ingressGwEnabled,omitempty"`
 	// IngressGwPod contains ingress gateway pod info
 	IngressGwPod IngressGwPod `json:"ingressGwPod,omitempty"`
+	// Alias names for the exported service. The service could be addressed by the alias names
+	// in addition to the slice.local name.
+	Aliases []string `json:"aliases,omitempty"`
 }
 
 // +kubebuilder:object:root=true

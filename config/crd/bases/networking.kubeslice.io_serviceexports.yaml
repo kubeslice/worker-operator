@@ -144,6 +144,12 @@ spec:
           status:
             description: ServiceExportStatus defines the observed state of ServiceExport
             properties:
+              aliases:
+                description: Alias names for the exported service. The service could
+                  be addressed by the alias names in addition to the slice.local name.
+                items:
+                  type: string
+                type: array
               availableEndpoints:
                 description: AvailableEndpoints shows the number of available endpoints
                 type: integer
