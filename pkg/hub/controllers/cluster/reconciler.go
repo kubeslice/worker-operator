@@ -60,7 +60,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			}
 		}
 	}
-
 	// Update dashboard creds if it hasn't already
 	if !r.isDashboardCredsUpdated(ctx, cr) {
 		if err := r.updateDashboardCreds(ctx, cr); err != nil {
@@ -148,6 +147,7 @@ func (r *Reconciler) getComponentStatus(ctx context.Context, c *component) (*hub
 }
 
 func (r *Reconciler) updateClusterInfo(ctx context.Context, cr *hubv1alpha1.Cluster) error {
+
 	log := logger.FromContext(ctx)
 	cl := cluster.NewCluster(r.MeshClient, clusterName)
 	clusterInfo, err := cl.GetClusterInfo(ctx)
@@ -164,7 +164,58 @@ func (r *Reconciler) updateClusterInfo(ctx context.Context, cr *hubv1alpha1.Clus
 			return err
 		}
 	}
+	// cniSubnet, err := cl.GetNsmExcludedPrefix(ctx, "nsm-config", "kubeslice-system")
+
+	if clusterInfo.ClusterProperty.GeoLocation.CloudProvider == GCP || clusterInfo.ClusterProperty.GeoLocation.CloudProvider == AWS ||
+		clusterInfo.ClusterProperty.GeoLocation.CloudProvider == AZURE {
+		if clusterInfo.ClusterProperty.GeoLocation.CloudRegion != clusterInfo.ClusterProperty.GeoLocation.CloudRegion ||
+			cr.Spec.ClusterProperty.GeoLocation.CloudProvider != clusterInfo.ClusterProperty.GeoLocation.CloudProvider {
+			cr.Spec.ClusterProperty.GeoLocation.CloudRegion = clusterInfo.ClusterProperty.GeoLocation.CloudRegion
+			cr.Spec.ClusterProperty.GeoLocation.CloudProvider = clusterInfo.ClusterProperty.GeoLocation.CloudProvider
+			log.Info("updating Cluster's cloud info", "CloudProvider", clusterInfo.ClusterProperty.GeoLocation.CloudProvider,
+				"CloudRegion", clusterInfo.ClusterProperty.GeoLocation.CloudRegion)
+			if err := r.Update(ctx, cr); err != nil {
+				log.Error(err, "Error updating ClusterProperty on hub cluster")
+				return err
+			}
+		}
+	}
+
 	cniSubnet, err := cl.GetNsmExcludedPrefix(ctx, "nsm-config", "kubeslice-system")
+	if err != nil {
+		log.Error(err, "Failed to update Info on hub cluster")
+		return err
+	}
+	// if !isEquivalentSlice(cr.Status.CniSubnet, cniSubnet) {
+	// 	cr.Status.CniSubnet = cniSubnet
+	// 	if err := r.Status().Update(ctx, cr); err != nil {
+	// 		log.Error(err, "Error updating cniSubnet to cluster status on hub cluster")
+	// 		return err
+	// 	}
+	// }
+
+	nodeIPs, err := cluster.GetNodeIP(r.MeshClient)
+	if err != nil {
+		log.Error(err, "Error Getting nodeIP")
+		return err
+	}
+
+	// OR gets the current nodeIP in use from controller cluster CR and compares it with
+	// the current nodeIpList (nodeIpList contains list of externalIPs or internalIPs)
+	// if the nodeIP is no longer available, we update the cluster CR on controller cluster
+	//if isEmptyString(cr.Spec.NodeIPs) ||
+	if cr.Status.NodeIPs == nil || len(cr.Status.NodeIPs) == 0 ||
+		!validatenodeipcount(nodeIPs, cr.Status.NodeIPs) {
+		log.Info("Mismatch in node IP", "IP in use", cr.Status.NodeIPs, "IP to be used", nodeIPs)
+		cr.Status.NodeIPs = nodeIPs
+		if err := r.Status().Update(ctx, cr); err != nil {
+			log.Error(err, "Error updating to cluster status on hub cluster")
+			return err
+		}
+		// TODO raise event to cluster CR that node ip is updated
+	}
+	return nil
+
 	if err != nil {
 		log.Error(err, "Error getting cni Subnet")
 		return err
@@ -193,6 +244,12 @@ func (r *Reconciler) updateClusterInfo(ctx context.Context, cr *hubv1alpha1.Clus
 	}
 
 	return nil
+}
+
+// total -> external ip list of nodes in the k8s cluster
+// current -> ip list present in nodeIPs of cluster cr
+func validatenodeipcount(total, current []string) bool {
+	return reflect.DeepEqual(total, current)
 }
 
 func (r *Reconciler) isDashboardCredsUpdated(ctx context.Context, cr *hubv1alpha1.Cluster) bool {

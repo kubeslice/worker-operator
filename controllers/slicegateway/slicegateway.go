@@ -24,7 +24,6 @@ import (
 	"fmt"
 	"math"
 	"os"
-	"reflect"
 	"strconv"
 	"time"
 
@@ -198,7 +197,7 @@ func (r *SliceGwReconciler) deploymentForGatewayServer(g *kubeslicev1beta1.Slice
 							},
 							{
 								Name:  "NODE_IP",
-								Value: controllers.NodeIP,
+								Value: cluster.GetNodeExternalIpList()[0],
 							},
 							{
 								Name:  "OPEN_VPN_MODE",
@@ -875,41 +874,13 @@ func (r *SliceGwReconciler) createEndpointForGatewayServer(slicegateway *kubesli
 	return e
 }
 
-// reconcileNodes gets the current nodeIP in use from controller cluster CR and compares it with
-// the current nodeIpList (nodeIpList contains list of externalIPs or a single nodeIP if provided by user)
-// if the nodeIP is no longer available , we update the cluster CR on controller cluster
-func (r *SliceGwReconciler) reconcileNodes(ctx context.Context, slicegateway *kubeslicev1beta1.SliceGateway) error {
-	log := r.Log
-	//currentNodeIP and nodeIpList would be same in case of operator restart because it is set at the start of operator in main.go, hence it is better to fetch the nodeIP in use from controller cluster CR!
-	//TODO: can we store nodeIP in slicegw?
-	currentNodeIP, err := r.HubClient.GetClusterNodeIP(ctx, os.Getenv("CLUSTER_NAME"), os.Getenv("HUB_PROJECT_NAMESPACE"))
-	if err != nil {
-		return err
-	}
-	nodeIpList := cluster.GetNodeExternalIpList()
-	if len(nodeIpList) == 0 {
-		//err := errors.New("node IP list is empty")
-		return nil
-	}
-	if !validatenodeipcount(nodeIpList, currentNodeIP) {
-		//nodeIP updated , update the cluster CR
-		log.Info("Mismatch in node IP", "IP in use", currentNodeIP, "IP to be used", nodeIpList)
-		err := r.HubClient.UpdateNodeIpInCluster(ctx, os.Getenv("CLUSTER_NAME"), nodeIpList, os.Getenv("HUB_PROJECT_NAMESPACE"), slicegateway)
-		if err != nil {
-			return err
-		}
-		r.NodeIPs = nodeIpList
-	}
-	return nil
-}
-
 func (r *SliceGwReconciler) reconcileGatewayHeadlessService(ctx context.Context, sliceGw *kubeslicev1beta1.SliceGateway) error {
 	log := r.Log
 	serviceFound := corev1.Service{}
 	err := r.Get(ctx, types.NamespacedName{Namespace: sliceGw.Namespace, Name: sliceGw.Status.Config.SliceGatewayRemoteGatewayID}, &serviceFound)
 	if err != nil {
 		if errors.IsNotFound(err) {
-			// Create a new service with same name as SliceGatewayRemoteGatewayID , because --remote flag of openvpn client is populated with same name. So it would call this svc to get a server IP(through endpoint)
+			// Create a new service with same name as SliceGatewayRemoteGatewayID, because --remote flag of openvpn client is populated with same name. So it would call this svc to get a server IP(through endpoint)
 			svc := r.createHeadlessServiceForGwServer(sliceGw)
 			if err := r.Create(ctx, svc); err != nil {
 				log.Error(err, "Failed to create headless service", "Name", svc.Name)
@@ -995,11 +966,6 @@ func validateEndpointAddresses(subset corev1.EndpointSubset, remoteNodeIPS []str
 	return true
 }
 
-// total -> external ip list of nodes in the k8s cluster
-// current -> ip list present in nodeIPs of cluster cr
-func validatenodeipcount(total, current []string) bool {
-	return reflect.DeepEqual(total, current)
-}
 func UpdateGWPodStatus(gwPodStatus []*kubeslicev1beta1.GwPodInfo, podName string) []*kubeslicev1beta1.GwPodInfo {
 	index := -1
 	for i, _ := range gwPodStatus {

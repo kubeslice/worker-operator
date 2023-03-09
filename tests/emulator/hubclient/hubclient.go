@@ -21,11 +21,8 @@ package hubclient
 import (
 	"context"
 
-	hubv1alpha1 "github.com/kubeslice/apis/pkg/controller/v1alpha1"
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
 	_ "github.com/stretchr/testify/mock"
-	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -37,29 +34,6 @@ func NewHubClientEmulator(client client.Client) (*HubClientEmulator, error) {
 	return &HubClientEmulator{
 		Client: client,
 	}, nil
-}
-
-func (hubClientEmulator *HubClientEmulator) UpdateNodeIpInCluster(ctx context.Context, clusterName string, nodeIP []string, namespace string, slicegw *kubeslicev1beta1.SliceGateway) error {
-	cluster := &hubv1alpha1.Cluster{}
-	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		err := hubClientEmulator.Get(ctx, types.NamespacedName{
-			Name:      clusterName,
-			Namespace: namespace,
-		}, cluster)
-		if err != nil {
-			return err
-		}
-		cluster.Spec.NodeIPs = nodeIP
-		if err := hubClientEmulator.Update(ctx, cluster); err != nil {
-			//log.Error(err, "Error updating to cluster spec on controller cluster")
-			return err
-		}
-		return nil
-	})
-	if err != nil {
-		return err
-	}
-	return nil
 }
 
 func (hubClientEmulator *HubClientEmulator) UpdateNodePortForSliceGwServer(
