@@ -225,3 +225,52 @@ func (r *Reconciler) SyncSvcExportStatus(ctx context.Context, serviceexport *kub
 
 	return ctrl.Result{Requeue: true}, nil, true
 }
+
+// ReconcileAliases reconciles serviceexport aliases
+func (r *Reconciler) ReconcileAliases(
+	ctx context.Context, serviceexport *kubeslicev1beta1.ServiceExport) (ctrl.Result, error, bool) {
+	log := logger.FromContext(ctx).WithValues("type", "aliases")
+
+	if len(serviceexport.Spec.Aliases) == 0 && len(serviceexport.Status.Aliases) == 0 {
+		return ctrl.Result{}, nil, false
+	}
+
+	// Check if an update is needed to the alias info in the status
+	updateNeeded := false
+
+	// Status does not contain alias info. Could be the first iteration of the reconcile loop
+	if len(serviceexport.Status.Aliases) == 0 {
+		updateNeeded = true
+	}
+
+	for _, aliasInStatus := range serviceexport.Status.Aliases {
+		if !aliasRecordedInStatus(aliasInStatus, &serviceexport.Spec.Aliases) {
+			updateNeeded = true
+			break
+		}
+	}
+
+	if updateNeeded {
+		serviceexport.Status.Aliases = serviceexport.Spec.Aliases
+		serviceexport.Status.LastSync = 0
+		err := r.Status().Update(ctx, serviceexport)
+		if err != nil {
+			log.Error(err, "Failed to update serviceexport ports")
+			return ctrl.Result{}, err, true
+		}
+		log.Info("serviceexport status updated with aliases", ":", serviceexport.Status.Aliases)
+		return ctrl.Result{Requeue: true}, nil, true
+	}
+
+	return ctrl.Result{}, nil, false
+}
+
+func aliasRecordedInStatus(aliasInStatus string, aliasListInSpec *[]string) bool {
+	for _, alias := range *aliasListInSpec {
+		if alias == aliasInStatus {
+			return true
+		}
+	}
+
+	return false
+}

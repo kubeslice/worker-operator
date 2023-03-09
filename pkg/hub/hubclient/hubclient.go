@@ -469,6 +469,7 @@ func getHubServiceExportObj(serviceexport *kubeslicev1beta1.ServiceExport) *hubv
 			SliceName:                 serviceexport.Spec.Slice,
 			ServiceDiscoveryEndpoints: getHubServiceDiscoveryEps(serviceexport),
 			ServiceDiscoveryPorts:     getHubServiceDiscoveryPorts(serviceexport),
+			Aliases:                   serviceexport.Spec.Aliases,
 		},
 	}
 }
@@ -504,6 +505,7 @@ func (hubClient *HubClientConfig) UpdateServiceExportEndpointForIngressGw(ctx co
 					SliceName:                 serviceexport.Spec.Slice,
 					ServiceDiscoveryEndpoints: []hubv1alpha1.ServiceDiscoveryEndpoint{getHubServiceDiscoveryEpForIngressGw(ep)},
 					ServiceDiscoveryPorts:     getHubServiceDiscoveryPorts(serviceexport),
+					Aliases:                   serviceexport.Spec.Aliases,
 				},
 			}
 			err = hubClient.Create(ctx, hubSvcExObj)
@@ -517,6 +519,7 @@ func (hubClient *HubClientConfig) UpdateServiceExportEndpointForIngressGw(ctx co
 
 	hubSvcEx.Spec.ServiceDiscoveryEndpoints = []hubv1alpha1.ServiceDiscoveryEndpoint{getHubServiceDiscoveryEpForIngressGw(ep)}
 	hubSvcEx.Spec.ServiceDiscoveryPorts = getHubServiceDiscoveryPorts(serviceexport)
+	hubSvcEx.Spec.Aliases = serviceexport.Spec.Aliases
 
 	err = hubClient.Update(ctx, hubSvcEx)
 	if err != nil {
