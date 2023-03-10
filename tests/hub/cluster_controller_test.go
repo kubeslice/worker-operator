@@ -115,12 +115,12 @@ Prefixes:
 				if err != nil {
 					return err
 				}
-				if len(cluster.Spec.NodeIPs) == 0 {
+				if len(cluster.Status.NodeIPs) == 0 {
 					return fmt.Errorf("nodeip not populated")
 				}
 				return nil
 			}, time.Second*30, time.Millisecond*500).ShouldNot(HaveOccurred())
-			Expect(cluster.Spec.NodeIPs[0]).Should(Equal("35.235.10.1"))
+			Expect(cluster.Status.NodeIPs[0]).Should(Equal("35.235.10.1"))
 			Expect(cluster.Spec.ClusterProperty.GeoLocation.CloudProvider).Should(Equal("gcp"))
 			Expect(cluster.Spec.ClusterProperty.GeoLocation.CloudRegion).Should(Equal("us-east-1"))
 			Expect(cluster.Status.CniSubnet).Should(Equal([]string{"192.168.0.0/16", "10.96.0.0/12"}))

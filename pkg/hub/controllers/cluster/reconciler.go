@@ -241,6 +241,19 @@ func (r *Reconciler) updateClusterInfo(ctx context.Context, cr *hubv1alpha1.Clus
 			log.Error(err, "Error updating to cluster spec on hub cluster")
 			return err
 		}
+		// OR gets the current nodeIP in use from controller cluster CR and compares it with
+		// the current nodeIpList (nodeIpList contains list of externalIPs or internalIPs)
+		// if the nodeIP is no longer available, we update the cluster CR on controller cluster
+		if cr.Status.NodeIPs == nil || len(cr.Status.NodeIPs) == 0 ||
+			!validatenodeips(nodeIPs, cr.Status.NodeIPs) {
+			log.Info("Mismatch in node IP", "IP in use", cr.Status.NodeIPs, "IP to be used", nodeIPs)
+			cr.Status.NodeIPs = nodeIPs
+			if err := r.Status().Update(ctx, cr); err != nil {
+				log.Error(err, "Error updating to cluster status on hub cluster")
+				return err
+			}
+			// TODO raise event to cluster CR that node ip is updated
+		}
 	}
 
 	return nil
@@ -248,7 +261,7 @@ func (r *Reconciler) updateClusterInfo(ctx context.Context, cr *hubv1alpha1.Clus
 
 // total -> external ip list of nodes in the k8s cluster
 // current -> ip list present in nodeIPs of cluster cr
-func validatenodeipcount(total, current []string) bool {
+func validatenodeips(total, current []string) bool {
 	return reflect.DeepEqual(total, current)
 }
 

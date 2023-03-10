@@ -16,7 +16,7 @@
  *  limitations under the License.
  */
 
-package spoke_test
+package hub_test
 
 import (
 	"context"
@@ -24,22 +24,15 @@ import (
 	"time"
 
 	hubv1alpha1 "github.com/kubeslice/apis/pkg/controller/v1alpha1"
-	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
-	nsmv1 "github.com/networkservicemesh/sdk-k8s/pkg/tools/k8s/apis/networkservicemesh.io/v1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/util/retry"
 )
 
 var _ = Describe("NodeRestart Test Suite", func() {
-	var sliceGwServer *kubeslicev1beta1.SliceGateway
-	var createdSliceGw *kubeslicev1beta1.SliceGateway
-	var slice *kubeslicev1beta1.Slice
-	var vl3ServiceEndpoint *nsmv1.NetworkServiceEndpoint
 	var node1, node2 *corev1.Node
 	var cluster *hubv1alpha1.Cluster
 	var nsmconfig *corev1.ConfigMap
@@ -122,37 +115,6 @@ var _ = Describe("NodeRestart Test Suite", func() {
 			}
 			Expect(k8sClient.Create(ctx, cluster)).Should(Succeed())
 
-			sliceGwServer = &kubeslicev1beta1.SliceGateway{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "test-slicegw-internal-server",
-					Namespace: CONTROL_PLANE_NS,
-				},
-				Spec: kubeslicev1beta1.SliceGatewaySpec{
-					SliceName: "test-slice-internal-node",
-				},
-			}
-
-			slice = &kubeslicev1beta1.Slice{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "test-slice-internal-node",
-					Namespace: CONTROL_PLANE_NS,
-				},
-				Spec: kubeslicev1beta1.SliceSpec{},
-			}
-			vl3ServiceEndpoint = &nsmv1.NetworkServiceEndpoint{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "vl3-nse-" + "test-slice-internal-node",
-					Namespace: "kubeslice-system",
-					Labels: map[string]string{
-						"app":                "vl3-nse-" + "test-slice-internal-node",
-						"networkservicename": "vl3-service-" + "test-slice-internal-node",
-					},
-				},
-				Spec: nsmv1.NetworkServiceEndpointSpec{
-					Name:                "vl3-service-" + "test-slice-internal-node",
-					NetworkServiceNames: []string{"\"vl3-service-\" + \"test-slice-internal-node\""},
-				},
-			}
 			nsmconfig = configMap("nsm-config", "kubeslice-system", `
  Prefixes:
  - 192.168.0.0/16
@@ -161,7 +123,6 @@ var _ = Describe("NodeRestart Test Suite", func() {
 			if errors.IsNotFound(err) {
 				Expect(k8sClient.Create(ctx, nsmconfig)).Should(Succeed())
 			}
-			createdSliceGw = &kubeslicev1beta1.SliceGateway{}
 
 			DeferCleanup(func() {
 				Eventually(func() bool {
@@ -185,34 +146,15 @@ var _ = Describe("NodeRestart Test Suite", func() {
 				return err == nil
 			}, time.Second*10, time.Millisecond*250).Should(BeTrue())
 
-			// set nodeip as ip of node1
-			cluster.Spec.NodeIPs = []string{node1.Status.Addresses[0].Address}
-			Expect(k8sClient.Update(ctx, cluster)).Should(Succeed())
-
-			// start the reconcilers
-			Expect(k8sClient.Create(ctx, slice)).Should(Succeed())
-			Expect(k8sClient.Create(ctx, vl3ServiceEndpoint)).Should(Succeed())
-			Expect(k8sClient.Create(ctx, sliceGwServer)).Should(Succeed())
-			slicegwkey := types.NamespacedName{Name: sliceGwServer.Name, Namespace: CONTROL_PLANE_NS}
+			// verify if new node IP is updated on cluster CR
 			Eventually(func() bool {
-				err := k8sClient.Get(ctx, slicegwkey, createdSliceGw)
-				return err == nil
-			}, time.Second*10, time.Millisecond*250).Should(BeTrue())
+				err := k8sClient.Get(ctx, types.NamespacedName{Name: cluster.Name, Namespace: cluster.Namespace}, cluster)
+				if err != nil {
+					return false
+				}
+				return len(cluster.Status.NodeIPs) > 0
+			}, time.Second*60, time.Millisecond*250).Should(BeTrue())
 
-			createdSliceGw.Status.Config.SliceGatewayHostType = "Server"
-			err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-				err := k8sClient.Get(ctx, slicegwkey, createdSliceGw)
-				if err != nil {
-					return err
-				}
-				createdSliceGw.Status.Config.SliceGatewayHostType = "Server"
-				err = k8sClient.Status().Update(ctx, createdSliceGw)
-				if err != nil {
-					return err
-				}
-				return nil
-			})
-			Expect(err).To(BeNil())
 			//create another kubeslice node
 			Expect(k8sClient.Create(ctx, node2)).Should(Succeed())
 			// delete the node whose IP was selected to replicate node failure
@@ -223,7 +165,7 @@ var _ = Describe("NodeRestart Test Suite", func() {
 				if err != nil {
 					return false
 				}
-				return cluster.Spec.NodeIPs[0] == "35.235.10.2"
+				return cluster.Status.NodeIPs[0] == "35.235.10.2"
 			}, time.Second*60, time.Millisecond*250).Should(BeTrue())
 		})
 	})
