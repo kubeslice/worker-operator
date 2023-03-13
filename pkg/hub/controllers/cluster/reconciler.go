@@ -262,7 +262,15 @@ func (r *Reconciler) updateClusterInfo(ctx context.Context, cr *hubv1alpha1.Clus
 // total -> external ip list of nodes in the k8s cluster
 // current -> ip list present in nodeIPs of cluster cr
 func validatenodeips(total, current []string) bool {
-	return reflect.DeepEqual(total, current)
+	if len(total) != len(current) {
+		return false
+	}
+	for i := range total {
+		if total[i] != current[i] {
+			return false
+		}
+	}
+	return true
 }
 
 func (r *Reconciler) isDashboardCredsUpdated(ctx context.Context, cr *hubv1alpha1.Cluster) bool {

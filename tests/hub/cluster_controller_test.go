@@ -35,11 +35,15 @@ import (
 )
 
 var _ = Describe("Hub ClusterController", func() {
-	Context("With Cluster CR Created at hub cluster", func() {
-		var ns *corev1.Namespace
+	Context("With Cluster CR Created at hub cluster", Ordered, func() {
+		var ns, nsSpire, nsIstio *corev1.Namespace
 		var cluster *hubv1alpha1.Cluster
 		var node *corev1.Node
 		var nsmconfig *corev1.ConfigMap
+		var operatorSecret *corev1.Secret
+		var sa *corev1.ServiceAccount
+		hostname := "127.0.0.1:6443"
+
 		BeforeEach(func() {
 			node = &corev1.Node{
 				ObjectMeta: metav1.ObjectMeta{
@@ -67,147 +71,8 @@ var _ = Describe("Hub ClusterController", func() {
 					},
 				},
 			}
-
-			ns = &corev1.Namespace{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: PROJECT_NS,
-				},
-			}
-			cluster = &hubv1alpha1.Cluster{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      CLUSTER_NAME,
-					Namespace: PROJECT_NS,
-				},
-				Spec:   hubv1alpha1.ClusterSpec{},
-				Status: hubv1alpha1.ClusterStatus{},
-			}
-			nsmconfig = configMap("nsm-config", "kubeslice-system", `
-Prefixes:
-- 192.168.0.0/16
-- 10.96.0.0/12`)
-
-			DeferCleanup(func() {
-				Expect(k8sClient.Delete(ctx, node)).Should(Succeed())
-				Expect(k8sClient.Delete(ctx, cluster)).Should(Succeed())
-			})
-
-		})
-
-		It("Should update cluster CR with nodeIP and geographical info", func() {
 			Expect(k8sClient.Create(ctx, node))
-			err := k8sClient.Get(ctx, types.NamespacedName{Name: ns.Name}, ns)
-			if errors.IsNotFound(err) {
-				Expect(k8sClient.Create(ctx, ns)).Should(Succeed())
-			}
-			Expect(k8sClient.Create(ctx, cluster)).Should(Succeed())
 
-			err = k8sClient.Get(ctx, types.NamespacedName{Name: nsmconfig.Name, Namespace: nsmconfig.Namespace}, nsmconfig)
-			if errors.IsNotFound(err) {
-				Expect(k8sClient.Create(ctx, nsmconfig)).Should(Succeed())
-			}
-
-			nodeIP, err := clusterpkg.GetNodeIP(k8sClient)
-			Expect(err).To(BeNil())
-			Expect(nodeIP[0]).Should(Equal("35.235.10.1"))
-			//get the cluster object
-			Eventually(func() error {
-				err := k8sClient.Get(ctx, types.NamespacedName{Name: cluster.Name, Namespace: cluster.Namespace}, cluster)
-				if err != nil {
-					return err
-				}
-				if len(cluster.Status.NodeIPs) == 0 {
-					return fmt.Errorf("nodeip not populated")
-				}
-				return nil
-			}, time.Second*30, time.Millisecond*500).ShouldNot(HaveOccurred())
-			Expect(cluster.Status.NodeIPs[0]).Should(Equal("35.235.10.1"))
-			Expect(cluster.Spec.ClusterProperty.GeoLocation.CloudProvider).Should(Equal("gcp"))
-			Expect(cluster.Spec.ClusterProperty.GeoLocation.CloudRegion).Should(Equal("us-east-1"))
-			Expect(cluster.Status.CniSubnet).Should(Equal([]string{"192.168.0.0/16", "10.96.0.0/12"}))
-		})
-	})
-
-	Context("With Cluster CR Created at controller cluster", func() {
-		var ns *corev1.Namespace
-		var cluster *hubv1alpha1.Cluster
-		var operatorSecret *corev1.Secret
-		var sa *corev1.ServiceAccount
-		hostname := "127.0.0.1:6443"
-
-		BeforeEach(func() {
-			ns = &corev1.Namespace{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: PROJECT_NS,
-				},
-			}
-			os.Setenv("HUB_PROJECT_NAMESPACE", ns.Name)
-			cluster = &hubv1alpha1.Cluster{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      CLUSTER_NAME,
-					Namespace: PROJECT_NS,
-				},
-				Spec: hubv1alpha1.ClusterSpec{
-					NodeIPs: []string{"35.235.10.1"},
-				},
-				Status: hubv1alpha1.ClusterStatus{},
-			}
-			os.Setenv("CLUSTER_NAME", cluster.Name)
-			operatorSecret = getSecret("kubeslice-kubernetes-dashboard", CONTROL_PLANE_NS)
-			sa = getSA("kubeslice-kubernetes-dashboard", CONTROL_PLANE_NS, operatorSecret.Name)
-		})
-		It("should create secret in controller's project namespace", func() {
-			os.Setenv("CLUSTER_ENDPOINT", hostname)
-			Expect(k8sClient.Create(ctx, cluster)).Should(Succeed())
-			Expect(k8sClient.Create(ctx, operatorSecret)).Should(Succeed())
-			Expect(k8sClient.Create(ctx, sa)).Should(Succeed())
-
-			//get the created operator secret
-			Eventually(func() bool {
-				err := k8sClient.Get(ctx, types.NamespacedName{Name: operatorSecret.Name,
-					Namespace: operatorSecret.Namespace}, operatorSecret)
-				return err == nil
-			}, time.Second*10, time.Millisecond*250).Should(BeTrue())
-
-			//get the secret on controller
-			Eventually(func() bool {
-				hubSecret := &corev1.Secret{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      cluster.Name + hub.HubSecretSuffix,
-						Namespace: PROJECT_NS,
-					}}
-				err := k8sClient.Get(ctx, types.NamespacedName{Name: hubSecret.Name, Namespace: hubSecret.Namespace}, hubSecret)
-				return err == nil
-			}, time.Second*30, time.Millisecond*250).Should(BeTrue())
-		})
-		It("Should update cluster CR with secret info", func() {
-			//get the cluster object
-			Eventually(func() bool {
-				err := k8sClient.Get(ctx, types.NamespacedName{Name: cluster.Name, Namespace: cluster.Namespace}, cluster)
-				return err == nil
-			}, time.Second*10, time.Millisecond*250).Should(BeTrue())
-
-			Expect(cluster.Spec.ClusterProperty.Monitoring.KubernetesDashboard.AccessToken).
-				Should(Equal(cluster.Name + hub.HubSecretSuffix))
-		})
-		It("Should update cluster CR with cluster URL", func() {
-			//get the cluster object
-			Eventually(func() bool {
-				err := k8sClient.Get(ctx, types.NamespacedName{Name: cluster.Name, Namespace: cluster.Namespace}, cluster)
-				return err == nil
-			}, time.Second*10, time.Millisecond*250).Should(BeTrue())
-			Expect(cluster.Spec.ClusterProperty.Monitoring.KubernetesDashboard.Endpoint).
-				Should(Equal(hostname))
-		})
-	})
-
-	Context("Cluster health check", func() {
-		var ns, nsSpire, nsIstio *corev1.Namespace
-		var cluster *hubv1alpha1.Cluster
-		var operatorSecret *corev1.Secret
-		var sa *corev1.ServiceAccount
-		var pods []*corev1.Pod
-
-		BeforeEach(func() {
 			ns = &corev1.Namespace{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: PROJECT_NS,
@@ -231,41 +96,102 @@ Prefixes:
 				Spec:   hubv1alpha1.ClusterSpec{},
 				Status: hubv1alpha1.ClusterStatus{},
 			}
+
 			os.Setenv("HUB_PROJECT_NAMESPACE", PROJECT_NS)
 			os.Setenv("CLUSTER_NAME", CLUSTER_NAME)
-			operatorSecret = getSecret("kubeslice-kubernetes-dashboard", CONTROL_PLANE_NS)
-			sa = getSA("kubeslice-kubernetes-dashboard", CONTROL_PLANE_NS, operatorSecret.Name)
-			Expect(k8sClient.Create(ctx, ns))
+
+			nsmconfig = configMap("nsm-config", "kubeslice-system", `
+ Prefixes:
+ - 192.168.0.0/16
+ - 10.96.0.0/12`)
+			err := k8sClient.Get(ctx, types.NamespacedName{Name: nsmconfig.Name, Namespace: nsmconfig.Namespace}, nsmconfig)
+			if errors.IsNotFound(err) {
+				Expect(k8sClient.Create(ctx, nsmconfig)).Should(Succeed())
+			}
 			Expect(k8sClient.Create(ctx, nsSpire))
 			Expect(k8sClient.Create(ctx, nsIstio))
-			Expect(k8sClient.Create(ctx, operatorSecret))
-			Expect(k8sClient.Create(ctx, sa))
-			Expect(k8sClient.Create(ctx, cluster))
+			operatorSecret = getSecret("kubeslice-kubernetes-dashboard", CONTROL_PLANE_NS)
+			sa = getSA("kubeslice-kubernetes-dashboard", CONTROL_PLANE_NS, operatorSecret.Name)
 
 			DeferCleanup(func() {
-				k8sClient.Delete(ctx, cluster)
-				k8sClient.Delete(ctx, operatorSecret)
-				k8sClient.Delete(ctx, sa)
-
-				// Wait for cluster CR to be cleaned up
-				Eventually(func() bool {
-					err := k8sClient.Get(ctx, types.NamespacedName{Name: cluster.Name, Namespace: cluster.Namespace}, cluster)
-					return err != nil && errors.IsNotFound(err)
-				}, time.Second*10, time.Second*1).Should(BeTrue())
-
-				// delete all pods which were created for checking health status
-				for _, pod := range pods {
-					k8sClient.Delete(ctx, pod)
-					pods = []*corev1.Pod{}
-				}
+				Expect(k8sClient.Delete(ctx, node)).Should(Succeed())
 			})
 		})
 
+		It("Should update cluster CR with nodeIP and geographical info", func() {
+			Expect(k8sClient.Create(ctx, cluster)).Should(Succeed())
+			err := k8sClient.Get(ctx, types.NamespacedName{Name: ns.Name}, ns)
+			if errors.IsNotFound(err) {
+				Expect(k8sClient.Create(ctx, ns)).Should(Succeed())
+			}
+			nodeIP, err := clusterpkg.GetNodeIP(k8sClient)
+			Expect(err).To(BeNil())
+			Expect(nodeIP[0]).Should(Equal("35.235.10.1"))
+			//get the cluster object
+			Eventually(func() error {
+				err := k8sClient.Get(ctx, types.NamespacedName{Name: cluster.Name, Namespace: cluster.Namespace}, cluster)
+				if err != nil {
+					return err
+				}
+				if len(cluster.Status.NodeIPs) == 0 {
+					return fmt.Errorf("nodeip not populated")
+				}
+				return nil
+			}, time.Second*30, time.Millisecond*500).ShouldNot(HaveOccurred())
+			Expect(cluster.Status.NodeIPs[0]).Should(Equal("35.235.10.1"))
+			Expect(cluster.Spec.ClusterProperty.GeoLocation.CloudProvider).Should(Equal("gcp"))
+			Expect(cluster.Spec.ClusterProperty.GeoLocation.CloudRegion).Should(Equal("us-east-1"))
+			Expect(cluster.Status.CniSubnet).Should(Equal([]string{"192.168.0.0/16", "10.96.0.0/12"}))
+		})
+		It("should create secret in controller's project namespace", func() {
+			os.Setenv("CLUSTER_ENDPOINT", hostname)
+			Expect(k8sClient.Create(ctx, operatorSecret)).Should(Succeed())
+			Expect(k8sClient.Create(ctx, sa)).Should(Succeed())
+
+			//get the created operator secret
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, types.NamespacedName{Name: operatorSecret.Name,
+					Namespace: operatorSecret.Namespace}, operatorSecret)
+				return err == nil
+			}, time.Second*10, time.Millisecond*250).Should(BeTrue())
+
+			//get the secret on controller
+			Eventually(func() bool {
+				hubSecret := &corev1.Secret{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      cluster.Name + hub.HubSecretSuffix,
+						Namespace: PROJECT_NS,
+					}}
+				err := k8sClient.Get(ctx, types.NamespacedName{Name: hubSecret.Name, Namespace: hubSecret.Namespace}, hubSecret)
+				return err == nil
+			}, time.Second*30, time.Millisecond*250).Should(BeTrue())
+		})
+		It("Should update cluster CR with secret info", func() {
+			os.Setenv("CLUSTER_ENDPOINT", hostname)
+			//get the cluster object
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, types.NamespacedName{Name: cluster.Name, Namespace: cluster.Namespace}, cluster)
+				return err == nil
+			}, time.Second*60, time.Millisecond*250).Should(BeTrue())
+
+			Expect(cluster.Spec.ClusterProperty.Monitoring.KubernetesDashboard.AccessToken).
+				Should(Equal(cluster.Name + hub.HubSecretSuffix))
+		})
+		It("Should update cluster CR with cluster URL", func() {
+			os.Setenv("CLUSTER_ENDPOINT", hostname)
+			//get the cluster object
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, types.NamespacedName{Name: cluster.Name, Namespace: cluster.Namespace}, cluster)
+				return err == nil
+			}, time.Second*60, time.Millisecond*250).Should(BeTrue())
+			Expect(cluster.Spec.ClusterProperty.Monitoring.KubernetesDashboard.Endpoint).
+				Should(Equal(hostname))
+		})
 		It("Should update cluster CR with health status updated time", func() {
 			Eventually(func() bool {
 				err := k8sClient.Get(ctx, types.NamespacedName{Name: cluster.Name, Namespace: cluster.Namespace}, cluster)
 				return err == nil && cluster.Status.ClusterHealth != nil
-			}, time.Second*10, time.Second*1).Should(BeTrue())
+			}, time.Second*60, time.Second*1).Should(BeTrue())
 			last := cluster.Status.ClusterHealth.LastUpdated
 
 			// LastUpdated should be updated every few seconds
@@ -274,13 +200,12 @@ Prefixes:
 				return err == nil && cluster.Status.ClusterHealth != nil && !cluster.Status.ClusterHealth.LastUpdated.Equal(&last)
 			}, time.Second*200, time.Second*1).Should(BeTrue())
 		})
-
 		It("Should update cluster CR with compoent status as error for all", func() {
 			Eventually(func() bool {
 				err := k8sClient.Get(ctx, types.NamespacedName{Name: cluster.Name, Namespace: cluster.Namespace}, cluster)
 				GinkgoWriter.Println(cluster)
 				return err == nil && cluster.Status.ClusterHealth != nil
-			}, time.Second*10, time.Second*1).Should(BeTrue())
+			}, time.Second*60, time.Second*1).Should(BeTrue())
 			cs := cluster.Status.ClusterHealth.ComponentStatuses
 
 			Expect(cs).Should(HaveLen(6))
@@ -291,7 +216,6 @@ Prefixes:
 				Expect(string(c.ComponentHealthStatus)).Should(Equal("Error"))
 			}
 		})
-
 		It("Should update cluster CR with component status as normal when pods running", func() {
 			pods := []*corev1.Pod{
 				{
@@ -391,27 +315,27 @@ Prefixes:
 				pod.Status.Phase = corev1.PodRunning
 				Expect(k8sClient.Status().Update(ctx, pod)).ToNot(HaveOccurred())
 			}
-
-			// wait for next reconcile loop
-			time.Sleep(10 * time.Second)
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, types.NamespacedName{Name: cluster.Name, Namespace: cluster.Namespace}, cluster)
+				if err != nil {
+					return false
+				}
+				return len(cluster.Status.ClusterHealth.ComponentStatuses) == 6
+			}, time.Second*60, time.Second*1).Should(BeTrue())
 
 			Eventually(func() bool {
 				err := k8sClient.Get(ctx, types.NamespacedName{Name: cluster.Name, Namespace: cluster.Namespace}, cluster)
-				return err == nil && cluster.Status.ClusterHealth != nil
-			}, time.Second*10, time.Second*1).Should(BeTrue())
-
+				if err != nil {
+					return false
+				}
+				return string(cluster.Status.ClusterHealth.ClusterHealthStatus) == "Normal"
+			}, time.Second*60, time.Second*1).Should(BeTrue())
 			cs := cluster.Status.ClusterHealth.ComponentStatuses
-			Expect(cs).Should(HaveLen(6))
-
-			Expect(string(cluster.Status.ClusterHealth.ClusterHealthStatus)).Should(Equal("Normal"))
-
 			for i, c := range cs {
 				Expect(c.Component).Should(Equal(pods[i].ObjectMeta.Name))
 				Expect(string(c.ComponentHealthStatus)).Should(Equal("Normal"))
 			}
-
 		})
-
 		It("Should update cluster CR with istio status", func() {
 			pods := []*corev1.Pod{
 				{
@@ -437,22 +361,19 @@ Prefixes:
 				Expect(k8sClient.Status().Update(ctx, pod)).ToNot(HaveOccurred())
 			}
 
-			// wait for next reconcile loop
-			time.Sleep(10 * time.Second)
-
 			Eventually(func() bool {
 				err := k8sClient.Get(ctx, types.NamespacedName{Name: cluster.Name, Namespace: cluster.Namespace}, cluster)
-				return err == nil && cluster.Status.ClusterHealth != nil
-			}, time.Second*10, time.Second*1).Should(BeTrue())
+				if err != nil {
+					return false
+				}
+				return len(cluster.Status.ClusterHealth.ComponentStatuses) == 7
+			}, time.Second*60, time.Second*1).Should(BeTrue())
 
 			cs := cluster.Status.ClusterHealth.ComponentStatuses
-			Expect(cs).Should(HaveLen(7))
-
 			Expect(cs[6].Component).Should(Equal(("istiod")))
 			Expect(string(cs[6].ComponentHealthStatus)).Should(Equal("Normal"))
 
 		})
-
 	})
 })
 

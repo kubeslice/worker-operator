@@ -125,7 +125,11 @@ func (r *SliceGwReconciler) deploymentForGatewayServer(g *kubeslicev1beta1.Slice
 	}
 
 	nsmAnnotation := fmt.Sprintf("kernel://vl3-service-%s/nsm0", g.Spec.SliceName)
-
+	selectedNodeIP := ""
+	nodeIps := cluster.GetNodeExternalIpList()
+	if nodeIps != nil {
+		selectedNodeIP = nodeIps[0]
+	}
 	dep := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      g.Name + "-" + fmt.Sprint(i),
@@ -197,7 +201,7 @@ func (r *SliceGwReconciler) deploymentForGatewayServer(g *kubeslicev1beta1.Slice
 							},
 							{
 								Name:  "NODE_IP",
-								Value: cluster.GetNodeExternalIpList()[0],
+								Value: selectedNodeIP,
 							},
 							{
 								Name:  "OPEN_VPN_MODE",

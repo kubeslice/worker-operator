@@ -107,14 +107,17 @@ var _ = Describe("NodeRestart Test Suite", func() {
 			// create cluster CR under project namespace
 			cluster = &hubv1alpha1.Cluster{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "cluster-internal-node",
+					Name:      "cluster-test",
 					Namespace: PROJECT_NS,
 				},
 				Spec:   hubv1alpha1.ClusterSpec{},
 				Status: hubv1alpha1.ClusterStatus{},
 			}
-			Expect(k8sClient.Create(ctx, cluster)).Should(Succeed())
 
+			err = k8sClient.Get(ctx, types.NamespacedName{Name: cluster.Name, Namespace: PROJECT_NS}, cluster)
+			if errors.IsNotFound(err) {
+				Expect(k8sClient.Create(ctx, cluster)).Should(Succeed())
+			}
 			nsmconfig = configMap("nsm-config", "kubeslice-system", `
  Prefixes:
  - 192.168.0.0/16
@@ -125,6 +128,7 @@ var _ = Describe("NodeRestart Test Suite", func() {
 			}
 
 			DeferCleanup(func() {
+				Expect(k8sClient.Delete(ctx, cluster)).Should(Succeed())
 				Eventually(func() bool {
 					err := k8sClient.Delete(ctx, node1)
 					return errors.IsNotFound(err)

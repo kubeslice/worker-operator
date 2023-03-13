@@ -121,8 +121,11 @@ var _ = Describe("NodeRestart Test Suite", func() {
 				},
 				Status: hubv1alpha1.ClusterStatus{},
 			}
-			Expect(k8sClient.Create(ctx, cluster)).Should(Succeed())
 
+			err = k8sClient.Get(ctx, types.NamespacedName{Name: cluster.Name, Namespace: PROJECT_NS}, cluster)
+			if errors.IsNotFound(err) {
+				Expect(k8sClient.Create(ctx, cluster)).Should(Succeed())
+			}
 			nsmconfig = configMap("nsm-config", "kubeslice-system", `
 Prefixes:
  - 192.168.0.0/16
