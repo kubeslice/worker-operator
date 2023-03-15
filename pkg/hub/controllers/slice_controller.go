@@ -38,7 +38,7 @@ import (
 )
 
 const (
-	ReconcileInterval = 10 * time.Second
+	ReconcileInterval = 120 * time.Second
 )
 
 type component struct {
@@ -186,7 +186,7 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req reconcile.Request) 
 	err = r.updateSliceHealth(ctx, slice)
 	if err != nil {
 		log.Error(err, "unable to update slice health status in hub cluster", "workerSlice", slice)
-		return reconcile.Result{}, err
+		return reconcile.Result{RequeueAfter: ReconcileInterval}, err
 	}
 	slice.Status.SliceHealth.LastUpdated = metav1.Now()
 	if err := r.Status().Update(ctx, slice); err != nil {
