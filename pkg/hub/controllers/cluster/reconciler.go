@@ -17,6 +17,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
@@ -138,49 +139,63 @@ func (r *Reconciler) getComponentStatus(ctx context.Context, c *component) (*hub
 
 func (r *Reconciler) updateClusterInfo(ctx context.Context, cr *hubv1alpha1.Cluster) error {
 	log := logger.FromContext(ctx)
-	cl := cluster.NewCluster(r.MeshClient, clusterName)
+	cl := cluster.NewCluster(r.MeshClient, cr.Name)
 	clusterInfo, err := cl.GetClusterInfo(ctx)
 	if err != nil {
 		log.Error(err, "Error getting clusterInfo")
 		return err
 	}
 	log.Info("got clusterinfo", "ci", clusterInfo)
-	if clusterInfo.ClusterProperty.GeoLocation.CloudProvider == GCP || clusterInfo.ClusterProperty.GeoLocation.CloudProvider == AWS || clusterInfo.ClusterProperty.GeoLocation.CloudProvider == AZURE {
-		cr.Spec.ClusterProperty.GeoLocation.CloudRegion = clusterInfo.ClusterProperty.GeoLocation.CloudRegion
-		cr.Spec.ClusterProperty.GeoLocation.CloudProvider = clusterInfo.ClusterProperty.GeoLocation.CloudProvider
-		if err := r.Update(ctx, cr); err != nil {
-			log.Error(err, "Error updating ClusterProperty on hub cluster")
+
+	err = retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		err := r.Get(ctx, types.NamespacedName{
+			Name:      cr.Name,
+			Namespace: cr.Namespace,
+		}, cr)
+		if err != nil {
 			return err
 		}
-	}
-	cniSubnet, err := cl.GetNsmExcludedPrefix(ctx, "nsm-config", "kubeslice-system")
+		if clusterInfo.ClusterProperty.GeoLocation.CloudProvider == GCP || clusterInfo.ClusterProperty.GeoLocation.CloudProvider == AWS || clusterInfo.ClusterProperty.GeoLocation.CloudProvider == AZURE {
+			cr.Spec.ClusterProperty.GeoLocation.CloudRegion = clusterInfo.ClusterProperty.GeoLocation.CloudRegion
+			cr.Spec.ClusterProperty.GeoLocation.CloudProvider = clusterInfo.ClusterProperty.GeoLocation.CloudProvider
+			if err := r.Update(ctx, cr); err != nil {
+				log.Error(err, "Error updating ClusterProperty on hub cluster during retry")
+				return err
+			}
+		}
+		cniSubnet, err := cl.GetNsmExcludedPrefix(ctx, "nsm-config", "kubeslice-system")
+		if err != nil {
+			log.Error(err, "Error getting cni Subnet")
+			return err
+		}
+		if !reflect.DeepEqual(cr.Status.CniSubnet, cniSubnet) {
+			cr.Status.CniSubnet = cniSubnet
+			if err := r.Status().Update(ctx, cr); err != nil {
+				log.Error(err, "Error updating cniSubnet to cluster status on hub cluster")
+				return err
+			}
+		}
+
+		// Populate NodeIPs if not already updated
+		// Only needed to do the initial update. Later updates will be done by node reconciler
+		if cr.Spec.NodeIPs == nil || len(cr.Spec.NodeIPs) == 0 {
+			nodeIPs, err := cluster.GetNodeIP(r.MeshClient)
+			if err != nil {
+				log.Error(err, "Error Getting nodeIP")
+				return err
+			}
+			cr.Spec.NodeIPs = nodeIPs
+			if err := r.Update(ctx, cr); err != nil {
+				log.Error(err, "Error updating to cluster spec on hub cluster during retry")
+				return err
+			}
+		}
+		return nil
+	})
 	if err != nil {
-		log.Error(err, "Error getting cni Subnet")
+		log.Error(err, "Failed to update Info on hub cluster")
 		return err
 	}
-	if !reflect.DeepEqual(cr.Status.CniSubnet, cniSubnet) {
-		cr.Status.CniSubnet = cniSubnet
-		if err := r.Status().Update(ctx, cr); err != nil {
-			log.Error(err, "Error updating cniSubnet to cluster status on hub cluster")
-			return err
-		}
-	}
-
-	// Populate NodeIPs if not already updated
-	// Only needed to do the initial update. Later updates will be done by node reconciler
-	if cr.Spec.NodeIPs == nil || len(cr.Spec.NodeIPs) == 0 {
-		nodeIPs, err := cluster.GetNodeIP(r.MeshClient)
-		if err != nil {
-			log.Error(err, "Error Getting nodeIP")
-			return err
-		}
-		cr.Spec.NodeIPs = nodeIPs
-		if err := r.Update(ctx, cr); err != nil {
-			log.Error(err, "Error updating to cluster spec on hub cluster")
-			return err
-		}
-	}
-
 	return nil
 }
 
