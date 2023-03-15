@@ -47,19 +47,17 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	log.Info("got cluster CR from hub", "cluster", cr)
 
 	// Post NodeIP and GeoLocation info only on first run or if the reconciler wasn't run for a while
-	if cr.Status.ClusterHealth == nil || time.Since(cr.Status.ClusterHealth.LastUpdated.Time) > time.Minute {
-		log.Info("updating cluster info on controller")
-		if err := r.updateClusterInfo(ctx, cr); err != nil {
-			log.Error(err, "unable to update cluster info")
-			return reconcile.Result{RequeueAfter: ReconcileInterval}, err
-		}
+	log.Info("updating cluster info on controller")
+	if err := r.updateClusterInfo(ctx, cr); err != nil {
+		log.Error(err, "unable to update cluster info")
+		return reconcile.Result{Requeue: true}, err
 	}
 
 	// Update dashboard creds if it hasn't already
 	if !r.isDashboardCredsUpdated(ctx, cr) {
 		if err := r.updateDashboardCreds(ctx, cr); err != nil {
 			log.Error(err, "unable to update dashboard creds")
-			return reconcile.Result{RequeueAfter: ReconcileInterval}, err
+			return reconcile.Result{Requeue: true}, err
 		}
 	}
 
