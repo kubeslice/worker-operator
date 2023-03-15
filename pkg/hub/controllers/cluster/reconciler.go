@@ -26,7 +26,7 @@ const (
 	AWS   string = "aws"
 	AZURE string = "azure"
 
-	ReconcileInterval = 10 * time.Second
+	ReconcileInterval = 120 * time.Second
 )
 
 type Reconciler struct {
@@ -51,6 +51,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		log.Info("updating cluster info on controller")
 		if err := r.updateClusterInfo(ctx, cr); err != nil {
 			log.Error(err, "unable to update cluster info")
+			return reconcile.Result{RequeueAfter: ReconcileInterval}, err
 		}
 	}
 
@@ -58,6 +59,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	if !r.isDashboardCredsUpdated(ctx, cr) {
 		if err := r.updateDashboardCreds(ctx, cr); err != nil {
 			log.Error(err, "unable to update dashboard creds")
+			return reconcile.Result{RequeueAfter: ReconcileInterval}, err
 		}
 	}
 
@@ -72,6 +74,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	cr.Status.ClusterHealth.LastUpdated = metav1.Now()
 	if err := r.Status().Update(ctx, cr); err != nil {
 		log.Error(err, "unable to update cluster CR")
+		return reconcile.Result{RequeueAfter: ReconcileInterval}, err
 	}
 
 	return reconcile.Result{RequeueAfter: ReconcileInterval}, nil
