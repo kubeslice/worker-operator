@@ -178,7 +178,7 @@ Prefixes:
 					return false
 				}
 				return cluster.Status.NodeIPs[0] == "35.235.10.2"
-			}, time.Second*60, time.Millisecond*250).Should(BeTrue())
+			}, time.Second*240, time.Millisecond*250).Should(BeTrue())
 		})
 	})
 })

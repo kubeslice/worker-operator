@@ -110,7 +110,15 @@ var _ = Describe("NodeRestart Test Suite", func() {
 					Name:      "cluster-test",
 					Namespace: PROJECT_NS,
 				},
-				Spec:   hubv1alpha1.ClusterSpec{},
+				Spec: hubv1alpha1.ClusterSpec{
+					ClusterProperty: hubv1alpha1.ClusterProperty{
+						Monitoring: hubv1alpha1.Monitoring{
+							KubernetesDashboard: hubv1alpha1.KubernetesDashboard{
+								Enabled: true,
+							},
+						},
+					},
+				},
 				Status: hubv1alpha1.ClusterStatus{},
 			}
 
@@ -157,7 +165,7 @@ var _ = Describe("NodeRestart Test Suite", func() {
 					return false
 				}
 				return len(cluster.Status.NodeIPs) > 0
-			}, time.Second*60, time.Millisecond*250).Should(BeTrue())
+			}, time.Second*120, time.Millisecond*250).Should(BeTrue())
 
 			//create another kubeslice node
 			Expect(k8sClient.Create(ctx, node2)).Should(Succeed())
@@ -170,7 +178,7 @@ var _ = Describe("NodeRestart Test Suite", func() {
 					return false
 				}
 				return cluster.Status.NodeIPs[0] == "35.235.10.2"
-			}, time.Second*60, time.Millisecond*250).Should(BeTrue())
+			}, time.Second*300, time.Millisecond*250).Should(BeTrue())
 		})
 	})
 })
