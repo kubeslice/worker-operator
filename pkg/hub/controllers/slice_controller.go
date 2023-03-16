@@ -31,6 +31,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -183,16 +184,8 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req reconcile.Request) 
 	if slice.Status.SliceHealth == nil {
 		slice.Status.SliceHealth = &spokev1alpha1.SliceHealth{}
 	}
-	err = r.updateSliceHealth(ctx, slice)
-	if err != nil {
-		log.Error(err, "unable to update slice health status in hub cluster", "workerSlice", slice)
-		return reconcile.Result{RequeueAfter: ReconcileInterval}, err
-	}
-	slice.Status.SliceHealth.LastUpdated = metav1.Now()
-	if err := r.Status().Update(ctx, slice); err != nil {
-		log.Error(err, "unable to update slice CR")
-	} else {
-		log.Info("succesfully updated the slice CR ", "slice CR ", slice)
+	if err := r.updateHealthWithRetry(ctx, slice); err != nil {
+		return reconcile.Result{Requeue: true}, err
 	}
 	return reconcile.Result{RequeueAfter: ReconcileInterval}, nil
 }
@@ -372,4 +365,39 @@ func (r *SliceReconciler) getComponentStatus(ctx context.Context, c *component) 
 	}
 	cs.ComponentHealthStatus = spokev1alpha1.ComponentHealthStatusNormal
 	return cs, nil
+}
+
+func (r *SliceReconciler) updateHealthWithRetry(ctx context.Context, slice *spokev1alpha1.WorkerSliceConfig) error {
+	log := logger.FromContext(ctx)
+	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		err := r.Get(ctx, types.NamespacedName{
+			Name:      slice.Name,
+			Namespace: slice.Namespace,
+		}, slice)
+		if err != nil {
+			log.Error(err, "Error while getting slice CR retrying")
+			return err
+		}
+		if slice.Status.SliceHealth == nil {
+			slice.Status.SliceHealth = &spokev1alpha1.SliceHealth{}
+		}
+
+		if time.Since(slice.Status.SliceHealth.LastUpdated.Time) >= 2*time.Minute {
+			if err := r.updateSliceHealth(ctx, slice); err != nil {
+				log.Error(err, "unable to update slice health status")
+				return err
+			}
+			slice.Status.SliceHealth.LastUpdated = metav1.Now()
+			if err := r.Status().Update(ctx, slice); err != nil {
+				log.Error(err, "unable to update slice CR retrying")
+				return err
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		log.Error(err, "Unable to update LastUpdated time")
+		return err
+	}
+	return nil
 }

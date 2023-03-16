@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"reflect"
 	"time"
 
 	hubv1alpha1 "github.com/kubeslice/apis/pkg/controller/v1alpha1"
@@ -62,21 +61,46 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		}
 	}
 
-	if cr.Status.ClusterHealth == nil {
-		cr.Status.ClusterHealth = &hubv1alpha1.ClusterHealth{}
-	}
-
-	if err := r.updateClusterHealthStatus(ctx, cr); err != nil {
-		log.Error(err, "unable to update cluster health status")
-	}
-
-	cr.Status.ClusterHealth.LastUpdated = metav1.Now()
-	if err := r.Status().Update(ctx, cr); err != nil {
-		log.Error(err, "unable to update cluster CR")
+	if err := r.updateHealthWithRetry(ctx, cr); err != nil {
 		return reconcile.Result{Requeue: true}, err
 	}
-
+	log.Info("sucessfully updated cluster info on controller")
 	return reconcile.Result{RequeueAfter: ReconcileInterval}, nil
+}
+
+func (r *Reconciler) updateHealthWithRetry(ctx context.Context, cr *hubv1alpha1.Cluster) error {
+	log := logger.FromContext(ctx)
+	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		err := r.Get(ctx, types.NamespacedName{
+			Name:      cr.Name,
+			Namespace: cr.Namespace,
+		}, cr)
+		if err != nil {
+			log.Error(err, "Error while getting cluster CR retrying")
+			return err
+		}
+		if cr.Status.ClusterHealth == nil {
+			cr.Status.ClusterHealth = &hubv1alpha1.ClusterHealth{}
+		}
+
+		if time.Since(cr.Status.ClusterHealth.LastUpdated.Time) >= 2*time.Minute {
+			if err := r.updateClusterHealthStatus(ctx, cr); err != nil {
+				log.Error(err, "unable to update cluster health status")
+				return err
+			}
+			cr.Status.ClusterHealth.LastUpdated = metav1.Now()
+			if err := r.Status().Update(ctx, cr); err != nil {
+				log.Error(err, "unable to update cluster CR retrying")
+				return err
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		log.Error(err, "Unable to update LastUpdated time")
+		return err
+	}
+	return nil
 }
 
 func (r *Reconciler) updateClusterHealthStatus(ctx context.Context, cr *hubv1alpha1.Cluster) error {
@@ -168,7 +192,7 @@ func (r *Reconciler) updateClusterInfo(ctx context.Context, cr *hubv1alpha1.Clus
 			log.Error(err, "Error getting cni Subnet")
 			return err
 		}
-		if !reflect.DeepEqual(cr.Status.CniSubnet, cniSubnet) {
+		if !isEquivalentSlice(cr.Status.CniSubnet, cniSubnet) {
 			cr.Status.CniSubnet = cniSubnet
 			if err := r.Status().Update(ctx, cr); err != nil {
 				log.Error(err, "Error updating cniSubnet to cluster status on hub cluster")
@@ -178,7 +202,7 @@ func (r *Reconciler) updateClusterInfo(ctx context.Context, cr *hubv1alpha1.Clus
 
 		// Populate NodeIPs if not already updated
 		// Only needed to do the initial update. Later updates will be done by node reconciler
-		if cr.Spec.NodeIPs == nil || len(cr.Spec.NodeIPs) == 0 {
+		if isEmptyString(cr.Spec.NodeIPs) || cr.Spec.NodeIPs == nil || len(cr.Spec.NodeIPs) == 0 {
 			nodeIPs, err := cluster.GetNodeIP(r.MeshClient)
 			if err != nil {
 				log.Error(err, "Error Getting nodeIP")
@@ -290,4 +314,29 @@ func (r *Reconciler) getCluster(ctx context.Context, req reconcile.Request) (*hu
 func (r *Reconciler) InjectClient(c client.Client) error {
 	r.Client = c
 	return nil
+}
+
+func isEquivalentSlice(currentSlice, newSlice []string) bool {
+	if len(currentSlice) != len(newSlice) {
+		return false
+	}
+	count := 0
+	for _, cs := range currentSlice {
+		for _, ns := range newSlice {
+			if cs == ns {
+				count++
+				break
+			}
+		}
+	}
+	return count == len(newSlice)
+}
+
+func isEmptyString(nodeIPs []string) bool {
+	for _, nodeIP := range nodeIPs {
+		if nodeIP == "" {
+			return true
+		}
+	}
+	return false
 }
