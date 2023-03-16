@@ -22,7 +22,11 @@ jobs:
     - name: Set outputs
       id: vars
       run: echo "::set-output name=sha_commit::$(git rev-parse HEAD)"  
-
+     
+    - name: Get branch name
+      id: branch-name
+      uses: tj-actions/branch-names@v6
+      
     - name: build the worker operator
       uses: docker/build-push-action@v2
       with:
