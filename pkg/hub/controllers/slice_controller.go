@@ -381,10 +381,12 @@ func (r *SliceReconciler) updateHealthWithRetry(ctx context.Context, slice *spok
 		if slice.Status.SliceHealth == nil {
 			slice.Status.SliceHealth = &spokev1alpha1.SliceHealth{}
 		}
-		if err := r.updateSliceHealth(ctx, slice); err != nil {
-			log.Error(err, "unable to update slice health status")
-		}
+
 		if time.Since(slice.Status.SliceHealth.LastUpdated.Time) >= 2*time.Minute {
+			if err := r.updateSliceHealth(ctx, slice); err != nil {
+				log.Error(err, "unable to update slice health status")
+				return err
+			}
 			slice.Status.SliceHealth.LastUpdated = metav1.Now()
 			if err := r.Status().Update(ctx, slice); err != nil {
 				log.Error(err, "unable to update slice CR retrying")

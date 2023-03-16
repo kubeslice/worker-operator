@@ -82,10 +82,12 @@ func (r *Reconciler) updateHealthWithRetry(ctx context.Context, cr *hubv1alpha1.
 		if cr.Status.ClusterHealth == nil {
 			cr.Status.ClusterHealth = &hubv1alpha1.ClusterHealth{}
 		}
-		if err := r.updateClusterHealthStatus(ctx, cr); err != nil {
-			log.Error(err, "unable to update cluster health status")
-		}
+
 		if time.Since(cr.Status.ClusterHealth.LastUpdated.Time) >= 2*time.Minute {
+			if err := r.updateClusterHealthStatus(ctx, cr); err != nil {
+				log.Error(err, "unable to update cluster health status")
+				return err
+			}
 			cr.Status.ClusterHealth.LastUpdated = metav1.Now()
 			if err := r.Status().Update(ctx, cr); err != nil {
 				log.Error(err, "unable to update cluster CR retrying")
