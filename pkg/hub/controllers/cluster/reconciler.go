@@ -7,9 +7,9 @@ import (
 	"time"
 
 	hubv1alpha1 "github.com/kubeslice/apis/pkg/controller/v1alpha1"
+	"github.com/kubeslice/kubeslice-monitoring/pkg/events"
 	"github.com/kubeslice/worker-operator/controllers"
 	"github.com/kubeslice/worker-operator/pkg/cluster"
-	"github.com/kubeslice/worker-operator/pkg/events"
 	"github.com/kubeslice/worker-operator/pkg/logger"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -32,7 +32,7 @@ const (
 type Reconciler struct {
 	client.Client
 	MeshClient    client.Client
-	EventRecorder *events.EventRecorder
+	EventRecorder events.EventRecorder
 }
 
 func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
@@ -105,8 +105,8 @@ func (r *Reconciler) updateHealthWithRetry(ctx context.Context, cr *hubv1alpha1.
 
 func (r *Reconciler) updateClusterHealthStatus(ctx context.Context, cr *hubv1alpha1.Cluster) error {
 	log := logger.FromContext(ctx)
-	cr.Status.ClusterHealth.ComponentStatuses = []hubv1alpha1.ComponentStatus{}
-	cr.Status.ClusterHealth.ClusterHealthStatus = hubv1alpha1.ClusterHealthStatusNormal
+	csList := []hubv1alpha1.ComponentStatus{}
+	var chs hubv1alpha1.ClusterHealthStatus = hubv1alpha1.ClusterHealthStatusNormal
 
 	for _, c := range components {
 		cs, err := r.getComponentStatus(ctx, &c)
@@ -114,12 +114,41 @@ func (r *Reconciler) updateClusterHealthStatus(ctx context.Context, cr *hubv1alp
 			log.Error(err, "unable to fetch component status")
 		}
 		if cs != nil {
-			cr.Status.ClusterHealth.ComponentStatuses = append(cr.Status.ClusterHealth.ComponentStatuses, *cs)
+			csList = append(csList, *cs)
 			if cs.ComponentHealthStatus != hubv1alpha1.ComponentHealthStatusNormal {
-				cr.Status.ClusterHealth.ClusterHealthStatus = hubv1alpha1.ClusterHealthStatusWarning
+				chs = hubv1alpha1.ClusterHealthStatusWarning
+				log.Info("Component unhealthy", "component", c.name)
 			}
 		}
 	}
+
+	// Cluster health changed, raise event
+	if cr.Status.ClusterHealth.ClusterHealthStatus != chs {
+		if chs == hubv1alpha1.ClusterHealthStatusNormal {
+			log.Info("cluster health is back to normal")
+			err := r.EventRecorder.RecordEvent(ctx, &events.Event{
+				Object:            cr,
+				Name:              events.EventClusterHealthy,
+				ReportingInstance: "cluster_reconciler",
+			})
+			if err != nil {
+				log.Error(err, "unable to record event for health check")
+			}
+		} else if chs == hubv1alpha1.ClusterHealthStatusWarning {
+			log.Info("cluster health is in warning state")
+			err := r.EventRecorder.RecordEvent(ctx, &events.Event{
+				Object:            cr,
+				Name:              events.EventClusterUnhealthy,
+				ReportingInstance: "cluster_reconciler",
+			})
+			if err != nil {
+				log.Error(err, "unable to record event for health check")
+			}
+		}
+	}
+
+	cr.Status.ClusterHealth.ComponentStatuses = csList
+	cr.Status.ClusterHealth.ClusterHealthStatus = chs
 
 	return nil
 }
