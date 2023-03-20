@@ -20,9 +20,10 @@ package spoke_test
 
 import (
 	"context"
-	nsmv1 "github.com/networkservicemesh/sdk-k8s/pkg/tools/k8s/apis/networkservicemesh.io/v1"
 	"os"
 	"time"
+
+	nsmv1 "github.com/networkservicemesh/sdk-k8s/pkg/tools/k8s/apis/networkservicemesh.io/v1"
 
 	hubv1alpha1 "github.com/kubeslice/apis/pkg/controller/v1alpha1"
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
@@ -44,6 +45,7 @@ var _ = Describe("NodeRestart Test Suite", func() {
 	var ns *corev1.Namespace
 	var cluster *hubv1alpha1.Cluster
 	var nsmconfig *corev1.ConfigMap
+	var svc *corev1.Service
 
 	Context("With kubeslice node restarting", func() {
 		BeforeEach(func() {
@@ -163,6 +165,19 @@ Prefixes:
 			}
 			createdSliceGw = &kubeslicev1beta1.SliceGateway{}
 
+			svc = &corev1.Service{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "kubeslice-dns",
+					Namespace: "kubeslice-system",
+				},
+				Spec: corev1.ServiceSpec{
+					ClusterIP: "10.0.0.20",
+					Ports: []corev1.ServicePort{{
+						Port: 52,
+					}},
+				},
+			}
+
 			DeferCleanup(func() {
 				Eventually(func() bool {
 					err := k8sClient.Delete(ctx, node1)
@@ -172,9 +187,15 @@ Prefixes:
 					err := k8sClient.Delete(ctx, node2)
 					return errors.IsNotFound(err)
 				}, time.Second*10, time.Millisecond*250).Should(BeTrue())
+				Expect(k8sClient.Delete(ctx, svc)).Should(Succeed())
+				Eventually(func() bool {
+					err := k8sClient.Get(ctx, types.NamespacedName{Name: svc.Name, Namespace: svc.Namespace}, svc)
+					return errors.IsNotFound(err)
+				}, time.Second*30, time.Millisecond*250).Should(BeTrue())
 			})
 		})
 		It("should update cluster CR with new node IP", func() {
+			Expect(k8sClient.Create(ctx, svc)).Should(Succeed())
 			os.Setenv("CLUSTER_NAME", cluster.Name)
 			os.Setenv("HUB_PROJECT_NAMESPACE", PROJECT_NS)
 			ctx := context.Background()
@@ -187,7 +208,17 @@ Prefixes:
 
 			// set nodeip as ip of node1
 			cluster.Spec.NodeIPs = []string{node1.Status.Addresses[0].Address}
-			Expect(k8sClient.Update(ctx, cluster)).Should(Succeed())
+			retry.RetryOnConflict(
+				retry.DefaultRetry, func() error {
+					err := k8sClient.Get(ctx, types.NamespacedName{Name: cluster.Name, Namespace: cluster.Namespace}, cluster)
+					if err != nil {
+						return err
+					}
+					if err := k8sClient.Update(ctx, cluster); err != nil {
+						return err
+					}
+					return nil
+				})
 
 			// start the reconcilers
 			Expect(k8sClient.Create(ctx, slice)).Should(Succeed())
@@ -221,6 +252,9 @@ Prefixes:
 			Eventually(func() bool {
 				err := k8sClient.Get(ctx, types.NamespacedName{Name: cluster.Name, Namespace: cluster.Namespace}, cluster)
 				if err != nil {
+					return false
+				}
+				if len(cluster.Spec.NodeIPs) == 0 {
 					return false
 				}
 				return cluster.Spec.NodeIPs[0] == "35.235.10.2"

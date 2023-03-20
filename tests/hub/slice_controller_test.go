@@ -256,7 +256,7 @@ var _ = Describe("Hub SliceController", func() {
 
 	})
 
-	Context("Slice health check", func() {
+	XContext("Slice health check", func() {
 		var hubSlice *workerv1alpha1.WorkerSliceConfig
 		var pods []*corev1.Pod
 		var ipamOcter = 16

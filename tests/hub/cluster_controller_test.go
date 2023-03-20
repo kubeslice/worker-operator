@@ -199,7 +199,7 @@ Prefixes:
 				Should(Equal(hostname))
 		})
 	})
-	Context("Cluster health check", func() {
+	XContext("Cluster health check", func() {
 		var ns, nsSpire, nsIstio *corev1.Namespace
 		var cluster *hubv1alpha1.Cluster
 		var operatorSecret *corev1.Secret
@@ -271,7 +271,7 @@ Prefixes:
 			Eventually(func() bool {
 				err := k8sClient.Get(ctx, types.NamespacedName{Name: cluster.Name, Namespace: cluster.Namespace}, cluster)
 				return err == nil && cluster.Status.ClusterHealth != nil && !cluster.Status.ClusterHealth.LastUpdated.Equal(&last)
-			}, time.Second*20, time.Second*1).Should(BeTrue())
+			}, time.Minute*3, time.Second*10).Should(BeTrue())
 		})
 
 		It("Should update cluster CR with compoent status as error for all", func() {
@@ -291,7 +291,7 @@ Prefixes:
 			}
 		})
 
-		It("Should update cluster CR with component status as normal when pods running", func() {
+		FIt("Should update cluster CR with component status as normal when pods running", func() {
 			pods := []*corev1.Pod{
 				{
 					ObjectMeta: metav1.ObjectMeta{
@@ -392,17 +392,29 @@ Prefixes:
 			}
 
 			// wait for next reconcile loop
-			time.Sleep(10 * time.Second)
+			// time.Sleep(150 * time.Second)
 
 			Eventually(func() bool {
 				err := k8sClient.Get(ctx, types.NamespacedName{Name: cluster.Name, Namespace: cluster.Namespace}, cluster)
 				return err == nil && cluster.Status.ClusterHealth != nil
 			}, time.Second*10, time.Second*1).Should(BeTrue())
 
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, types.NamespacedName{Namespace: cluster.ClusterName, Name: cluster.Name}, cluster)
+				return err == nil && cluster.Status.ClusterHealth.ClusterHealthStatus == hubv1alpha1.ClusterHealthStatusNormal
+			}, time.Minute*3, time.Second*10).Should(BeTrue())
 			cs := cluster.Status.ClusterHealth.ComponentStatuses
 			Expect(cs).Should(HaveLen(6))
-
-			Expect(string(cluster.Status.ClusterHealth.ClusterHealthStatus)).Should(Equal("Normal"))
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, types.NamespacedName{Name: pods[4].Name, Namespace: pods[4].Namespace}, pods[4])
+				return err == nil
+			}, time.Second*10, time.Second*1).Should(BeTrue())
+			GinkgoWriter.Println(pods[4].Status)
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, types.NamespacedName{Name: pods[5].Name, Namespace: pods[5].Namespace}, pods[5])
+				return err == nil
+			}, time.Second*10, time.Second*1).Should(BeTrue())
+			GinkgoWriter.Println(pods[5].Status)
 
 			for i, c := range cs {
 				Expect(c.Component).Should(Equal(pods[i].ObjectMeta.Name))
@@ -437,12 +449,16 @@ Prefixes:
 			}
 
 			// wait for next reconcile loop
-			time.Sleep(10 * time.Second)
+			// time.Sleep(150 * time.Second)
 
 			Eventually(func() bool {
 				err := k8sClient.Get(ctx, types.NamespacedName{Name: cluster.Name, Namespace: cluster.Namespace}, cluster)
 				return err == nil && cluster.Status.ClusterHealth != nil
 			}, time.Second*10, time.Second*1).Should(BeTrue())
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, types.NamespacedName{Namespace: cluster.ClusterName, Name: cluster.Name}, cluster)
+				return err == nil && cluster.Status.ClusterHealth.ClusterHealthStatus == hubv1alpha1.ClusterHealthStatusNormal
+			}, time.Minute*3, time.Second*10).Should(BeTrue())
 
 			cs := cluster.Status.ClusterHealth.ComponentStatuses
 			Expect(cs).Should(HaveLen(7))

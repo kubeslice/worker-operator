@@ -38,7 +38,7 @@ import (
 )
 
 const (
-	ReconcileInterval = 10 * time.Second
+	ReconcileInterval = 2 * time.Minute
 )
 
 type component struct {
@@ -166,7 +166,7 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req reconcile.Request) 
 			err = r.updateSliceConfig(ctx, s, slice)
 			if err != nil {
 				log.Error(err, "unable to update slice status in spoke cluster", "slice", s)
-				return reconcile.Result{}, err
+				return reconcile.Result{Requeue: true}, err
 			}
 			log.Info("slice status updated in spoke cluster")
 
@@ -178,7 +178,7 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req reconcile.Request) 
 	err = r.updateSliceConfig(ctx, meshSlice, slice)
 	if err != nil {
 		log.Error(err, "unable to update slice status in spoke cluster", "slice", meshSlice)
-		return reconcile.Result{}, err
+		return reconcile.Result{Requeue: true}, err
 	}
 	if slice.Status.SliceHealth == nil {
 		slice.Status.SliceHealth = &spokev1alpha1.SliceHealth{}
@@ -188,13 +188,16 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req reconcile.Request) 
 		log.Error(err, "unable to update slice health status in hub cluster", "workerSlice", slice)
 		return reconcile.Result{}, err
 	}
-	slice.Status.SliceHealth.LastUpdated = metav1.Now()
-	if err := r.Status().Update(ctx, slice); err != nil {
-		log.Error(err, "unable to update slice CR")
-	} else {
-		log.Info("succesfully updated the slice CR ", "slice CR ", slice)
+	if time.Since(slice.Status.SliceHealth.LastUpdated.Time) >= ReconcileInterval {
+		slice.Status.SliceHealth.LastUpdated = metav1.Now()
+		if err := r.Status().Update(ctx, slice); err != nil {
+			log.Error(err, "unable to update slice CR")
+			return reconcile.Result{Requeue: true}, err
+		} else {
+			log.Info("succesfully updated the slice CR ", "slice CR ", slice)
+		}
 	}
-	return reconcile.Result{RequeueAfter: ReconcileInterval}, nil
+	return reconcile.Result{}, nil
 }
 
 func (r *SliceReconciler) updateSliceConfig(ctx context.Context, meshSlice *kubeslicev1beta1.Slice, spokeSlice *spokev1alpha1.WorkerSliceConfig) error {

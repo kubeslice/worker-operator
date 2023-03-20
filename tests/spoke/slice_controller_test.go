@@ -391,7 +391,7 @@ var _ = Describe("SliceController", func() {
 				nsLabels := ns.ObjectMeta.GetLabels()
 				_, ok := nsLabels["kubeslice.io/inject"]
 				return ok
-			}, time.Second*60, time.Millisecond*1000).Should(BeFalse())
+			}, time.Second*90, time.Millisecond*1000).Should(BeFalse())
 
 			slice = &kubeslicev1beta1.Slice{
 				ObjectMeta: metav1.ObjectMeta{

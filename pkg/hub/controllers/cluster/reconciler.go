@@ -26,7 +26,7 @@ const (
 	AWS   string = "aws"
 	AZURE string = "azure"
 
-	ReconcileInterval = 10 * time.Second
+	ReconcileInterval = 2 * time.Minute
 )
 
 type Reconciler struct {
@@ -60,24 +60,25 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			log.Error(err, "unable to update dashboard creds")
 		}
 	}
-
+	firstTime := false
 	if cr.Status.ClusterHealth == nil {
+		firstTime = true
 		cr.Status.ClusterHealth = &hubv1alpha1.ClusterHealth{}
 	}
 
-	if err := r.updateClusterHealthStatus(ctx, cr); err != nil {
+	if err := r.UpdateClusterHealthStatus(ctx, cr); err != nil {
 		log.Error(err, "unable to update cluster health status")
 	}
-
-	cr.Status.ClusterHealth.LastUpdated = metav1.Now()
-	if err := r.Status().Update(ctx, cr); err != nil {
-		log.Error(err, "unable to update cluster CR")
+	if firstTime || time.Since(cr.Status.ClusterHealth.LastUpdated.Time) >= ReconcileInterval {
+		cr.Status.ClusterHealth.LastUpdated = metav1.Now()
+		if err := r.Status().Update(ctx, cr); err != nil {
+			log.Error(err, "unable to update cluster CR")
+		}
 	}
-
 	return reconcile.Result{RequeueAfter: ReconcileInterval}, nil
 }
 
-func (r *Reconciler) updateClusterHealthStatus(ctx context.Context, cr *hubv1alpha1.Cluster) error {
+func (r *Reconciler) UpdateClusterHealthStatus(ctx context.Context, cr *hubv1alpha1.Cluster) error {
 	log := logger.FromContext(ctx)
 	cr.Status.ClusterHealth.ComponentStatuses = []hubv1alpha1.ComponentStatus{}
 	cr.Status.ClusterHealth.ClusterHealthStatus = hubv1alpha1.ClusterHealthStatusNormal
