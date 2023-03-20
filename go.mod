@@ -12,7 +12,7 @@ require (
 	github.com/google/go-cmp v0.5.9
 	github.com/kubeslice/apis v0.1.2
 	github.com/kubeslice/gateway-sidecar v0.2.0
-	github.com/kubeslice/kubeslice-monitoring v0.0.9-0.20230316123732-1692f751a43f
+	github.com/kubeslice/kubeslice-monitoring v0.1.0
 	github.com/kubeslice/netops v0.1.3
 	github.com/kubeslice/router-sidecar v1.4.0
 	github.com/looplab/fsm v0.3.0
