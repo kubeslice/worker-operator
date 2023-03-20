@@ -26,7 +26,7 @@ const (
 	AWS   string = "aws"
 	AZURE string = "azure"
 
-	ReconcileInterval = 120 * time.Second
+	ReconcileInterval = 10 * time.Second
 )
 
 type Reconciler struct {
@@ -47,7 +47,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	log.Info("got cluster CR from hub", "cluster", cr)
 
 	// Post NodeIP and GeoLocation info only on first run or if the reconciler wasn't run for a while
-	if cr.Status.ClusterHealth == nil || time.Since(cr.Status.ClusterHealth.LastUpdated.Time) > 5*time.Minute {
+	if cr.Status.ClusterHealth == nil || time.Since(cr.Status.ClusterHealth.LastUpdated.Time) > time.Minute {
 		log.Info("updating cluster info on controller")
 		if err := r.updateClusterInfo(ctx, cr); err != nil {
 			log.Error(err, "unable to update cluster info")
@@ -72,7 +72,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	cr.Status.ClusterHealth.LastUpdated = metav1.Now()
 	if err := r.Status().Update(ctx, cr); err != nil {
 		log.Error(err, "unable to update cluster CR")
-		return reconcile.Result{}, err
 	}
 
 	return reconcile.Result{RequeueAfter: ReconcileInterval}, nil
