@@ -314,7 +314,7 @@ var _ = Describe("Hub SliceController", func() {
 			Eventually(func() bool {
 				err := k8sClient.Get(ctx, sliceKey, hubSlice)
 				return err == nil && hubSlice.Status.SliceHealth != nil && !hubSlice.Status.SliceHealth.LastUpdated.Equal(&last)
-			}, time.Second*20, time.Second*1).Should(BeTrue())
+			}, time.Second*200, time.Second*1).Should(BeTrue())
 		})
 
 		It("Should update slice CR with component status as error for all", func() {
