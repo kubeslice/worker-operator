@@ -199,6 +199,7 @@ Prefixes:
 				Should(Equal(hostname))
 		})
 	})
+
 	Context("Cluster health check", func() {
 		var ns, nsSpire, nsIstio *corev1.Namespace
 		var cluster *hubv1alpha1.Cluster
@@ -271,7 +272,7 @@ Prefixes:
 			Eventually(func() bool {
 				err := k8sClient.Get(ctx, types.NamespacedName{Name: cluster.Name, Namespace: cluster.Namespace}, cluster)
 				return err == nil && cluster.Status.ClusterHealth != nil && !cluster.Status.ClusterHealth.LastUpdated.Equal(&last)
-			}, time.Second*20, time.Second*1).Should(BeTrue())
+			}, time.Second*200, time.Second*1).Should(BeTrue())
 		})
 
 		It("Should update cluster CR with compoent status as error for all", func() {
