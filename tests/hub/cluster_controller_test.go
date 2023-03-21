@@ -199,7 +199,7 @@ Prefixes:
 				Should(Equal(hostname))
 		})
 	})
-	XContext("Cluster health check", func() {
+	Context("Cluster health check", func() {
 		var ns, nsSpire, nsIstio *corev1.Namespace
 		var cluster *hubv1alpha1.Cluster
 		var operatorSecret *corev1.Secret
@@ -291,7 +291,7 @@ Prefixes:
 			}
 		})
 
-		FIt("Should update cluster CR with component status as normal when pods running", func() {
+		It("Should update cluster CR with component status as normal when pods running", func() {
 			pods := []*corev1.Pod{
 				{
 					ObjectMeta: metav1.ObjectMeta{

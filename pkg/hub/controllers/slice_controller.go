@@ -197,7 +197,7 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req reconcile.Request) 
 			log.Info("succesfully updated the slice CR ", "slice CR ", slice)
 		}
 	}
-	return reconcile.Result{}, nil
+	return reconcile.Result{RequeueAfter: ReconcileInterval}, nil
 }
 
 func (r *SliceReconciler) updateSliceConfig(ctx context.Context, meshSlice *kubeslicev1beta1.Slice, spokeSlice *spokev1alpha1.WorkerSliceConfig) error {
