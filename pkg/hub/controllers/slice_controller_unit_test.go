@@ -21,7 +21,6 @@ package controllers
 import (
 	"context"
 	"errors"
-	"fmt"
 	"testing"
 	"time"
 
@@ -155,8 +154,6 @@ func TestReconcileToReturnErrorWhileFetchingWorkerSlice(t *testing.T) {
 }
 
 func TestReconcileToUpdateWorkerSlice(t *testing.T) {
-	//TODO: Add a UT for when original-slice-name is missing
-	// controllerSlice.ObjectMeta.Labels["original-slice-name"] = "test-slice"
 	expected := struct {
 		ctx    context.Context
 		req    reconcile.Request
@@ -210,7 +207,6 @@ func TestReconcileToUpdateWorkerSlice(t *testing.T) {
 		Log:        ctrl.Log.WithName("controller").WithName("controllers").WithName("SliceConfig"),
 	}
 	result, err := reconciler.Reconcile(expected.ctx, expected.req)
-	fmt.Println(controllerSlice)
 	if expected.res != result {
 		t.Error("Expected response :", expected.res, " but got ", result)
 	}
