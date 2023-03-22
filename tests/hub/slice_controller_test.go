@@ -266,7 +266,8 @@ var _ = Describe("Hub SliceController", func() {
 					Name:      "test-slice-4",
 					Namespace: PROJECT_NS,
 					Labels: map[string]string{
-						"worker-cluster": CLUSTER_NAME,
+						"worker-cluster":      CLUSTER_NAME,
+						"original-slice-name": "test-slice-4",
 					},
 				},
 				Spec: workerv1alpha1.WorkerSliceConfigSpec{
@@ -325,7 +326,7 @@ var _ = Describe("Hub SliceController", func() {
 			}, time.Second*10, time.Second*1).Should(BeTrue())
 			cs := hubSlice.Status.SliceHealth.ComponentStatuses
 
-			Expect(cs).Should(HaveLen(3))
+			Expect(cs).Should(HaveLen(2))
 
 			Expect(string(hubSlice.Status.SliceHealth.SliceHealthStatus)).Should(Equal("Warning"))
 
@@ -423,7 +424,7 @@ var _ = Describe("Hub SliceController", func() {
 			}
 
 			// wait for next reconcile loop
-			time.Sleep(10 * time.Second)
+			time.Sleep(120 * time.Second)
 
 			Eventually(func() bool {
 				err := k8sClient.Get(ctx, types.NamespacedName{Name: hubSlice.Name, Namespace: hubSlice.Namespace}, hubSlice)

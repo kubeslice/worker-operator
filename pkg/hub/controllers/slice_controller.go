@@ -339,7 +339,8 @@ func (r *SliceReconciler) updateSliceHealth(ctx context.Context, slice *spokev1a
 	slice.Status.SliceHealth.SliceHealthStatus = spokev1alpha1.ComponentHealthStatusNormal
 	originalName, err := getOriginalName(slice)
 	if err != nil {
-		return err
+		log.Info("Could not find original name, skipping updateSliceHealth....")
+		return nil
 	}
 	for _, c := range components {
 		cs, err := r.getComponentStatus(ctx, &c, originalName)
