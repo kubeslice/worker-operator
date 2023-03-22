@@ -26,7 +26,7 @@ const (
 	AWS   string = "aws"
 	AZURE string = "azure"
 
-	ReconcileInterval = 60 * time.Second
+	ReconcileInterval = 120 * time.Second
 )
 
 type Reconciler struct {

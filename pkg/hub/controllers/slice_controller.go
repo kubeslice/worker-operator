@@ -38,7 +38,7 @@ import (
 )
 
 const (
-	ReconcileInterval = 10 * time.Second
+	ReconcileInterval = 120 * time.Second
 )
 
 type component struct {
@@ -61,7 +61,8 @@ var components = []component{
 		labels: map[string]string{
 			"kubeslice.io/pod-type": "slicegateway",
 		},
-		ns: ControlPlaneNamespace,
+		ns:            ControlPlaneNamespace,
+		ignoreMissing: true,
 	},
 	{
 		name: "slicerouter",
@@ -170,7 +171,7 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req reconcile.Request) 
 			}
 			log.Info("slice status updated in spoke cluster")
 
-			return reconcile.Result{}, nil
+			return reconcile.Result{RequeueAfter: ReconcileInterval}, nil
 		}
 		return reconcile.Result{}, err
 	}
@@ -213,6 +214,9 @@ func (r *SliceReconciler) updateSliceConfig(ctx context.Context, meshSlice *kube
 	}
 	if meshSlice.Status.SliceConfig.SliceSubnet == "" {
 		meshSlice.Status.SliceConfig.SliceSubnet = spokeSlice.Spec.SliceSubnet
+	}
+	if meshSlice.ObjectMeta.Labels == nil {
+		meshSlice.ObjectMeta.Labels = spokeSlice.ObjectMeta.Labels
 	}
 
 	if meshSlice.Status.SliceConfig.SliceIpam.IpamClusterOctet == 0 {
@@ -322,12 +326,23 @@ func (r *SliceReconciler) handleSliceDeletion(slice *spokev1alpha1.WorkerSliceCo
 	return false, reconcile.Result{}, nil
 }
 
+func getOriginalName(slice *spokev1alpha1.WorkerSliceConfig) (string, error) {
+	originalSliceName, ok := slice.ObjectMeta.Labels["original-slice-name"]
+	if !ok {
+		return "", fmt.Errorf("could not find original name from workerSliceConfig object")
+	}
+	return originalSliceName, nil
+}
 func (r *SliceReconciler) updateSliceHealth(ctx context.Context, slice *spokev1alpha1.WorkerSliceConfig) error {
 	log := logger.FromContext(ctx)
 	slice.Status.SliceHealth.ComponentStatuses = []spokev1alpha1.ComponentStatus{}
 	slice.Status.SliceHealth.SliceHealthStatus = spokev1alpha1.ComponentHealthStatusNormal
+	originalName, err := getOriginalName(slice)
+	if err != nil {
+		return err
+	}
 	for _, c := range components {
-		cs, err := r.getComponentStatus(ctx, &c, slice.Name)
+		cs, err := r.getComponentStatus(ctx, &c, originalName)
 		if err != nil {
 			log.Error(err, "unable to fetch component status")
 		}
@@ -348,23 +363,14 @@ func (r *SliceReconciler) getComponentStatus(ctx context.Context, c *component, 
 			components[i].labels["kubeslice.io/slice"] = sliceName
 		}
 	}
-	for i := range components {
-		log.Info("GOURISH component ", "component.name", components[i].name, "component.labels", components[i].labels)
-	}
 	podList := &corev1.PodList{}
 	listOpts := []client.ListOption{
-		// &client.ListOptions{
-		// 	Namespace:     c.ns,
-		// 	LabelSelector: labels.SelectorFromSet(c.labels),
-		// },
 		client.MatchingLabels(c.labels),
 		client.InNamespace(c.ns),
 	}
 	if err := r.MeshClient.List(ctx, podList, listOpts...); err != nil {
 		log.Error(err, "Failed to list pods", "pod", c.name)
 		return nil, err
-	} else {
-		log.Info("GOURISH pods", "pods", podList.Items)
 	}
 	pods := podList.Items
 	cs := &spokev1alpha1.ComponentStatus{

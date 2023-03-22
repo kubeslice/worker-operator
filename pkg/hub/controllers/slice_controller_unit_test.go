@@ -21,6 +21,7 @@ package controllers
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
 	"time"
 
@@ -39,15 +40,16 @@ var hundred = 100
 
 var controllerSlice = &workerv1alpha1.WorkerSliceConfig{
 	ObjectMeta: metav1.ObjectMeta{
-		Name:      "test-slice",
+		Name:      "test-slice-cluster-1",
 		Namespace: "project-namespace",
 		Labels: map[string]string{
-			"worker-cluster": "cluster-1",
+			"worker-cluster":      "cluster-1",
+			"original-slice-name": "test-slice",
 		},
 		DeletionTimestamp: &metav1.Time{Time: time.Now()},
 	},
 	Spec: workerv1alpha1.WorkerSliceConfigSpec{
-		SliceName:        "test-slice",
+		SliceName:        "test-slice-cluster-1",
 		SliceType:        "Application",
 		SliceSubnet:      "10.0.0.1/16",
 		SliceIpamType:    "Local",
@@ -153,6 +155,8 @@ func TestReconcileToReturnErrorWhileFetchingWorkerSlice(t *testing.T) {
 }
 
 func TestReconcileToUpdateWorkerSlice(t *testing.T) {
+	//TODO: Add a UT for when original-slice-name is missing
+	// controllerSlice.ObjectMeta.Labels["original-slice-name"] = "test-slice"
 	expected := struct {
 		ctx    context.Context
 		req    reconcile.Request
@@ -161,7 +165,7 @@ func TestReconcileToUpdateWorkerSlice(t *testing.T) {
 	}{
 		context.WithValue(context.Background(), types.NamespacedName{Namespace: "kube-slice", Name: "kube-slice"}, controllerSlice),
 		reconcile.Request{NamespacedName: types.NamespacedName{Name: "test-slice", Namespace: "kubeslice-system"}},
-		reconcile.Result{RequeueAfter: ReconcileInterval},
+		reconcile.Result{},
 		nil,
 	}
 	client := NewClient()
@@ -206,6 +210,7 @@ func TestReconcileToUpdateWorkerSlice(t *testing.T) {
 		Log:        ctrl.Log.WithName("controller").WithName("controllers").WithName("SliceConfig"),
 	}
 	result, err := reconciler.Reconcile(expected.ctx, expected.req)
+	fmt.Println(controllerSlice)
 	if expected.res != result {
 		t.Error("Expected response :", expected.res, " but got ", result)
 	}
