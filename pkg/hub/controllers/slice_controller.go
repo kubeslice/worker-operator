@@ -171,7 +171,7 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req reconcile.Request) 
 			}
 			log.Info("slice status updated in spoke cluster")
 
-			return reconcile.Result{RequeueAfter: ReconcileInterval}, nil
+			return reconcile.Result{}, nil
 		}
 		return reconcile.Result{}, err
 	}
