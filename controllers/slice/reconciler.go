@@ -328,7 +328,6 @@ func (r *SliceReconciler) handleDnsSvc(ctx context.Context, slice *kubeslicev1be
 			slice.Status.DNSIP = svc.Spec.ClusterIP
 			err := r.Status().Update(ctx, slice)
 			if err != nil {
-				log.Error(err, "Failed to update DNS IP in slice status,retrying...")
 				return err
 			}
 			return nil
