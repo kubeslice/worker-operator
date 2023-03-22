@@ -372,8 +372,9 @@ func (r *SliceReconciler) getComponentStatus(ctx context.Context, c *component, 
 		}
 	}
 	podList := &corev1.PodList{}
+	labelSelector := metav1.LabelSelector{MatchLabels: c.labels}
 	listOpts := []client.ListOption{
-		client.MatchingLabels(c.labels),
+		client.MatchingLabels(labelSelector.MatchLabels),
 		client.InNamespace(c.ns),
 	}
 	if err := r.MeshClient.List(ctx, podList, listOpts...); err != nil {
