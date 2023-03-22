@@ -181,7 +181,9 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req reconcile.Request) 
 		log.Error(err, "unable to update slice status in spoke cluster", "slice", meshSlice)
 		return reconcile.Result{}, err
 	}
+	// firstTime := false
 	if slice.Status.SliceHealth == nil {
+		// firstTime = true
 		slice.Status.SliceHealth = &spokev1alpha1.SliceHealth{}
 	}
 	err = r.updateSliceHealth(ctx, slice)
@@ -189,6 +191,7 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req reconcile.Request) 
 		log.Error(err, "unable to update slice health status in hub cluster", "workerSlice", slice)
 		return reconcile.Result{}, err
 	}
+	// if firstTime || time.Since(slice.Status.SliceHealth.LastUpdated.Time) > ReconcileInterval {
 	slice.Status.SliceHealth.LastUpdated = metav1.Now()
 	if err := r.Status().Update(ctx, slice); err != nil {
 		log.Error(err, "unable to update slice CR")
@@ -196,6 +199,7 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req reconcile.Request) 
 	} else {
 		log.Info("succesfully updated the slice CR ", "slice CR ", slice)
 	}
+	// }
 	return reconcile.Result{RequeueAfter: ReconcileInterval}, nil
 }
 
