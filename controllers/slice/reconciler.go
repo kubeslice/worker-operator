@@ -29,6 +29,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	retry "k8s.io/client-go/util/retry"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -318,8 +319,20 @@ func (r *SliceReconciler) handleDnsSvc(ctx context.Context, slice *kubeslicev1be
 		}
 	} else {
 		debugLog.Info("got dns service", "svc", svc)
-		slice.Status.DNSIP = svc.Spec.ClusterIP
-		err = r.Status().Update(ctx, slice)
+		err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+			// Fetch latest slice obj
+			if getErr := r.Get(ctx, types.NamespacedName{Name: slice.Name, Namespace: controllers.ControlPlaneNamespace}, slice); getErr != nil {
+				log.Error(err, "Unable to fetch slice during retry", "slice", slice.Name)
+				return getErr
+			}
+			slice.Status.DNSIP = svc.Spec.ClusterIP
+			err := r.Status().Update(ctx, slice)
+			if err != nil {
+				log.Error(err, "Failed to update DNS IP in slice status,retrying...")
+				return err
+			}
+			return nil
+		})
 		if err != nil {
 			log.Error(err, "Failed to update Slice status for dns")
 			return true, ctrl.Result{}, err
