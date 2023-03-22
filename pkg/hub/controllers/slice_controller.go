@@ -348,15 +348,23 @@ func (r *SliceReconciler) getComponentStatus(ctx context.Context, c *component, 
 			components[i].labels["kubeslice.io/slice"] = sliceName
 		}
 	}
+	for i := range components {
+		log.Info("GOURISH component ", "component.name", components[i].name, "component.labels", components[i].labels)
+	}
 	podList := &corev1.PodList{}
-	labelSelector := metav1.LabelSelector{MatchLabels: c.labels}
 	listOpts := []client.ListOption{
-		client.MatchingLabels(labelSelector.MatchLabels),
+		// &client.ListOptions{
+		// 	Namespace:     c.ns,
+		// 	LabelSelector: labels.SelectorFromSet(c.labels),
+		// },
+		client.MatchingLabels(c.labels),
 		client.InNamespace(c.ns),
 	}
 	if err := r.MeshClient.List(ctx, podList, listOpts...); err != nil {
 		log.Error(err, "Failed to list pods", "pod", c.name)
 		return nil, err
+	} else {
+		log.Info("GOURISH pods", "pods", podList.Items)
 	}
 	pods := podList.Items
 	cs := &spokev1alpha1.ComponentStatus{
