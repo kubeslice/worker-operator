@@ -50,7 +50,10 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	if cr.Status.ClusterHealth == nil || time.Since(cr.Status.ClusterHealth.LastUpdated.Time) > 3*time.Minute {
 		log.Info("updating cluster info on controller")
 		if err := r.updateClusterInfo(ctx, cr); err != nil {
+			// Skip the error and continue health check
 			log.Error(err, "unable to update cluster info")
+		} else {
+			return reconcile.Result{Requeue: true}, nil
 		}
 	}
 
@@ -58,6 +61,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	if !r.isDashboardCredsUpdated(ctx, cr) {
 		if err := r.updateDashboardCreds(ctx, cr); err != nil {
 			log.Error(err, "unable to update dashboard creds")
+			return reconcile.Result{}, err
+		} else {
+			return reconcile.Result{Requeue: true}, nil
 		}
 	}
 
