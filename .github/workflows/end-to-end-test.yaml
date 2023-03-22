@@ -137,12 +137,6 @@ jobs:
                  report link  'https://kubeslice.github.io/e2e-allure-reports/Kind-${{ github.event.repository.name }}-${{ steps.date.outputs.date }}-${{ github.base_ref }}-${{ github.run_number }}/index.html'
         GITHUB_TOKEN: ${{ secrets.TOKEN }}
     
-    - name: get email
-      id: test
-      uses: evvanErb/get-github-email-by-username-action@v1.25
-      with:
-          github-username: ${{github.actor}}
-          token: ${{ secrets.TOKEN }}
 
    
     - name: Run Quality Gate Check
