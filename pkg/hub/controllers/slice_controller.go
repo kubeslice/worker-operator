@@ -38,7 +38,7 @@ import (
 )
 
 const (
-	ReconcileInterval = 60 * time.Second
+	ReconcileInterval = 10 * time.Second
 )
 
 type component struct {
@@ -170,7 +170,7 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req reconcile.Request) 
 			}
 			log.Info("slice status updated in spoke cluster")
 
-			return reconcile.Result{RequeueAfter: ReconcileInterval}, nil
+			return reconcile.Result{}, nil
 		}
 		return reconcile.Result{}, err
 	}
@@ -191,6 +191,7 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req reconcile.Request) 
 	slice.Status.SliceHealth.LastUpdated = metav1.Now()
 	if err := r.Status().Update(ctx, slice); err != nil {
 		log.Error(err, "unable to update slice CR")
+		return reconcile.Result{}, err
 	} else {
 		log.Info("succesfully updated the slice CR ", "slice CR ", slice)
 	}
