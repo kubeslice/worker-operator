@@ -216,7 +216,10 @@ func (r *SliceReconciler) updateSliceConfig(ctx context.Context, meshSlice *kube
 		meshSlice.Status.SliceConfig.SliceSubnet = spokeSlice.Spec.SliceSubnet
 	}
 	if meshSlice.ObjectMeta.Labels == nil {
-		meshSlice.ObjectMeta.Labels = spokeSlice.ObjectMeta.Labels
+		meshSlice.ObjectMeta.Labels = make(map[string]string)
+		if spokeSlice.ObjectMeta.Labels != nil {
+			meshSlice.ObjectMeta.Labels = spokeSlice.ObjectMeta.Labels
+		}
 	}
 
 	if meshSlice.Status.SliceConfig.SliceIpam.IpamClusterOctet == 0 {
