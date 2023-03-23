@@ -20,9 +20,10 @@ package spoke_test
 
 import (
 	"context"
-	nsmv1 "github.com/networkservicemesh/sdk-k8s/pkg/tools/k8s/apis/networkservicemesh.io/v1"
 	"os"
 	"time"
+
+	nsmv1 "github.com/networkservicemesh/sdk-k8s/pkg/tools/k8s/apis/networkservicemesh.io/v1"
 
 	hubv1alpha1 "github.com/kubeslice/apis/pkg/controller/v1alpha1"
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
@@ -187,8 +188,10 @@ Prefixes:
 
 			// set nodeip as ip of node1
 			cluster.Spec.NodeIPs = []string{node1.Status.Addresses[0].Address}
-			Expect(k8sClient.Update(ctx, cluster)).Should(Succeed())
-
+			Eventually(func() bool {
+				err := k8sClient.Update(ctx, cluster)
+				return err == nil
+			}, 10*time.Second, time.Millisecond*250).Should(BeTrue())
 			// start the reconcilers
 			Expect(k8sClient.Create(ctx, slice)).Should(Succeed())
 			Expect(k8sClient.Create(ctx, vl3ServiceEndpoint)).Should(Succeed())

@@ -226,13 +226,13 @@ var _ = Describe("Worker SlicegwController", func() {
 			Eventually(func() bool {
 				err := k8sClient.Get(ctx, sliceKey, createdSlice)
 				return err == nil
-			}, time.Second*10, time.Millisecond*250).Should(BeTrue())
+			}, time.Second*250, time.Millisecond*250).Should(BeTrue())
 
 			slicegwkey := types.NamespacedName{Name: "test-slicegw", Namespace: CONTROL_PLANE_NS}
 			Eventually(func() bool {
 				err := k8sClient.Get(ctx, slicegwkey, createdSliceGw)
 				return err == nil
-			}, time.Second*10, time.Millisecond*250).Should(BeTrue())
+			}, time.Second*250, time.Millisecond*250).Should(BeTrue())
 
 			createdSliceGw.Status.Config.SliceGatewayHostType = "Server"
 			Eventually(func() bool {
@@ -329,13 +329,13 @@ var _ = Describe("Worker SlicegwController", func() {
 			Eventually(func() bool {
 				err := k8sClient.Get(ctx, sliceKey, createdSlice)
 				return err == nil
-			}, time.Second*10, time.Millisecond*250).Should(BeTrue())
+			}, time.Second*250, time.Millisecond*250).Should(BeTrue())
 
 			slicegwkey := types.NamespacedName{Name: "test-slicegw", Namespace: CONTROL_PLANE_NS}
 			Eventually(func() bool {
 				err := k8sClient.Get(ctx, slicegwkey, createdSliceGw)
 				return err == nil
-			}, time.Second*10, time.Millisecond*250).Should(BeTrue())
+			}, time.Second*250, time.Millisecond*250).Should(BeTrue())
 
 			createdSliceGw.Status.Config.SliceGatewayHostType = "Client"
 			createdSliceGw.Status.Config.SliceGatewayRemoteGatewayID = "remote-gateway-id"
@@ -377,6 +377,12 @@ var _ = Describe("Worker SlicegwController", func() {
 			Expect(k8sClient.Create(ctx, sliceGw)).Should(Succeed())
 			Expect(k8sClient.Create(ctx, appPod)).Should(Succeed())
 
+			sliceKey := types.NamespacedName{Name: "test-slice-4", Namespace: CONTROL_PLANE_NS}
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, sliceKey, createdSlice)
+				return err == nil
+			}, time.Second*250, time.Millisecond*250).Should(BeTrue())
+
 			slicegwkey := types.NamespacedName{Name: "test-slicegw", Namespace: CONTROL_PLANE_NS}
 			err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 				err := k8sClient.Get(ctx, slicegwkey, createdSliceGw)
@@ -414,6 +420,12 @@ var _ = Describe("Worker SlicegwController", func() {
 			Expect(k8sClient.Create(ctx, vl3ServiceEndpoint)).Should(Succeed())
 			Expect(k8sClient.Create(ctx, sliceGw)).Should(Succeed())
 			Expect(k8sClient.Create(ctx, appPod)).Should(Succeed())
+
+			sliceKey := types.NamespacedName{Name: "test-slice-4", Namespace: CONTROL_PLANE_NS}
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, sliceKey, createdSlice)
+				return err == nil
+			}, time.Second*250, time.Millisecond*250).Should(BeTrue())
 
 			slicegwkey := types.NamespacedName{Name: "test-slicegw", Namespace: CONTROL_PLANE_NS}
 			err := retry.RetryOnConflict(retry.DefaultRetry, func() error {

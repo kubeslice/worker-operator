@@ -137,12 +137,6 @@ jobs:
                  report link  'https://kubeslice.github.io/e2e-allure-reports/Kind-${{ github.event.repository.name }}-${{ steps.date.outputs.date }}-${{ github.base_ref }}-${{ github.run_number }}/index.html'
         GITHUB_TOKEN: ${{ secrets.TOKEN }}
     
-    - name: get email
-      id: test
-      uses: evvanErb/get-github-email-by-username-action@v1.25
-      with:
-          github-username: ${{github.actor}}
-          token: ${{ secrets.TOKEN }}
 
    
     - name: Run Quality Gate Check
@@ -160,9 +154,9 @@ jobs:
        server_port: 465
        username: ${{secrets.MAIL_USERNAME}}
        password: ${{secrets.MAIL_PASSWORD}}
-       cc: nishant.singh@aveshasystems.com
+       cc: rajendra@aveshasystems.com, eric@aveshasystems.com, abhisek@aveshasystems.com
        subject: Worker-Operator | end-to-end-test | ${{ steps.date.outputs.date }}
-       to: richie@aveshasystems.com
+       to: richie@aveshasystems.com, nishant.singh@aveshasystems.com
        from: no-reply@aveshasystems.com
        attachments: result-summary.txt
        body: Pipeline for the repo ${{github.repository}} is triggered by ${{github.actor}} from the branch ${{ steps.branch-name.outputs.current_branch }} !
