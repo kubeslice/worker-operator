@@ -44,7 +44,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{}, err
 	}
 
-	log.Info("got cluster CR from hub", "cluster", cr)
+	log.V(1).Info("got cluster CR from hub", "cluster", cr.ObjectMeta)
 
 	// Post NodeIP and GeoLocation info only on first run or if the reconciler wasn't run for a while
 	if cr.Status.ClusterHealth == nil || time.Since(cr.Status.ClusterHealth.LastUpdated.Time) > 3*time.Minute {
@@ -53,7 +53,11 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			// Skip the error and continue health check
 			log.Error(err, "unable to update cluster info")
 		} else {
-			return reconcile.Result{Requeue: true}, nil
+			// fetch updated CR
+			cr, err = r.getCluster(ctx, req)
+			if err != nil {
+				return reconcile.Result{}, err
+			}
 		}
 	}
 
@@ -63,6 +67,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			log.Error(err, "unable to update dashboard creds")
 			return reconcile.Result{}, err
 		} else {
+			log.Info("Dashboard creds updated in hub")
 			return reconcile.Result{Requeue: true}, nil
 		}
 	}
