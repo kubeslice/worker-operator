@@ -107,7 +107,7 @@ var _ = Describe("NodeRestart Test Suite", func() {
 			// create cluster CR under project namespace
 			cluster = &hubv1alpha1.Cluster{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "cluster-test",
+					Name:      "cluster-noderestart-int",
 					Namespace: PROJECT_NS,
 				},
 				Spec: hubv1alpha1.ClusterSpec{
@@ -178,7 +178,7 @@ var _ = Describe("NodeRestart Test Suite", func() {
 					return false
 				}
 				return cluster.Status.NodeIPs[0] == "35.235.10.2"
-			}, time.Second*300, time.Millisecond*250).Should(BeTrue())
+			}, time.Second*180, time.Millisecond*250).Should(BeTrue())
 		})
 	})
 })

@@ -202,9 +202,6 @@ var _ = BeforeSuite(func() {
 	err = builder.
 		ControllerManagedBy(k8sManager).
 		For(&hubv1alpha1.Cluster{}).
-		WithEventFilter(predicate.NewPredicateFuncs(func(object client.Object) bool {
-			return object.GetName() == CLUSTER_NAME
-		})).
 		Complete(clusterReconciler)
 	if err != nil {
 		os.Exit(1)

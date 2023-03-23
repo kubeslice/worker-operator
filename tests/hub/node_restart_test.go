@@ -107,7 +107,7 @@ var _ = Describe("NodeRestart Test Suite", func() {
 			// create cluster CR under project namespace
 			cluster = &hubv1alpha1.Cluster{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "cluster-test",
+					Name:      "cluster-node-restart",
 					Namespace: PROJECT_NS,
 				},
 				Spec: hubv1alpha1.ClusterSpec{
@@ -165,7 +165,7 @@ Prefixes:
 					return false
 				}
 				return len(cluster.Status.NodeIPs) > 0
-			}, time.Second*60, time.Millisecond*250).Should(BeTrue())
+			}, time.Second*120, time.Millisecond*250).Should(BeTrue())
 
 			//create another kubeslice node
 			Expect(k8sClient.Create(ctx, node2)).Should(Succeed())
@@ -178,7 +178,7 @@ Prefixes:
 					return false
 				}
 				return cluster.Status.NodeIPs[0] == "35.235.10.2"
-			}, time.Second*240, time.Millisecond*250).Should(BeTrue())
+			}, time.Second*180, time.Millisecond*250).Should(BeTrue())
 		})
 	})
 })
