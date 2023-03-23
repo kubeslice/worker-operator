@@ -105,30 +105,6 @@ func (c *Cluster) GetNsmExcludedPrefix(ctx context.Context, configmap, namespace
 	var nsmconfig corev1.ConfigMap
 	var err error
 	var prefixes []string
-	// wait for 5 minuites and poll every 10 second
-	// wait.Poll(10*time.Second, 5*time.Minute, func() (bool, error) {
-	// 	err = c.Client.Get(ctx, types.NamespacedName{Namespace: namespace, Name: configmap}, &nsmconfig)
-	// 	if err != nil {
-	// 		log.Info("Error getting nsm configmap", "err", err)
-	// 		return false, nil
-	// 	}
-	// 	if len(nsmconfig.Data) == 0 {
-	// 		log.Info("prefix data not present")
-	// 		return false, nil
-	// 	}
-	// 	_, ok := nsmconfig.Data["excluded_prefixes_output.yaml"]
-	// 	if !ok {
-	// 		log.Info("cni subnet info not present")
-	// 		return false, nil
-	// 	}
-	// 	prefixes, err = getPrefixes(nsmconfig)
-	// 	if err != nil {
-	// 		log.Info("failed to get prefixes from configmap", "err", err)
-	// 		return false, nil
-	// 	}
-	// 	return true, nil
-	// })
-
 	err = c.Client.Get(ctx, types.NamespacedName{Namespace: namespace, Name: configmap}, &nsmconfig)
 	if err != nil {
 		log.Info("Error getting nsm configmap", "err", err)
