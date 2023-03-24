@@ -61,7 +61,7 @@ type WebhookServer struct {
 }
 
 func (wh *WebhookServer) Handle(ctx context.Context, req admission.Request) admission.Response {
-	log.Info("webhook operation", "rahul", req.Operation)
+	log.Info("debugging webhook", "###rahul", req.Operation)
 	if req.Kind.Kind == "Pod" {
 		pod := &corev1.Pod{}
 		err := wh.decoder.Decode(req, pod)
