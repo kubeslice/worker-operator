@@ -39,15 +39,16 @@ var hundred = 100
 
 var controllerSlice = &workerv1alpha1.WorkerSliceConfig{
 	ObjectMeta: metav1.ObjectMeta{
-		Name:      "test-slice",
+		Name:      "test-slice-cluster-1",
 		Namespace: "project-namespace",
 		Labels: map[string]string{
-			"worker-cluster": "cluster-1",
+			"worker-cluster":      "cluster-1",
+			"original-slice-name": "test-slice",
 		},
 		DeletionTimestamp: &metav1.Time{Time: time.Now()},
 	},
 	Spec: workerv1alpha1.WorkerSliceConfigSpec{
-		SliceName:        "test-slice",
+		SliceName:        "test-slice-cluster-1",
 		SliceType:        "Application",
 		SliceSubnet:      "10.0.0.1/16",
 		SliceIpamType:    "Local",

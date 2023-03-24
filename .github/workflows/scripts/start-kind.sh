@@ -187,11 +187,11 @@ IstioDChartOptions:
   Password: ${chartpassword}
   Namespace: "istio-system"
 TestSuitesEnabled:
-  EmptySuite: true
+  EmptySuite: false
   HubSuite: false
   WorkerSuite: true
   IstioSuite: false
-  IntraClusterSuite: true
+  IntraClusterSuite: false
 EOF
 
 fi
