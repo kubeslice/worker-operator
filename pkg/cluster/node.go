@@ -56,11 +56,9 @@ type NodeInfo struct {
 func (n *NodeInfo) getNodeExternalIpList() ([]string, error) {
 	n.Lock()
 	defer n.Unlock()
-	if len(n.NodeIPList) == 0 {
-		err := n.populateNodeIpList()
-		if err != nil {
-			return nil, err
-		}
+	err := n.populateNodeIpList()
+	if err != nil {
+		return nil, err
 	}
 	return n.NodeIPList, nil
 }
@@ -85,19 +83,21 @@ func (n *NodeInfo) populateNodeIpList() error {
 	for i := 0; i < len(nodeList.Items); i++ {
 		nodeIpArr = append(nodeIpArr, nodeList.Items[i].Status.Addresses...)
 	}
+	var cuurentNodeIps []string
 	for i := 0; i < len(nodeIpArr); i++ {
 		if nodeIpArr[i].Type == NodeExternalIP {
-			n.NodeIPList = append(n.NodeIPList, nodeIpArr[i].Address)
+			cuurentNodeIps = append(cuurentNodeIps, nodeIpArr[i].Address)
 		}
 	}
 	// if the external IPs are not available, we fetch Internal IPs
-	if len(n.NodeIPList) == 0 {
+	if len(cuurentNodeIps) == 0 {
 		for i := 0; i < len(nodeIpArr); i++ {
 			if nodeIpArr[i].Type == NodeInternalIP {
-				n.NodeIPList = append(n.NodeIPList, nodeIpArr[i].Address)
+				cuurentNodeIps = append(cuurentNodeIps, nodeIpArr[i].Address)
 			}
 		}
 	}
+	n.NodeIPList = cuurentNodeIps
 	return err
 }
 

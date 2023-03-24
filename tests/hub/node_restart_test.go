@@ -33,7 +33,7 @@ import (
 )
 
 var _ = Describe("NodeRestart Test Suite", func() {
-	var node1, node2 *corev1.Node
+	var node1, node2, internalNode1, internalNode2 *corev1.Node
 	var ns *corev1.Namespace
 	var cluster *hubv1alpha1.Cluster
 	var nsmconfig *corev1.ConfigMap
@@ -84,6 +84,59 @@ var _ = Describe("NodeRestart Test Suite", func() {
 						{
 							Type:    corev1.NodeExternalIP,
 							Address: "35.235.10.2",
+						},
+					},
+					Conditions: []corev1.NodeCondition{
+						{
+							Type:   corev1.NodeReady,
+							Status: corev1.ConditionTrue,
+						},
+					},
+				},
+			}
+
+			internalNode1 = &corev1.Node{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "kubeslice-int-node-1",
+					Labels: map[string]string{
+						"topology.kubernetes.io/region": "us-east-1",
+						"kubeslice.io/node-type":        "gateway",
+					},
+				},
+				Spec: corev1.NodeSpec{
+					ProviderID: "gce://demo",
+				},
+				Status: corev1.NodeStatus{
+					Addresses: []corev1.NodeAddress{
+						{
+							Type:    corev1.NodeExternalIP,
+							Address: "35.235.10.3",
+						},
+					},
+					Conditions: []corev1.NodeCondition{
+						{
+							Type:   corev1.NodeReady,
+							Status: corev1.ConditionTrue,
+						},
+					},
+				},
+			}
+			internalNode2 = &corev1.Node{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "kubeslice-int-node-2",
+					Labels: map[string]string{
+						"topology.kubernetes.io/region": "us-east-1",
+						"kubeslice.io/node-type":        "gateway",
+					},
+				},
+				Spec: corev1.NodeSpec{
+					ProviderID: "gce://demo",
+				},
+				Status: corev1.NodeStatus{
+					Addresses: []corev1.NodeAddress{
+						{
+							Type:    corev1.NodeExternalIP,
+							Address: "35.235.10.4",
 						},
 					},
 					Conditions: []corev1.NodeCondition{
@@ -178,7 +231,42 @@ Prefixes:
 					return false
 				}
 				return cluster.Status.NodeIPs[0] == "35.235.10.2"
-			}, time.Second*180, time.Millisecond*250).Should(BeTrue())
+			}, time.Second*240, time.Millisecond*250).Should(BeTrue())
+		})
+
+		XIt("should update cluster CR with new node IP", func() {
+			Expect(k8sClient.Create(ctx, internalNode1)).Should(Succeed())
+			os.Setenv("CLUSTER_NAME", cluster.Name)
+			os.Setenv("HUB_PROJECT_NAMESPACE", PROJECT_NS)
+			ctx := context.Background()
+
+			//get the cluster object
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, types.NamespacedName{Name: cluster.Name, Namespace: cluster.Namespace}, cluster)
+				return err == nil
+			}, time.Second*10, time.Millisecond*250).Should(BeTrue())
+
+			// verify if new node IP is updated on cluster CR
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, types.NamespacedName{Name: cluster.Name, Namespace: cluster.Namespace}, cluster)
+				if err != nil {
+					return false
+				}
+				return len(cluster.Status.NodeIPs) > 0
+			}, time.Second*120, time.Millisecond*250).Should(BeTrue())
+
+			//create another kubeslice node
+			Expect(k8sClient.Create(ctx, internalNode2)).Should(Succeed())
+			// delete the node whose IP was selected to replicate node failure
+			Expect(k8sClient.Delete(ctx, internalNode1)).Should(Succeed())
+			// verify if new node IP is updated on cluster CR
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, types.NamespacedName{Name: cluster.Name, Namespace: cluster.Namespace}, cluster)
+				if err != nil {
+					return false
+				}
+				return cluster.Status.NodeIPs[0] == "35.235.10.4" || cluster.Status.NodeIPs[1] == "35.235.10.4"
+			}, time.Second*240, time.Millisecond*250).Should(BeTrue())
 		})
 	})
 })

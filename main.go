@@ -22,7 +22,6 @@ import (
 	"flag"
 	"os"
 
-	"github.com/kubeslice/worker-operator/pkg/cluster"
 	"github.com/kubeslice/worker-operator/pkg/events"
 	"github.com/kubeslice/worker-operator/pkg/monitoring"
 	namespacecontroller "github.com/kubeslice/worker-operator/pkg/namespace/controllers"
@@ -193,14 +192,6 @@ func main() {
 		NumberOfGateways:      2,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.With("error", err).Error("unable to create controller", "controller", "SliceGw")
-		os.Exit(1)
-	}
-
-	if err := (&cluster.NodeReconciler{
-		Client: mgr.GetClient(),
-		Log:    ctrl.Log.WithName("controllers").WithName("node reconciller"),
-	}).SetupWithManager(mgr); err != nil {
-		setupLog.With("error", err).Error("unable to create controller", "controller", "node")
 		os.Exit(1)
 	}
 

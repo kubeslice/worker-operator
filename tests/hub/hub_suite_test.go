@@ -40,7 +40,6 @@ import (
 	hubv1alpha1 "github.com/kubeslice/apis/pkg/controller/v1alpha1"
 	spokev1alpha1 "github.com/kubeslice/apis/pkg/worker/v1alpha1"
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
-	spokecluster "github.com/kubeslice/worker-operator/pkg/cluster"
 	"github.com/kubeslice/worker-operator/pkg/events"
 	"github.com/kubeslice/worker-operator/pkg/hub/controllers"
 	"github.com/kubeslice/worker-operator/pkg/hub/controllers/cluster"
@@ -187,12 +186,6 @@ var _ = BeforeSuite(func() {
 	}).SetupWithManager(k8sManager); err != nil {
 		os.Exit(1)
 	}
-
-	err = (&spokecluster.NodeReconciler{
-		Client: k8sManager.GetClient(),
-		Log:    ctrl.Log.WithName("controllers").WithName("node reconciller"),
-	}).SetupWithManager(k8sManager)
-	Expect(err).ToNot(HaveOccurred())
 
 	spokeClusterEventRecorder := events.NewEventRecorder(k8sManager.GetEventRecorderFor("cluster-controller"))
 	clusterReconciler := &cluster.Reconciler{
