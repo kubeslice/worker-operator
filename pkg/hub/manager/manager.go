@@ -168,7 +168,7 @@ func Start(meshClient client.Client, ctx context.Context) {
 		Cluster:   ClusterName,
 		Project:   ProjectNamespace,
 		Component: "worker-operator",
-		Namespace: ProjectNamespace,
+		Namespace: controllers.ControlPlaneNamespace,
 	})
 	clusterReconciler := &hubCluster.Reconciler{
 		MeshClient:    meshClient,
