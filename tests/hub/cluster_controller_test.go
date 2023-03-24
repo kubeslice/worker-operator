@@ -32,6 +32,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 var _ = Describe("Hub ClusterController", func() {
@@ -290,6 +291,15 @@ Prefixes:
 			for _, c := range cs {
 				Expect(string(c.ComponentHealthStatus)).Should(Equal("Error"))
 			}
+
+			events := &corev1.EventList{}
+			err := k8sClient.List(ctx, events, client.InNamespace("kubeslice-system"))
+			Expect(err).ToNot(HaveOccurred())
+
+			Expect(events.Items).ToNot(BeEmpty())
+
+			event := events.Items[len(events.Items)-1]
+			Expect(event.Labels["eventTitle"]).To(Equal("ClusterUnhealthy"))
 		})
 
 		It("Should update cluster CR with component status as normal when pods running", func() {
@@ -409,6 +419,15 @@ Prefixes:
 				Expect(c.Component).Should(Equal(pods[i].ObjectMeta.Name))
 				Expect(string(c.ComponentHealthStatus)).Should(Equal("Normal"))
 			}
+
+			events := &corev1.EventList{}
+			err := k8sClient.List(ctx, events, client.InNamespace("kubeslice-system"))
+			Expect(err).ToNot(HaveOccurred())
+
+			Expect(events.Items).ToNot(BeEmpty())
+
+			event := events.Items[len(events.Items)-1]
+			Expect(event.Labels["eventTitle"]).To(Equal("ClusterHealthy"))
 
 		})
 

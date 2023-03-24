@@ -191,7 +191,7 @@ var _ = BeforeSuite(func() {
 		Cluster:   CLUSTER_NAME,
 		Project:   PROJECT_NS,
 		Component: "worker-operator",
-		Namespace: PROJECT_NS,
+		Namespace: CONTROL_PLANE_NS,
 	})
 	clusterReconciler := &cluster.Reconciler{
 		MeshClient:    k8sClient,
