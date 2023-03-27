@@ -180,9 +180,7 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		}, nil
 	}
 	if isClient(sliceGw) {
-		if err := r.reconcileNodes(ctx, sliceGw); err != nil {
-			return ctrl.Result{}, err
-		}
+
 		//reconcile headless service and endpoint for DNS Query by OpenVPN Client
 		if err := r.reconcileGatewayHeadlessService(ctx, sliceGw); err != nil {
 			return ctrl.Result{}, err
@@ -519,10 +517,6 @@ func (r *SliceGwReconciler) handleSliceGwSvcCreation(ctx context.Context, sliceG
 				Message:   "Unable to post NodePort to kubeslice-controller cluster",
 			},
 		)
-		return true, ctrl.Result{}, sliceGwNodePorts, err
-	}
-
-	if err := r.reconcileNodes(ctx, sliceGw); err != nil {
 		return true, ctrl.Result{}, sliceGwNodePorts, err
 	}
 	return false, reconcile.Result{}, sliceGwNodePorts, nil

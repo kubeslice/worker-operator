@@ -38,7 +38,6 @@ import (
 	hubv1alpha1 "github.com/kubeslice/apis/pkg/controller/v1alpha1"
 	spokev1alpha1 "github.com/kubeslice/apis/pkg/worker/v1alpha1"
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
-	"github.com/kubeslice/worker-operator/pkg/hub/controllers"
 	"github.com/kubeslice/worker-operator/pkg/logger"
 	"github.com/kubeslice/worker-operator/pkg/monitoring"
 )
@@ -70,7 +69,6 @@ type HubClientRpc interface {
 	UpdateServiceExportEndpointForIngressGw(ctx context.Context, serviceexport *kubeslicev1beta1.ServiceExport,
 		ep *kubeslicev1beta1.ServicePod) error
 	UpdateAppNamespaces(ctx context.Context, sliceConfigName string, onboardedNamespaces []string) error
-	UpdateNodeIpInCluster(ctx context.Context, clusterName, nodeIP, namespace string) error
 	CreateWorkerSliceGwRecycler(ctx context.Context, gwRecyclerName, clientID, serverID, sliceGwServer, sliceGwClient, slice string) error
 }
 
@@ -116,38 +114,6 @@ func (hubClient *HubClientConfig) CreateWorkerSliceGwRecycler(ctx context.Contex
 	return hubClient.Create(ctx, &workerslicegwrecycler)
 }
 
-func (hubClient *HubClientConfig) UpdateNodeIpInCluster(ctx context.Context, clusterName string, nodeIP []string, namespace string, slicegw *kubeslicev1beta1.SliceGateway) error {
-	cluster := &hubv1alpha1.Cluster{}
-	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		err := hubClient.Get(ctx, types.NamespacedName{
-			Name:      clusterName,
-			Namespace: namespace,
-		}, cluster)
-		if err != nil {
-			return err
-		}
-		cluster.Spec.NodeIPs = nodeIP
-		if err := hubClient.Update(ctx, cluster); err != nil {
-			log.Error(err, "Error updating to cluster spec on controller cluster")
-			return err
-		}
-		fmt.Println("CLuster node ip after update:_______________>>>", cluster.Spec.NodeIPs)
-		return nil
-	})
-	if err != nil {
-		return err
-	}
-	hubClient.eventRecorder.WithNamespace(controllers.ControlPlaneNamespace).WithSlice(slicegw.Spec.SliceName).RecordEvent(ctx, &monitoring.Event{
-		EventType:         monitoring.EventTypeNormal,
-		Reason:            monitoring.EventReasonNodeIpUpdate,
-		Message:           "NodeIps Updated",
-		ReportingInstance: "Controller Reconciler",
-		Object:            slicegw,
-		Action:            "NodeIPUpdated",
-	})
-	return nil
-}
-
 func (hubClient *HubClientConfig) UpdateNodePortForSliceGwServer(ctx context.Context, sliceGwNodePorts []int, sliceGwName string) error {
 	sliceGw := &spokev1alpha1.WorkerSliceGateway{}
 	err := hubClient.Get(ctx, types.NamespacedName{
@@ -187,7 +153,7 @@ func (hubClient *HubClientConfig) GetClusterNodeIP(ctx context.Context, clusterN
 	if err != nil {
 		return []string{""}, err
 	}
-	return cluster.Spec.NodeIPs, nil
+	return cluster.Status.NodeIPs, nil
 }
 
 func UpdateNamespaceInfoToHub(ctx context.Context, hubClient client.Client, onboardNamespace, sliceName string) error {

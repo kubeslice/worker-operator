@@ -43,6 +43,7 @@ import (
 	"github.com/kubeslice/worker-operator/pkg/events"
 	"github.com/kubeslice/worker-operator/pkg/hub/controllers"
 	"github.com/kubeslice/worker-operator/pkg/hub/controllers/cluster"
+
 	"github.com/kubeslice/worker-operator/pkg/hub/controllers/workerslicegwrecycler"
 	workerrouter "github.com/kubeslice/worker-operator/tests/emulator/workerclient/router"
 	workergw "github.com/kubeslice/worker-operator/tests/emulator/workerclient/sidecargw"
@@ -194,9 +195,6 @@ var _ = BeforeSuite(func() {
 	err = builder.
 		ControllerManagedBy(k8sManager).
 		For(&hubv1alpha1.Cluster{}).
-		WithEventFilter(predicate.NewPredicateFuncs(func(object client.Object) bool {
-			return object.GetName() == CLUSTER_NAME
-		})).
 		Complete(clusterReconciler)
 	if err != nil {
 		os.Exit(1)
