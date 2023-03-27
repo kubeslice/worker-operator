@@ -83,21 +83,21 @@ func (n *NodeInfo) populateNodeIpList() error {
 	for i := 0; i < len(nodeList.Items); i++ {
 		nodeIpArr = append(nodeIpArr, nodeList.Items[i].Status.Addresses...)
 	}
-	var cuurentNodeIps []string
+	var currentNodeIps []string
 	for i := 0; i < len(nodeIpArr); i++ {
 		if nodeIpArr[i].Type == NodeExternalIP {
-			cuurentNodeIps = append(cuurentNodeIps, nodeIpArr[i].Address)
+			currentNodeIps = append(currentNodeIps, nodeIpArr[i].Address)
 		}
 	}
 	// if the external IPs are not available, we fetch Internal IPs
-	if len(cuurentNodeIps) == 0 {
+	if len(currentNodeIps) == 0 {
 		for i := 0; i < len(nodeIpArr); i++ {
 			if nodeIpArr[i].Type == NodeInternalIP {
-				cuurentNodeIps = append(cuurentNodeIps, nodeIpArr[i].Address)
+				currentNodeIps = append(currentNodeIps, nodeIpArr[i].Address)
 			}
 		}
 	}
-	n.NodeIPList = cuurentNodeIps
+	n.NodeIPList = currentNodeIps
 	return err
 }
 
