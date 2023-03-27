@@ -34,8 +34,6 @@ var (
 
 	ClusterName = os.Getenv("CLUSTER_NAME")
 
-	NodeIP = os.Getenv("NODE_IP")
-
 	ImagePullSecretName = utils.GetEnvOrDefault("IMAGE_PULL_SECRET_NAME", "kubeslice-nexus")
 
 	ReconcileInterval = 10 * time.Second

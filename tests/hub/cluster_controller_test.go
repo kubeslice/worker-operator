@@ -83,9 +83,9 @@ var _ = Describe("Hub ClusterController", func() {
 				Status: hubv1alpha1.ClusterStatus{},
 			}
 			nsmconfig = configMap("nsm-config", "kubeslice-system", `
-Prefixes:
-- 192.168.0.0/16
-- 10.96.0.0/12`)
+ Prefixes:
+ - 192.168.0.0/16
+ - 10.96.0.0/12`)
 
 			DeferCleanup(func() {
 				Expect(k8sClient.Delete(ctx, node)).Should(Succeed())
@@ -116,12 +116,12 @@ Prefixes:
 				if err != nil {
 					return err
 				}
-				if len(cluster.Spec.NodeIPs) == 0 {
+				if len(cluster.Status.NodeIPs) == 0 {
 					return fmt.Errorf("nodeip not populated")
 				}
 				return nil
-			}, time.Second*30, time.Millisecond*500).ShouldNot(HaveOccurred())
-			Expect(cluster.Spec.NodeIPs[0]).Should(Equal("35.235.10.1"))
+			}, time.Second*120, time.Millisecond*500).ShouldNot(HaveOccurred())
+			Expect(cluster.Status.NodeIPs[0]).Should(Equal("35.235.10.1"))
 			Expect(cluster.Spec.ClusterProperty.GeoLocation.CloudProvider).Should(Equal("gcp"))
 			Expect(cluster.Spec.ClusterProperty.GeoLocation.CloudRegion).Should(Equal("us-east-1"))
 			Expect(cluster.Status.CniSubnet).Should(Equal([]string{"192.168.0.0/16", "10.96.0.0/12"}))
@@ -133,6 +133,7 @@ Prefixes:
 		var cluster *hubv1alpha1.Cluster
 		var operatorSecret *corev1.Secret
 		var sa *corev1.ServiceAccount
+		var node *corev1.Node
 		hostname := "127.0.0.1:6443"
 
 		BeforeEach(func() {
@@ -141,15 +142,39 @@ Prefixes:
 					Name: PROJECT_NS,
 				},
 			}
+			node = &corev1.Node{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test-node",
+					Labels: map[string]string{
+						"topology.kubernetes.io/region": "us-east-1",
+						"kubeslice.io/node-type":        "gateway",
+					},
+				},
+				Spec: corev1.NodeSpec{
+					ProviderID: "gce://demo",
+				},
+				Status: corev1.NodeStatus{
+					Addresses: []corev1.NodeAddress{
+						{
+							Type:    corev1.NodeExternalIP,
+							Address: "35.235.10.1",
+						},
+					},
+					Conditions: []corev1.NodeCondition{
+						{
+							Type:   corev1.NodeReady,
+							Status: corev1.ConditionTrue,
+						},
+					},
+				},
+			}
 			os.Setenv("HUB_PROJECT_NAMESPACE", ns.Name)
 			cluster = &hubv1alpha1.Cluster{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      CLUSTER_NAME,
 					Namespace: PROJECT_NS,
 				},
-				Spec: hubv1alpha1.ClusterSpec{
-					NodeIPs: []string{"35.235.10.1"},
-				},
+				Spec:   hubv1alpha1.ClusterSpec{},
 				Status: hubv1alpha1.ClusterStatus{},
 			}
 			os.Setenv("CLUSTER_NAME", cluster.Name)
@@ -158,10 +183,10 @@ Prefixes:
 		})
 		It("should create secret in controller's project namespace", func() {
 			os.Setenv("CLUSTER_ENDPOINT", hostname)
+			Expect(k8sClient.Create(ctx, node))
 			Expect(k8sClient.Create(ctx, cluster)).Should(Succeed())
 			Expect(k8sClient.Create(ctx, operatorSecret)).Should(Succeed())
 			Expect(k8sClient.Create(ctx, sa)).Should(Succeed())
-
 			//get the created operator secret
 			Eventually(func() bool {
 				err := k8sClient.Get(ctx, types.NamespacedName{Name: operatorSecret.Name,

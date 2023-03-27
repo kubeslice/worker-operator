@@ -21,7 +21,6 @@ package cluster
 import (
 	"context"
 	"fmt"
-	"os"
 	"sync"
 
 	"github.com/kubeslice/worker-operator/controllers"
@@ -55,23 +54,11 @@ type NodeInfo struct {
 //GetNodeExternalIpList gets the list of External Node IPs of kubeslice-gateway nodes
 
 func (n *NodeInfo) getNodeExternalIpList() ([]string, error) {
-	// If node IP is set as an env variable, we use that as the only
-	// node IP available to us. Early exit from here, and there is no need
-	// spawn the node watcher thread.
-	staticNodeIp := os.Getenv("NODE_IP")
-	if staticNodeIp != "" {
-		n.NodeIPList = append(n.NodeIPList, staticNodeIp)
-		return n.NodeIPList, nil
-	}
-	// Dynamic node IP deduction if there is no static node IP provided
 	n.Lock()
 	defer n.Unlock()
-
-	if len(n.NodeIPList) == 0 {
-		err := n.populateNodeIpList()
-		if err != nil {
-			return nil, err
-		}
+	err := n.populateNodeIpList()
+	if err != nil {
+		return nil, err
 	}
 	return n.NodeIPList, nil
 }
@@ -96,19 +83,21 @@ func (n *NodeInfo) populateNodeIpList() error {
 	for i := 0; i < len(nodeList.Items); i++ {
 		nodeIpArr = append(nodeIpArr, nodeList.Items[i].Status.Addresses...)
 	}
+	var currentNodeIps []string
 	for i := 0; i < len(nodeIpArr); i++ {
 		if nodeIpArr[i].Type == NodeExternalIP {
-			n.NodeIPList = append(n.NodeIPList, nodeIpArr[i].Address)
+			currentNodeIps = append(currentNodeIps, nodeIpArr[i].Address)
 		}
 	}
-	// if the external IPs are not available , we fetch Internal IPs
-	if len(n.NodeIPList) == 0 {
+	// if the external IPs are not available, we fetch Internal IPs
+	if len(currentNodeIps) == 0 {
 		for i := 0; i < len(nodeIpArr); i++ {
 			if nodeIpArr[i].Type == NodeInternalIP {
-				n.NodeIPList = append(n.NodeIPList, nodeIpArr[i].Address)
+				currentNodeIps = append(currentNodeIps, nodeIpArr[i].Address)
 			}
 		}
 	}
+	n.NodeIPList = currentNodeIps
 	return err
 }
 

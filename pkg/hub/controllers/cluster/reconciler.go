@@ -17,6 +17,8 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/util/retry"
+	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
@@ -38,30 +40,34 @@ type Reconciler struct {
 func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
 	log := logger.FromContext(ctx).WithName("cluster-reconciler")
 	ctx = logger.WithLogger(ctx, log)
-
 	cr, err := r.getCluster(ctx, req)
 	if cr == nil {
 		return reconcile.Result{}, err
 	}
-
-	log.V(1).Info("got cluster CR from hub", "cluster", cr.ObjectMeta)
-
-	// Post NodeIP and GeoLocation info only on first run or if the reconciler wasn't run for a while
-	if cr.Status.ClusterHealth == nil || time.Since(cr.Status.ClusterHealth.LastUpdated.Time) > 3*time.Minute {
-		log.Info("updating cluster info on controller")
-		if err := r.updateClusterInfo(ctx, cr); err != nil {
-			// Skip the error and continue health check
-			log.Error(err, "unable to update cluster info")
-		} else {
-			// fetch updated CR
-			cr, err = r.getCluster(ctx, req)
-			if err != nil {
-				return reconcile.Result{}, err
-			}
-		}
+	log.Info("got cluster CR from hub", "cluster", cr)
+	cl := cluster.NewCluster(r.MeshClient, cr.Name)
+	res, err, requeue := r.updateClusterCloudProviderInfo(ctx, cr, cl)
+	if err != nil {
+		log.Error(err, "unable to update cloud provider info to cluster")
 	}
-
-	// Update dashboard creds if it hasn't already
+	if requeue {
+		return res, err
+	}
+	res, err, requeue = r.updateCNISubnetConfig(ctx, cr, cl)
+	if err != nil {
+		log.Error(err, "unable to update cni subnet config to cluster")
+	}
+	if requeue {
+		return res, err
+	}
+	res, err, requeue = r.updateNodeIps(ctx, cr)
+	if err != nil {
+		log.Error(err, "unable to update node ips to cluster")
+	}
+	if requeue {
+		return res, err
+	}
+	// Update dashboard creds if it hasn't already (only one time event)
 	if !r.isDashboardCredsUpdated(ctx, cr) {
 		if err := r.updateDashboardCreds(ctx, cr); err != nil {
 			log.Error(err, "unable to update dashboard creds")
@@ -71,7 +77,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			return reconcile.Result{Requeue: true}, nil
 		}
 	}
-
 	if cr.Status.ClusterHealth == nil {
 		cr.Status.ClusterHealth = &hubv1alpha1.ClusterHealth{}
 	}
@@ -176,52 +181,132 @@ func (r *Reconciler) getComponentStatus(ctx context.Context, c *component) (*hub
 	return cs, nil
 }
 
-func (r *Reconciler) updateClusterInfo(ctx context.Context, cr *hubv1alpha1.Cluster) error {
+func (r *Reconciler) updateClusterCloudProviderInfo(ctx context.Context, cr *hubv1alpha1.Cluster, cl cluster.ClusterInterface) (ctrl.Result, error, bool) {
 	log := logger.FromContext(ctx)
-	cl := cluster.NewCluster(r.MeshClient, clusterName)
 	clusterInfo, err := cl.GetClusterInfo(ctx)
 	if err != nil {
 		log.Error(err, "Error getting clusterInfo")
-		return err
+		return ctrl.Result{}, err, true
 	}
 	log.Info("got clusterinfo", "ci", clusterInfo)
-	if clusterInfo.ClusterProperty.GeoLocation.CloudProvider == GCP || clusterInfo.ClusterProperty.GeoLocation.CloudProvider == AWS || clusterInfo.ClusterProperty.GeoLocation.CloudProvider == AZURE {
-		cr.Spec.ClusterProperty.GeoLocation.CloudRegion = clusterInfo.ClusterProperty.GeoLocation.CloudRegion
-		cr.Spec.ClusterProperty.GeoLocation.CloudProvider = clusterInfo.ClusterProperty.GeoLocation.CloudProvider
-		if err := r.Update(ctx, cr); err != nil {
-			log.Error(err, "Error updating ClusterProperty on hub cluster")
+	toUpdate := false
+	err = retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		err := r.Get(ctx, types.NamespacedName{
+			Name:      cr.Name,
+			Namespace: cr.Namespace,
+		}, cr)
+		if err != nil {
 			return err
 		}
-	}
-	cniSubnet, err := cl.GetNsmExcludedPrefix(ctx, "nsm-config", "kubeslice-system")
+		cloudProvider := clusterInfo.ClusterProperty.GeoLocation.CloudProvider
+		cloudRegion := clusterInfo.ClusterProperty.GeoLocation.CloudRegion
+		if cloudProvider == GCP || cloudProvider == AWS || cloudProvider == AZURE {
+			// compare the current cloud region and provider with values stored in cluster spec, if not same then update
+			if cloudRegion != cr.Spec.ClusterProperty.GeoLocation.CloudRegion || cloudProvider != cr.Spec.ClusterProperty.GeoLocation.CloudProvider {
+				log.Info("updating Cluster's cloud info", "cloudProvider", cloudProvider, "cloudRegion", cloudRegion)
+				cr.Spec.ClusterProperty.GeoLocation.CloudProvider = cloudProvider
+				cr.Spec.ClusterProperty.GeoLocation.CloudRegion = cloudRegion
+				toUpdate = true
+				return r.Update(ctx, cr)
+			}
+		}
+		return nil
+	})
 	if err != nil {
-		log.Error(err, "Error getting cni Subnet")
-		return err
+		log.Error(err, "Failed to update Cloud Provider Info on hub cluster")
+		return ctrl.Result{}, err, true
 	}
-	if !reflect.DeepEqual(cr.Status.CniSubnet, cniSubnet) {
-		cr.Status.CniSubnet = cniSubnet
-		if err := r.Status().Update(ctx, cr); err != nil {
-			log.Error(err, "Error updating cniSubnet to cluster status on hub cluster")
+	if toUpdate {
+		return ctrl.Result{Requeue: true}, nil, true
+	}
+	return ctrl.Result{}, nil, false
+}
+
+func (r *Reconciler) updateCNISubnetConfig(ctx context.Context, cr *hubv1alpha1.Cluster, cl cluster.ClusterInterface) (ctrl.Result, error, bool) {
+	log := logger.FromContext(ctx)
+	toUpdate := false
+	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		err := r.Get(ctx, types.NamespacedName{
+			Name:      cr.Name,
+			Namespace: cr.Namespace,
+		}, cr)
+		if err != nil {
 			return err
 		}
+		cniSubnet, err := cl.GetNsmExcludedPrefix(ctx, "nsm-config", "kubeslice-system")
+		if err != nil {
+			log.Error(err, "Failed to get nsm config")
+			return err
+		}
+		if !reflect.DeepEqual(cr.Status.CniSubnet, cniSubnet) {
+			cr.Status.CniSubnet = cniSubnet
+			toUpdate = true
+			return r.Status().Update(ctx, cr)
+		}
+		return nil
+	})
+	if err != nil {
+		log.Error(err, "Error updating cniSubnet to cluster status on hub cluster")
+		return ctrl.Result{}, err, true
 	}
+	if toUpdate {
+		return ctrl.Result{Requeue: true}, nil, true
+	}
+	return ctrl.Result{}, nil, false
+}
 
-	// Populate NodeIPs if not already updated
-	// Only needed to do the initial update. Later updates will be done by node reconciler
-	if cr.Spec.NodeIPs == nil || len(cr.Spec.NodeIPs) == 0 {
+func (r *Reconciler) updateNodeIps(ctx context.Context, cr *hubv1alpha1.Cluster) (ctrl.Result, error, bool) {
+	log := logger.FromContext(ctx)
+	toUpdate := false
+	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		err := r.Get(ctx, types.NamespacedName{
+			Name:      cr.Name,
+			Namespace: cr.Namespace,
+		}, cr)
+		if err != nil {
+			return err
+		}
 		nodeIPs, err := cluster.GetNodeIP(r.MeshClient)
 		if err != nil {
 			log.Error(err, "Error Getting nodeIP")
 			return err
 		}
-		cr.Spec.NodeIPs = nodeIPs
-		if err := r.Update(ctx, cr); err != nil {
-			log.Error(err, "Error updating to cluster spec on hub cluster")
-			return err
+		// Populate NodeIPs if not already updated
+		// OR gets the current nodeIP in use from controller cluster CR and compares it with
+		// the current nodeIpList (nodeIpList contains list of externalIPs or internalIPs)
+		// if the nodeIP is no longer available, we update the cluster CR on controller cluster
+		if cr.Status.NodeIPs == nil || len(cr.Status.NodeIPs) == 0 ||
+			!validatenodeips(nodeIPs, cr.Status.NodeIPs) {
+			log.Info("Mismatch in node IP", "IP in use", cr.Status.NodeIPs, "IP to be used", nodeIPs)
+			cr.Status.NodeIPs = nodeIPs
+			toUpdate = true
+			return r.Status().Update(ctx, cr)
+		}
+		return nil
+	})
+	if err != nil {
+		log.Error(err, "Error updating to node ip's on hub cluster")
+		return ctrl.Result{}, err, true
+	}
+	// TODO raise event to cluster CR that node ip is updated
+	if toUpdate {
+		return ctrl.Result{Requeue: true}, nil, true
+	}
+	return ctrl.Result{}, nil, false
+}
+
+// total -> external ip list of nodes in the k8s cluster
+// current -> ip list present in nodeIPs of cluster cr
+func validatenodeips(total, current []string) bool {
+	if len(total) != len(current) {
+		return false
+	}
+	for i := range total {
+		if total[i] != current[i] {
+			return false
 		}
 	}
-
-	return nil
+	return true
 }
 
 func (r *Reconciler) isDashboardCredsUpdated(ctx context.Context, cr *hubv1alpha1.Cluster) bool {

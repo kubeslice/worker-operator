@@ -22,7 +22,6 @@ import (
 	"flag"
 	"os"
 
-	"github.com/kubeslice/worker-operator/pkg/cluster"
 	"github.com/kubeslice/worker-operator/pkg/events"
 	"github.com/kubeslice/worker-operator/pkg/monitoring"
 	namespacecontroller "github.com/kubeslice/worker-operator/pkg/namespace/controllers"
@@ -161,12 +160,6 @@ func main() {
 		Scheme: scheme,
 	})
 
-	//check if user has provided NODE_IP as env variable, if not fetch the ExternalIP from gateway nodes
-	nodeIP, err := cluster.GetNodeIP(clientForHubMgr)
-	if err != nil {
-		setupLog.With("error", err).Error("Error Getting nodeIP")
-		os.Exit(1)
-	}
 	sliceEventRecorder := events.NewEventRecorder(mgr.GetEventRecorderFor("slice-controller"))
 	if err = (&slice.SliceReconciler{
 		Client:             mgr.GetClient(),
@@ -196,22 +189,10 @@ func main() {
 		WorkerRouterClient:    workerRouterClient,
 		WorkerNetOpClient:     workerNetOPClient,
 		EventRecorder:         sliceGwEventRecorder,
-		NodeIPs:               nodeIP,
 		NumberOfGateways:      2,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.With("error", err).Error("unable to create controller", "controller", "SliceGw")
 		os.Exit(1)
-	}
-
-	// only start node reconciler if NODE_IP is not provided
-	if os.Getenv("NODE_IP") == "" {
-		if err := (&cluster.NodeReconciler{
-			Client: mgr.GetClient(),
-			Log:    ctrl.Log.WithName("controllers").WithName("node reconciller"),
-		}).SetupWithManager(mgr); err != nil {
-			setupLog.With("error", err).Error("unable to create controller", "controller", "node")
-			os.Exit(1)
-		}
 	}
 
 	serviceExportEventRecorder := events.NewEventRecorder(mgr.GetEventRecorderFor("serviceExport-controller"))
