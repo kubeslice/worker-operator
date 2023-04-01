@@ -166,7 +166,7 @@ func (r *Reconciler) updateClusterInfo(ctx context.Context, cr *hubv1alpha1.Clus
 
 	// Populate NodeIPs if not already updated
 	// Only needed to do the initial update. Later updates will be done by node reconciler
-	if isEmptyString(cr.Spec.NodeIPs) || cr.Spec.NodeIPs == nil || len(cr.Spec.NodeIPs) == 0 {
+	if isValidNodeIpList(cr.Spec.NodeIPs) || cr.Spec.NodeIPs == nil || len(cr.Spec.NodeIPs) == 0 {
 		nodeIPs, err := cluster.GetNodeIP(r.MeshClient)
 		if err != nil {
 			log.Error(err, "Error Getting nodeIP")
@@ -270,7 +270,7 @@ func (r *Reconciler) getCluster(ctx context.Context, req reconcile.Request) (*hu
 	return hubCluster, nil
 }
 
-func isEmptyString(nodeIPs []string) bool {
+func isValidNodeIpList(nodeIPs []string) bool {
 	for _, nodeIP := range nodeIPs {
 		if nodeIP == "" {
 			return true
