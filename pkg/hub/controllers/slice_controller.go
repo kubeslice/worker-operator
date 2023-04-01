@@ -437,6 +437,11 @@ func (r *SliceReconciler) fetchSliceGatewayHealth(ctx context.Context, c *compon
 				cs.ComponentHealthStatus = spokev1alpha1.ComponentHealthStatusError
 				return cs, nil
 			}
+			if len(pods) != len(sliceGwDeployments.Items) {
+				log.Error(fmt.Errorf("number of pods do not match slicegw deployments running"), "unhealthy", "pod", c.name)
+				cs.ComponentHealthStatus = spokev1alpha1.ComponentHealthStatusError
+				return cs, nil
+			}
 			for _, pod := range pods {
 				if pod.Status.Phase != corev1.PodRunning {
 					log.Info("pod is not healthy", "component", c.name)
