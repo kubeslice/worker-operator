@@ -28,6 +28,7 @@ import (
 
 	workerv1alpha1 "github.com/kubeslice/apis/pkg/worker/v1alpha1"
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -336,6 +337,45 @@ var _ = Describe("Hub SliceController", func() {
 		})
 
 		It("Should update slice CR with component status as normal when pods running", func() {
+			var replicas int32 = 1
+			deployments := []*appsv1.Deployment{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "slicegateway",
+						Labels: map[string]string{
+							"kubeslice.io/pod-type": "slicegateway",
+							"kubeslice.io/slice":    "test-slice-4",
+						},
+						Namespace: "kubeslice-system",
+					},
+					Spec: appsv1.DeploymentSpec{
+						Replicas: &replicas,
+						Selector: &metav1.LabelSelector{
+							MatchLabels: map[string]string{
+								"kubeslice.io/pod-type": "slicegateway",
+								"kubeslice.io/slice":    "test-slice-4",
+							},
+						},
+						Template: corev1.PodTemplateSpec{
+							ObjectMeta: metav1.ObjectMeta{
+								Labels: map[string]string{
+									"kubeslice.io/pod-type": "slicegateway",
+									"kubeslice.io/slice":    "test-slice-4",
+								},
+							},
+							Spec: corev1.PodSpec{
+								Containers: []corev1.Container{
+									{
+										Name:            "kubeslice-sidecar",
+										Image:           "nexus.dev.aveshalabs.io/kubeslice/gw-sidecar:1.0.0",
+										ImagePullPolicy: corev1.PullAlways,
+									},
+								},
+							},
+						},
+					},
+				},
+			}
 			pods := []*corev1.Pod{
 				{
 					ObjectMeta: metav1.ObjectMeta{
@@ -416,6 +456,9 @@ var _ = Describe("Hub SliceController", func() {
 						}},
 					},
 				},
+			}
+			for _, deployment := range deployments {
+				Expect(k8sClient.Create(ctx, deployment)).ToNot(HaveOccurred())
 			}
 			for _, pod := range pods {
 				Expect(k8sClient.Create(ctx, pod)).ToNot(HaveOccurred())

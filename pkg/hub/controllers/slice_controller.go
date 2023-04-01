@@ -340,14 +340,14 @@ func getOriginalName(slice *spokev1alpha1.WorkerSliceConfig) (string, error) {
 func (r *SliceReconciler) updateSliceHealth(ctx context.Context, slice *spokev1alpha1.WorkerSliceConfig) error {
 	log := logger.FromContext(ctx)
 	slice.Status.SliceHealth.ComponentStatuses = []spokev1alpha1.ComponentStatus{}
-	slice.Status.SliceHealth.SliceHealthStatus = spokev1alpha1.ComponentHealthStatusNormal
+	slice.Status.SliceHealth.SliceHealthStatus = spokev1alpha1.SliceHealthStatusNormal
 	originalName, err := getOriginalName(slice)
 	if err != nil {
 		log.Info("Could not find original name, skipping updateSliceHealth....")
 		return nil
 	}
 	for _, c := range components {
-		cs, err := r.getComponentStatus(ctx, &c, slice, originalName)
+		cs, err := r.getComponentStatus(ctx, &c, originalName)
 		if err != nil {
 			log.Error(err, "unable to fetch component status")
 		}
@@ -361,18 +361,16 @@ func (r *SliceReconciler) updateSliceHealth(ctx context.Context, slice *spokev1a
 	return nil
 }
 
-func (r *SliceReconciler) getComponentStatus(ctx context.Context, c *component, slice *spokev1alpha1.WorkerSliceConfig, sliceName string) (*spokev1alpha1.ComponentStatus, error) {
+func (r *SliceReconciler) getComponentStatus(ctx context.Context, c *component, sliceName string) (*spokev1alpha1.ComponentStatus, error) {
 	log := logger.FromContext(ctx)
 	for i := range components {
-		switch components[i].name {
-		case "slicegateway":
-			componentStatus, err := r.fetchSliceGatewayHealth(ctx, c, slice, sliceName)
-			return componentStatus, err
-		case "slicerouter":
-		case "egress":
-		case "ingress":
+		if components[i].name != "dns" {
 			components[i].labels["kubeslice.io/slice"] = sliceName
 		}
+	}
+	if c.name == "slicegateway" {
+		cs, err := r.fetchSliceGatewayHealth(ctx, c)
+		return cs, err
 	}
 	podList := &corev1.PodList{}
 	listOpts := []client.ListOption{
@@ -406,14 +404,13 @@ func (r *SliceReconciler) getComponentStatus(ctx context.Context, c *component, 
 	return cs, nil
 }
 
-func (r *SliceReconciler) fetchSliceGatewayHealth(ctx context.Context, c *component, slice *spokev1alpha1.WorkerSliceConfig, sliceName string) (*spokev1alpha1.ComponentStatus, error) {
+func (r *SliceReconciler) fetchSliceGatewayHealth(ctx context.Context, c *component) (*spokev1alpha1.ComponentStatus, error) {
 	log := logger.FromContext(ctx)
 	//fetch number of deployments
 	cs := &spokev1alpha1.ComponentStatus{
 		Component: c.name,
 	}
 	sliceGwDeployments := &appsv1.DeploymentList{}
-	c.labels["kubeslice.io/slice"] = sliceName
 	listOpts := []client.ListOption{
 		client.MatchingLabels(c.labels),
 		client.InNamespace(c.ns),
@@ -421,7 +418,8 @@ func (r *SliceReconciler) fetchSliceGatewayHealth(ctx context.Context, c *compon
 	if err := r.MeshClient.List(ctx, sliceGwDeployments, listOpts...); err == nil {
 		//1. zero number of deployments -> ignore the slicegw health status
 		if len(sliceGwDeployments.Items) == 0 {
-			cs.ComponentHealthStatus = spokev1alpha1.ComponentHealthStatusNormal
+			log.Info("SliceGW deployments are not present, skipping slicegw health status")
+			return nil, nil
 		} else {
 			//2. non zero number of deployments for slicegw -> fetch status of all pods
 			podList := &corev1.PodList{}
