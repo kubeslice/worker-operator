@@ -20,6 +20,7 @@ package cluster
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -112,17 +113,17 @@ func (c *Cluster) GetNsmExcludedPrefix(ctx context.Context, configmap, namespace
 	}
 	if len(nsmconfig.Data) == 0 {
 		log.Info("prefix data not present")
-		return nil, err
+		return nil, errors.New("prefix data not present in nsm configmap")
 	}
 	_, ok := nsmconfig.Data["excluded_prefixes_output.yaml"]
 	if !ok {
 		log.Info("cni subnet info not present")
-		return nil, err
+		return nil, errors.New("cni subnet info not present in nsm configmap")
 	}
 	prefixes, err = getPrefixes(nsmconfig)
 	if err != nil {
 		log.Info("failed to get prefixes from configmap", "err", err)
-		return nil, err
+		return nil, errors.New("failed to get prefixes from nsm configmap")
 	}
 
 	if err != nil || len(prefixes) == 0 {

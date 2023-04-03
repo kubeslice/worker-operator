@@ -125,6 +125,13 @@ var _ = Describe("Hub ClusterController", func() {
 			Expect(cluster.Spec.ClusterProperty.GeoLocation.CloudProvider).Should(Equal("gcp"))
 			Expect(cluster.Spec.ClusterProperty.GeoLocation.CloudRegion).Should(Equal("us-east-1"))
 			Expect(cluster.Status.CniSubnet).Should(Equal([]string{"192.168.0.0/16", "10.96.0.0/12"}))
+
+			events := &corev1.EventList{}
+			err = k8sClient.List(ctx, events, client.InNamespace("kubeslice-system"))
+			Expect(err).ToNot(HaveOccurred())
+			Expect(events.Items).ToNot(BeEmpty())
+			event := events.Items[len(events.Items)-1]
+			Expect(event.Labels["eventTitle"]).To(Equal("ClusterNodeIpAutoDetected"))
 		})
 	})
 

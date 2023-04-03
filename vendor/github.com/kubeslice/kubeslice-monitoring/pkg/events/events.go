@@ -44,13 +44,14 @@ type EventRecorder interface {
 	WithProject(string) EventRecorder
 }
 
-func NewEventRecorder(c client.Writer, s *runtime.Scheme, o EventRecorderOptions) EventRecorder {
+func NewEventRecorder(c client.Writer, s *runtime.Scheme, em map[EventName]*EventSchema, o EventRecorderOptions) EventRecorder {
 	log := logger.NewLogger().With("name", o.Component)
 	return &eventRecorder{
-		Client:  c,
-		Scheme:  s,
-		Options: o,
-		Logger:  log,
+		Client:    c,
+		Scheme:    s,
+		EventsMap: em,
+		Options:   o,
+		Logger:    log,
 	}
 }
 
@@ -81,17 +82,19 @@ type Event struct {
 }
 
 type eventRecorder struct {
-	Client  client.Writer
-	Logger  *zap.SugaredLogger
-	Scheme  *runtime.Scheme
-	Options EventRecorderOptions
+	Client    client.Writer
+	Logger    *zap.SugaredLogger
+	Scheme    *runtime.Scheme
+	EventsMap map[EventName]*EventSchema
+	Options   EventRecorderOptions
 }
 
 func (er *eventRecorder) Copy() *eventRecorder {
 	return &eventRecorder{
-		Client: er.Client,
-		Logger: er.Logger,
-		Scheme: er.Scheme,
+		Client:    er.Client,
+		Logger:    er.Logger,
+		Scheme:    er.Scheme,
+		EventsMap: er.EventsMap,
 		Options: EventRecorderOptions{
 			Version:   er.Options.Version,
 			Cluster:   er.Options.Cluster,
@@ -144,7 +147,7 @@ func (er *eventRecorder) RecordEvent(ctx context.Context, e *Event) error {
 		return nil
 	}
 
-	event, err := GetEvent(e.Name)
+	event, err := GetEvent(e.Name, er.EventsMap)
 	if err != nil {
 		er.Logger.With("error", err).Error("Unable to get event")
 		return err
