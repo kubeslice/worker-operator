@@ -52,7 +52,7 @@ var EventsMap = map[events.EventName]*events.EventSchema{
 		Action:              "None",
 		Type:                events.EventTypeNormal,
 		ReportingController: "worker",
-		Message:             "Auto-detection of cluster node IPs was successful as change detected in worker nodes",
+		Message:             "Auto-detection of cluster node IP addresses was successful due to changes detected in the worker nodes",
 	},
 	"ClusterNodeIpAutoDetectionFailed": {
 		Name:                "ClusterNodeIpAutoDetectionFailed",
@@ -60,7 +60,7 @@ var EventsMap = map[events.EventName]*events.EventSchema{
 		Action:              "None",
 		Type:                events.EventTypeWarning,
 		ReportingController: "worker",
-		Message:             "Auto-detection of cluster node IPs failed",
+		Message:             "Auto-detection of cluster node IP addresses failed",
 	},
 }
 
