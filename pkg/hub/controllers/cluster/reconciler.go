@@ -46,12 +46,10 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	log.Info("got cluster CR from hub", "cluster", cr)
 
-	// Post NodeIP and GeoLocation info only on first run or if the reconciler wasn't run for a while
-	if cr.Status.ClusterHealth == nil || time.Since(cr.Status.ClusterHealth.LastUpdated.Time) > 3*time.Minute {
-		log.Info("updating cluster info on controller")
-		if err := r.updateClusterInfo(ctx, cr); err != nil {
-			log.Error(err, "unable to update cluster info")
-		}
+	// Post NodeIP and GeoLocation info
+	log.Info("updating cluster info on controller")
+	if err := r.updateClusterInfo(ctx, cr); err != nil {
+		log.Error(err, "unable to update cluster info")
 	}
 
 	// Update dashboard creds if it hasn't already
@@ -168,7 +166,7 @@ func (r *Reconciler) updateClusterInfo(ctx context.Context, cr *hubv1alpha1.Clus
 
 	// Populate NodeIPs if not already updated
 	// Only needed to do the initial update. Later updates will be done by node reconciler
-	if cr.Spec.NodeIPs == nil || len(cr.Spec.NodeIPs) == 0 {
+	if isValidNodeIpList(cr.Spec.NodeIPs) || cr.Spec.NodeIPs == nil || len(cr.Spec.NodeIPs) == 0 {
 		nodeIPs, err := cluster.GetNodeIP(r.MeshClient)
 		if err != nil {
 			log.Error(err, "Error Getting nodeIP")
@@ -270,6 +268,15 @@ func (r *Reconciler) getCluster(ctx context.Context, req reconcile.Request) (*hu
 		return nil, err
 	}
 	return hubCluster, nil
+}
+
+func isValidNodeIpList(nodeIPs []string) bool {
+	for _, nodeIP := range nodeIPs {
+		if nodeIP == "" {
+			return true
+		}
+	}
+	return false
 }
 
 func (r *Reconciler) InjectClient(c client.Client) error {
