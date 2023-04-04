@@ -67,10 +67,12 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		log.Error(err, "unable to update cluster health status")
 	}
 
-	cr.Status.ClusterHealth.LastUpdated = metav1.Now()
-	if err := r.Status().Update(ctx, cr); err != nil {
-		log.Error(err, "unable to update cluster CR")
-		return reconcile.Result{}, err
+	if time.Since(cr.Status.ClusterHealth.LastUpdated.Time) > ReconcileInterval {
+		cr.Status.ClusterHealth.LastUpdated = metav1.Now()
+		if err := r.Status().Update(ctx, cr); err != nil {
+			log.Error(err, "unable to update cluster CR")
+			return reconcile.Result{}, err
+		}
 	}
 
 	return reconcile.Result{RequeueAfter: ReconcileInterval}, nil
@@ -166,7 +168,7 @@ func (r *Reconciler) updateClusterInfo(ctx context.Context, cr *hubv1alpha1.Clus
 
 	// Populate NodeIPs if not already updated
 	// Only needed to do the initial update. Later updates will be done by node reconciler
-	if isValidNodeIpList(cr.Spec.NodeIPs) || cr.Spec.NodeIPs == nil || len(cr.Spec.NodeIPs) == 0 {
+	if !isValidNodeIpList(cr.Spec.NodeIPs) || cr.Spec.NodeIPs == nil || len(cr.Spec.NodeIPs) == 0 {
 		nodeIPs, err := cluster.GetNodeIP(r.MeshClient)
 		if err != nil {
 			log.Error(err, "Error Getting nodeIP")
@@ -273,10 +275,10 @@ func (r *Reconciler) getCluster(ctx context.Context, req reconcile.Request) (*hu
 func isValidNodeIpList(nodeIPs []string) bool {
 	for _, nodeIP := range nodeIPs {
 		if nodeIP == "" {
-			return true
+			return false
 		}
 	}
-	return false
+	return true
 }
 
 func (r *Reconciler) InjectClient(c client.Client) error {
