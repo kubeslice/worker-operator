@@ -276,7 +276,7 @@ func (r *Reconciler) updateNodeIps(ctx context.Context, cr *hubv1alpha1.Cluster)
 		// the current nodeIpList (nodeIpList contains list of externalIPs or internalIPs)
 		// if the nodeIP is no longer available, we update the cluster CR on controller cluster
 		if cr.Status.NodeIPs == nil || len(cr.Status.NodeIPs) == 0 ||
-			!validatenodeips(nodeIPs, cr.Status.NodeIPs) || !isValidNodeIpList(nodeIPs) {
+			!validatenodeips(nodeIPs, cr.Status.NodeIPs) {
 			log.Info("Mismatch in node IP", "IP in use", cr.Status.NodeIPs, "IP to be used", nodeIPs)
 			cr.Status.NodeIPs = nodeIPs
 			toUpdate = true
@@ -395,15 +395,6 @@ func (r *Reconciler) getCluster(ctx context.Context, req reconcile.Request) (*hu
 		return nil, err
 	}
 	return hubCluster, nil
-}
-
-func isValidNodeIpList(nodeIPs []string) bool {
-	for _, nodeIP := range nodeIPs {
-		if nodeIP == "" {
-			return false
-		}
-	}
-	return true
 }
 
 func (r *Reconciler) InjectClient(c client.Client) error {
