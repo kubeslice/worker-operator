@@ -40,11 +40,13 @@ import (
 	hubv1alpha1 "github.com/kubeslice/apis/pkg/controller/v1alpha1"
 	spokev1alpha1 "github.com/kubeslice/apis/pkg/worker/v1alpha1"
 	mevents "github.com/kubeslice/kubeslice-monitoring/pkg/events"
+	"github.com/kubeslice/kubeslice-monitoring/pkg/metrics"
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
 	ossEvents "github.com/kubeslice/worker-operator/events"
 	"github.com/kubeslice/worker-operator/pkg/events"
 	"github.com/kubeslice/worker-operator/pkg/hub/controllers"
 	"github.com/kubeslice/worker-operator/pkg/hub/controllers/cluster"
+	ctrlmetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
 
 	"github.com/kubeslice/worker-operator/pkg/hub/controllers/workerslicegwrecycler"
 	workerrouter "github.com/kubeslice/worker-operator/tests/emulator/workerclient/router"
@@ -195,10 +197,20 @@ var _ = BeforeSuite(func() {
 		Component: "worker-operator",
 		Namespace: CONTROL_PLANE_NS,
 	})
-	clusterReconciler := &cluster.Reconciler{
-		MeshClient:    k8sClient,
-		EventRecorder: spokeClusterEventRecorder,
-	}
+	mf, _ := metrics.NewMetricsFactory(
+		ctrlmetrics.Registry,
+		metrics.MetricsFactoryOptions{
+			Project:             PROJECT_NS,
+			Cluster:             CLUSTER_NAME,
+			ReportingController: "worker-operator",
+			Namespace:           controllers.ControlPlaneNamespace,
+		},
+	)
+	clusterReconciler := cluster.NewReconciler(
+		k8sClient,
+		spokeClusterEventRecorder,
+		mf,
+	)
 	err = builder.
 		ControllerManagedBy(k8sManager).
 		For(&hubv1alpha1.Cluster{}).
