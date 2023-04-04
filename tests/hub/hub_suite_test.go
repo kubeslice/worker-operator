@@ -41,6 +41,7 @@ import (
 	spokev1alpha1 "github.com/kubeslice/apis/pkg/worker/v1alpha1"
 	mevents "github.com/kubeslice/kubeslice-monitoring/pkg/events"
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
+	ossEvents "github.com/kubeslice/worker-operator/events"
 	"github.com/kubeslice/worker-operator/pkg/events"
 	"github.com/kubeslice/worker-operator/pkg/hub/controllers"
 	"github.com/kubeslice/worker-operator/pkg/hub/controllers/cluster"
@@ -188,7 +189,7 @@ var _ = BeforeSuite(func() {
 		os.Exit(1)
 	}
 
-	spokeClusterEventRecorder := mevents.NewEventRecorder(k8sClient, k8sManager.GetScheme(), mevents.EventRecorderOptions{
+	spokeClusterEventRecorder := mevents.NewEventRecorder(k8sClient, k8sManager.GetScheme(), ossEvents.EventsMap, mevents.EventRecorderOptions{
 		Cluster:   CLUSTER_NAME,
 		Project:   PROJECT_NS,
 		Component: "worker-operator",

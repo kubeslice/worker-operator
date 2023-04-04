@@ -36,6 +36,7 @@ import (
 	spokev1alpha1 "github.com/kubeslice/apis/pkg/worker/v1alpha1"
 	mevents "github.com/kubeslice/kubeslice-monitoring/pkg/events"
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
+	ossEvents "github.com/kubeslice/worker-operator/events"
 	"github.com/kubeslice/worker-operator/pkg/events"
 	sidecar "github.com/kubeslice/worker-operator/pkg/gwsidecar"
 	"github.com/kubeslice/worker-operator/pkg/hub/controllers"
@@ -164,7 +165,7 @@ func Start(meshClient client.Client, ctx context.Context) {
 		os.Exit(1)
 	}
 
-	spokeClusterEventRecorder := mevents.NewEventRecorder(meshClient, mgr.GetScheme(), mevents.EventRecorderOptions{
+	spokeClusterEventRecorder := mevents.NewEventRecorder(meshClient, mgr.GetScheme(), ossEvents.EventsMap, mevents.EventRecorderOptions{
 		Cluster:   ClusterName,
 		Project:   ProjectNamespace,
 		Component: "worker-operator",

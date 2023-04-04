@@ -10,6 +10,7 @@ import (
 	hubv1alpha1 "github.com/kubeslice/apis/pkg/controller/v1alpha1"
 	"github.com/kubeslice/kubeslice-monitoring/pkg/events"
 	"github.com/kubeslice/worker-operator/controllers"
+	ossEvents "github.com/kubeslice/worker-operator/events"
 	"github.com/kubeslice/worker-operator/pkg/cluster"
 	"github.com/kubeslice/worker-operator/pkg/logger"
 	corev1 "k8s.io/api/core/v1"
@@ -119,7 +120,7 @@ func (r *Reconciler) updateClusterHealthStatus(ctx context.Context, cr *hubv1alp
 			log.Info("cluster health is back to normal")
 			err := r.EventRecorder.RecordEvent(ctx, &events.Event{
 				Object:            cr,
-				Name:              events.EventClusterHealthy,
+				Name:              ossEvents.EventClusterHealthy,
 				ReportingInstance: "cluster_reconciler",
 			})
 			if err != nil {
@@ -129,7 +130,7 @@ func (r *Reconciler) updateClusterHealthStatus(ctx context.Context, cr *hubv1alp
 			log.Info("cluster health is in warning state")
 			err := r.EventRecorder.RecordEvent(ctx, &events.Event{
 				Object:            cr,
-				Name:              events.EventClusterUnhealthy,
+				Name:              ossEvents.EventClusterUnhealthy,
 				ReportingInstance: "cluster_reconciler",
 			})
 			if err != nil {
@@ -286,10 +287,25 @@ func (r *Reconciler) updateNodeIps(ctx context.Context, cr *hubv1alpha1.Cluster)
 	})
 	if err != nil {
 		log.Error(err, "Error updating to node ip's on hub cluster")
+		err := r.EventRecorder.RecordEvent(ctx, &events.Event{
+			Object:            cr,
+			Name:              ossEvents.EventClusterNodeIpAutoDetectionFailed,
+			ReportingInstance: "cluster_reconciler",
+		})
+		if err != nil {
+			log.Error(err, "unable to record event for node ip update fail")
+		}
 		return ctrl.Result{}, err, true
 	}
-	// TODO raise event to cluster CR that node ip is updated
 	if toUpdate {
+		err := r.EventRecorder.RecordEvent(ctx, &events.Event{
+			Object:            cr,
+			Name:              ossEvents.EventClusterNodeIpAutoDetected,
+			ReportingInstance: "cluster_reconciler",
+		})
+		if err != nil {
+			log.Error(err, "unable to record event for node ip update")
+		}
 		return ctrl.Result{Requeue: true}, nil, true
 	}
 	return ctrl.Result{}, nil, false
