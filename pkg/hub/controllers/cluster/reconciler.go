@@ -175,9 +175,9 @@ func (r *Reconciler) updateClusterMetrics(cr *hubv1alpha1.Cluster) {
 
 	for _, cs := range cr.Status.ClusterHealth.ComponentStatuses {
 		if cs.ComponentHealthStatus == hubv1alpha1.ComponentHealthStatusNormal {
-			r.gaugeClusterUp.WithLabelValues(cs.Component).Set(1)
+			r.gaugeComponentUp.WithLabelValues(cs.Component).Set(1)
 		} else {
-			r.gaugeClusterUp.WithLabelValues(cs.Component).Set(0)
+			r.gaugeComponentUp.WithLabelValues(cs.Component).Set(0)
 		}
 	}
 }
