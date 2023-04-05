@@ -256,7 +256,7 @@ func TestUpdateSliceHealth(t *testing.T) {
 	}{
 		context.WithValue(context.Background(), types.NamespacedName{Namespace: "kubeslice-system", Name: "test-slice"}, controllerSlice),
 		reconcile.Request{NamespacedName: types.NamespacedName{Name: "test-slice", Namespace: "kubeslice-system"}},
-		reconcile.Result{RequeueAfter: ReconcileInterval},
+		reconcile.Result{RequeueAfter: 10 * time.Second},
 		nil,
 	}
 	client := NewClient()
