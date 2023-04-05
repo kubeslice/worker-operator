@@ -27,6 +27,7 @@ import (
 	workerv1alpha1 "github.com/kubeslice/apis/pkg/worker/v1alpha1"
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
 	"github.com/stretchr/testify/mock"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -280,6 +281,11 @@ func TestUpdateSliceHealth(t *testing.T) {
 	client.StatusMock.On("Update",
 		mock.IsType(ctx),
 		mock.IsType(&workerv1alpha1.WorkerSliceConfig{}),
+	).Return(nil)
+	client.On("List",
+		mock.IsType(expected.ctx),
+		mock.IsType(&appsv1.DeploymentList{}),
+		mock.IsType([]k8sclient.ListOption{}),
 	).Return(nil)
 	controllerSlice.Status.SliceHealth = &workerv1alpha1.SliceHealth{}
 	err := reconciler.updateSliceHealth(expected.ctx, controllerSlice)
