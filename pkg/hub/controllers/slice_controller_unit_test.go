@@ -162,7 +162,7 @@ func TestReconcileToUpdateWorkerSlice(t *testing.T) {
 	}{
 		context.WithValue(context.Background(), types.NamespacedName{Namespace: "kube-slice", Name: "kube-slice"}, controllerSlice),
 		reconcile.Request{NamespacedName: types.NamespacedName{Name: "test-slice", Namespace: "kubeslice-system"}},
-		reconcile.Result{RequeueAfter: ReconcileInterval},
+		reconcile.Result{RequeueAfter: time.Second * 10},
 		nil,
 	}
 	client := NewClient()
@@ -202,9 +202,10 @@ func TestReconcileToUpdateWorkerSlice(t *testing.T) {
 	).Return(nil)
 
 	reconciler := &SliceReconciler{
-		Client:     client,
-		MeshClient: client,
-		Log:        ctrl.Log.WithName("controller").WithName("controllers").WithName("SliceConfig"),
+		Client:            client,
+		MeshClient:        client,
+		Log:               ctrl.Log.WithName("controller").WithName("controllers").WithName("SliceConfig"),
+		ReconcileInterval: 10 * time.Second,
 	}
 	result, err := reconciler.Reconcile(expected.ctx, expected.req)
 	if expected.res != result {
