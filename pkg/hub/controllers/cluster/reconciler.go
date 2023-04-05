@@ -30,8 +30,6 @@ const (
 	GCP   string = "gcp"
 	AWS   string = "aws"
 	AZURE string = "azure"
-
-	ReconcileInterval = 120 * time.Second
 )
 
 type Reconciler struct {
@@ -42,6 +40,8 @@ type Reconciler struct {
 	// metrics
 	gaugeClusterUp   *prometheus.GaugeVec
 	gaugeComponentUp *prometheus.GaugeVec
+
+	ReconcileInterval time.Duration
 }
 
 func NewReconciler(mc client.Client, er events.EventRecorder, mf metrics.MetricsFactory) *Reconciler {
@@ -54,6 +54,8 @@ func NewReconciler(mc client.Client, er events.EventRecorder, mf metrics.Metrics
 
 		gaugeClusterUp:   gaugeClusterUp,
 		gaugeComponentUp: gaugeComponentUp,
+
+		ReconcileInterval: 120 * time.Second,
 	}
 }
 
@@ -113,7 +115,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{}, err
 	}
 
-	return reconcile.Result{RequeueAfter: ReconcileInterval}, nil
+	return reconcile.Result{RequeueAfter: r.ReconcileInterval}, nil
 }
 
 func (r *Reconciler) updateClusterHealthStatus(ctx context.Context, cr *hubv1alpha1.Cluster) error {

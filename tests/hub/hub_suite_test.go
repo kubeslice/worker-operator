@@ -132,9 +132,10 @@ var _ = BeforeSuite(func() {
 
 	testSliceEventRecorder := events.NewEventRecorder(k8sManager.GetEventRecorderFor("test-slice-controller"))
 	sr := &controllers.SliceReconciler{
-		MeshClient:    k8sClient,
-		Log:           ctrl.Log.WithName("hub").WithName("controllers").WithName("SliceConfig"),
-		EventRecorder: testSliceEventRecorder,
+		MeshClient:        k8sClient,
+		Log:               ctrl.Log.WithName("hub").WithName("controllers").WithName("SliceConfig"),
+		EventRecorder:     testSliceEventRecorder,
+		ReconcileInterval: 5 * time.Second,
 	}
 
 	testSliceGwEventRecorder := events.NewEventRecorder(k8sManager.GetEventRecorderFor("test-slicegw-controller"))
@@ -211,6 +212,7 @@ var _ = BeforeSuite(func() {
 		spokeClusterEventRecorder,
 		mf,
 	)
+	clusterReconciler.ReconcileInterval = 5 * time.Second
 	err = builder.
 		ControllerManagedBy(k8sManager).
 		For(&hubv1alpha1.Cluster{}).

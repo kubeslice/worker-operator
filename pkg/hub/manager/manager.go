@@ -21,6 +21,7 @@ package manager
 import (
 	"context"
 	"os"
+	"time"
 
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
@@ -88,9 +89,10 @@ func Start(meshClient client.Client, ctx context.Context) {
 	spokeSliceEventRecorder := events.NewEventRecorder(mgr.GetEventRecorderFor("spokeSlice-controller"))
 
 	sliceReconciler := &controllers.SliceReconciler{
-		MeshClient:    meshClient,
-		Log:           ctrl.Log.WithName("hub").WithName("controllers").WithName("SliceConfig"),
-		EventRecorder: spokeSliceEventRecorder,
+		MeshClient:        meshClient,
+		Log:               ctrl.Log.WithName("hub").WithName("controllers").WithName("SliceConfig"),
+		EventRecorder:     spokeSliceEventRecorder,
+		ReconcileInterval: 120 * time.Second,
 	}
 	err = builder.
 		ControllerManagedBy(mgr).
