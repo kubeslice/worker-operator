@@ -1,8 +1,50 @@
 name: end-to-end-test
 on:
-  pull_request_target:
-    types: [ labeled ] 
+  push:
+    branches: suite-parameter 
   workflow_dispatch:
+   inputs:
+    empty-suite:
+        type: choice
+        description: keep cluster or destroy. By default Destroy
+        options: 
+        - true
+        - false
+        default: true
+        required: true
+    hub-suite:
+        type: choice
+        description: keep cluster or destroy. By default Destroy
+        options: 
+        - true
+        - false
+        default: true
+        required: true
+    worker-suite:
+        type: choice
+        description: keep cluster or destroy. By default Destroy
+        options: 
+        - true
+        - false
+        default: true
+        required: true
+    istio-suite:
+        type: choice
+        description: keep cluster or destroy. By default Destroy
+        options: 
+        - true
+        - false
+        default: true
+        required: true
+    intra-cluster-suite:
+        type: choice
+        description: keep cluster or destroy. By default Destroy
+        options: 
+        - true
+        - false
+        default: true
+        required: true
+      
 
 env:
   chartuser: ${{ secrets.DEV_CHARTS_USERNAME }}
@@ -81,7 +123,12 @@ jobs:
         bash .github/workflows/scripts/start-kind.sh
       env: 
          GITHUB_HEAD_COMMIT: ${{ steps.vars.outputs.sha_commit }}
-
+         EMPTYSUITE: ${{ github.event.inputs.empty-suite }}
+         HUBSUITE: ${{ github.event.inputs.hub-suite }}
+         WORKERSUITE: ${{ github.event.inputs.worker-suite }}
+         ISTIOSUITE: ${{ github.event.inputs.istio-suite }}
+         INTRACLUSTERSUITE: ${{ github.event.inputs.intra-cluster-suite }}
+         
     - name: Docker Run Action
       uses: addnab/docker-run-action@v3
       with:
