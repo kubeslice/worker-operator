@@ -187,31 +187,10 @@ IstioDChartOptions:
   Password: ${chartpassword}
   Namespace: "istio-system"
 TestSuitesEnabled:
-  if [ "$EMPTYSUITE" = "true" ]; then
-    EmptySuite: true
-  else
-    EmptySuite: false
-  fi
-  if [ "$HUBSUITE" = "true" ]; then
-    HubSuite: true
-  else
-    HubSuite: false
-  fi
-  if [ "$WORKERSUITE" = "true" ]; then
-    WorkerSuite: true
-  else
-    WorkerSuite: false
-  fi
-  if [ "$ISTIOSUITE" = "true" ]; then
-    IstioSuite: true
-  else
-    IstioSuite: false
-  fi
-  if [ "$INTRACLUSTERSUITE" = "true" ]; then
-    IntraClusterSuite: true
-  else
-    IntraClusterSuite: false
-  fi
+  EmptySuite: ${EMPTYSUITE}
+  HubSuite: ${HUBSUITE}
+  WorkerSuite: ${WORKERSUITE}
+  IstioSuite: ${ISTIOSUITE}
+  IntraClusterSuite: ${INTRACLUSTERSUITE}
 EOF
-
 fi
