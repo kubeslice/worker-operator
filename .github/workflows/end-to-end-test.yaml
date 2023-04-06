@@ -1,7 +1,6 @@
 name: end-to-end-test
 on:
-  push:
-    branches: suite-parameter 
+  
   workflow_dispatch:
    inputs:
     empty-suite:
@@ -53,7 +52,6 @@ env:
 
 jobs:
   end-to-end:
-    if: ${{ github.event.label.name == 'ready-to-test' }}
     runs-on: ubuntu-20.04
     steps:
     - name: checkout the repo
