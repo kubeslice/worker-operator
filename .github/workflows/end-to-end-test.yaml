@@ -5,43 +5,43 @@ on:
    inputs:
     empty-suite:
         type: choice
-        description: keep cluster or destroy. By default Destroy
+        description: enable the empty suite
         options: 
         - true
         - false
-        default: true
+        default: false
         required: true
     hub-suite:
         type: choice
-        description: keep cluster or destroy. By default Destroy
+        description: enable the hub suite
         options: 
         - true
         - false
-        default: true
+        default: false
         required: true
     worker-suite:
         type: choice
-        description: keep cluster or destroy. By default Destroy
+        description: enable the worker suite
         options: 
         - true
         - false
-        default: true
+        default: false
         required: true
     istio-suite:
         type: choice
-        description: keep cluster or destroy. By default Destroy
+        description: enable the istio suite
         options: 
         - true
         - false
-        default: true
+        default: false
         required: true
     intra-cluster-suite:
         type: choice
-        description: keep cluster or destroy. By default Destroy
+        description: enable the intrcluster suite
         options: 
         - true
         - false
-        default: true
+        default: false
         required: true
       
 
