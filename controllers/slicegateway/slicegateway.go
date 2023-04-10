@@ -998,20 +998,15 @@ func getAddrSlice(nodeIPS []string) []corev1.EndpointAddress {
 }
 func nodeIPsCompletelyDifferent(subset corev1.EndpointSubset, remoteNodeIPs []string) bool {
 	addrSlice := subset.Addresses
-	// Create a map to keep track of elements in addrSlice
-	elementMap := make(map[string]bool)
-	// Add all elements in addrSlice to the map
-	for _, elem := range addrSlice {
-		elementMap[elem.IP] = true
+	exists := make(map[string]bool)
+	for _, value := range addrSlice {
+		exists[value.IP] = true
 	}
-	// Check if any element in remoteNodeIPs is in the map
-	for _, elem := range remoteNodeIPs {
-		if elementMap[elem] {
-			// If an element in remoteNodeIPs is found in addrSlice, return false
+	for _, value := range remoteNodeIPs {
+		if exists[value] {
 			return false
 		}
 	}
-	// If none of the elements in remoteNodeIPs were found in addrSlice, return true
 	return true
 }
 
