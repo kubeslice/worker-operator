@@ -24,7 +24,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/kubeslice/kubeslice-monitoring/pkg/metrics"
 	nsmv1 "github.com/networkservicemesh/sdk-k8s/pkg/tools/k8s/apis/networkservicemesh.io/v1"
+	ctrlmetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -135,6 +137,13 @@ var _ = BeforeSuite(func() {
 	workerClientNetopEmulator, err = workernetop.NewClientEmulator()
 	Expect(err).ToNot(HaveOccurred())
 
+	mf, err := metrics.NewMetricsFactory(ctrlmetrics.Registry, metrics.MetricsFactoryOptions{
+		Cluster:             "cluster-test",
+		Project:             PROJECT_NS,
+		ReportingController: "worker-operator",
+		Namespace:           CONTROL_PLANE_NS,
+	})
+
 	err = (&slice.SliceReconciler{
 		Client: k8sManager.GetClient(),
 		Scheme: k8sManager.GetScheme(),
@@ -145,7 +154,7 @@ var _ = BeforeSuite(func() {
 		HubClient:          hubClientEmulator,
 		WorkerRouterClient: workerClientRouterEmulator,
 		WorkerNetOpClient:  workerClientNetopEmulator,
-	}).SetupWithManager(k8sManager)
+	}).Setup(k8sManager, mf)
 	Expect(err).ToNot(HaveOccurred())
 
 	err = (&serviceexport.Reconciler{
@@ -156,7 +165,7 @@ var _ = BeforeSuite(func() {
 		EventRecorder: &events.EventRecorder{
 			Recorder: &record.FakeRecorder{},
 		},
-	}).SetupWithManager(k8sManager)
+	}).Setup(k8sManager, mf)
 	Expect(err).ToNot(HaveOccurred())
 
 	testSvcExEventRecorder := events.NewEventRecorder(k8sManager.GetEventRecorderFor("test-SvcEx-controller"))
