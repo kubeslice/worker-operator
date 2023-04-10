@@ -920,17 +920,13 @@ func (r *SliceGwReconciler) reconcileGatewayEndpoint(ctx context.Context, sliceG
 	}
 	// endpoint already exists, check if sliceGatewayRemoteNodeIp is changed then update the endpoint
 	toUpdate := false
-	debugLog.Info("SliceGatewayRemoteNodeIP", "SliceGatewayRemoteNodeIP", sliceGw.Status.Config.SliceGatewayRemoteNodeIPs)
+	remoteNodeIPs := sliceGw.Status.Config.SliceGatewayRemoteNodeIPs
+	debugLog.Info("SliceGatewayRemoteNodeIP", "SliceGatewayRemoteNodeIP", remoteNodeIPs)
 
-	restartGWPods := false
-	if nodeIPsCompletelyDifferent(endpointFound.Subsets[0], sliceGw.Status.Config.SliceGatewayRemoteNodeIPs) {
-		// Restart the gateway pods only when the new node IPs are completely distinct
-		restartGWPods = true
-	}
-	if !validateNodeIPsInEndpoint(endpointFound.Subsets[0], sliceGw.Status.Config.SliceGatewayRemoteNodeIPs) {
+	if !validateNodeIPsInEndpoint(endpointFound.Subsets[0], remoteNodeIPs) {
 		// endpoints gettings used should match with SliceGatewayRemoteNodeIPs
 		log.Info("Updating the Endpoint, since sliceGatewayRemoteNodeIp has changed", "from endpointFound", endpointFound.Subsets[0].Addresses[0].IP)
-		endpointFound.Subsets[0].Addresses = getAddrSlice(sliceGw.Status.Config.SliceGatewayRemoteNodeIPs)
+		endpointFound.Subsets[0].Addresses = getAddrSlice(remoteNodeIPs)
 		toUpdate = true
 	}
 	// When "toUpdate" is set to true we update the endpoints addresses
@@ -941,7 +937,8 @@ func (r *SliceGwReconciler) reconcileGatewayEndpoint(ctx context.Context, sliceG
 			log.Error(err, "Error updating Endpoint")
 			return true, ctrl.Result{}, err
 		}
-		if restartGWPods {
+		if nodeIPsCompletelyDifferent(endpointFound.Subsets[0], remoteNodeIPs) {
+			// Restart the gateway pods only when the new node IPs are completely distinct
 			log.Info("mismatch in node ips so restarting gateway pods")
 			if r.restartGatewayPods(ctx) != nil {
 				return true, ctrl.Result{}, err
@@ -1018,8 +1015,6 @@ func nodeIPsCompletelyDifferent(subset corev1.EndpointSubset, remoteNodeIPS []st
 	return true
 }
 
-// total -> external ip list of nodes in the k8s cluster
-// current -> ip list present in nodeIPs of cluster cr
 func validateNodeIPsInEndpoint(subset corev1.EndpointSubset, remoteNodeIPS []string) bool {
 	addrSlice := subset.Addresses
 	if len(addrSlice) != len(remoteNodeIPS) {
