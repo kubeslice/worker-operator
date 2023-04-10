@@ -22,6 +22,8 @@ import (
 	"flag"
 	"os"
 
+	"github.com/kubeslice/kubeslice-monitoring/pkg/metrics"
+	"github.com/kubeslice/worker-operator/controllers"
 	"github.com/kubeslice/worker-operator/pkg/events"
 	"github.com/kubeslice/worker-operator/pkg/monitoring"
 	namespacecontroller "github.com/kubeslice/worker-operator/pkg/namespace/controllers"
@@ -161,6 +163,12 @@ func main() {
 	})
 
 	sliceEventRecorder := events.NewEventRecorder(mgr.GetEventRecorderFor("slice-controller"))
+	mf, err := metrics.NewMetricsFactory(ctrlmetrics.Registry, metrics.MetricsFactoryOptions{
+		Cluster:             controllers.ClusterName,
+		Project:             hub.ProjectNamespace,
+		ReportingController: "worker-operator",
+		Namespace:           controllers.ControlPlaneNamespace,
+	})
 	if err = (&slice.SliceReconciler{
 		Client:             mgr.GetClient(),
 		Log:                ctrl.Log.WithName("controllers").WithName("Slice"),
@@ -169,7 +177,7 @@ func main() {
 		EventRecorder:      sliceEventRecorder,
 		WorkerRouterClient: workerRouterClient,
 		WorkerNetOpClient:  workerNetOPClient,
-	}).SetupWithManager(mgr); err != nil {
+	}).Setup(mgr, mf); err != nil {
 		setupLog.With("error", err).Error("unable to create controller", "controller", "Slice")
 		os.Exit(1)
 	}

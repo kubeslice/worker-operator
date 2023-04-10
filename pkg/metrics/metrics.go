@@ -18,10 +18,6 @@
 package metrics
 
 import (
-	"encoding/binary"
-	"math"
-	"time"
-
 	"github.com/kubeslice/worker-operator/pkg/logger"
 	"github.com/kubeslice/worker-operator/pkg/monitoring"
 )
@@ -56,37 +52,12 @@ var (
 Helper methods to update metrics from reconcilers
 */
 
-// RecordAppPodsCount records currently active app pod count in prometheus
-func RecordAppPodsCount(count int, clusterName, slice, ns string) {
-	metricLog.Info("Recording app pod count", "count", count, "clusterName", clusterName, "slice", slice, "ns", ns)
-	appPodsGauge.
-		With(ClusterName.Value(clusterName), Slice.Value(slice), Namespace.Value(ns)).
-		Record(float64(count))
-}
-
 // RecordServicecExportAvailableEndpointsCount records currently active serviceexports endpoints
 func RecordServicecExportAvailableEndpointsCount(count int, clusterName, slice, ns, svc string) {
 	metricLog.Info("Recording serviceexport available endpoint", "count", count, "clusterName", clusterName, "slice", slice, "ns", ns, "svc", svc)
 	serviceExportAvailableEndpointsGauge.
 		With(ClusterName.Value(clusterName), Slice.Value(slice), Namespace.Value(ns), Service.Value(svc)).
 		Record(float64(count))
-}
-
-// SinceInMilliseconds produces time difference in milliseconds
-func SinceInMilliseconds(startTime time.Time) float64 {
-	return float64(time.Since(startTime).Nanoseconds()) / 1e6
-}
-
-// SinceInseconds produces time difference in seconds
-func SinceInseconds(startTime time.Time) float64 {
-	return float64(time.Since(startTime).Seconds()) / 1e6
-}
-
-// Float64frombytes converts bytes to float
-func Float64frombytes(bytes []byte) float64 {
-	bits := binary.LittleEndian.Uint64(bytes)
-	float := math.Float64frombits(bits)
-	return float
 }
 
 // method to register metrics to prometheus
