@@ -918,24 +918,63 @@ func (r *SliceGwReconciler) reconcileGatewayEndpoint(ctx context.Context, sliceG
 		}
 		return true, ctrl.Result{}, err
 	}
-	// endpoint already exists , check if sliceGatewayRemoteNodeIp is changed then update the endpoint
+	// endpoint already exists, check if sliceGatewayRemoteNodeIp is changed then update the endpoint
 	toUpdate := false
 	debugLog.Info("SliceGatewayRemoteNodeIP", "SliceGatewayRemoteNodeIP", sliceGw.Status.Config.SliceGatewayRemoteNodeIPs)
-	if !validateEndpointAddresses(endpointFound.Subsets[0], sliceGw.Status.Config.SliceGatewayRemoteNodeIPs) {
-		debugLog.Info("Updating the Endpoint, since sliceGatewayRemoteNodeIp has changed", "from endpointFound", endpointFound.Subsets[0].Addresses[0].IP)
+
+	restartGWPods := false
+	if nodeIPsCompletelyDifferent(endpointFound.Subsets[0], sliceGw.Status.Config.SliceGatewayRemoteNodeIPs) {
+		// Restart the gateway pods only when the new node IPs are completely distinct
+		restartGWPods = true
+	}
+	if !validateNodeIPsInEndpoint(endpointFound.Subsets[0], sliceGw.Status.Config.SliceGatewayRemoteNodeIPs) {
+		// endpoints gettings used should match with SliceGatewayRemoteNodeIPs
+		log.Info("Updating the Endpoint, since sliceGatewayRemoteNodeIp has changed", "from endpointFound", endpointFound.Subsets[0].Addresses[0].IP)
 		endpointFound.Subsets[0].Addresses = getAddrSlice(sliceGw.Status.Config.SliceGatewayRemoteNodeIPs)
 		toUpdate = true
 	}
+	// When "toUpdate" is set to true we update the endpoints addresses
+	// When "restartGWPods" is set to true, we refresh the connections by restarting the gateway pods
 	if toUpdate {
 		err := r.Update(ctx, &endpointFound)
 		if err != nil {
 			log.Error(err, "Error updating Endpoint")
 			return true, ctrl.Result{}, err
 		}
+		if restartGWPods {
+			log.Info("mismatch in node ips so restarting gateway pods")
+			if r.restartGatewayPods(ctx) != nil {
+				return true, ctrl.Result{}, err
+			} else {
+				return true, ctrl.Result{Requeue: true}, nil
+			}
+		}
 	}
 	return false, ctrl.Result{}, nil
 }
 
+func (r *SliceGwReconciler) restartGatewayPods(ctx context.Context) error {
+	log := r.Log
+	podsList := corev1.PodList{}
+	labels := map[string]string{"kubeslice.io/pod-type": "slicegateway"}
+	listOptions := []client.ListOption{
+		client.MatchingLabels(labels),
+	}
+	err := r.List(ctx, &podsList, listOptions...)
+	if err != nil {
+		return err
+	}
+
+	for _, pod := range podsList.Items {
+		log.Info("restarting gateway pods", pod.Name)
+		err = r.Delete(ctx, &pod)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+
+}
 func (r *SliceGwReconciler) isRouteRemoved(slicegw *kubeslicev1beta1.SliceGateway, podName string) bool {
 	for _, gwPod := range slicegw.Status.GatewayPodStatus {
 		if gwPod.PodName == podName {
@@ -960,10 +999,34 @@ func getAddrSlice(nodeIPS []string) []corev1.EndpointAddress {
 	}
 	return endpointSlice
 }
-func validateEndpointAddresses(subset corev1.EndpointSubset, remoteNodeIPS []string) bool {
+func nodeIPsCompletelyDifferent(subset corev1.EndpointSubset, remoteNodeIPS []string) bool {
 	addrSlice := subset.Addresses
-	for _, address := range addrSlice {
-		if !contains(remoteNodeIPS, address.IP) {
+	// Create a map to keep track of elements in addrSlice
+	elementMap := make(map[string]bool)
+	// Add all elements in addrSlice to the map
+	for _, elem := range addrSlice {
+		elementMap[elem.IP] = true
+	}
+	// Check if any element in remoteNodeIPS is in the map
+	for _, elem := range remoteNodeIPS {
+		if elementMap[elem] {
+			// If an element in remoteNodeIPS is found in addrSlice, return false
+			return false
+		}
+	}
+	// If none of the elements in remoteNodeIPS were found in addrSlice, return true
+	return true
+}
+
+// total -> external ip list of nodes in the k8s cluster
+// current -> ip list present in nodeIPs of cluster cr
+func validateNodeIPsInEndpoint(subset corev1.EndpointSubset, remoteNodeIPS []string) bool {
+	addrSlice := subset.Addresses
+	if len(addrSlice) != len(remoteNodeIPS) {
+		return false
+	}
+	for i := range addrSlice {
+		if addrSlice[i].IP != remoteNodeIPS[i] {
 			return false
 		}
 	}
