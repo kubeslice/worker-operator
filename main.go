@@ -162,13 +162,18 @@ func main() {
 		Scheme: scheme,
 	})
 
-	sliceEventRecorder := events.NewEventRecorder(mgr.GetEventRecorderFor("slice-controller"))
 	mf, err := metrics.NewMetricsFactory(ctrlmetrics.Registry, metrics.MetricsFactoryOptions{
 		Cluster:             controllers.ClusterName,
 		Project:             hub.ProjectNamespace,
 		ReportingController: "worker-operator",
 		Namespace:           controllers.ControlPlaneNamespace,
 	})
+	if err != nil {
+		setupLog.With("error", err).Error("unable to initializ metrics factory")
+		os.Exit(1)
+	}
+
+	sliceEventRecorder := events.NewEventRecorder(mgr.GetEventRecorderFor("slice-controller"))
 	if err = (&slice.SliceReconciler{
 		Client:             mgr.GetClient(),
 		Log:                ctrl.Log.WithName("controllers").WithName("Slice"),
@@ -210,7 +215,7 @@ func main() {
 		Scheme:        mgr.GetScheme(),
 		HubClient:     hubClient,
 		EventRecorder: serviceExportEventRecorder,
-	}).SetupWithManager(mgr); err != nil {
+	}).Setup(mgr, mf); err != nil {
 		setupLog.With("error", err, "controller", "ServiceExport").Error("unable to create controller")
 		os.Exit(1)
 	}

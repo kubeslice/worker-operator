@@ -52,14 +52,6 @@ var (
 Helper methods to update metrics from reconcilers
 */
 
-// RecordServicecExportAvailableEndpointsCount records currently active serviceexports endpoints
-func RecordServicecExportAvailableEndpointsCount(count int, clusterName, slice, ns, svc string) {
-	metricLog.Info("Recording serviceexport available endpoint", "count", count, "clusterName", clusterName, "slice", slice, "ns", ns, "svc", svc)
-	serviceExportAvailableEndpointsGauge.
-		With(ClusterName.Value(clusterName), Slice.Value(slice), Namespace.Value(ns), Service.Value(svc)).
-		Record(float64(count))
-}
-
 // method to register metrics to prometheus
 func init() {
 	// Register custom metrics with the global prometheus registry
