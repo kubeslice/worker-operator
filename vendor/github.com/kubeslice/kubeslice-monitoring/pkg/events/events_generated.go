@@ -28,22 +28,6 @@ var EventsMap = map[EventName]*EventSchema{
 		ReportingController: "controller",
 		Message:             "ExampleEvent message.",
 	},
-	"ClusterNodeIpUpdated": {
-		Name:                "ClusterNodeIpUpdated",
-		Reason:              "ClusterNodeIpUpdated",
-		Action:              "None",
-		Type:                EventTypeNormal,
-		ReportingController: "worker",
-		Message:             "Successfully updated cluster as change detected in cluster nodes",
-	},
-	"ClusterNodeIpUpdateFail": {
-		Name:                "ClusterNodeIpUpdateFail",
-		Reason:              "ClusterNodeIpUpdateFail",
-		Action:              "None",
-		Type:                EventTypeWarning,
-		ReportingController: "worker",
-		Message:             "Failed to update node ip in cluster CR",
-	},
 }
 
 var (
