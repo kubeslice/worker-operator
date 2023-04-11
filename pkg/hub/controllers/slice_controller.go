@@ -35,6 +35,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/util/retry"
+	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -107,9 +108,9 @@ func NewReconciler(mc client.Client, er events.EventRecorder, mf metrics.Metrics
 	gaugeComponentUp := mf.NewGauge("slice_component_up", "Kubeslice slice component health status", []string{"component"})
 
 	return &SliceReconciler{
-		MeshClient:    mc,
-		EventRecorder: &er,
-
+		MeshClient:       mc,
+		EventRecorder:    &er,
+		Log:              ctrl.Log.WithName("hub").WithName("controllers").WithName("SliceConfig"),
 		gaugeSliceUp:     gaugeSliceUp,
 		gaugeComponentUp: gaugeComponentUp,
 
