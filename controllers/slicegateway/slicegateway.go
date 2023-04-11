@@ -930,7 +930,6 @@ func (r *SliceGwReconciler) reconcileGatewayEndpoint(ctx context.Context, sliceG
 		toUpdate = true
 	}
 	// When "toUpdate" is set to true we update the endpoints addresses
-	// When "restartGWPods" is set to true, we refresh the connections by restarting the gateway pods
 	if toUpdate {
 		err := r.Update(ctx, &endpointFound)
 		if err != nil {
@@ -938,7 +937,7 @@ func (r *SliceGwReconciler) reconcileGatewayEndpoint(ctx context.Context, sliceG
 			return true, ctrl.Result{}, err
 		}
 		if nodeIPsCompletelyDifferent(endpointFound.Subsets[0], remoteNodeIPs) {
-			// Restart the gateway pods only when the new node IPs are completely distinct
+			// refresh the connections by restarting the gateway pods when the new node IPs are completely distinct
 			log.Info("mismatch in node ips so restarting gateway pods")
 			if r.restartGatewayPods(ctx) != nil {
 				return true, ctrl.Result{}, err
