@@ -131,12 +131,17 @@ var _ = BeforeSuite(func() {
 	Expect(err).ToNot(HaveOccurred())
 
 	testSliceEventRecorder := events.NewEventRecorder(k8sManager.GetEventRecorderFor("test-slice-controller"))
-	sr := &controllers.SliceReconciler{
-		MeshClient:        k8sClient,
-		Log:               ctrl.Log.WithName("hub").WithName("controllers").WithName("SliceConfig"),
-		EventRecorder:     testSliceEventRecorder,
-		ReconcileInterval: 5 * time.Second,
-	}
+	mf, _ := metrics.NewMetricsFactory(
+		ctrlmetrics.Registry,
+		metrics.MetricsFactoryOptions{
+			Project:             PROJECT_NS,
+			Cluster:             CLUSTER_NAME,
+			ReportingController: "worker-operator",
+			Namespace:           controllers.ControlPlaneNamespace,
+		},
+	)
+	sr := controllers.NewReconciler(k8sClient, *testSliceEventRecorder, mf)
+	sr.ReconcileInterval = 5 * time.Second
 
 	testSliceGwEventRecorder := events.NewEventRecorder(k8sManager.GetEventRecorderFor("test-slicegw-controller"))
 	sgwr := &controllers.SliceGwReconciler{
@@ -198,15 +203,7 @@ var _ = BeforeSuite(func() {
 		Component: "worker-operator",
 		Namespace: CONTROL_PLANE_NS,
 	})
-	mf, _ := metrics.NewMetricsFactory(
-		ctrlmetrics.Registry,
-		metrics.MetricsFactoryOptions{
-			Project:             PROJECT_NS,
-			Cluster:             CLUSTER_NAME,
-			ReportingController: "worker-operator",
-			Namespace:           controllers.ControlPlaneNamespace,
-		},
-	)
+
 	clusterReconciler := cluster.NewReconciler(
 		k8sClient,
 		spokeClusterEventRecorder,
