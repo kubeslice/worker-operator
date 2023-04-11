@@ -918,24 +918,60 @@ func (r *SliceGwReconciler) reconcileGatewayEndpoint(ctx context.Context, sliceG
 		}
 		return true, ctrl.Result{}, err
 	}
-	// endpoint already exists , check if sliceGatewayRemoteNodeIp is changed then update the endpoint
+	// endpoint already exists, check if sliceGatewayRemoteNodeIp is changed then update the endpoint
 	toUpdate := false
-	debugLog.Info("SliceGatewayRemoteNodeIP", "SliceGatewayRemoteNodeIP", sliceGw.Status.Config.SliceGatewayRemoteNodeIPs)
-	if !validateEndpointAddresses(endpointFound.Subsets[0], sliceGw.Status.Config.SliceGatewayRemoteNodeIPs) {
-		debugLog.Info("Updating the Endpoint, since sliceGatewayRemoteNodeIp has changed", "from endpointFound", endpointFound.Subsets[0].Addresses[0].IP)
-		endpointFound.Subsets[0].Addresses = getAddrSlice(sliceGw.Status.Config.SliceGatewayRemoteNodeIPs)
+	remoteNodeIPs := sliceGw.Status.Config.SliceGatewayRemoteNodeIPs
+	debugLog.Info("SliceGatewayRemoteNodeIP", "SliceGatewayRemoteNodeIP", remoteNodeIPs)
+
+	if !validateNodeIPsInEndpoint(endpointFound.Subsets[0], remoteNodeIPs) {
+		// endpoints gettings used should match with SliceGatewayRemoteNodeIPs
+		log.Info("Updating the Endpoint, since sliceGatewayRemoteNodeIp has changed", "from endpointFound", endpointFound.Subsets[0].Addresses[0].IP)
+		endpointFound.Subsets[0].Addresses = getAddrSlice(remoteNodeIPs)
 		toUpdate = true
 	}
+	// When "toUpdate" is set to true we update the endpoints addresses
+	// When "restartGWPods" is set to true, we refresh the connections by restarting the gateway pods
 	if toUpdate {
 		err := r.Update(ctx, &endpointFound)
 		if err != nil {
 			log.Error(err, "Error updating Endpoint")
 			return true, ctrl.Result{}, err
 		}
+		if nodeIPsCompletelyDifferent(endpointFound.Subsets[0], remoteNodeIPs) {
+			// Restart the gateway pods only when the new node IPs are completely distinct
+			log.Info("mismatch in node ips so restarting gateway pods")
+			if r.restartGatewayPods(ctx) != nil {
+				return true, ctrl.Result{}, err
+			} else {
+				return true, ctrl.Result{Requeue: true}, nil
+			}
+		}
 	}
 	return false, ctrl.Result{}, nil
 }
 
+func (r *SliceGwReconciler) restartGatewayPods(ctx context.Context) error {
+	log := r.Log
+	podsList := corev1.PodList{}
+	labels := map[string]string{"kubeslice.io/pod-type": "slicegateway"}
+	listOptions := []client.ListOption{
+		client.MatchingLabels(labels),
+	}
+	err := r.List(ctx, &podsList, listOptions...)
+	if err != nil {
+		return err
+	}
+
+	for _, pod := range podsList.Items {
+		log.Info("restarting gateway pods", pod.Name)
+		err = r.Delete(ctx, &pod)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+
+}
 func (r *SliceGwReconciler) isRouteRemoved(slicegw *kubeslicev1beta1.SliceGateway, podName string) bool {
 	for _, gwPod := range slicegw.Status.GatewayPodStatus {
 		if gwPod.PodName == podName {
@@ -960,10 +996,31 @@ func getAddrSlice(nodeIPS []string) []corev1.EndpointAddress {
 	}
 	return endpointSlice
 }
-func validateEndpointAddresses(subset corev1.EndpointSubset, remoteNodeIPS []string) bool {
+func nodeIPsCompletelyDifferent(subset corev1.EndpointSubset, remoteNodeIPs []string) bool {
 	addrSlice := subset.Addresses
-	for _, address := range addrSlice {
-		if !contains(remoteNodeIPS, address.IP) {
+	exists := make(map[string]bool)
+	for _, value := range addrSlice {
+		exists[value.IP] = true
+	}
+	for _, value := range remoteNodeIPs {
+		if exists[value] {
+			return false
+		}
+	}
+	return true
+}
+
+func validateNodeIPsInEndpoint(subset corev1.EndpointSubset, remoteNodeIPs []string) bool {
+	addrSlice := subset.Addresses
+	if len(addrSlice) != len(remoteNodeIPs) {
+		return false
+	}
+	exists := make(map[string]bool)
+	for _, value := range addrSlice {
+		exists[value.IP] = true
+	}
+	for _, value := range remoteNodeIPs {
+		if !exists[value] {
 			return false
 		}
 	}
