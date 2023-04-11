@@ -971,7 +971,7 @@ func (r *SliceGwReconciler) restartGatewayPods(ctx context.Context, sliceGWName 
 	log := r.Log
 	podsList := corev1.PodList{}
 	labels := map[string]string{"kubeslice.io/pod-type": "slicegateway",
-		"kubeslice.io/slicegw": sliceGWName,
+		"kubeslice.io/slice-gw": sliceGWName,
 	}
 	listOptions := []client.ListOption{
 		client.MatchingLabels(labels),
