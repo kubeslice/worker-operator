@@ -94,6 +94,10 @@ func (r *Reconciler) getAppPods(ctx context.Context, serviceexport *kubeslicev1b
 		if pod.Status.Phase == corev1.PodRunning {
 			dnsName := pod.Name + "." + getClusterName() + "." + serviceexport.Name + "." + serviceexport.Namespace + ".svc.slice.local"
 			ip := getNsmIP(&pod, appPodsInSlice)
+			// Avoid adding pods with no nsmip (not part of slice yet)
+			if ip == "" {
+				continue
+			}
 			appPods = append(appPods, kubeslicev1beta1.ServicePod{
 				Name:    pod.Name,
 				NsmIP:   ip,

@@ -4,13 +4,14 @@
 The Kubeslice Worker Operator, also known as Slice Operator manages the lifecycle of KubeSlice worker cluster-related [custom resource definitions (CRDs)](https://kubernetes.io/docs/tasks/access-kubernetes-api/extend-api-custom-resource-definitions).
 The `kubeslice-worker` operator uses Kubebuilder, a framework for building Kubernetes APIs using CRDS.
 
-## Getting Started
+## Get Started
+It is strongly recommended that you use a released version.
 
 Please refer to our documentation on:
-- [Installing KubeSlice on cloud clusters](https://kubeslice.io/documentation/open-source/0.5.0/getting-started-with-cloud-clusters/installing-kubeslice/installing-the-kubeslice-controller)
-- [Installing KubeSlice on kind clusters](https://kubeslice.io/documentation/open-source/0.5.0/tutorials/kind-install-kubeslice-controller)
+- [Install KubeSlice on cloud clusters](https://kubeslice.io/documentation/open-source/0.6.0/getting-started-with-cloud-clusters/installing-kubeslice/installing-the-kubeslice-controller)
+- [Install KubeSlice on kind clusters](https://kubeslice.io/documentation/open-source/0.6.0/tutorials/kind-install-kubeslice-controller)
 
-## Installing `kubeslice-worker` on a Kind Cluster
+## Install `kubeslice-worker` on a Kind Cluster
 
 ### Prerequisites
 
@@ -18,11 +19,11 @@ Before you begin, make sure the following prerequisites are met:
 * Docker is installed and running on your local machine.
 * A running [`kind`](https://kind.sigs.k8s.io/) cluster.
 * [`kubectl`](https://kubernetes.io/docs/tasks/tools/) is installed and configured.
-* You have prepared the environment to install [`kubeslice-controller`](https://github.com/kubeslice/kubeslice-controller) on the controller cluster and [`worker-operator`](https://github.com/kubeslice/worker-operator) on the worker cluster. For more information, see [Prerequisites](https://kubeslice.io/documentation/open-source/0.5.0/getting-started-with-cloud-clusters/prerequisites/).
+* You have prepared the environment to install [`kubeslice-controller`](https://github.com/kubeslice/kubeslice-controller) on the controller cluster and [`worker-operator`](https://github.com/kubeslice/worker-operator) on the worker cluster. For more information, see [Prerequisites](https://kubeslice.io/documentation/open-source/0.6.0/getting-started-with-cloud-clusters/prerequisites/).
 
-### Local Build and Update
+### Build and Deploy a Worker Operator on a Kind Cluster
 
-#### Latest Docker Hub Image
+To download the latest Worker Operator docker image, click [here](https://hub.docker.com/r/aveshasystems/worker-operator).
 
 ```console
 docker pull aveshasystems/worker-operator:latest
@@ -42,9 +43,9 @@ Upgrade the avesha helm repo.
 helm repo update
 ```
 
-### Getting Secrets from Controller Cluster (if it's not already done)
+### Get Secrets from the Controller Cluster (if it's not already done)
 
-The following command will fetch the relevant secrets from the controller cluster
+The following command will get the relevant secrets from the controller cluster
 and copy them to the `secrets` folder. Additionally, it will return the secrets so that we
 can use them to populate the helm chart values.
 
@@ -62,48 +63,48 @@ deploy/controller_secret.sh gke_avesha-dev_us-east1-c_xxxx kubeslice-cisco my-aw
 
 1. Clone the latest version of worker-operator from  the `master` branch.
 
-```bash
-git clone https://github.com/kubeslice/worker-operator.git
-cd worker-operator
-```
+   ```bash
+   git clone https://github.com/kubeslice/worker-operator.git
+   cd worker-operator
+   ```
 
-2. Adjust the `VERSION` variable in the Makefile to change the docker tag to be built.
-Image is set as `docker.io/aveshasystems/worker-operator:$(VERSION)` in the Makefile. Change this if required.
+2. Edit the `VERSION` variable in the Makefile to change the docker tag to be built.
+The image is set as `docker.io/aveshasystems/worker-operator:$(VERSION)` in the Makefile. Modify this if required.
 
-```console
-make docker-build
-```
+   ```console
+   make docker-build
+   ```
 
 
-### Running the Local Image on Kind Cluster
+### Run the Local Image on a Kind Cluster
 
-1. You can load the operator on your Kind cluster with the below command.
+1. You can load the Worker Operator on your kind cluster using the following command:
 
-```console
-kind load docker-image <my-custom-image>:<unique-tag> --name <cluster-name>
-```
+   ```console
+   kind load docker-image <my-custom-image>:<unique-tag> --name <cluster-name>
+   ```
 
-example:
+   Example:
 
-```console
-kind load docker-image aveshasystems/worker-operator:1.2.1 --name kind
-```
+   ```console
+   kind load docker-image aveshasystems/worker-operator:1.2.1 --name kind
+   ```
 
-2. Check the loaded image in the cluster. Modify node name if required.
+2. Check the loaded image in the cluster. Modify the node name if required.
 
-```console
-docker exec -it <node-name> crictl images
-```
+   ```console
+   docker exec -it <node-name> crictl images
+   ```
 
-example:
+   Example:
 
-```console
-docker exec -it kind-control-plane crictl images
-```
+   ```console
+   docker exec -it kind-control-plane crictl images
+   ```
 
-### Deploying in a Cluster
+### Deploy the Worker Operator on a Cluster
 
-Create the chart values file, `yourvaluesfile.yaml`.
+Create a chart values file called `yourvaluesfile.yaml`.
 Refer to [values.yaml](https://github.com/kubeslice/charts/blob/master/charts/kubeslice-worker/values.yaml) to create `yourvaluesfile.yaml` and update the operator image subsection to use the local image.
 
 From the sample: 
@@ -152,9 +153,9 @@ nsmgr-7dh2w                              3/3     Running   0          48s
 prefix-service-76bd89c44f-2p6dw          1/1     Running   0          48s
 ```
 
-### Uninstalling the Worker Operator
+### Uninstall the Worker Operator
 
-For more information, see [deregistering the worker cluster](https://kubeslice.io/documentation/open-source/0.5.0/getting-started-with-cloud-clusters/uninstalling-kubeslice/deregistering-the-worker-cluster).
+For more information, see [deregister the worker cluster](https://kubeslice.io/documentation/open-source/0.6.0/getting-started-with-cloud-clusters/uninstalling-kubeslice/deregistering-the-worker-cluster).
 
 ```console
 helm uninstall kubeslice-worker -n kubeslice-system

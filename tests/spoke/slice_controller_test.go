@@ -78,6 +78,10 @@ var _ = Describe("SliceController", func() {
 					return errors.IsNotFound(err)
 				}, time.Second*30, time.Millisecond*250).Should(BeTrue())
 				Expect(k8sClient.Delete(ctx, svc)).Should(Succeed())
+				Eventually(func() bool {
+					err := k8sClient.Get(ctx, types.NamespacedName{Name: svc.Name, Namespace: svc.Namespace}, svc)
+					return errors.IsNotFound(err)
+				}, time.Second*30, time.Millisecond*250).Should(BeTrue())
 			})
 		})
 
@@ -205,6 +209,10 @@ var _ = Describe("SliceController", func() {
 			}
 			DeferCleanup(func() {
 				Expect(k8sClient.Delete(ctx, svc)).Should(Succeed())
+				Eventually(func() bool {
+					err := k8sClient.Get(ctx, types.NamespacedName{Name: svc.Name, Namespace: svc.Namespace}, svc)
+					return errors.IsNotFound(err)
+				}, time.Second*30, time.Millisecond*250).Should(BeTrue())
 			})
 		})
 

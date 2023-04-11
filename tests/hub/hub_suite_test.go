@@ -37,10 +37,17 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
+	hubv1alpha1 "github.com/kubeslice/apis/pkg/controller/v1alpha1"
 	spokev1alpha1 "github.com/kubeslice/apis/pkg/worker/v1alpha1"
+	mevents "github.com/kubeslice/kubeslice-monitoring/pkg/events"
+	"github.com/kubeslice/kubeslice-monitoring/pkg/metrics"
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
+	ossEvents "github.com/kubeslice/worker-operator/events"
 	"github.com/kubeslice/worker-operator/pkg/events"
 	"github.com/kubeslice/worker-operator/pkg/hub/controllers"
+	"github.com/kubeslice/worker-operator/pkg/hub/controllers/cluster"
+	ctrlmetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
+
 	"github.com/kubeslice/worker-operator/pkg/hub/controllers/workerslicegwrecycler"
 	workerrouter "github.com/kubeslice/worker-operator/tests/emulator/workerclient/router"
 	workergw "github.com/kubeslice/worker-operator/tests/emulator/workerclient/sidecargw"
@@ -85,6 +92,8 @@ var _ = BeforeSuite(func() {
 	Expect(err).NotTo(HaveOccurred())
 	err = spokev1alpha1.AddToScheme(scheme.Scheme)
 	Expect(err).NotTo(HaveOccurred())
+	err = hubv1alpha1.AddToScheme(scheme.Scheme)
+	Expect(err).NotTo(HaveOccurred())
 
 	//+kubebuilder:scaffold:scheme
 
@@ -123,9 +132,10 @@ var _ = BeforeSuite(func() {
 
 	testSliceEventRecorder := events.NewEventRecorder(k8sManager.GetEventRecorderFor("test-slice-controller"))
 	sr := &controllers.SliceReconciler{
-		MeshClient:    k8sClient,
-		Log:           ctrl.Log.WithName("hub").WithName("controllers").WithName("SliceConfig"),
-		EventRecorder: testSliceEventRecorder,
+		MeshClient:        k8sClient,
+		Log:               ctrl.Log.WithName("hub").WithName("controllers").WithName("SliceConfig"),
+		EventRecorder:     testSliceEventRecorder,
+		ReconcileInterval: 5 * time.Second,
 	}
 
 	testSliceGwEventRecorder := events.NewEventRecorder(k8sManager.GetEventRecorderFor("test-slicegw-controller"))
@@ -157,6 +167,7 @@ var _ = BeforeSuite(func() {
 	serviceImportReconciler := &controllers.ServiceImportReconciler{
 		MeshClient:    k8sClient,
 		EventRecorder: testSvcimEventRecorder,
+		Client:        k8sClient,
 	}
 
 	err = builder.
@@ -178,6 +189,35 @@ var _ = BeforeSuite(func() {
 		WorkerRouterClient:    workerClientRouterEmulator,
 		EventRecorder:         workerSliceGwRecyclerEventRecorder,
 	}).SetupWithManager(k8sManager); err != nil {
+		os.Exit(1)
+	}
+
+	spokeClusterEventRecorder := mevents.NewEventRecorder(k8sClient, k8sManager.GetScheme(), ossEvents.EventsMap, mevents.EventRecorderOptions{
+		Cluster:   CLUSTER_NAME,
+		Project:   PROJECT_NS,
+		Component: "worker-operator",
+		Namespace: CONTROL_PLANE_NS,
+	})
+	mf, _ := metrics.NewMetricsFactory(
+		ctrlmetrics.Registry,
+		metrics.MetricsFactoryOptions{
+			Project:             PROJECT_NS,
+			Cluster:             CLUSTER_NAME,
+			ReportingController: "worker-operator",
+			Namespace:           controllers.ControlPlaneNamespace,
+		},
+	)
+	clusterReconciler := cluster.NewReconciler(
+		k8sClient,
+		spokeClusterEventRecorder,
+		mf,
+	)
+	clusterReconciler.ReconcileInterval = 5 * time.Second
+	err = builder.
+		ControllerManagedBy(k8sManager).
+		For(&hubv1alpha1.Cluster{}).
+		Complete(clusterReconciler)
+	if err != nil {
 		os.Exit(1)
 	}
 	go func() {

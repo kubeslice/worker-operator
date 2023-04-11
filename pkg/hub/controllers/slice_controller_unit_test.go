@@ -27,6 +27,8 @@ import (
 	workerv1alpha1 "github.com/kubeslice/apis/pkg/worker/v1alpha1"
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
 	"github.com/stretchr/testify/mock"
+	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -38,15 +40,16 @@ var hundred = 100
 
 var controllerSlice = &workerv1alpha1.WorkerSliceConfig{
 	ObjectMeta: metav1.ObjectMeta{
-		Name:      "test-slice",
+		Name:      "test-slice-cluster-1",
 		Namespace: "project-namespace",
 		Labels: map[string]string{
-			"worker-cluster": "cluster-1",
+			"worker-cluster":      "cluster-1",
+			"original-slice-name": "test-slice",
 		},
 		DeletionTimestamp: &metav1.Time{Time: time.Now()},
 	},
 	Spec: workerv1alpha1.WorkerSliceConfigSpec{
-		SliceName:        "test-slice",
+		SliceName:        "test-slice-cluster-1",
 		SliceType:        "Application",
 		SliceSubnet:      "10.0.0.1/16",
 		SliceIpamType:    "Local",
@@ -160,7 +163,7 @@ func TestReconcileToUpdateWorkerSlice(t *testing.T) {
 	}{
 		context.WithValue(context.Background(), types.NamespacedName{Namespace: "kube-slice", Name: "kube-slice"}, controllerSlice),
 		reconcile.Request{NamespacedName: types.NamespacedName{Name: "test-slice", Namespace: "kubeslice-system"}},
-		reconcile.Result{},
+		reconcile.Result{RequeueAfter: time.Second * 10},
 		nil,
 	}
 	client := NewClient()
@@ -188,11 +191,22 @@ func TestReconcileToUpdateWorkerSlice(t *testing.T) {
 		mock.IsType(workerslice),
 		mock.IsType([]k8sclient.UpdateOption(nil)),
 	).Return(nil)
+	client.On("List",
+		mock.IsType(ctx),
+		mock.IsType(&corev1.PodList{}),
+		mock.IsType([]k8sclient.ListOption{}),
+	).Return(nil)
+	client.StatusMock.On("Update",
+		mock.IsType(ctx),
+		mock.IsType(&workerv1alpha1.WorkerSliceConfig{}),
+		mock.IsType([]k8sclient.UpdateOption(nil)),
+	).Return(nil)
 
 	reconciler := &SliceReconciler{
-		Client:     client,
-		MeshClient: client,
-		Log:        ctrl.Log.WithName("controller").WithName("controllers").WithName("SliceConfig"),
+		Client:            client,
+		MeshClient:        client,
+		Log:               ctrl.Log.WithName("controller").WithName("controllers").WithName("SliceConfig"),
+		ReconcileInterval: 10 * time.Second,
 	}
 	result, err := reconciler.Reconcile(expected.ctx, expected.req)
 	if expected.res != result {
@@ -234,7 +248,52 @@ func TestUpdateSliceConfig(t *testing.T) {
 		t.Error("Expected error:", expected.err, " but got ", err)
 	}
 }
+func TestUpdateSliceHealth(t *testing.T) {
+	expected := struct {
+		ctx context.Context
+		req reconcile.Request
+		res reconcile.Result
+		err error
+	}{
+		context.WithValue(context.Background(), types.NamespacedName{Namespace: "kubeslice-system", Name: "test-slice"}, controllerSlice),
+		reconcile.Request{NamespacedName: types.NamespacedName{Name: "test-slice", Namespace: "kubeslice-system"}},
+		reconcile.Result{RequeueAfter: 10 * time.Second},
+		nil,
+	}
+	client := NewClient()
 
+	reconciler := &SliceReconciler{
+		Client:     client,
+		MeshClient: client,
+		Log:        ctrl.Log.WithName("controller").WithName("controllers").WithName("SliceConfig"),
+	}
+	ctx := context.WithValue(context.Background(), types.NamespacedName{Name: "test-slice", Namespace: "kubeslice-system"}, controllerSlice)
+
+	client.On("List",
+		mock.IsType(expected.ctx),
+		mock.IsType(&corev1.PodList{}),
+		mock.IsType([]k8sclient.ListOption{}),
+	).Return(nil)
+	client.StatusMock.On("Update",
+		mock.IsType(ctx),
+		mock.IsType(&kubeslicev1beta1.Slice{}),
+		mock.IsType([]k8sclient.UpdateOption(nil)),
+	).Return(nil)
+	client.StatusMock.On("Update",
+		mock.IsType(ctx),
+		mock.IsType(&workerv1alpha1.WorkerSliceConfig{}),
+	).Return(nil)
+	client.On("List",
+		mock.IsType(expected.ctx),
+		mock.IsType(&appsv1.DeploymentList{}),
+		mock.IsType([]k8sclient.ListOption{}),
+	).Return(nil)
+	controllerSlice.Status.SliceHealth = &workerv1alpha1.SliceHealth{}
+	err := reconciler.updateSliceHealth(expected.ctx, controllerSlice)
+	if expected.err != err {
+		t.Error("Expected error:", expected.err, " but got ", err)
+	}
+}
 func TestUpdateSliceConfigByModyfingSubnetOfControllerSlice(t *testing.T) {
 	expected := struct {
 		ctx context.Context

@@ -45,6 +45,102 @@ func getTestServiceExportPorts() []kubeslicev1beta1.ServicePort {
 }
 
 var _ = Describe("ServiceExportController", func() {
+	Context("With serviceexport on a ns which is not onboarded to slice", func() {
+		var slice *kubeslicev1beta1.Slice
+		var dnssvc *corev1.Service
+		var svcex *kubeslicev1beta1.ServiceExport
+
+		BeforeEach(func() {
+			slice = &kubeslicev1beta1.Slice{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-slice-1",
+					Namespace: "kubeslice-system",
+				},
+				Spec: kubeslicev1beta1.SliceSpec{},
+			}
+
+			dnssvc = &corev1.Service{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "kubeslice-dns",
+					Namespace: "kubeslice-system",
+				},
+				Spec: corev1.ServiceSpec{
+					Ports: []corev1.ServicePort{{
+						Port: 52,
+					}},
+				},
+			}
+
+			svcex = &kubeslicev1beta1.ServiceExport{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "iperf-server",
+					Namespace: "default",
+				},
+				Spec: kubeslicev1beta1.ServiceExportSpec{
+					Slice: "test-slice-1",
+					Selector: &metav1.LabelSelector{
+						MatchLabels: map[string]string{"app": "iperf"},
+					},
+					Ports: getTestServiceExportPorts(),
+				},
+			}
+			Expect(k8sClient.Create(ctx, slice)).Should(Succeed())
+			Expect(k8sClient.Create(ctx, dnssvc)).Should(Succeed())
+			Expect(k8sClient.Create(ctx, svcex)).Should(Succeed())
+
+			DeferCleanup(func() {
+				ctx := context.Background()
+				Expect(k8sClient.Delete(ctx, svcex)).Should(Succeed())
+				Eventually(func() bool {
+					err := k8sClient.Get(ctx, types.NamespacedName{Name: svcex.Name, Namespace: svcex.Namespace}, svcex)
+					return errors.IsNotFound(err)
+				}, time.Second*30, time.Millisecond*250).Should(BeTrue())
+
+				Expect(k8sClient.Delete(ctx, dnssvc)).Should(Succeed())
+				Eventually(func() bool {
+					err := k8sClient.Get(ctx, types.NamespacedName{Name: dnssvc.Name, Namespace: dnssvc.Namespace}, dnssvc)
+					return errors.IsNotFound(err)
+				}, time.Second*30, time.Millisecond*250).Should(BeTrue())
+
+				Expect(k8sClient.Delete(ctx, slice)).Should(Succeed())
+				Eventually(func() bool {
+					err := k8sClient.Get(ctx, types.NamespacedName{Name: slice.Name, Namespace: slice.Namespace}, slice)
+					return errors.IsNotFound(err)
+				}, time.Second*30, time.Millisecond*250).Should(BeTrue())
+
+				log.Info("cleaned up after test")
+			})
+
+		})
+
+		It("Should have export status pending when app ns is not onboarded", func() {
+			svcKey := types.NamespacedName{Name: "iperf-server", Namespace: "default"}
+			createdSvcEx := &kubeslicev1beta1.ServiceExport{}
+
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, svcKey, createdSvcEx)
+				if err != nil {
+					return false
+				}
+				if createdSvcEx.Status.ExportStatus != kubeslicev1beta1.ExportStatusPending {
+					return false
+				}
+				return true
+			}, time.Second*30, time.Millisecond*250).Should(BeTrue())
+
+			Consistently(func() bool {
+				err := k8sClient.Get(ctx, svcKey, createdSvcEx)
+				if err != nil {
+					return false
+				}
+				if createdSvcEx.Status.ExportStatus != kubeslicev1beta1.ExportStatusPending {
+					return false
+				}
+				return true
+			}, time.Second*5, time.Millisecond*500).Should(BeTrue())
+		})
+
+	})
 
 	Context("With a service export CR object installed, verify service export CR is reconciled", func() {
 		var slice *kubeslicev1beta1.Slice
@@ -90,6 +186,9 @@ var _ = Describe("ServiceExportController", func() {
 			}
 			createdSlice = &kubeslicev1beta1.Slice{}
 
+			Expect(k8sClient.Create(ctx, dnssvc)).Should(Succeed())
+			Expect(k8sClient.Create(ctx, slice)).Should(Succeed())
+
 			// Cleanup after each test
 			DeferCleanup(func() {
 				ctx := context.Background()
@@ -115,9 +214,6 @@ var _ = Describe("ServiceExportController", func() {
 		})
 
 		It("Should update service export status", func() {
-			Expect(k8sClient.Create(ctx, dnssvc)).Should(Succeed())
-			Expect(k8sClient.Create(ctx, slice)).Should(Succeed())
-
 			err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 				err := k8sClient.Get(ctx, types.NamespacedName{
 					Name:      slice.Name,
@@ -127,6 +223,7 @@ var _ = Describe("ServiceExportController", func() {
 					return err
 				}
 				createdSlice.Status.SliceConfig = &kubeslicev1beta1.SliceConfig{}
+				createdSlice.Status.ApplicationNamespaces = []string{"default"}
 				return k8sClient.Status().Update(ctx, createdSlice)
 			})
 			Expect(err).To(BeNil())
@@ -151,10 +248,6 @@ var _ = Describe("ServiceExportController", func() {
 		})
 
 		It("Should update service export ports", func() {
-			log.Info("Creating slice", "slice", slice)
-			Expect(k8sClient.Create(ctx, dnssvc)).Should(Succeed())
-			Expect(k8sClient.Create(ctx, slice)).Should(Succeed())
-
 			err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 				err := k8sClient.Get(ctx, types.NamespacedName{
 					Name:      slice.Name,
@@ -164,6 +257,7 @@ var _ = Describe("ServiceExportController", func() {
 					return err
 				}
 				createdSlice.Status.SliceConfig = &kubeslicev1beta1.SliceConfig{}
+				createdSlice.Status.ApplicationNamespaces = []string{"default"}
 				return k8sClient.Status().Update(ctx, createdSlice)
 			})
 			Expect(err).To(BeNil())
@@ -206,12 +300,8 @@ var _ = Describe("ServiceExportController", func() {
 			}, time.Second*30, time.Millisecond*250).Should(BeTrue())
 
 		})
+
 		It("Should Add a slice label to service export", func() {
-			log.Info("Creating slice", "slice", slice)
-
-			Expect(k8sClient.Create(ctx, dnssvc)).Should(Succeed())
-			Expect(k8sClient.Create(ctx, slice)).Should(Succeed())
-
 			err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 				err := k8sClient.Get(ctx, types.NamespacedName{
 					Name:      slice.Name,
@@ -221,6 +311,7 @@ var _ = Describe("ServiceExportController", func() {
 					return err
 				}
 				createdSlice.Status.SliceConfig = &kubeslicev1beta1.SliceConfig{}
+				createdSlice.Status.ApplicationNamespaces = []string{"default"}
 				return k8sClient.Status().Update(ctx, createdSlice)
 			})
 			Expect(err).To(BeNil())
@@ -241,9 +332,6 @@ var _ = Describe("ServiceExportController", func() {
 		})
 
 		It("Should Generate Events", func() {
-			Expect(k8sClient.Create(ctx, dnssvc)).Should(Succeed())
-			Expect(k8sClient.Create(ctx, slice)).Should(Succeed())
-
 			err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 				err := k8sClient.Get(ctx, types.NamespacedName{
 					Name:      slice.Name,
@@ -253,6 +341,7 @@ var _ = Describe("ServiceExportController", func() {
 					return err
 				}
 				createdSlice.Status.SliceConfig = &kubeslicev1beta1.SliceConfig{}
+				createdSlice.Status.ApplicationNamespaces = []string{"default"}
 				return k8sClient.Status().Update(ctx, createdSlice)
 			})
 			Expect(err).To(BeNil())

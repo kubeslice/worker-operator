@@ -237,3 +237,9 @@ catalog-build: opm ## Build a catalog image.
 .PHONY: catalog-push
 catalog-push: ## Push a catalog image.
 	$(MAKE) docker-push IMG=$(CATALOG_IMG)
+
+# Generate events schema map 
+.PHONY: generate-events
+generate-events:
+	go run hack/generate/generate.go config/events/worker-events.yaml
+	go fmt ./...

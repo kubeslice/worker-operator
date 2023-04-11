@@ -120,3 +120,12 @@ func getServiceProtocol(se *kubeslicev1beta1.ServiceExport) kubeslicev1beta1.Ser
 	return kubeslicev1beta1.ServiceProtocolTCP
 
 }
+
+func arrayContainsString(a []string, s string) bool {
+	for _, i := range a {
+		if i == s {
+			return true
+		}
+	}
+	return false
+}

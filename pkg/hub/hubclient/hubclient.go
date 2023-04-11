@@ -20,13 +20,12 @@ package hub
 
 import (
 	"context"
-	"errors"
 	"fmt"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"os"
 	"reflect"
 
-	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -39,8 +38,6 @@ import (
 	hubv1alpha1 "github.com/kubeslice/apis/pkg/controller/v1alpha1"
 	spokev1alpha1 "github.com/kubeslice/apis/pkg/worker/v1alpha1"
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
-	"github.com/kubeslice/worker-operator/pkg/cluster"
-	"github.com/kubeslice/worker-operator/pkg/hub/controllers"
 	"github.com/kubeslice/worker-operator/pkg/logger"
 	"github.com/kubeslice/worker-operator/pkg/monitoring"
 )
@@ -72,7 +69,6 @@ type HubClientRpc interface {
 	UpdateServiceExportEndpointForIngressGw(ctx context.Context, serviceexport *kubeslicev1beta1.ServiceExport,
 		ep *kubeslicev1beta1.ServicePod) error
 	UpdateAppNamespaces(ctx context.Context, sliceConfigName string, onboardedNamespaces []string) error
-	UpdateNodeIpInCluster(ctx context.Context, clusterName, nodeIP, namespace string) error
 	CreateWorkerSliceGwRecycler(ctx context.Context, gwRecyclerName, clientID, serverID, sliceGwServer, sliceGwClient, slice string) error
 }
 
@@ -118,38 +114,6 @@ func (hubClient *HubClientConfig) CreateWorkerSliceGwRecycler(ctx context.Contex
 	return hubClient.Create(ctx, &workerslicegwrecycler)
 }
 
-func (hubClient *HubClientConfig) UpdateNodeIpInCluster(ctx context.Context, clusterName string, nodeIP []string, namespace string, slicegw *kubeslicev1beta1.SliceGateway) error {
-	cluster := &hubv1alpha1.Cluster{}
-	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		err := hubClient.Get(ctx, types.NamespacedName{
-			Name:      clusterName,
-			Namespace: namespace,
-		}, cluster)
-		if err != nil {
-			return err
-		}
-		cluster.Spec.NodeIPs = nodeIP
-		if err := hubClient.Update(ctx, cluster); err != nil {
-			log.Error(err, "Error updating to cluster spec on controller cluster")
-			return err
-		}
-		fmt.Println("CLuster node ip after update:_______________>>>", cluster.Spec.NodeIPs)
-		return nil
-	})
-	if err != nil {
-		return err
-	}
-	hubClient.eventRecorder.WithNamespace(controllers.ControlPlaneNamespace).WithSlice(slicegw.Spec.SliceName).RecordEvent(ctx, &monitoring.Event{
-		EventType:         monitoring.EventTypeNormal,
-		Reason:            monitoring.EventReasonNodeIpUpdate,
-		Message:           "NodeIps Updated",
-		ReportingInstance: "Controller Reconciler",
-		Object:            slicegw,
-		Action:            "NodeIPUpdated",
-	})
-	return nil
-}
-
 func (hubClient *HubClientConfig) UpdateNodePortForSliceGwServer(ctx context.Context, sliceGwNodePorts []int, sliceGwName string) error {
 	sliceGw := &spokev1alpha1.WorkerSliceGateway{}
 	err := hubClient.Get(ctx, types.NamespacedName{
@@ -180,153 +144,6 @@ func (hubClient *HubClientConfig) UpdateNodePortForSliceGwServer(ctx context.Con
 	return err
 }
 
-func PostClusterInfoToHub(ctx context.Context, spokeclient client.Client, hubClient client.Client, clusterName, namespace string, nodeIPs []string) error {
-	err := updateClusterInfoToHub(ctx, spokeclient, hubClient, clusterName, namespace, nodeIPs)
-	if err != nil {
-		log.Error(err, "Error Posting Cluster info to hub cluster")
-		return err
-	}
-	log.Info("Posted cluster info to hub cluster")
-	return nil
-}
-
-func PostDashboardCredsToHub(ctx context.Context, spokeclient, hubClient client.Client) error {
-	sa := &corev1.ServiceAccount{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      KubeSliceDashboardSA,
-			Namespace: controllers.ControlPlaneNamespace,
-		},
-	}
-	if err := spokeclient.Get(ctx, types.NamespacedName{Name: sa.Name, Namespace: controllers.ControlPlaneNamespace}, sa); err != nil {
-		log.Error(err, "Error getting service account")
-		return err
-	}
-
-	secret := &corev1.Secret{}
-	err := spokeclient.Get(ctx, types.NamespacedName{Name: sa.Secrets[0].Name, Namespace: controllers.ControlPlaneNamespace}, secret)
-	if err != nil {
-		log.Error(err, "Error getting service account's secret")
-		return err
-	}
-	// post dashboard creds to cluster CR
-	err = PostCredsToHub(ctx, spokeclient, hubClient, secret)
-	if err != nil {
-		log.Error(err, "could not post Cluster Creds to Hub")
-		return err
-	}
-	log.Info("posted dashboard creds to hub")
-	return nil
-}
-
-func PostCredsToHub(ctx context.Context, spokeclient client.Client, hubClient client.Client, secret *corev1.Secret) error {
-	secretName := os.Getenv("CLUSTER_NAME") + HubSecretSuffix
-	err := createorUpdateClusterSecretOnHub(ctx, secretName, secret, hubClient)
-	if err != nil {
-		log.Error(err, "Error creating secret on hub cluster")
-		return err
-	}
-	return updateClusterCredsToHub(ctx, spokeclient, hubClient, secretName)
-
-}
-
-func createorUpdateClusterSecretOnHub(ctx context.Context, secretName string, secret *corev1.Secret, hubClient client.Client) error {
-	if secret.Data == nil {
-		return errors.New("dashboard secret data is nil")
-	}
-	token, ok := secret.Data["token"]
-	if !ok {
-		return errors.New("token not present in dashboard secret")
-	}
-	cacrt, ok := secret.Data["ca.crt"]
-	if !ok {
-		return errors.New("ca.crt not present in dashboard secret")
-	}
-	secretData := map[string][]byte{
-		"token":  token,
-		"ca.crt": cacrt,
-	}
-	hubSecret := corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      secretName,
-			Namespace: os.Getenv("HUB_PROJECT_NAMESPACE"),
-		},
-		Data: secretData,
-	}
-	log.Info("creating secret on hub", "hubSecret", hubSecret.Name)
-	err := hubClient.Create(ctx, &hubSecret)
-	if apierrors.IsAlreadyExists(err) {
-		return hubClient.Update(ctx, &hubSecret)
-	}
-	return err
-}
-
-func updateClusterCredsToHub(ctx context.Context, spokeclient client.Client, hubClient client.Client, secretName string) error {
-	hubCluster := &hubv1alpha1.Cluster{}
-	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		err := hubClient.Get(ctx, types.NamespacedName{
-			Name:      os.Getenv("CLUSTER_NAME"),
-			Namespace: os.Getenv("HUB_PROJECT_NAMESPACE"),
-		}, hubCluster)
-		if err != nil {
-			return err
-		}
-		hubCluster.Spec.ClusterProperty.Monitoring.KubernetesDashboard.Endpoint = os.Getenv("CLUSTER_ENDPOINT")
-		hubCluster.Spec.ClusterProperty.Monitoring.KubernetesDashboard.AccessToken = secretName
-		hubCluster.Spec.ClusterProperty.Monitoring.KubernetesDashboard.Enabled = true
-		log.Info("Posting cluster creds to hub cluster", "cluster", os.Getenv("CLUSTER_NAME"))
-		return hubClient.Update(ctx, hubCluster)
-	})
-	return err
-}
-
-func updateClusterInfoToHub(ctx context.Context, spokeclient client.Client, hubClient client.Client, clusterName, namespace string, nodeIPs []string) error {
-	hubCluster := &hubv1alpha1.Cluster{}
-	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		err := hubClient.Get(ctx, types.NamespacedName{
-			Name:      clusterName,
-			Namespace: namespace,
-		}, hubCluster)
-		if err != nil {
-			return err
-		}
-
-		c := cluster.NewCluster(spokeclient, clusterName)
-		//get geographical info
-		clusterInfo, err := c.GetClusterInfo(ctx)
-		if err != nil {
-			log.Error(err, "Error getting clusterInfo")
-			return err
-		}
-		cniSubnet, err := c.GetNsmExcludedPrefix(ctx, "nsm-config", "kubeslice-system")
-		if err != nil {
-			log.Error(err, "Error getting cni Subnet")
-			return err
-		}
-		log.Info("cniSubnet", "cniSubnet", cniSubnet)
-
-		// worker operator to only update Geolocation related values for gcp,aws and azure
-		if clusterInfo.ClusterProperty.GeoLocation.CloudProvider == GCP || clusterInfo.ClusterProperty.GeoLocation.CloudProvider == AWS || clusterInfo.ClusterProperty.GeoLocation.CloudProvider == AZURE {
-			hubCluster.Spec.ClusterProperty.GeoLocation.CloudRegion = clusterInfo.ClusterProperty.GeoLocation.CloudRegion
-			hubCluster.Spec.ClusterProperty.GeoLocation.CloudProvider = clusterInfo.ClusterProperty.GeoLocation.CloudProvider
-		}
-		//TODO:remove once deprecated
-		hubCluster.Spec.NodeIP = ""
-
-		hubCluster.Spec.NodeIPs = nodeIPs
-		if err := hubClient.Update(ctx, hubCluster); err != nil {
-			log.Error(err, "Error updating to cluster spec on hub cluster")
-			return err
-		}
-		hubCluster.Status.CniSubnet = cniSubnet
-		if err := hubClient.Status().Update(ctx, hubCluster); err != nil {
-			log.Error(err, "Error updating cniSubnet to cluster status on hub cluster")
-			return err
-		}
-		return nil
-	})
-	return err
-}
-
 func (hubClient *HubClientConfig) GetClusterNodeIP(ctx context.Context, clusterName, namespace string) ([]string, error) {
 	cluster := &hubv1alpha1.Cluster{}
 	err := hubClient.Get(ctx, types.NamespacedName{
@@ -336,7 +153,7 @@ func (hubClient *HubClientConfig) GetClusterNodeIP(ctx context.Context, clusterN
 	if err != nil {
 		return []string{""}, err
 	}
-	return cluster.Spec.NodeIPs, nil
+	return cluster.Status.NodeIPs, nil
 }
 
 func UpdateNamespaceInfoToHub(ctx context.Context, hubClient client.Client, onboardNamespace, sliceName string) error {

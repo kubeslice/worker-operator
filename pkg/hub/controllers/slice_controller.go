@@ -20,12 +20,16 @@ package controllers
 
 import (
 	"context"
+	"fmt"
+	"time"
 
 	"github.com/go-logr/logr"
 	spokev1alpha1 "github.com/kubeslice/apis/pkg/worker/v1alpha1"
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
 	"github.com/kubeslice/worker-operator/pkg/events"
 	"github.com/kubeslice/worker-operator/pkg/logger"
+	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/util/retry"
@@ -34,11 +38,60 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
+type component struct {
+	name          string
+	labels        map[string]string
+	ns            string
+	ignoreMissing bool
+}
+
+var components = []component{
+	{
+		name: "dns",
+		labels: map[string]string{
+			"app": "kubeslice-dns",
+		},
+		ns: ControlPlaneNamespace,
+	},
+	{
+		name: "slicegateway",
+		labels: map[string]string{
+			"kubeslice.io/pod-type": "slicegateway",
+		},
+		ns:            ControlPlaneNamespace,
+		ignoreMissing: true,
+	},
+	{
+		name: "slicerouter",
+		labels: map[string]string{
+			"kubeslice.io/pod-type": "router",
+		},
+		ns: ControlPlaneNamespace,
+	},
+	{
+		name: "egress",
+		labels: map[string]string{
+			"istio": "egressgateway",
+		},
+		ns:            ControlPlaneNamespace,
+		ignoreMissing: true,
+	},
+	{
+		name: "ingress",
+		labels: map[string]string{
+			"istio": "ingressgateway",
+		},
+		ns:            ControlPlaneNamespace,
+		ignoreMissing: true,
+	},
+}
+
 type SliceReconciler struct {
 	client.Client
-	Log           logr.Logger
-	MeshClient    client.Client
-	EventRecorder *events.EventRecorder
+	Log               logr.Logger
+	MeshClient        client.Client
+	EventRecorder     *events.EventRecorder
+	ReconcileInterval time.Duration
 }
 
 var sliceFinalizer = "controller.kubeslice.io/hubSpokeSlice-finalizer"
@@ -116,7 +169,7 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req reconcile.Request) 
 			}
 			log.Info("slice status updated in spoke cluster")
 
-			return reconcile.Result{}, nil
+			return reconcile.Result{RequeueAfter: r.ReconcileInterval}, nil
 		}
 		return reconcile.Result{}, err
 	}
@@ -126,8 +179,22 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req reconcile.Request) 
 		log.Error(err, "unable to update slice status in spoke cluster", "slice", meshSlice)
 		return reconcile.Result{}, err
 	}
-
-	return reconcile.Result{}, nil
+	if slice.Status.SliceHealth == nil {
+		slice.Status.SliceHealth = &spokev1alpha1.SliceHealth{}
+	}
+	err = r.updateSliceHealth(ctx, slice)
+	if err != nil {
+		log.Error(err, "unable to update slice health status in hub cluster", "workerSlice", slice)
+		return reconcile.Result{}, err
+	}
+	slice.Status.SliceHealth.LastUpdated = metav1.Now()
+	if err := r.Status().Update(ctx, slice); err != nil {
+		log.Error(err, "unable to update slice CR")
+		return reconcile.Result{}, err
+	} else {
+		log.Info("succesfully updated the slice CR ", "slice CR ", slice)
+	}
+	return reconcile.Result{RequeueAfter: r.ReconcileInterval}, nil
 }
 
 func (r *SliceReconciler) updateSliceConfig(ctx context.Context, meshSlice *kubeslicev1beta1.Slice, spokeSlice *spokev1alpha1.WorkerSliceConfig) error {
@@ -145,6 +212,12 @@ func (r *SliceReconciler) updateSliceConfig(ctx context.Context, meshSlice *kube
 	}
 	if meshSlice.Status.SliceConfig.SliceSubnet == "" {
 		meshSlice.Status.SliceConfig.SliceSubnet = spokeSlice.Spec.SliceSubnet
+	}
+	if meshSlice.ObjectMeta.Labels == nil {
+		meshSlice.ObjectMeta.Labels = make(map[string]string)
+		if spokeSlice.ObjectMeta.Labels != nil {
+			meshSlice.ObjectMeta.Labels = spokeSlice.ObjectMeta.Labels
+		}
 	}
 
 	if meshSlice.Status.SliceConfig.SliceIpam.IpamClusterOctet == 0 {
@@ -252,4 +325,132 @@ func (r *SliceReconciler) handleSliceDeletion(slice *spokev1alpha1.WorkerSliceCo
 		return true, reconcile.Result{}, nil
 	}
 	return false, reconcile.Result{}, nil
+}
+
+func getOriginalName(slice *spokev1alpha1.WorkerSliceConfig) (string, error) {
+	originalSliceName, ok := slice.ObjectMeta.Labels["original-slice-name"]
+	if !ok {
+		return "", fmt.Errorf("could not find original name from workerSliceConfig object")
+	}
+	return originalSliceName, nil
+}
+func (r *SliceReconciler) updateSliceHealth(ctx context.Context, slice *spokev1alpha1.WorkerSliceConfig) error {
+	log := logger.FromContext(ctx)
+	slice.Status.SliceHealth.ComponentStatuses = []spokev1alpha1.ComponentStatus{}
+	slice.Status.SliceHealth.SliceHealthStatus = spokev1alpha1.SliceHealthStatusNormal
+	originalName, err := getOriginalName(slice)
+	if err != nil {
+		log.Info("Could not find original name, skipping updateSliceHealth....")
+		return nil
+	}
+	for _, c := range components {
+		cs, err := r.getComponentStatus(ctx, &c, originalName)
+		if err != nil {
+			log.Error(err, "unable to fetch component status")
+		}
+		if cs != nil {
+			slice.Status.SliceHealth.ComponentStatuses = append(slice.Status.SliceHealth.ComponentStatuses, *cs)
+			if cs.ComponentHealthStatus != spokev1alpha1.ComponentHealthStatusNormal {
+				slice.Status.SliceHealth.SliceHealthStatus = spokev1alpha1.SliceHealthStatusWarning
+			}
+		}
+	}
+	return nil
+}
+
+func (r *SliceReconciler) getComponentStatus(ctx context.Context, c *component, sliceName string) (*spokev1alpha1.ComponentStatus, error) {
+	log := logger.FromContext(ctx)
+	for i := range components {
+		if components[i].name != "dns" {
+			components[i].labels["kubeslice.io/slice"] = sliceName
+		}
+	}
+	if c.name == "slicegateway" {
+		cs, err := r.fetchSliceGatewayHealth(ctx, c)
+		return cs, err
+	}
+	podList := &corev1.PodList{}
+	listOpts := []client.ListOption{
+		client.MatchingLabels(c.labels),
+		client.InNamespace(c.ns),
+	}
+	if err := r.MeshClient.List(ctx, podList, listOpts...); err != nil {
+		log.Error(err, "Failed to list pods", "pod", c.name)
+		return nil, err
+	}
+	pods := podList.Items
+	cs := &spokev1alpha1.ComponentStatus{
+		Component: c.name,
+	}
+	if len(pods) == 0 && c.ignoreMissing {
+		return nil, nil
+	}
+	if len(pods) == 0 {
+		log.Error(fmt.Errorf("no pods running"), "unhealthy", "pod", c.name)
+		cs.ComponentHealthStatus = spokev1alpha1.ComponentHealthStatusError
+		return cs, nil
+	}
+	for _, pod := range pods {
+		if pod.Status.Phase != corev1.PodRunning {
+			log.Info("pod is not healthy", "component", c.name)
+			cs.ComponentHealthStatus = spokev1alpha1.ComponentHealthStatusError
+			return cs, nil
+		}
+	}
+	cs.ComponentHealthStatus = spokev1alpha1.ComponentHealthStatusNormal
+	return cs, nil
+}
+
+func (r *SliceReconciler) fetchSliceGatewayHealth(ctx context.Context, c *component) (*spokev1alpha1.ComponentStatus, error) {
+	log := logger.FromContext(ctx)
+	//fetch number of deployments
+	cs := &spokev1alpha1.ComponentStatus{
+		Component: c.name,
+	}
+	sliceGwDeployments := &appsv1.DeploymentList{}
+	listOpts := []client.ListOption{
+		client.MatchingLabels(c.labels),
+		client.InNamespace(c.ns),
+	}
+	if err := r.MeshClient.List(ctx, sliceGwDeployments, listOpts...); err == nil {
+		//1. zero number of deployments -> ignore the slicegw health status
+		if len(sliceGwDeployments.Items) == 0 {
+			log.Info("SliceGW deployments are not present, skipping slicegw health status")
+			return nil, nil
+		} else {
+			//2. non zero number of deployments for slicegw -> fetch status of all pods
+			podList := &corev1.PodList{}
+			listOpts := []client.ListOption{
+				client.MatchingLabels(c.labels),
+				client.InNamespace(c.ns),
+			}
+			if err := r.MeshClient.List(ctx, podList, listOpts...); err != nil {
+				log.Error(err, "Failed to list pods", "pod", c.name)
+				return nil, err
+			}
+			pods := podList.Items
+			if len(pods) == 0 {
+				log.Error(fmt.Errorf("no pods running"), "unhealthy", "pod", c.name)
+				cs.ComponentHealthStatus = spokev1alpha1.ComponentHealthStatusError
+				return cs, nil
+			}
+			if len(pods) != len(sliceGwDeployments.Items) {
+				log.Error(fmt.Errorf("number of pods do not match slicegw deployments running"), "unhealthy", "pod", c.name)
+				cs.ComponentHealthStatus = spokev1alpha1.ComponentHealthStatusError
+				return cs, nil
+			}
+			for _, pod := range pods {
+				if pod.Status.Phase != corev1.PodRunning {
+					log.Info("pod is not healthy", "component", c.name)
+					cs.ComponentHealthStatus = spokev1alpha1.ComponentHealthStatusError
+					return cs, nil
+				}
+			}
+			cs.ComponentHealthStatus = spokev1alpha1.ComponentHealthStatusNormal
+		}
+	} else {
+		log.Error(err, "Could not list the slicegw deployments")
+		return nil, err
+	}
+	return cs, nil
 }

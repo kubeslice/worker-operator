@@ -20,14 +20,13 @@ package cluster
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
-	"time"
 
 	"gopkg.in/yaml.v2"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/apimachinery/pkg/util/wait"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -107,33 +106,24 @@ func (c *Cluster) GetNsmExcludedPrefix(ctx context.Context, configmap, namespace
 	var nsmconfig corev1.ConfigMap
 	var err error
 	var prefixes []string
-	// wait for 5 minuites and poll every 10 second
-	wait.Poll(10*time.Second, 5*time.Minute, func() (bool, error) {
-		err = c.Client.Get(ctx, types.NamespacedName{Namespace: namespace, Name: configmap}, &nsmconfig)
-		if err != nil {
-			log.Info("Error getting nsm configmap", "err", err)
-			return false, nil
-		}
-		if len(nsmconfig.Data) == 0 {
-			log.Info("prefix data not present")
-			return false, nil
-		}
-		_, ok := nsmconfig.Data["excluded_prefixes_output.yaml"]
-		if !ok {
-			log.Info("cni subnet info not present")
-			return false, nil
-		}
-		prefixes, err = getPrefixes(nsmconfig)
-		if err != nil {
-			log.Info("failed to get prefixes from configmap", "err", err)
-			return false, nil
-		}
-		return true, nil
-	})
-
-	if err != nil || len(prefixes) == 0 {
+	err = c.Client.Get(ctx, types.NamespacedName{Namespace: namespace, Name: configmap}, &nsmconfig)
+	if err != nil {
+		log.Error(err, "error getting nsm configmap")
+		return nil, err
+	}
+	if len(nsmconfig.Data) == 0 {
+		return nil, errors.New("prefix data not present in nsm configmap")
+	}
+	_, ok := nsmconfig.Data["excluded_prefixes_output.yaml"]
+	if !ok {
+		return nil, errors.New("cni subnet info not present in nsm configmap")
+	}
+	prefixes, err = getPrefixes(nsmconfig)
+	if err != nil {
+		return nil, errors.New("failed to get prefixes from nsm configmap")
+	}
+	if len(prefixes) == 0 {
 		return nil, fmt.Errorf("error occured while getting excluded prefixes. err: %v, prefix len: %v", err, len(prefixes))
 	}
-
 	return prefixes, nil
 }
