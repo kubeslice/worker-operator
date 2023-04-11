@@ -143,6 +143,7 @@ var _ = BeforeSuite(func() {
 		ReportingController: "worker-operator",
 		Namespace:           CONTROL_PLANE_NS,
 	})
+	Expect(err).ToNot(HaveOccurred())
 
 	err = (&slice.SliceReconciler{
 		Client: k8sManager.GetClient(),
@@ -157,18 +158,18 @@ var _ = BeforeSuite(func() {
 	}).Setup(k8sManager, mf)
 	Expect(err).ToNot(HaveOccurred())
 
+	testSvcExEventRecorder := events.NewEventRecorder(k8sManager.GetEventRecorderFor("test-SvcEx-controller"))
+
 	err = (&serviceexport.Reconciler{
 		Client:    k8sManager.GetClient(),
 		Scheme:    k8sManager.GetScheme(),
 		Log:       ctrl.Log.WithName("SliceGwTest"),
 		HubClient: hubClientEmulator,
-		EventRecorder: &events.EventRecorder{
-			Recorder: &record.FakeRecorder{},
-		},
+		EventRecorder: testSvcExEventRecorder,
 	}).Setup(k8sManager, mf)
 	Expect(err).ToNot(HaveOccurred())
 
-	testSvcExEventRecorder := events.NewEventRecorder(k8sManager.GetEventRecorderFor("test-SvcEx-controller"))
+	
 
 	err = (&slicegateway.SliceGwReconciler{
 		Client: k8sClient,
@@ -182,15 +183,6 @@ var _ = BeforeSuite(func() {
 		WorkerRouterClient:    workerClientRouterEmulator,
 		WorkerNetOpClient:     workerClientNetopEmulator,
 		NumberOfGateways:      2,
-	}).SetupWithManager(k8sManager)
-	Expect(err).ToNot(HaveOccurred())
-
-	err = (&serviceexport.Reconciler{
-		Client:        k8sManager.GetClient(),
-		Scheme:        k8sManager.GetScheme(),
-		Log:           ctrl.Log.WithName("SvcExTest"),
-		HubClient:     hubClientEmulator,
-		EventRecorder: testSvcExEventRecorder,
 	}).SetupWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())
 
