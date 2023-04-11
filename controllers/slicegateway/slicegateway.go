@@ -940,7 +940,7 @@ func (r *SliceGwReconciler) reconcileGatewayEndpoint(ctx context.Context, sliceG
 		if nodeIPsCompletelyDifferent(currentEndpointFound, remoteNodeIPs) {
 			// refresh the connections by restarting the gateway pods when the new node IPs are completely distinct
 			log.Info("mismatch in node ips so restarting gateway pods")
-			if r.restartGatewayPods(ctx) != nil {
+			if r.restartGatewayPods(ctx, sliceGw.Name) != nil {
 				return true, ctrl.Result{}, err
 			} else {
 				return true, ctrl.Result{Requeue: true}, nil
@@ -950,10 +950,12 @@ func (r *SliceGwReconciler) reconcileGatewayEndpoint(ctx context.Context, sliceG
 	return false, ctrl.Result{}, nil
 }
 
-func (r *SliceGwReconciler) restartGatewayPods(ctx context.Context) error {
+func (r *SliceGwReconciler) restartGatewayPods(ctx context.Context, sliceGWName string) error {
 	log := r.Log
 	podsList := corev1.PodList{}
-	labels := map[string]string{"kubeslice.io/pod-type": "slicegateway"}
+	labels := map[string]string{"kubeslice.io/pod-type": "slicegateway",
+		"kubeslice.io/slicegw": sliceGWName,
+	}
 	listOptions := []client.ListOption{
 		client.MatchingLabels(labels),
 	}
