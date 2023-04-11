@@ -25,9 +25,11 @@ import (
 
 	"github.com/go-logr/logr"
 	spokev1alpha1 "github.com/kubeslice/apis/pkg/worker/v1alpha1"
+	"github.com/kubeslice/kubeslice-monitoring/pkg/metrics"
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
 	"github.com/kubeslice/worker-operator/pkg/events"
 	"github.com/kubeslice/worker-operator/pkg/logger"
+	"github.com/prometheus/client_golang/prometheus"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -88,13 +90,32 @@ var components = []component{
 
 type SliceReconciler struct {
 	client.Client
-	Log               logr.Logger
-	MeshClient        client.Client
-	EventRecorder     *events.EventRecorder
+	Log           logr.Logger
+	MeshClient    client.Client
+	EventRecorder *events.EventRecorder
+	// metrics
+	gaugeSliceUp     *prometheus.GaugeVec
+	gaugeComponentUp *prometheus.GaugeVec
+
 	ReconcileInterval time.Duration
 }
 
 var sliceFinalizer = "controller.kubeslice.io/hubSpokeSlice-finalizer"
+
+func NewReconciler(mc client.Client, er events.EventRecorder, mf metrics.MetricsFactory) *SliceReconciler {
+	gaugeSliceUp := mf.NewGauge("slice_up", "Kubeslice slice health status", []string{})
+	gaugeComponentUp := mf.NewGauge("slice_component_up", "Kubeslice slice component health status", []string{"component"})
+
+	return &SliceReconciler{
+		MeshClient:    mc,
+		EventRecorder: &er,
+
+		gaugeSliceUp:     gaugeSliceUp,
+		gaugeComponentUp: gaugeComponentUp,
+
+		ReconcileInterval: 120 * time.Second,
+	}
+}
 
 func (r *SliceReconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
 	log := r.Log.WithValues("sliceconfig", req.NamespacedName)
@@ -187,6 +208,7 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req reconcile.Request) 
 		log.Error(err, "unable to update slice health status in hub cluster", "workerSlice", slice)
 		return reconcile.Result{}, err
 	}
+	r.updateSliceMetrics(slice)
 	slice.Status.SliceHealth.LastUpdated = metav1.Now()
 	if err := r.Status().Update(ctx, slice); err != nil {
 		log.Error(err, "unable to update slice CR")
@@ -453,4 +475,19 @@ func (r *SliceReconciler) fetchSliceGatewayHealth(ctx context.Context, c *compon
 		return nil, err
 	}
 	return cs, nil
+}
+func (r *SliceReconciler) updateSliceMetrics(slice *spokev1alpha1.WorkerSliceConfig) {
+	if slice.Status.SliceHealth.SliceHealthStatus == spokev1alpha1.SliceHealthStatusNormal {
+		r.gaugeSliceUp.WithLabelValues().Set(1)
+	} else {
+		r.gaugeSliceUp.WithLabelValues().Set(0)
+	}
+
+	for _, cs := range slice.Status.SliceHealth.ComponentStatuses {
+		if cs.ComponentHealthStatus == spokev1alpha1.ComponentHealthStatusNormal {
+			r.gaugeComponentUp.WithLabelValues(cs.Component).Set(1)
+		} else {
+			r.gaugeComponentUp.WithLabelValues(cs.Component).Set(0)
+		}
+	}
 }
