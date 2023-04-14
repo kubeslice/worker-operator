@@ -21,7 +21,6 @@ package manager
 import (
 	"context"
 	"os"
-	"time"
 
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
@@ -85,15 +84,24 @@ func Start(meshClient client.Client, ctx context.Context) {
 		os.Exit(1)
 	}
 
+	mf, _ := metrics.NewMetricsFactory(
+		ctrlmetrics.Registry,
+		metrics.MetricsFactoryOptions{
+			Project:             ProjectNamespace,
+			Cluster:             ClusterName,
+			ReportingController: "worker-operator",
+			Namespace:           controllers.ControlPlaneNamespace,
+		},
+	)
+
 	// create slice-controller recorder
 	spokeSliceEventRecorder := events.NewEventRecorder(mgr.GetEventRecorderFor("spokeSlice-controller"))
 
-	sliceReconciler := &controllers.SliceReconciler{
-		MeshClient:        meshClient,
-		Log:               ctrl.Log.WithName("hub").WithName("controllers").WithName("SliceConfig"),
-		EventRecorder:     spokeSliceEventRecorder,
-		ReconcileInterval: 120 * time.Second,
-	}
+	sliceReconciler := controllers.NewSliceReconciler(
+		meshClient,
+		spokeSliceEventRecorder,
+		mf,
+	)
 	err = builder.
 		ControllerManagedBy(mgr).
 		For(&spokev1alpha1.WorkerSliceConfig{}).
@@ -175,15 +183,6 @@ func Start(meshClient client.Client, ctx context.Context) {
 		Component: "worker-operator",
 		Namespace: controllers.ControlPlaneNamespace,
 	})
-	mf, _ := metrics.NewMetricsFactory(
-		ctrlmetrics.Registry,
-		metrics.MetricsFactoryOptions{
-			Project:             ProjectNamespace,
-			Cluster:             ClusterName,
-			ReportingController: "worker-operator",
-			Namespace:           controllers.ControlPlaneNamespace,
-		},
-	)
 	clusterReconciler := hubCluster.NewReconciler(
 		meshClient,
 		spokeClusterEventRecorder,
