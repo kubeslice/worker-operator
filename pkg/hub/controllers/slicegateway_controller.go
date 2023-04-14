@@ -148,14 +148,6 @@ func (r *SliceGwReconciler) createSliceGwCerts(ctx context.Context, sliceGw *spo
 			err = r.MeshClient.Create(ctx, meshSliceGwCerts)
 			if err != nil {
 				log.Error(err, "unable to create secret to store slicegw certs in spoke cluster", "sliceGw", sliceGw.Name)
-				r.EventRecorder.Record(
-					&events.Event{
-						Object:    sliceGw,
-						EventType: events.EventTypeWarning,
-						Reason:    "Error",
-						Message:   "Error creating secret for storing gateway certs on spoke cluster , slicegateway " + sliceGw.Name + " cluster " + clusterName,
-					},
-				)
 				return reconcile.Result{}, err
 			}
 			log.Info("sliceGw secret created in spoke cluster")
@@ -205,35 +197,9 @@ func (r *SliceGwReconciler) createSliceGwOnSpoke(ctx context.Context, sliceGw *s
 			err = r.MeshClient.Create(ctx, meshSliceGw)
 			if err != nil {
 				log.Error(err, "unable to create sliceGw in spoke cluster", "sliceGw", sliceGwName)
-				r.EventRecorder.Record(
-					&events.Event{
-						Object:    sliceGw,
-						EventType: events.EventTypeWarning,
-						Reason:    "Error",
-						Message:   "Error creating slicegw on spoke cluster , slicegateway " + sliceGw.Name + " cluster " + clusterName,
-					},
-				)
 				return err
 			}
 			log.Info("sliceGw created in spoke cluster", "sliceGw", sliceGwName)
-			//post event to the workerslicegateway
-			r.EventRecorder.Record(
-				&events.Event{
-					Object:    sliceGw,
-					EventType: events.EventTypeNormal,
-					Reason:    "Created",
-					Message:   "Created slicegw on spoke cluster , slicegateway " + sliceGw.Name + " cluster " + clusterName,
-				},
-			)
-			//post event to the slice created on spoke cluster
-			r.EventRecorder.Record(
-				&events.Event{
-					Object:    sliceOnSpoke,
-					EventType: events.EventTypeNormal,
-					Reason:    "Created",
-					Message:   "Created slicegw on spoke cluster , slicegateway " + sliceGw.Name,
-				},
-			)
 		} else {
 			log.Error(err, "unable to fetch sliceGw in spoke cluster", "sliceGw", sliceGwName)
 			return err
