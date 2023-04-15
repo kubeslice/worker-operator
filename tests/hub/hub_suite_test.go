@@ -46,7 +46,7 @@ import (
 	"github.com/kubeslice/worker-operator/pkg/events"
 	"github.com/kubeslice/worker-operator/pkg/hub/controllers"
 	"github.com/kubeslice/worker-operator/pkg/hub/controllers/cluster"
-	ctrlmetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
+	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/kubeslice/worker-operator/pkg/hub/controllers/workerslicegwrecycler"
 	workerrouter "github.com/kubeslice/worker-operator/tests/emulator/workerclient/router"
@@ -67,6 +67,8 @@ var cancel context.CancelFunc
 const CONTROL_PLANE_NS = "kubeslice-system"
 const PROJECT_NS = "project-example"
 const CLUSTER_NAME = "cluster-test"
+
+var MetricRegistry = prometheus.NewRegistry()
 
 var _ = BeforeSuite(func() {
 	logf.SetLogger(zap.New(zap.WriteTo(GinkgoWriter), zap.UseDevMode(true)))
@@ -131,7 +133,7 @@ var _ = BeforeSuite(func() {
 	Expect(err).ToNot(HaveOccurred())
 
 	mf, _ := metrics.NewMetricsFactory(
-		ctrlmetrics.Registry,
+		MetricRegistry,
 		metrics.MetricsFactoryOptions{
 			Project:             PROJECT_NS,
 			Cluster:             CLUSTER_NAME,
