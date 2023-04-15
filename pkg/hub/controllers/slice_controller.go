@@ -56,8 +56,8 @@ func NewSliceReconciler(mc client.Client, er *events.EventRecorder, mf metrics.M
 		ReconcileInterval: 120 * time.Second,
 
 		counterSliceCreated: mf.NewCounter("slice_created_total", "Slice created in worker", []string{"slice"}),
-		counterSliceDeleted: mf.NewCounter("slice_updated_total", "Slice updated in worker", []string{"slice"}),
-		counterSliceUpdated: mf.NewCounter("slice_deleted_total", "Slice deleted in worker", []string{"slice"}),
+		counterSliceUpdated: mf.NewCounter("slice_updated_total", "Slice updated in worker", []string{"slice"}),
+		counterSliceDeleted: mf.NewCounter("slice_deleted_total", "Slice deleted in worker", []string{"slice"}),
 
 		counterSliceCreationFailed: mf.NewCounter("slice_creation_failed_total", "Slice creation failed in worker", []string{"slice"}),
 		counterSliceUpdationFailed: mf.NewCounter("slice_updation_failed_total", "Slice updation failed in worker", []string{"slice"}),
@@ -352,13 +352,13 @@ func (r *SliceReconciler) handleSliceDeletion(slice *spokev1alpha1.WorkerSliceCo
 					r.counterSliceDeletionFailed.WithLabelValues(slice.Name).Add(1)
 					return err
 				}
+				r.counterSliceDeleted.WithLabelValues(slice.Name).Add(1)
 				return nil
 			})
 			if err != nil {
 				return true, reconcile.Result{}, err
 			}
 		}
-		r.counterSliceDeleted.WithLabelValues(slice.Name).Add(1)
 		// Stop reconciliation as the item is being deleted
 		return true, reconcile.Result{}, nil
 	}
