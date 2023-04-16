@@ -95,6 +95,7 @@ func TestReconcileToReturnErrorWhileFetchingControllerSlice(t *testing.T) {
 
 	mf, _ := metrics.NewMetricsFactory(prometheus.NewRegistry(), metrics.MetricsFactoryOptions{})
 	reconciler := NewSliceReconciler(client, nil, mf)
+	reconciler.InjectClient(client)
 	result, err := reconciler.Reconcile(expected.ctx, expected.req)
 	if expected.res != result {
 		t.Error("Expected response :", expected.res, " but got ", result)
@@ -141,6 +142,7 @@ func TestReconcileToReturnErrorWhileFetchingWorkerSlice(t *testing.T) {
 
 	mf, _ := metrics.NewMetricsFactory(prometheus.NewRegistry(), metrics.MetricsFactoryOptions{})
 	reconciler := NewSliceReconciler(client, nil, mf)
+	reconciler.InjectClient(client)
 	result, err := reconciler.Reconcile(expected.ctx, expected.req)
 	if expected.res != result {
 		t.Error("Expected response :", expected.res, " but got ", result)
@@ -200,6 +202,7 @@ func TestReconcileToUpdateWorkerSlice(t *testing.T) {
 
 	mf, _ := metrics.NewMetricsFactory(prometheus.NewRegistry(), metrics.MetricsFactoryOptions{})
 	reconciler := NewSliceReconciler(client, nil, mf)
+	reconciler.InjectClient(client)
 	result, err := reconciler.Reconcile(expected.ctx, expected.req)
 	if expected.res != result {
 		t.Error("Expected response :", expected.res, " but got ", result)
@@ -256,6 +259,7 @@ func TestUpdateSliceHealth(t *testing.T) {
 
 	mf, _ := metrics.NewMetricsFactory(prometheus.NewRegistry(), metrics.MetricsFactoryOptions{})
 	reconciler := NewSliceReconciler(client, nil, mf)
+	reconciler.InjectClient(client)
 	ctx := context.WithValue(context.Background(), types.NamespacedName{Name: "test-slice", Namespace: "kubeslice-system"}, controllerSlice)
 
 	client.On("List",
@@ -299,6 +303,7 @@ func TestUpdateSliceConfigByModyfingSubnetOfControllerSlice(t *testing.T) {
 
 	mf, _ := metrics.NewMetricsFactory(prometheus.NewRegistry(), metrics.MetricsFactoryOptions{})
 	reconciler := NewSliceReconciler(client, nil, mf)
+	reconciler.InjectClient(client)
 	ctx := context.WithValue(context.Background(), types.NamespacedName{Name: "test-slice", Namespace: "kubeslice-system"}, controllerSlice)
 
 	client.StatusMock.On("Update",
@@ -333,6 +338,7 @@ func TestDeleteSliceResourceOnWorker(t *testing.T) {
 
 	mf, _ := metrics.NewMetricsFactory(prometheus.NewRegistry(), metrics.MetricsFactoryOptions{})
 	reconciler := NewSliceReconciler(client, nil, mf)
+	reconciler.InjectClient(client)
 
 	client.On("Delete",
 		mock.IsType(expected.ctx),
