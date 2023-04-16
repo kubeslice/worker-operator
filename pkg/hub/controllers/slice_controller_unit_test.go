@@ -161,7 +161,7 @@ func TestReconcileToUpdateWorkerSlice(t *testing.T) {
 	}{
 		context.WithValue(context.Background(), types.NamespacedName{Namespace: "kube-slice", Name: "kube-slice"}, controllerSlice),
 		reconcile.Request{NamespacedName: types.NamespacedName{Name: "test-slice", Namespace: "kubeslice-system"}},
-		reconcile.Result{RequeueAfter: time.Second * 10},
+		reconcile.Result{RequeueAfter: time.Second * 120},
 		nil,
 	}
 	client := NewClient()
