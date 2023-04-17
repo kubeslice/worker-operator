@@ -34,12 +34,13 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
+	"github.com/kubeslice/kubeslice-monitoring/pkg/metrics"
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
 	"github.com/kubeslice/worker-operator/controllers"
 	"github.com/kubeslice/worker-operator/pkg/events"
 	"github.com/kubeslice/worker-operator/pkg/logger"
 	"github.com/kubeslice/worker-operator/pkg/manifest"
-	"github.com/kubeslice/worker-operator/pkg/metrics"
+	"github.com/prometheus/client_golang/prometheus"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
@@ -55,6 +56,9 @@ type SliceReconciler struct {
 	HubClient          HubClientProvider
 	WorkerRouterClient WorkerRouterClientProvider
 	WorkerNetOpClient  WorkerNetOpClientProvider
+
+	// metrics
+	gaugeAppPods *prometheus.GaugeVec
 }
 
 //+kubebuilder:rbac:groups=networking.kubeslice.io,resources=slices,verbs=get;list;watch;create;update;patch;delete
@@ -265,7 +269,7 @@ func (r *SliceReconciler) exposeMetric(appPods []kubeslicev1beta1.AppPod, slice 
 	// Set no. of app pods in prometheus metrics
 	if len(appPods) == 0 && len(slice.Status.AppPods) > 0 {
 		for _, appPod := range slice.Status.AppPods {
-			metrics.RecordAppPodsCount(0, controllers.ClusterName, slice.Name, appPod.PodNamespace)
+			r.gaugeAppPods.WithLabelValues(slice.Name, appPod.PodNamespace).Set(0)
 		}
 	}
 	mapAppPodsPerNamespace := make(map[string][]kubeslicev1beta1.AppPod)
@@ -274,7 +278,7 @@ func (r *SliceReconciler) exposeMetric(appPods []kubeslicev1beta1.AppPod, slice 
 	}
 
 	for namespace, pods := range mapAppPodsPerNamespace {
-		metrics.RecordAppPodsCount(len(pods), controllers.ClusterName, slice.Name, namespace)
+		r.gaugeAppPods.WithLabelValues(slice.Name, namespace).Set(float64(len(pods)))
 	}
 }
 
@@ -397,6 +401,16 @@ func isAppPodStatusChanged(current []kubeslicev1beta1.AppPod, old []kubeslicev1b
 	}
 
 	return false
+}
+
+// Setup SliceReconciler
+// Initializes metrics and sets up with manager
+func (r *SliceReconciler) Setup(mgr ctrl.Manager, mf metrics.MetricsFactory) error {
+	gaugeAppPods := mf.NewGauge("app_pods", "App pods in slice", []string{"slice", "namespace"})
+
+	r.gaugeAppPods = gaugeAppPods
+
+	return r.SetupWithManager(mgr)
 }
 
 // SetupWithManager sets up the controller with the Manager.

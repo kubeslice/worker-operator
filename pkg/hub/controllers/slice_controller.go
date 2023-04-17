@@ -38,10 +38,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
-const (
-	ReconcileInterval = 120 * time.Second
-)
-
 type component struct {
 	name          string
 	labels        map[string]string
@@ -92,9 +88,10 @@ var components = []component{
 
 type SliceReconciler struct {
 	client.Client
-	Log           logr.Logger
-	MeshClient    client.Client
-	EventRecorder *events.EventRecorder
+	Log               logr.Logger
+	MeshClient        client.Client
+	EventRecorder     *events.EventRecorder
+	ReconcileInterval time.Duration
 }
 
 var sliceFinalizer = "controller.kubeslice.io/hubSpokeSlice-finalizer"
@@ -172,7 +169,7 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req reconcile.Request) 
 			}
 			log.Info("slice status updated in spoke cluster")
 
-			return reconcile.Result{RequeueAfter: ReconcileInterval}, nil
+			return reconcile.Result{RequeueAfter: r.ReconcileInterval}, nil
 		}
 		return reconcile.Result{}, err
 	}
@@ -197,7 +194,7 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req reconcile.Request) 
 	} else {
 		log.Info("succesfully updated the slice CR ", "slice CR ", slice)
 	}
-	return reconcile.Result{RequeueAfter: ReconcileInterval}, nil
+	return reconcile.Result{RequeueAfter: r.ReconcileInterval}, nil
 }
 
 func (r *SliceReconciler) updateSliceConfig(ctx context.Context, meshSlice *kubeslicev1beta1.Slice, spokeSlice *spokev1alpha1.WorkerSliceConfig) error {
