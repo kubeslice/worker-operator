@@ -9,10 +9,12 @@ import (
 
 	hubv1alpha1 "github.com/kubeslice/apis/pkg/controller/v1alpha1"
 	"github.com/kubeslice/kubeslice-monitoring/pkg/events"
+	"github.com/kubeslice/kubeslice-monitoring/pkg/metrics"
 	"github.com/kubeslice/worker-operator/controllers"
 	ossEvents "github.com/kubeslice/worker-operator/events"
 	"github.com/kubeslice/worker-operator/pkg/cluster"
 	"github.com/kubeslice/worker-operator/pkg/logger"
+	"github.com/prometheus/client_golang/prometheus"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -28,14 +30,33 @@ const (
 	GCP   string = "gcp"
 	AWS   string = "aws"
 	AZURE string = "azure"
-
-	ReconcileInterval = 120 * time.Second
 )
 
 type Reconciler struct {
 	client.Client
 	MeshClient    client.Client
 	EventRecorder events.EventRecorder
+
+	// metrics
+	gaugeClusterUp   *prometheus.GaugeVec
+	gaugeComponentUp *prometheus.GaugeVec
+
+	ReconcileInterval time.Duration
+}
+
+func NewReconciler(mc client.Client, er events.EventRecorder, mf metrics.MetricsFactory) *Reconciler {
+	gaugeClusterUp := mf.NewGauge("cluster_up", "Kubeslice cluster health status", []string{})
+	gaugeComponentUp := mf.NewGauge("cluster_component_up", "Kubeslice cluster component health status", []string{"component"})
+
+	return &Reconciler{
+		MeshClient:    mc,
+		EventRecorder: er,
+
+		gaugeClusterUp:   gaugeClusterUp,
+		gaugeComponentUp: gaugeComponentUp,
+
+		ReconcileInterval: 120 * time.Second,
+	}
 }
 
 func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
@@ -86,13 +107,15 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		log.Error(err, "unable to update cluster health status")
 	}
 
+	r.updateClusterMetrics(cr)
+
 	cr.Status.ClusterHealth.LastUpdated = metav1.Now()
 	if err := r.Status().Update(ctx, cr); err != nil {
 		log.Error(err, "unable to update cluster CR")
 		return reconcile.Result{}, err
 	}
 
-	return reconcile.Result{RequeueAfter: ReconcileInterval}, nil
+	return reconcile.Result{RequeueAfter: r.ReconcileInterval}, nil
 }
 
 func (r *Reconciler) updateClusterHealthStatus(ctx context.Context, cr *hubv1alpha1.Cluster) error {
@@ -143,6 +166,22 @@ func (r *Reconciler) updateClusterHealthStatus(ctx context.Context, cr *hubv1alp
 	cr.Status.ClusterHealth.ClusterHealthStatus = chs
 
 	return nil
+}
+
+func (r *Reconciler) updateClusterMetrics(cr *hubv1alpha1.Cluster) {
+	if cr.Status.ClusterHealth.ClusterHealthStatus == hubv1alpha1.ClusterHealthStatusNormal {
+		r.gaugeClusterUp.WithLabelValues().Set(1)
+	} else {
+		r.gaugeClusterUp.WithLabelValues().Set(0)
+	}
+
+	for _, cs := range cr.Status.ClusterHealth.ComponentStatuses {
+		if cs.ComponentHealthStatus == hubv1alpha1.ComponentHealthStatusNormal {
+			r.gaugeComponentUp.WithLabelValues(cs.Component).Set(1)
+		} else {
+			r.gaugeComponentUp.WithLabelValues(cs.Component).Set(0)
+		}
+	}
 }
 
 func (r *Reconciler) getComponentStatus(ctx context.Context, c *component) (*hubv1alpha1.ComponentStatus, error) {

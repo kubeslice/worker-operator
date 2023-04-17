@@ -24,16 +24,17 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
+	"github.com/prometheus/client_golang/prometheus"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/kubeslice/kubeslice-monitoring/pkg/metrics"
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
 	"github.com/kubeslice/worker-operator/controllers"
 	"github.com/kubeslice/worker-operator/pkg/events"
 	"github.com/kubeslice/worker-operator/pkg/logger"
-	"github.com/kubeslice/worker-operator/pkg/metrics"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
@@ -44,6 +45,9 @@ type Reconciler struct {
 	Scheme        *runtime.Scheme
 	HubClient     HubClientProvider
 	EventRecorder *events.EventRecorder
+
+	// metrics
+	gaugeEndpoints *prometheus.GaugeVec
 }
 
 type HubClientProvider interface {
@@ -152,7 +156,7 @@ func (r Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resul
 		debugLog.Info("requeuing after app pod reconcile", "res", res, "er", err)
 		return res, err
 	}
-	metrics.RecordServicecExportAvailableEndpointsCount(serviceexport.Status.AvailableEndpoints, controllers.ClusterName, serviceexport.Spec.Slice, serviceexport.Namespace, serviceexport.Name)
+	r.gaugeEndpoints.WithLabelValues(serviceexport.Spec.Slice, serviceexport.Namespace, serviceexport.Name).Set(float64(serviceexport.Status.AvailableEndpoints))
 	res, err, requeue = r.ReconcileIngressGwPod(ctx, serviceexport)
 	if err != nil {
 		return ctrl.Result{}, err
@@ -203,6 +207,16 @@ func (r Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resul
 	return ctrl.Result{
 		RequeueAfter: 30 * time.Second,
 	}, nil
+}
+
+// Setup ServiceExport Reconciler
+// Initializes metrics and sets up with manager
+func (r *Reconciler) Setup(mgr ctrl.Manager, mf metrics.MetricsFactory) error {
+	gaugeEndpoints := mf.NewGauge("serviceexport_endpoints", "Active endpoints in serviceexport", []string{"slice", "namespace", "service"})
+
+	r.gaugeEndpoints = gaugeEndpoints
+
+	return r.SetupWithManager(mgr)
 }
 
 // SetupWithManager setus up reconciler with manager
