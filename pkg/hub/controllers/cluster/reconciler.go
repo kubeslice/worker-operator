@@ -23,6 +23,7 @@ import (
 	"k8s.io/client-go/util/retry"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
@@ -59,6 +60,8 @@ func NewReconciler(mc client.Client, er events.EventRecorder, mf metrics.Metrics
 	}
 }
 
+var clusterFinalizer = "controller.kubeslice.io/cluster-finalizer"
+
 func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
 	log := logger.FromContext(ctx).WithName("cluster-reconciler")
 	ctx = logger.WithLogger(ctx, log)
@@ -67,6 +70,17 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{}, err
 	}
 	log.Info("got cluster CR from hub", "cluster", cr)
+
+	// checkFinalizer - use a better name
+	isPresent := r.checkFinalizer(ctx, cr)
+	if isPresent {
+		// calling deregister function
+		err = r.CreateDeregisterJob(ctx)
+		if err != nil {
+			return reconcile.Result{}, err
+		}
+	}
+
 	cl := cluster.NewCluster(r.MeshClient, cr.Name)
 	res, err, requeue := r.updateClusterCloudProviderInfo(ctx, cr, cl)
 	if err != nil {
@@ -206,7 +220,7 @@ func (r *Reconciler) getComponentStatus(ctx context.Context, c *component) (*hub
 		return nil, nil
 	}
 	if len(pods) == 0 {
-		log.Error(fmt.Errorf("No pods running"), "unhealthy", "pod", c.name)
+		log.Error(fmt.Errorf("no pods running"), "unhealthy", "pod", c.name)
 		cs.ComponentHealthStatus = hubv1alpha1.ComponentHealthStatusError
 		return cs, nil
 	}
@@ -452,6 +466,19 @@ func (r *Reconciler) getCluster(ctx context.Context, req reconcile.Request) (*hu
 		return nil, err
 	}
 	return hubCluster, nil
+}
+
+func (r *Reconciler) checkFinalizer(ctx context.Context, cluster *hubv1alpha1.Cluster) bool {
+	if cluster.ObjectMeta.DeletionTimestamp.IsZero() {
+		// The object is not being deleted, returning...
+		return false
+	} else {
+		// The object is being deleted
+		if controllerutil.ContainsFinalizer(cluster, clusterFinalizer) {
+			return true
+		}
+	}
+	return false
 }
 
 func (r *Reconciler) InjectClient(c client.Client) error {
