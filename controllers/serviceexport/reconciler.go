@@ -167,6 +167,16 @@ func (r Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resul
 		return res, nil
 	}
 
+	res, err, requeue = r.ReconcileAliases(ctx, serviceexport)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+	if requeue {
+		log.Info("aliases reconciled")
+		debugLog.Info("requeuing after aliases reconcile", "res", res, "er", err)
+		return res, nil
+	}
+
 	res, err, requeue = r.SyncSvcExportStatus(ctx, serviceexport)
 	if err != nil {
 		return ctrl.Result{}, err
