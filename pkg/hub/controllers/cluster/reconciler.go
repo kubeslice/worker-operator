@@ -14,7 +14,7 @@ import (
 	"github.com/kubeslice/worker-operator/pkg/cluster"
 	"github.com/kubeslice/worker-operator/pkg/logger"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
+
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -39,7 +39,7 @@ type Reconciler struct {
 	EventRecorder events.EventRecorder
 }
 
-var clusterFinalizer = "controller.kubeslice.io/cluster-finalizer"
+var clusterFinalizer = "controller.kubeslice.io/deregister-finalizer"
 
 func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
 	log := logger.FromContext(ctx).WithName("cluster-reconciler")
@@ -419,7 +419,7 @@ func (r *Reconciler) getCluster(ctx context.Context, req reconcile.Request) (*hu
 	err := r.Get(ctx, req.NamespacedName, hubCluster)
 	// Request object not found, could have been deleted after reconcile request.
 	if err != nil {
-		if errors.IsNotFound(err) {
+		if apierrors.IsNotFound(err) {
 			// Return and don't requeue
 			log.Info("cluster resource not found in hub. Ignoring since object must be deleted")
 			return nil, nil
@@ -430,12 +430,14 @@ func (r *Reconciler) getCluster(ctx context.Context, req reconcile.Request) (*hu
 }
 
 func (r *Reconciler) checkFinalizer(ctx context.Context, cluster *hubv1alpha1.Cluster) bool {
+	log := logger.FromContext(ctx)
 	if cluster.ObjectMeta.DeletionTimestamp.IsZero() {
 		// The object is not being deleted, returning...
 		return false
 	} else {
 		// The object is being deleted
 		if controllerutil.ContainsFinalizer(cluster, clusterFinalizer) {
+			log.Info("cluster finalzer detected", "cluster", cluster.Name)
 			return true
 		}
 	}
