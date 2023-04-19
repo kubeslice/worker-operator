@@ -7,6 +7,7 @@ import (
 
 	hubv1alpha1 "github.com/kubeslice/apis/pkg/controller/v1alpha1"
 	mevents "github.com/kubeslice/kubeslice-monitoring/pkg/events"
+	"github.com/kubeslice/kubeslice-monitoring/pkg/metrics"
 	"github.com/kubeslice/worker-operator/controllers"
 	ossEvents "github.com/kubeslice/worker-operator/events"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -14,6 +15,7 @@ import (
 	"k8s.io/client-go/kubernetes/scheme"
 	cl "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	ctrlmetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
@@ -91,21 +93,30 @@ func TestCheckFinalizerInClusterCr(t *testing.T) {
 				Component: "worker-operator",
 				Namespace: controllers.ControlPlaneNamespace,
 			})
-			reconciler := &Reconciler{
-				fakeClient,
+			mf, _ := metrics.NewMetricsFactory(
+				ctrlmetrics.Registry,
+				metrics.MetricsFactoryOptions{
+					Project:             "avesha",
+					Cluster:             tt.obj.GetName(),
+					ReportingController: "worker-operator",
+					Namespace:           controllers.ControlPlaneNamespace,
+				},
+			)
+			clusterReconciler := NewReconciler(
 				fakeClient,
 				testClusterEventRecorder,
-			}
+				mf,
+			)
 			ctx := context.Background()
-			_, err := reconciler.Reconcile(ctx, tt.req)
+			_, err := clusterReconciler.Reconcile(ctx, tt.req)
 			if err != nil {
 				AssertEqual(t, tt.errMsg, err.Error())
 			}
 			newCluster := &hubv1alpha1.Cluster{}
-			err = reconciler.Client.Get(ctx, tt.req.NamespacedName, newCluster)
+			err = clusterReconciler.Client.Get(ctx, tt.req.NamespacedName, newCluster)
 			AssertNoError(t, err)
 			// calling checkFinalizer func to verify if finalizer is present
-			isPresent := reconciler.checkFinalizer(ctx, newCluster)
+			isPresent := clusterReconciler.checkFinalizer(ctx, newCluster)
 			// if clusterObj contains Finalizers and the deletion timestamp is not zero return true
 			if len(newCluster.Finalizers) != 0 && !newCluster.DeletionTimestamp.IsZero() {
 				AssertEqual(t, isPresent, tt.expected)
