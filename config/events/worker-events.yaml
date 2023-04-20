@@ -467,3 +467,9 @@ events:
     type: Warning
     reportingController: worker
     message: namespace info failed to be deleted from Controller.
+  - name: DeregitrationJobFailed
+    reason: DeregitrationJobFailed
+    action: None
+    type: Warning
+    reportingController: worker
+    message: Failed to complete cluster deregistration job
