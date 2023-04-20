@@ -3,11 +3,14 @@ package cluster
 import (
 	"context"
 
+	hubv1alpha1 "github.com/kubeslice/apis/pkg/controller/v1alpha1"
 	"github.com/kubeslice/worker-operator/pkg/logger"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -19,11 +22,21 @@ var (
 	deregisterJobName          = "cluster-deregisteration-job"
 )
 
-func (r *Reconciler) CreateDeregisterJob(ctx context.Context) error {
+func (r *Reconciler) createDeregisterJob(ctx context.Context, cluster *hubv1alpha1.Cluster) error {
 	log := logger.FromContext(ctx).WithName("cluster-deregister")
-	// 1. create service account
-	sa := constructServiceAccount()
-	if err := r.Client.Create(ctx, sa, &client.CreateOptions{}); err != nil {
+	// Notify controller that the deregistration process of the cluster is in progress.
+	err := r.updateClusterDeregisterStatus("DeregisterInProgress", ctx, cluster)
+	if err != nil {
+		log.Error(err, "error updating status of deregistration on the controller")
+		return err
+	}
+	// Steps to follow:
+	// 1. Create a service account.
+	// 2. Define a cluster role.
+	// 3. Bind the service account with the cluster role.
+	// 4. Set up a configuration map which contains the script for the job.
+	// 5. Generate a job for deregistration with the configuration map mounted as a volume.
+	if err := r.Client.Create(ctx, constructServiceAccount(), &client.CreateOptions{}); err != nil {
 		log.Error(err, "unable to create service account")
 		return err
 	}
@@ -31,25 +44,35 @@ func (r *Reconciler) CreateDeregisterJob(ctx context.Context) error {
 		log.Error(err, "unable to create cluster role")
 		return err
 	}
-	// 2. create cluster rolebinding
-	rolebinding := constructClusterRoleBinding()
-	if err := r.Client.Create(ctx, rolebinding, &client.CreateOptions{}); err != nil {
+	if err := r.Client.Create(ctx, constructClusterRoleBinding(), &client.CreateOptions{}); err != nil {
 		log.Error(err, "unable to create cluster rolebinding")
 		return err
 	}
-	// create configmap
-	configMap := constructConfigMap()
-	if err := r.Client.Create(ctx, configMap, &client.CreateOptions{}); err != nil {
+	if err := r.Client.Create(ctx, constructConfigMap(), &client.CreateOptions{}); err != nil {
 		log.Error(err, "unable to create cluster configmap")
 		return err
 	}
-	// create job
-	// Todo notify controller cluster deregistration in progress
-	// Todo raise events
-	// delete service account/cluster role/cluster rb after everything
-	job := constructJobForClusterDeregister()
-	if err := r.Client.Create(ctx, job, &client.CreateOptions{}); err != nil {
+	if err := r.Client.Create(ctx, constructJobForClusterDeregister(), &client.CreateOptions{}); err != nil {
 		log.Error(err, "unable to create job for cluster deregister")
+		return err
+	}
+	return nil
+}
+
+func (r *Reconciler) updateClusterDeregisterStatus(status string, ctx context.Context, cluster *hubv1alpha1.Cluster) error {
+	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		err := r.Get(ctx, types.NamespacedName{
+			Name:      cluster.Name,
+			Namespace: cluster.Namespace,
+		}, cluster)
+		if err != nil {
+			return err
+		}
+		// Todo: should be uncommented once the cluster CRD/Type has been updated on the controller side.
+		// cluster.Status.RegistrationStatus = status
+		return r.Status().Update(ctx, cluster)
+	})
+	if err != nil {
 		return err
 	}
 	return nil
@@ -65,12 +88,33 @@ func constructServiceAccount() *corev1.ServiceAccount {
 	return svcAcc
 }
 
-// Todo work on policies
 func constructClusterRole() *rbacv1.ClusterRole {
+	// Todo: work on policies
 	clusterRole := &rbacv1.ClusterRole{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      clusterRoleBindingName,
 			Namespace: ControlPlaneNamespace,
+		},
+		Rules: []rbacv1.PolicyRule{
+			{
+				APIGroups: []string{
+					"",
+					"batch",
+					"extensions",
+					"apps",
+					"rbac.authorization.k8s.io",
+					"admissionregistration.k8s.io",
+					"scheduling.k8s.io",
+				},
+				Resources: []string{"*"},
+				Verbs: []string{
+					"get",
+					"list",
+					"patch",
+					"update",
+					"delete",
+				},
+			},
 		},
 	}
 	return clusterRole
@@ -97,6 +141,8 @@ func constructClusterRoleBinding() *rbacv1.ClusterRoleBinding {
 }
 
 func constructConfigMap() *corev1.ConfigMap {
+	// delete service account/cluster role/cluster rb after everything
+	// remove cluster finalizer
 	cm := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      clusterDeregisterConfigMap,
@@ -174,6 +220,7 @@ func constructConfigMap() *corev1.ConfigMap {
 }
 
 func constructJobForClusterDeregister() *batchv1.Job {
+	// Todo: change docker image
 	job := &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      deregisterJobName,
@@ -191,9 +238,9 @@ func constructJobForClusterDeregister() *batchv1.Job {
 						Image:   "dtzar/helm-kubectl",
 						Command: []string{"/bin/bash", "/tmp/kubeslice-cleanup.sh"},
 						Env: []corev1.EnvVar{
-							corev1.EnvVar{Name: "ProjectNamespace", Value: ProjectNamespace},
-							corev1.EnvVar{Name: "HubEndpoint", Value: HubEndpoint},
-							corev1.EnvVar{Name: "ClusterName", Value: ClusterName},
+							{Name: "ProjectNamespace", Value: ProjectNamespace},
+							{Name: "HubEndpoint", Value: HubEndpoint},
+							{Name: "ClusterName", Value: ClusterName},
 						},
 						VolumeMounts: []corev1.VolumeMount{
 							{

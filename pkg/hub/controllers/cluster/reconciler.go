@@ -70,15 +70,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{}, err
 	}
 	log.Info("got cluster CR from hub", "cluster", cr)
-
-	// checkFinalizer - use a better name
-	isPresent := r.checkFinalizer(ctx, cr)
-	if isPresent {
-		// calling deregister function
-		err = r.CreateDeregisterJob(ctx)
-		if err != nil {
-			return reconcile.Result{}, err
-		}
+	requeue, result, err := r.handleClusterDeletion(cr, ctx, req)
+	if requeue {
+		return result, err
 	}
 
 	cl := cluster.NewCluster(r.MeshClient, cr.Name)
@@ -486,4 +480,42 @@ func (r *Reconciler) checkFinalizer(ctx context.Context, cluster *hubv1alpha1.Cl
 func (r *Reconciler) InjectClient(c client.Client) error {
 	r.Client = c
 	return nil
+}
+
+func (r *Reconciler) handleClusterDeletion(cluster *hubv1alpha1.Cluster, ctx context.Context, req reconcile.Request) (bool, reconcile.Result, error) {
+	log := logger.FromContext(ctx)
+
+	if cluster.ObjectMeta.DeletionTimestamp.IsZero() {
+		// The object is not being deleted, so if it does not have our finalizer,
+		// then lets add the finalizer and update the object. This is equivalent
+		// registering our finalizer.
+		if !controllerutil.ContainsFinalizer(cluster, clusterFinalizer) {
+			controllerutil.AddFinalizer(cluster, clusterFinalizer)
+			if err := r.Update(ctx, cluster); err != nil {
+				return true, reconcile.Result{}, err
+			}
+		}
+	} else {
+		// The object is being deleted
+		if controllerutil.ContainsFinalizer(cluster, clusterFinalizer) {
+			// our finalizer is present, so lets handle any external dependency
+			if err := r.createDeregisterJob(ctx, cluster); err != nil {
+				// unable to deregister the worker operator, return with an error and notify the controller's status.
+				log.Error(err, "unable to deregister the worker operator")
+				r.updateClusterDeregisterStatus("DeregisterFailed", ctx, cluster)
+				err := r.EventRecorder.RecordEvent(ctx, &events.Event{
+					Object:            cluster,
+					Name:              ossEvents.EventDeregitrationJobFailed,
+					ReportingInstance: "cluster_reconciler",
+				})
+				if err != nil {
+					log.Error(err, "unable to record event for cluster deregistration")
+				}
+				return true, reconcile.Result{}, err
+			}
+		}
+		// Stop reconciliation as the item is being deleted
+		return true, reconcile.Result{}, nil
+	}
+	return false, reconcile.Result{}, nil
 }
