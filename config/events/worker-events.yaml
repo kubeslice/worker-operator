@@ -29,3 +29,9 @@ events:
     type: Warning
     reportingController: worker
     message: Auto-detection of cluster node IP addresses failed
+  - name: DeregitrationJobFailed
+    reason: DeregitrationJobFailed
+    action: None
+    type: Warning
+    reportingController: worker
+    message: Failed to complete cluster deregistration job
