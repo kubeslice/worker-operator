@@ -238,9 +238,18 @@ func constructJobForClusterDeregister() *batchv1.Job {
 						Image:   "dtzar/helm-kubectl",
 						Command: []string{"/bin/bash", "/tmp/kubeslice-cleanup.sh"},
 						Env: []corev1.EnvVar{
-							{Name: "ProjectNamespace", Value: ProjectNamespace},
-							{Name: "HubEndpoint", Value: HubEndpoint},
-							{Name: "ClusterName", Value: ClusterName},
+							{
+								Name:  "PROJECT_NAMESPACE",
+								Value: ProjectNamespace,
+							},
+							{
+								Name:  "HUB_ENDPOINT",
+								Value: HubEndpoint,
+							},
+							{
+								Name:  "CLUSTER_NAME",
+								Value: ClusterName,
+							},
 						},
 						VolumeMounts: []corev1.VolumeMount{
 							{
