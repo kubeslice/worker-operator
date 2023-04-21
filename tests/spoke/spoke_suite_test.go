@@ -163,7 +163,7 @@ var _ = BeforeSuite(func() {
 	err = (&serviceexport.Reconciler{
 		Client:        k8sManager.GetClient(),
 		Scheme:        k8sManager.GetScheme(),
-		Log:           ctrl.Log.WithName("SliceGwTest"),
+		Log:           ctrl.Log.WithName("SvcExTest"),
 		HubClient:     hubClientEmulator,
 		EventRecorder: testSvcExEventRecorder,
 	}).Setup(k8sManager, mf)
@@ -172,7 +172,7 @@ var _ = BeforeSuite(func() {
 	err = (&slicegateway.SliceGwReconciler{
 		Client: k8sClient,
 		Scheme: k8sClient.Scheme(),
-		Log:    ctrl.Log.WithName("SliceTest"),
+		Log:    ctrl.Log.WithName("SliceGwTest"),
 		EventRecorder: &events.EventRecorder{
 			Recorder: &record.FakeRecorder{},
 		},
