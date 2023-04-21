@@ -36,23 +36,23 @@ func (r *Reconciler) createDeregisterJob(ctx context.Context, cluster *hubv1alph
 	// 3. Bind the service account with the cluster role.
 	// 4. Set up a configuration map which contains the script for the job.
 	// 5. Generate a job for deregistration with the configuration map mounted as a volume.
-	if err := r.Client.Create(ctx, constructServiceAccount(), &client.CreateOptions{}); err != nil {
+	if err := r.MeshClient.Create(ctx, constructServiceAccount(), &client.CreateOptions{}); err != nil {
 		log.Error(err, "unable to create service account")
 		return err
 	}
-	if err := r.Client.Create(ctx, constructClusterRole(), &client.CreateOptions{}); err != nil {
+	if err := r.MeshClient.Create(ctx, constructClusterRole(), &client.CreateOptions{}); err != nil {
 		log.Error(err, "unable to create cluster role")
 		return err
 	}
-	if err := r.Client.Create(ctx, constructClusterRoleBinding(), &client.CreateOptions{}); err != nil {
+	if err := r.MeshClient.Create(ctx, constructClusterRoleBinding(), &client.CreateOptions{}); err != nil {
 		log.Error(err, "unable to create cluster rolebinding")
 		return err
 	}
-	if err := r.Client.Create(ctx, constructConfigMap(), &client.CreateOptions{}); err != nil {
+	if err := r.MeshClient.Create(ctx, constructConfigMap(), &client.CreateOptions{}); err != nil {
 		log.Error(err, "unable to create cluster configmap")
 		return err
 	}
-	if err := r.Client.Create(ctx, constructJobForClusterDeregister(), &client.CreateOptions{}); err != nil {
+	if err := r.MeshClient.Create(ctx, constructJobForClusterDeregister(), &client.CreateOptions{}); err != nil {
 		log.Error(err, "unable to create job for cluster deregister")
 		return err
 	}
@@ -92,7 +92,7 @@ func constructClusterRole() *rbacv1.ClusterRole {
 	// Todo: work on policies
 	clusterRole := &rbacv1.ClusterRole{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      clusterRoleBindingName,
+			Name:      clusterRoleName,
 			Namespace: ControlPlaneNamespace,
 		},
 		Rules: []rbacv1.PolicyRule{
@@ -105,6 +105,7 @@ func constructClusterRole() *rbacv1.ClusterRole {
 					"rbac.authorization.k8s.io",
 					"admissionregistration.k8s.io",
 					"scheduling.k8s.io",
+					"spiffeid.spiffe.io",
 				},
 				Resources: []string{"*"},
 				Verbs: []string{
@@ -160,17 +161,17 @@ func constructConfigMap() *corev1.ConfigMap {
 				}
 				
 				deleteKubeSliceCRDs() {
-				kubectl delete crd serviceexports.networking.kubeslice.io
-				kubectl delete crd serviceimports.networking.kubeslice.io
-				kubectl delete crd slice.networking.kubeslice.io
-				kubectl delete crd slicegateways.networking.kubeslice.io
-				kubectl delete crd slicenodeaffinities.networking.kubeslice.io
-				kubectl delete crd sliceresourcequotas.networking.kubeslice.io
-				kubectl delete crd slicerolebindings.networking.kubeslice.io
+					kubectl delete crd serviceexports.networking.kubeslice.io
+					kubectl delete crd serviceimports.networking.kubeslice.io
+					kubectl delete crd slice.networking.kubeslice.io
+					kubectl delete crd slicegateways.networking.kubeslice.io
+					kubectl delete crd slicenodeaffinities.networking.kubeslice.io
+					kubectl delete crd sliceresourcequotas.networking.kubeslice.io
+					kubectl delete crd slicerolebindings.networking.kubeslice.io
 				}
 		
 				deleteNamespace(){
-				kubectl delete namespace kubeslice-system
+					kubectl delete namespace kubeslice-system
 				}
 		
 				SECRET=kubeslice-hub
@@ -221,12 +222,14 @@ func constructConfigMap() *corev1.ConfigMap {
 
 func constructJobForClusterDeregister() *batchv1.Job {
 	// Todo: change docker image
+	backOffLimit := int32(0)
 	job := &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      deregisterJobName,
 			Namespace: ControlPlaneNamespace,
 		},
 		Spec: batchv1.JobSpec{
+			BackoffLimit: &backOffLimit,
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: deregisterJobName,
