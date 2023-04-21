@@ -104,7 +104,6 @@ func TestCheckFinalizerInClusterCr(t *testing.T) {
 			)
 			clusterReconciler := NewReconciler(
 				fakeClient,
-				fakeClient,
 				testClusterEventRecorder,
 				mf,
 			)
