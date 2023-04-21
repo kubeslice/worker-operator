@@ -46,7 +46,7 @@ import (
 	"github.com/kubeslice/worker-operator/pkg/events"
 	"github.com/kubeslice/worker-operator/pkg/hub/controllers"
 	"github.com/kubeslice/worker-operator/pkg/hub/controllers/cluster"
-	ctrlmetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
+	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/kubeslice/worker-operator/pkg/hub/controllers/workerslicegwrecycler"
 	workerrouter "github.com/kubeslice/worker-operator/tests/emulator/workerclient/router"
@@ -67,6 +67,8 @@ var cancel context.CancelFunc
 const CONTROL_PLANE_NS = "kubeslice-system"
 const PROJECT_NS = "project-example"
 const CLUSTER_NAME = "cluster-test"
+
+var MetricRegistry = prometheus.NewRegistry()
 
 var _ = BeforeSuite(func() {
 	logf.SetLogger(zap.New(zap.WriteTo(GinkgoWriter), zap.UseDevMode(true)))
@@ -130,13 +132,22 @@ var _ = BeforeSuite(func() {
 	workerClientRouterEmulator, err := workerrouter.NewClientEmulator()
 	Expect(err).ToNot(HaveOccurred())
 
+	mf, _ := metrics.NewMetricsFactory(
+		MetricRegistry,
+		metrics.MetricsFactoryOptions{
+			Project:             PROJECT_NS,
+			Cluster:             CLUSTER_NAME,
+			ReportingController: "worker-operator",
+			Namespace:           controllers.ControlPlaneNamespace,
+		},
+	)
+
 	testSliceEventRecorder := events.NewEventRecorder(k8sManager.GetEventRecorderFor("test-slice-controller"))
-	sr := &controllers.SliceReconciler{
-		MeshClient:        k8sClient,
-		Log:               ctrl.Log.WithName("hub").WithName("controllers").WithName("SliceConfig"),
-		EventRecorder:     testSliceEventRecorder,
-		ReconcileInterval: 5 * time.Second,
-	}
+	sr := controllers.NewSliceReconciler(
+		k8sClient,
+		testSliceEventRecorder,
+		mf,
+	)
 
 	testSliceGwEventRecorder := events.NewEventRecorder(k8sManager.GetEventRecorderFor("test-slicegw-controller"))
 	sgwr := &controllers.SliceGwReconciler{
@@ -198,15 +209,6 @@ var _ = BeforeSuite(func() {
 		Component: "worker-operator",
 		Namespace: CONTROL_PLANE_NS,
 	})
-	mf, _ := metrics.NewMetricsFactory(
-		ctrlmetrics.Registry,
-		metrics.MetricsFactoryOptions{
-			Project:             PROJECT_NS,
-			Cluster:             CLUSTER_NAME,
-			ReportingController: "worker-operator",
-			Namespace:           controllers.ControlPlaneNamespace,
-		},
-	)
 	clusterReconciler := cluster.NewReconciler(
 		k8sClient,
 		spokeClusterEventRecorder,

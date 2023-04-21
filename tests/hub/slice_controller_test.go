@@ -28,6 +28,7 @@ import (
 
 	workerv1alpha1 "github.com/kubeslice/apis/pkg/worker/v1alpha1"
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
+	"github.com/kubeslice/worker-operator/tests/utils"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -44,6 +45,8 @@ var _ = Describe("Hub SliceController", func() {
 		var ipamOctet = 1
 
 		BeforeEach(func() {
+			utils.ResetMetricRegistry(MetricRegistry)
+
 			// Prepare k8s objects
 			hubSlice = &workerv1alpha1.WorkerSliceConfig{
 				ObjectMeta: metav1.ObjectMeta{
@@ -93,6 +96,12 @@ var _ = Describe("Hub SliceController", func() {
 			Expect(createdSlice.Status.SliceConfig.SliceIpam.SliceIpamType).To(Equal("Local"))
 			Expect(createdSlice.Status.SliceConfig.SliceIpam.IpamClusterOctet).To(Equal(1))
 			Expect(createdSlice.Status.SliceConfig.ClusterSubnetCIDR).To(Equal("10.0.16.0/20"))
+
+			m := utils.GetCounterMetricFromRegistry(MetricRegistry, "kubeslice_slice_created_total")
+			Expect(m).To(ContainElement(1.0))
+
+			m = utils.GetCounterMetricFromRegistry(MetricRegistry, "kubeslice_slice_updated_total")
+			Expect(m).To(ContainElement(2.0))
 		})
 
 		It("Should Generate Events", func() {
@@ -147,6 +156,8 @@ var _ = Describe("Hub SliceController", func() {
 		var createdSlice *kubeslicev1beta1.Slice
 
 		BeforeEach(func() {
+			utils.ResetMetricRegistry(MetricRegistry)
+
 			hundred := 100
 			// Prepare k8s objects
 			hubSlice = &workerv1alpha1.WorkerSliceConfig{
@@ -186,6 +197,9 @@ var _ = Describe("Hub SliceController", func() {
 				err := k8sClient.Get(ctx, sliceKey, createdSlice)
 				return errors.IsNotFound(err)
 			}, time.Second*10, time.Millisecond*250).Should(BeTrue())
+
+			m := utils.GetCounterMetricFromRegistry(MetricRegistry, "kubeslice_slice_deleted_total")
+			Expect(m).To(ContainElement(1.0))
 
 		})
 	})

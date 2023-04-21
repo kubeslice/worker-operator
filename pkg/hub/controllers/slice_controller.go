@@ -25,14 +25,17 @@ import (
 
 	"github.com/go-logr/logr"
 	spokev1alpha1 "github.com/kubeslice/apis/pkg/worker/v1alpha1"
+	"github.com/kubeslice/kubeslice-monitoring/pkg/metrics"
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
 	"github.com/kubeslice/worker-operator/pkg/events"
 	"github.com/kubeslice/worker-operator/pkg/logger"
+	"github.com/prometheus/client_golang/prometheus"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/util/retry"
+	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -43,6 +46,23 @@ type component struct {
 	labels        map[string]string
 	ns            string
 	ignoreMissing bool
+}
+
+func NewSliceReconciler(mc client.Client, er *events.EventRecorder, mf metrics.MetricsFactory) *SliceReconciler {
+	return &SliceReconciler{
+		MeshClient:        mc,
+		EventRecorder:     er,
+		Log:               ctrl.Log.WithName("hub").WithName("controllers").WithName("SliceConfig"),
+		ReconcileInterval: 120 * time.Second,
+
+		counterSliceCreated: mf.NewCounter("slice_created_total", "Slice created in worker", []string{"slice"}),
+		counterSliceUpdated: mf.NewCounter("slice_updated_total", "Slice updated in worker", []string{"slice"}),
+		counterSliceDeleted: mf.NewCounter("slice_deleted_total", "Slice deleted in worker", []string{"slice"}),
+
+		counterSliceCreationFailed: mf.NewCounter("slice_creation_failed_total", "Slice creation failed in worker", []string{"slice"}),
+		counterSliceUpdationFailed: mf.NewCounter("slice_updation_failed_total", "Slice updation failed in worker", []string{"slice"}),
+		counterSliceDeletionFailed: mf.NewCounter("slice_deletion_failed_total", "Slice deletion failed in worker", []string{"slice"}),
+	}
 }
 
 var components = []component{
@@ -92,6 +112,13 @@ type SliceReconciler struct {
 	MeshClient        client.Client
 	EventRecorder     *events.EventRecorder
 	ReconcileInterval time.Duration
+
+	counterSliceCreated        *prometheus.CounterVec
+	counterSliceUpdated        *prometheus.CounterVec
+	counterSliceDeleted        *prometheus.CounterVec
+	counterSliceCreationFailed *prometheus.CounterVec
+	counterSliceUpdationFailed *prometheus.CounterVec
+	counterSliceDeletionFailed *prometheus.CounterVec
 }
 
 var sliceFinalizer = "controller.kubeslice.io/hubSpokeSlice-finalizer"
@@ -151,6 +178,7 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req reconcile.Request) 
 						Message:   "Error creating slice on spoke cluster , slice " + sliceName + " cluster " + clusterName,
 					},
 				)
+				r.counterSliceCreationFailed.WithLabelValues(s.Name).Add(1)
 				return reconcile.Result{}, err
 			}
 			log.Info("slice created in spoke cluster")
@@ -162,6 +190,7 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req reconcile.Request) 
 					Message:   "Created slice on spoke cluster , slice " + sliceName + " cluster " + clusterName,
 				},
 			)
+			r.counterSliceCreated.WithLabelValues(s.Name).Add(1)
 			err = r.updateSliceConfig(ctx, s, slice)
 			if err != nil {
 				log.Error(err, "unable to update slice status in spoke cluster", "slice", s)
@@ -171,11 +200,13 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req reconcile.Request) 
 
 			return reconcile.Result{RequeueAfter: r.ReconcileInterval}, nil
 		}
+		r.counterSliceUpdationFailed.WithLabelValues(slice.Name).Add(1)
 		return reconcile.Result{}, err
 	}
 
 	err = r.updateSliceConfig(ctx, meshSlice, slice)
 	if err != nil {
+		r.counterSliceUpdationFailed.WithLabelValues(slice.Name).Add(1)
 		log.Error(err, "unable to update slice status in spoke cluster", "slice", meshSlice)
 		return reconcile.Result{}, err
 	}
@@ -185,15 +216,18 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req reconcile.Request) 
 	err = r.updateSliceHealth(ctx, slice)
 	if err != nil {
 		log.Error(err, "unable to update slice health status in hub cluster", "workerSlice", slice)
+		r.counterSliceUpdationFailed.WithLabelValues(slice.Name).Add(1)
 		return reconcile.Result{}, err
 	}
 	slice.Status.SliceHealth.LastUpdated = metav1.Now()
 	if err := r.Status().Update(ctx, slice); err != nil {
 		log.Error(err, "unable to update slice CR")
+		r.counterSliceUpdationFailed.WithLabelValues(slice.Name).Add(1)
 		return reconcile.Result{}, err
 	} else {
 		log.Info("succesfully updated the slice CR ", "slice CR ", slice)
 	}
+	r.counterSliceUpdated.WithLabelValues(slice.Name).Add(1)
 	return reconcile.Result{RequeueAfter: r.ReconcileInterval}, nil
 }
 
@@ -301,6 +335,7 @@ func (r *SliceReconciler) handleSliceDeletion(slice *spokev1alpha1.WorkerSliceCo
 			if err := r.deleteSliceResourceOnSpoke(ctx, slice); err != nil {
 				// if fail to delete the external dependency here, return with error
 				// so that it can be retried
+				r.counterSliceDeletionFailed.WithLabelValues(slice.Name).Add(1)
 				return true, reconcile.Result{}, err
 			}
 			// remove our finalizer from the spokeslice and update it.
@@ -308,13 +343,16 @@ func (r *SliceReconciler) handleSliceDeletion(slice *spokev1alpha1.WorkerSliceCo
 			err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 				//fetch the latest spokeslice from hub
 				if err := r.Get(ctx, req.NamespacedName, slice); err != nil {
+					r.counterSliceDeletionFailed.WithLabelValues(slice.Name).Add(1)
 					return err
 				}
 				//remove the finalizer
 				controllerutil.RemoveFinalizer(slice, sliceFinalizer)
 				if err := r.Update(ctx, slice); err != nil {
+					r.counterSliceDeletionFailed.WithLabelValues(slice.Name).Add(1)
 					return err
 				}
+				r.counterSliceDeleted.WithLabelValues(slice.Name).Add(1)
 				return nil
 			})
 			if err != nil {
