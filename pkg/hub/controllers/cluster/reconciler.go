@@ -86,10 +86,12 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		log.Error(err, "unable to update cluster health status")
 	}
 
-	cr.Status.ClusterHealth.LastUpdated = metav1.Now()
-	if err := r.Status().Update(ctx, cr); err != nil {
-		log.Error(err, "unable to update cluster CR")
-		return reconcile.Result{}, err
+	if time.Since(cr.Status.ClusterHealth.LastUpdated.Time) > ReconcileInterval {
+		cr.Status.ClusterHealth.LastUpdated = metav1.Now()
+		if err := r.Status().Update(ctx, cr); err != nil {
+			log.Error(err, "unable to update cluster CR")
+			return reconcile.Result{}, err
+		}
 	}
 
 	return reconcile.Result{RequeueAfter: ReconcileInterval}, nil
