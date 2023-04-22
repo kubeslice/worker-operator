@@ -164,7 +164,7 @@ func main() {
 	})
 
 	mf, err := metrics.NewMetricsFactory(ctrlmetrics.Registry, metrics.MetricsFactoryOptions{
-		Project:             strings.TrimPrefix(hub.ProjectNamespace, "kubeslice_"),
+		Project:             strings.TrimPrefix(hub.ProjectNamespace, "kubeslice-"),
 		Cluster:             controllers.ClusterName,
 		ReportingController: "worker-operator",
 	})

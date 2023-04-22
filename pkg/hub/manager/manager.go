@@ -88,7 +88,7 @@ func Start(meshClient client.Client, ctx context.Context) {
 	mf, _ := metrics.NewMetricsFactory(
 		ctrlmetrics.Registry,
 		metrics.MetricsFactoryOptions{
-			Project:             strings.TrimPrefix(ProjectNamespace, "kubeslice_"),
+			Project:             strings.TrimPrefix(ProjectNamespace, "kubeslice-"),
 			Cluster:             ClusterName,
 			ReportingController: "worker-operator",
 		},
