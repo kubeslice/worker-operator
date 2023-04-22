@@ -684,10 +684,15 @@ func (r *SliceGwReconciler) ReconcileGwPodStatus(ctx context.Context, slicegatew
 		// Update tunnel metrics
 		for _, pod := range slicegateway.Status.GatewayPodStatus {
 			s := 1.0
-			if pod.TunnelStatus.Status == int32(gwsidecarpb.TunnelStatusType_GW_TUNNEL_STATE_DOWN) {
+			ts := pod.TunnelStatus
+			if ts.Status == int32(gwsidecarpb.TunnelStatusType_GW_TUNNEL_STATE_DOWN) {
 				s = 0.0
 			}
 			r.gaugeTunnelUp.WithLabelValues(slicegateway.Spec.SliceName, slicegateway.Name, pod.PodName).Set(s)
+			r.gaugeTunnelLatency.WithLabelValues(slicegateway.Spec.SliceName, slicegateway.Name, pod.PodName).Set(float64(ts.Latency))
+			r.gaugeTunnelTxRate.WithLabelValues(slicegateway.Spec.SliceName, slicegateway.Name, pod.PodName).Set(float64(ts.TxRate))
+			r.gaugeTunnelRxRate.WithLabelValues(slicegateway.Spec.SliceName, slicegateway.Name, pod.PodName).Set(float64(ts.RxRate))
+			r.gaugeTunnelPacketLoss.WithLabelValues(slicegateway.Spec.SliceName, slicegateway.Name, pod.PodName).Set(float64(ts.PacketLoss))
 		}
 
 		err := r.Status().Update(ctx, slicegateway)
