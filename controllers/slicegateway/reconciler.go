@@ -679,10 +679,10 @@ func (r *SliceGwReconciler) findObjectsForNsmUpdate() (*kubeslicev1beta1.SliceGa
 // Initializes metrics and sets up with manager
 func (r *SliceGwReconciler) Setup(mgr ctrl.Manager, mf metrics.MetricsFactory) error {
 	r.gaugeTunnelUp = mf.NewGauge("slicegateway_tunnel_up", "SliceGateway Tunnel up", []string{"slice", "slice_gateway", "slice_gateway_pod"})
-	r.gaugeTunnelLatency = mf.NewGauge("slicegateway_tunnel_latency", "SliceGateway Tunnel up", []string{"slice", "slice_gateway", "slice_gateway_pod"})
-	r.gaugeTunnelTxRate = mf.NewGauge("slicegateway_tunnel_txrate", "SliceGateway Tunnel up", []string{"slice", "slice_gateway", "slice_gateway_pod"})
-	r.gaugeTunnelRxRate = mf.NewGauge("slicegateway_tunnel_rxrate", "SliceGateway Tunnel up", []string{"slice", "slice_gateway", "slice_gateway_pod"})
-	r.gaugeTunnelPacketLoss = mf.NewGauge("slicegateway_tunnel_packetloss", "SliceGateway Tunnel up", []string{"slice", "slice_gateway", "slice_gateway_pod"})
+	r.gaugeTunnelLatency = mf.NewGauge("slicegateway_tunnel_latency", "SliceGateway Tunnel Latency", []string{"slice", "slice_gateway", "slice_gateway_pod"})
+	r.gaugeTunnelTxRate = mf.NewGauge("slicegateway_tunnel_txrate", "SliceGateway Tunnel TxRate", []string{"slice", "slice_gateway", "slice_gateway_pod"})
+	r.gaugeTunnelRxRate = mf.NewGauge("slicegateway_tunnel_rxrate", "SliceGateway Tunnel RxRate", []string{"slice", "slice_gateway", "slice_gateway_pod"})
+	r.gaugeTunnelPacketLoss = mf.NewGauge("slicegateway_tunnel_packetloss", "SliceGateway Tunnel Packet Loss rate", []string{"slice", "slice_gateway", "slice_gateway_pod"})
 
 	return r.SetupWithManager(mgr)
 }
