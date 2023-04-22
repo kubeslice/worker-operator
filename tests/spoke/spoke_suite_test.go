@@ -181,7 +181,7 @@ var _ = BeforeSuite(func() {
 		WorkerRouterClient:    workerClientRouterEmulator,
 		WorkerNetOpClient:     workerClientNetopEmulator,
 		NumberOfGateways:      2,
-	}).SetupWithManager(k8sManager)
+	}).Setup(k8sManager, mf)
 	Expect(err).ToNot(HaveOccurred())
 
 	err = (&serviceimport.Reconciler{
