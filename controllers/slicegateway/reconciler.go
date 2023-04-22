@@ -25,7 +25,9 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
+	"github.com/kubeslice/kubeslice-monitoring/pkg/metrics"
 	webhook "github.com/kubeslice/worker-operator/pkg/webhook/pod"
+	"github.com/prometheus/client_golang/prometheus"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -63,6 +65,8 @@ type SliceGwReconciler struct {
 	EventRecorder         *events.EventRecorder
 	NodeIPs               []string
 	NumberOfGateways      int
+
+	gaugeTunnelUp *prometheus.GaugeVec
 }
 
 // gwMap holds the mapping between gwPodName and NodePort number
@@ -665,6 +669,16 @@ func (r *SliceGwReconciler) findObjectsForNetopUpdate() (*kubeslicev1beta1.Slice
 
 func (r *SliceGwReconciler) findObjectsForNsmUpdate() (*kubeslicev1beta1.SliceGatewayList, error) {
 	return r.findAllSliceGwObjects()
+}
+
+// Setup SliceGwReconciler
+// Initializes metrics and sets up with manager
+func (r *SliceGwReconciler) Setup(mgr ctrl.Manager, mf metrics.MetricsFactory) error {
+	gaugeTunnelUp := mf.NewGauge("slicegateway_tunnel_up", "SliceGateway Tunnel up", []string{"slice", "slice_gateway"})
+
+	r.gaugeTunnelUp = gaugeTunnelUp
+
+	return r.SetupWithManager(mgr)
 }
 
 // SetupWithManager sets up the controller with the Manager.

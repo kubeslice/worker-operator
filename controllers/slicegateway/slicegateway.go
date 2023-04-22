@@ -680,6 +680,16 @@ func (r *SliceGwReconciler) ReconcileGwPodStatus(ctx context.Context, slicegatew
 		log.Info("gwPodsInfo", "gwPodsInfo", gwPodsInfo)
 		slicegateway.Status.GatewayPodStatus = gwPodsInfo
 		slicegateway.Status.ConnectionContextUpdatedOn = 0
+
+		// Update tunnel metrics
+		for _, pod := range slicegateway.Status.GatewayPodStatus {
+			s := 1.0
+			if pod.TunnelStatus.Status == int32(gwsidecarpb.TunnelStatusType_GW_TUNNEL_STATE_DOWN) {
+				s = 0.0
+			}
+			r.gaugeTunnelUp.WithLabelValues(slicegateway.Spec.SliceName, slicegateway.Name, pod.PodName).Set(s)
+		}
+
 		err := r.Status().Update(ctx, slicegateway)
 		if err != nil {
 			debugLog.Error(err, "error while update", "Failed to update SliceGateway status for gateway status")

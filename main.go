@@ -21,6 +21,7 @@ package main
 import (
 	"flag"
 	"os"
+	"strings"
 
 	"github.com/kubeslice/kubeslice-monitoring/pkg/metrics"
 	"github.com/kubeslice/worker-operator/controllers"
@@ -163,10 +164,9 @@ func main() {
 	})
 
 	mf, err := metrics.NewMetricsFactory(ctrlmetrics.Registry, metrics.MetricsFactoryOptions{
+		Project:             strings.TrimPrefix(hub.ProjectNamespace, "kubeslice_"),
 		Cluster:             controllers.ClusterName,
-		Project:             hub.ProjectNamespace,
 		ReportingController: "worker-operator",
-		Namespace:           controllers.ControlPlaneNamespace,
 	})
 	if err != nil {
 		setupLog.With("error", err).Error("unable to initializ metrics factory")
@@ -203,7 +203,7 @@ func main() {
 		WorkerNetOpClient:     workerNetOPClient,
 		EventRecorder:         sliceGwEventRecorder,
 		NumberOfGateways:      2,
-	}).SetupWithManager(mgr); err != nil {
+	}).Setup(mgr, mf); err != nil {
 		setupLog.With("error", err).Error("unable to create controller", "controller", "SliceGw")
 		os.Exit(1)
 	}
