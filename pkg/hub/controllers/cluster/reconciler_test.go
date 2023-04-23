@@ -7,7 +7,6 @@ import (
 
 	hubv1alpha1 "github.com/kubeslice/apis/pkg/controller/v1alpha1"
 	mevents "github.com/kubeslice/kubeslice-monitoring/pkg/events"
-	"github.com/kubeslice/kubeslice-monitoring/pkg/metrics"
 	"github.com/kubeslice/worker-operator/controllers"
 	ossEvents "github.com/kubeslice/worker-operator/events"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -15,7 +14,6 @@ import (
 	"k8s.io/client-go/kubernetes/scheme"
 	cl "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
-	ctrlmetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
@@ -85,20 +83,11 @@ func TestCheckFinalizerInClusterCr(t *testing.T) {
 				Component: "worker-operator",
 				Namespace: controllers.ControlPlaneNamespace,
 			})
-			mf, _ := metrics.NewMetricsFactory(
-				ctrlmetrics.Registry,
-				metrics.MetricsFactoryOptions{
-					Project:             "avesha",
-					Cluster:             tt.obj.GetName(),
-					ReportingController: "worker-operator",
-					Namespace:           controllers.ControlPlaneNamespace,
-				},
-			)
-			clusterReconciler := NewReconciler(
+			clusterReconciler := &Reconciler{
+				fakeClient,
 				fakeClient,
 				testClusterEventRecorder,
-				mf,
-			)
+			}
 			ctx := context.Background()
 			_, err := clusterReconciler.Reconcile(ctx, tt.req)
 			if err != nil {
