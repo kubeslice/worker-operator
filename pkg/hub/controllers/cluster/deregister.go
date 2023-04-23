@@ -22,6 +22,8 @@ var (
 	deregisterJobName          = "cluster-deregisteration-job"
 )
 
+// createDeregisterJob creates a job to uninstall worker-operator and notify controller
+// about registration status.
 func (r *Reconciler) createDeregisterJob(ctx context.Context, cluster *hubv1alpha1.Cluster) error {
 	log := logger.FromContext(ctx).WithName("cluster-deregister")
 	// Notify controller that the deregistration process of the cluster is in progress.
@@ -30,28 +32,27 @@ func (r *Reconciler) createDeregisterJob(ctx context.Context, cluster *hubv1alph
 		log.Error(err, "error updating status of deregistration on the controller")
 		return err
 	}
-	// Steps to follow:
-	// 1. Create a service account.
-	// 2. Define a cluster role.
-	// 3. Bind the service account with the cluster role.
-	// 4. Set up a configuration map which contains the script for the job.
-	// 5. Generate a job for deregistration with the configuration map mounted as a volume.
+	// Create a service account.
 	if err := r.MeshClient.Create(ctx, constructServiceAccount(), &client.CreateOptions{}); err != nil {
 		log.Error(err, "unable to create service account")
 		return err
 	}
+	// Create a cluster role.
 	if err := r.MeshClient.Create(ctx, constructClusterRole(), &client.CreateOptions{}); err != nil {
 		log.Error(err, "unable to create cluster role")
 		return err
 	}
+	// Bind the service account with the cluster role.
 	if err := r.MeshClient.Create(ctx, constructClusterRoleBinding(), &client.CreateOptions{}); err != nil {
 		log.Error(err, "unable to create cluster rolebinding")
 		return err
 	}
+	// Set up a configuration map which contains the script for the job.
 	if err := r.MeshClient.Create(ctx, constructConfigMap(), &client.CreateOptions{}); err != nil {
 		log.Error(err, "unable to create cluster configmap")
 		return err
 	}
+	// Generate a job for deregistration with the configuration map mounted as a volume.
 	if err := r.MeshClient.Create(ctx, constructJobForClusterDeregister(), &client.CreateOptions{}); err != nil {
 		log.Error(err, "unable to create job for cluster deregister")
 		return err
@@ -68,8 +69,7 @@ func (r *Reconciler) updateClusterDeregisterStatus(status string, ctx context.Co
 		if err != nil {
 			return err
 		}
-		// Todo: should be uncommented once the cluster CRD/Type has been updated on the controller side.
-		// cluster.Status.RegistrationStatus = status
+		cluster.Status.RegistrationStatus = status
 		return r.Status().Update(ctx, cluster)
 	})
 	if err != nil {
@@ -89,35 +89,43 @@ func constructServiceAccount() *corev1.ServiceAccount {
 }
 
 func constructClusterRole() *rbacv1.ClusterRole {
-	// Todo: work on policies
 	clusterRole := &rbacv1.ClusterRole{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      clusterRoleName,
-			Namespace: ControlPlaneNamespace,
-		},
+		TypeMeta:   metav1.TypeMeta{},
+		ObjectMeta: metav1.ObjectMeta{Name: clusterRoleName, Namespace: ControlPlaneNamespace},
 		Rules: []rbacv1.PolicyRule{
 			{
-				APIGroups: []string{
-					"",
-					"batch",
-					"extensions",
-					"apps",
-					"rbac.authorization.k8s.io",
-					"admissionregistration.k8s.io",
-					"scheduling.k8s.io",
-					"spiffeid.spiffe.io",
-				},
+				APIGroups: []string{"apps"},
+				Resources: []string{"deployments", "daemonsets", "statefulsets", "replicasets"},
+				Verbs:     []string{"get", "list", "patch", "update", "create", "delete"},
+			},
+			{
+				APIGroups: []string{""},
+				Resources: []string{"endpoints", "pods", "secrets", "services", "configmaps", "serviceaccounts", "namespaces"},
+				Verbs:     []string{"delete", "list", "create", "get", "patch", "update"},
+			},
+			{
+				APIGroups: []string{"rbac.authorization.k8s.io"},
+				Resources: []string{"roles", "rolebindings", "clusterroles", "clusterrolebindings"},
+				Verbs:     []string{"get", "list", "patch", "update", "create", "delete"},
+			},
+			{
+				APIGroups: []string{"batch", "admissionregistration.k8s.io", "apiextensions.k8s.io", "scheduling.k8s.io"},
 				Resources: []string{"*"},
-				Verbs: []string{
-					"get",
-					"list",
-					"patch",
-					"update",
-					"delete",
-				},
+				Verbs:     []string{"get", "list", "delete", "create", "watch"},
+			},
+			{
+				APIGroups: []string{"spiffeid.spiffe.io"},
+				Resources: []string{"spiffeids"},
+				Verbs:     []string{"create", "delete", "get", "list", "patch", "update", "watch"},
+			},
+			{
+				APIGroups: []string{"spiffeid.spiffe.io"},
+				Resources: []string{"spiffeids/status"},
+				Verbs:     []string{"get", "patch", "update"},
 			},
 		},
 	}
+
 	return clusterRole
 }
 
@@ -159,7 +167,7 @@ func constructConfigMap() *corev1.ConfigMap {
 	
 			removeFinalizer() {
 			  kubectl get -o yaml clusters.controller.kubeslice.io $CLUSTER_NAME -n $PROJECT_NAMESPACE --token $TOKEN  --certificate-authority /ca.crt --server $HUB_ENDPOINT > ./cluster.yaml
-			  sed -i '/finalizers:/,/^[^ ]/ s/ *- worker.kubeslice.io\/deregister-finalizer//' cluster.yaml
+			  sed -i '/finalizers:/,/^[^ ]/ s/ *- networking.kubeslice.io\/cluster-deregister-finalizer//' cluster.yaml
 			  kubectl patch clusters.controller.kubeslice.io $CLUSTER_NAME -n $PROJECT_NAMESPACE --type=merge  --patch-file cluster.yaml --token $TOKEN  --certificate-authority /ca.crt --server $HUB_ENDPOINT
 			}
 	
@@ -185,7 +193,6 @@ func constructConfigMap() *corev1.ConfigMap {
 			echo workerRelease $workerRelease
 			if helm uninstall $workerRelease --namespace kubeslice-system
 			then
-				# updateControllerClusterStatus "DeregisterSuccess"
 				removeFinalizer
 				# delete crds
 				deleteKubeSliceCRDs
@@ -214,7 +221,6 @@ func constructConfigMap() *corev1.ConfigMap {
 						kubectl delete $item --ignore-not-found -n $ns
 					  done
 					done
-					updateControllerClusterStatus "DeregisterSuccess"
 					removeFinalizer
 					# delete crds
 					deleteKubeSliceCRDs
