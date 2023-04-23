@@ -60,7 +60,7 @@ func NewReconciler(mc client.Client, er events.EventRecorder, mf metrics.Metrics
 	}
 }
 
-var clusterFinalizer = "controller.kubeslice.io/deregister-finalizer"
+var clusterDeregisterFinalizer = "networking.kubeslice.io/cluster-deregister-finalizer"
 
 func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
 	log := logger.FromContext(ctx).WithName("cluster-reconciler")
@@ -462,21 +462,6 @@ func (r *Reconciler) getCluster(ctx context.Context, req reconcile.Request) (*hu
 	return hubCluster, nil
 }
 
-func (r *Reconciler) checkFinalizer(ctx context.Context, cluster *hubv1alpha1.Cluster) bool {
-	log := logger.FromContext(ctx)
-	if cluster.ObjectMeta.DeletionTimestamp.IsZero() {
-		// The object is not being deleted, returning...
-		return false
-	} else {
-		// The object is being deleted
-		if controllerutil.ContainsFinalizer(cluster, clusterFinalizer) {
-			log.Info("cluster finalzer detected", "cluster", cluster.Name)
-			return true
-		}
-	}
-	return false
-}
-
 func (r *Reconciler) InjectClient(c client.Client) error {
 	r.Client = c
 	return nil
@@ -489,15 +474,15 @@ func (r *Reconciler) handleClusterDeletion(cluster *hubv1alpha1.Cluster, ctx con
 		// The object is not being deleted, so if it does not have our finalizer,
 		// then lets add the finalizer and update the object. This is equivalent
 		// registering our finalizer.
-		if !controllerutil.ContainsFinalizer(cluster, clusterFinalizer) {
-			controllerutil.AddFinalizer(cluster, clusterFinalizer)
+		if !controllerutil.ContainsFinalizer(cluster, clusterDeregisterFinalizer) {
+			controllerutil.AddFinalizer(cluster, clusterDeregisterFinalizer)
 			if err := r.Update(ctx, cluster); err != nil {
 				return true, reconcile.Result{}, err
 			}
 		}
 	} else {
 		// The object is being deleted
-		if controllerutil.ContainsFinalizer(cluster, clusterFinalizer) {
+		if controllerutil.ContainsFinalizer(cluster, clusterDeregisterFinalizer) {
 			// our finalizer is present, so lets handle any external dependency
 			if err := r.createDeregisterJob(ctx, cluster); err != nil {
 				// unable to deregister the worker operator, return with an error and notify the controller's status.
