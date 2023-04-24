@@ -41,11 +41,13 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	hubv1alpha1 "github.com/kubeslice/apis/pkg/controller/v1alpha1"
+	mevents "github.com/kubeslice/kubeslice-monitoring/pkg/events"
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
 	"github.com/kubeslice/worker-operator/controllers/serviceexport"
 	"github.com/kubeslice/worker-operator/controllers/serviceimport"
 	"github.com/kubeslice/worker-operator/controllers/slice"
 	"github.com/kubeslice/worker-operator/controllers/slicegateway"
+	ossEvents "github.com/kubeslice/worker-operator/events"
 	"github.com/kubeslice/worker-operator/pkg/cluster"
 	"github.com/kubeslice/worker-operator/pkg/events"
 	hub "github.com/kubeslice/worker-operator/pkg/hub/hubclient"
@@ -149,9 +151,12 @@ var _ = BeforeSuite(func() {
 		Client: k8sManager.GetClient(),
 		Scheme: k8sManager.GetScheme(),
 		Log:    ctrl.Log.WithName("SliceTest"),
-		EventRecorder: &events.EventRecorder{
-			Recorder: &record.FakeRecorder{},
-		},
+		EventRecorder: mevents.NewEventRecorder(k8sClient, k8sManager.GetScheme(), ossEvents.EventsMap, mevents.EventRecorderOptions{
+			Cluster:   hub.ClusterName,
+			Project:   PROJECT_NS,
+			Component: "worker-operator",
+			Namespace: CONTROL_PLANE_NS,
+		}),
 		HubClient:          hubClientEmulator,
 		WorkerRouterClient: workerClientRouterEmulator,
 		WorkerNetOpClient:  workerClientNetopEmulator,
@@ -207,7 +212,12 @@ var _ = BeforeSuite(func() {
 	}).SetupWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())
 
-	netpolEventRecorder := events.NewEventRecorder(k8sManager.GetEventRecorderFor("networkpolicy-controller"))
+	netpolEventRecorder := mevents.NewEventRecorder(k8sClient, k8sManager.GetScheme(), ossEvents.EventsMap, mevents.EventRecorderOptions{
+		Cluster:   hub.ClusterName,
+		Project:   PROJECT_NS,
+		Component: "networkpolicy-reconciler",
+		Namespace: CONTROL_PLANE_NS,
+	})
 	err = (&networkpolicy.NetpolReconciler{
 		Client:        k8sManager.GetClient(),
 		Log:           ctrl.Log.WithName("controllers").WithName("networkpolicy"),

@@ -142,10 +142,15 @@ var _ = BeforeSuite(func() {
 		},
 	)
 
-	testSliceEventRecorder := events.NewEventRecorder(k8sManager.GetEventRecorderFor("test-slice-controller"))
+	testSliceEventRecorder := mevents.NewEventRecorder(k8sClient, k8sManager.GetScheme(), ossEvents.EventsMap, mevents.EventRecorderOptions{
+		Cluster:   CLUSTER_NAME,
+		Project:   PROJECT_NS,
+		Component: "test-slice-controller",
+		Namespace: CONTROL_PLANE_NS,
+	})
 	sr := controllers.NewSliceReconciler(
 		k8sClient,
-		testSliceEventRecorder,
+		&testSliceEventRecorder,
 		mf,
 	)
 

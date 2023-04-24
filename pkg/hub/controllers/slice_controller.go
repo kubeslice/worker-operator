@@ -25,9 +25,11 @@ import (
 
 	"github.com/go-logr/logr"
 	spokev1alpha1 "github.com/kubeslice/apis/pkg/worker/v1alpha1"
+	"github.com/kubeslice/kubeslice-monitoring/pkg/events"
 	"github.com/kubeslice/kubeslice-monitoring/pkg/metrics"
+	ossEvents "github.com/kubeslice/worker-operator/events"
+
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
-	"github.com/kubeslice/worker-operator/pkg/events"
 	"github.com/kubeslice/worker-operator/pkg/logger"
 	"github.com/prometheus/client_golang/prometheus"
 	appsv1 "k8s.io/api/apps/v1"
@@ -51,7 +53,7 @@ type component struct {
 func NewSliceReconciler(mc client.Client, er *events.EventRecorder, mf metrics.MetricsFactory) *SliceReconciler {
 	return &SliceReconciler{
 		MeshClient:        mc,
-		EventRecorder:     er,
+		EventRecorder:     *er,
 		Log:               ctrl.Log.WithName("hub").WithName("controllers").WithName("SliceConfig"),
 		ReconcileInterval: 120 * time.Second,
 
@@ -110,7 +112,7 @@ type SliceReconciler struct {
 	client.Client
 	Log               logr.Logger
 	MeshClient        client.Client
-	EventRecorder     *events.EventRecorder
+	EventRecorder     events.EventRecorder
 	ReconcileInterval time.Duration
 
 	counterSliceCreated        *prometheus.CounterVec
@@ -170,34 +172,32 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req reconcile.Request) 
 			err = r.MeshClient.Create(ctx, s)
 			if err != nil {
 				log.Error(err, "unable to create slice in spoke cluster", "slice", s)
-				r.EventRecorder.Record(
-					&events.Event{
-						Object:    slice,
-						EventType: events.EventTypeWarning,
-						Reason:    "Error",
-						Message:   "Error creating slice on spoke cluster , slice " + sliceName + " cluster " + clusterName,
-					},
-				)
+				r.EventRecorder.RecordEvent(ctx, &events.Event{
+					Object:            slice,
+					Name:              ossEvents.EventSliceCreationFailed,
+					ReportingInstance: "workerslice_controller",
+				})
 				r.counterSliceCreationFailed.WithLabelValues(s.Name).Add(1)
 				return reconcile.Result{}, err
 			}
 			log.Info("slice created in spoke cluster")
-			r.EventRecorder.Record(
-				&events.Event{
-					Object:    slice,
-					EventType: events.EventTypeNormal,
-					Reason:    "Created",
-					Message:   "Created slice on spoke cluster , slice " + sliceName + " cluster " + clusterName,
-				},
-			)
 			r.counterSliceCreated.WithLabelValues(s.Name).Add(1)
+			r.EventRecorder.RecordEvent(ctx, &events.Event{
+				Object:            slice,
+				Name:              ossEvents.EventSliceCreated,
+				ReportingInstance: "workerslice_controller",
+			})
 			err = r.updateSliceConfig(ctx, s, slice)
 			if err != nil {
 				log.Error(err, "unable to update slice status in spoke cluster", "slice", s)
 				return reconcile.Result{}, err
 			}
 			log.Info("slice status updated in spoke cluster")
-
+			r.EventRecorder.RecordEvent(ctx, &events.Event{
+				Object:            slice,
+				Name:              ossEvents.EventWorkerSliceConfigUpdated,
+				ReportingInstance: "workerslice_controller",
+			})
 			return reconcile.Result{RequeueAfter: r.ReconcileInterval}, nil
 		}
 		r.counterSliceUpdationFailed.WithLabelValues(slice.Name).Add(1)

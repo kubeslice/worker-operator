@@ -664,10 +664,10 @@ var _ = Describe("SliceNetpol", func() {
 					client.InNamespace(slice.Namespace),
 				}
 				err = k8sClient.List(ctx, &eventList, opts...)
-				return len(eventList.Items) > 1
+				return len(eventList.Items) > 1 && eventFound(eventList, "Slice", "Scope widened with reason - IPBlock violation")
 			}, timeout, interval).Should(BeTrue())
-			Expect(eventList.Items[1].InvolvedObject.Kind).Should(Equal("Slice"))
-			Expect(eventList.Items[1].Reason).Should(Equal("Scope widened with reason - IPBlock violation"))
+			// Expect(eventFound(eventList, "Slice", "Scope widened with reason - IPBlock violation")).Should(BeTrue())
+
 		})
 		It("Should uninstall netpol when isolationEnabled is toggled off", func() {
 			Expect(k8sClient.Create(ctx, svc)).Should(Succeed())
@@ -852,10 +852,7 @@ var _ = Describe("SliceNetpol", func() {
 					return false
 				}
 				_, ok = createdPod.ObjectMeta.Annotations["ns.networkservicemesh.io"]
-				if ok {
-					return false
-				}
-				return true
+				return !ok
 			}, timeout, interval).Should(BeTrue())
 		})
 	})
@@ -873,9 +870,9 @@ func getNetpol() *networkingv1.NetworkPolicy {
 				networkingv1.PolicyTypeIngress,
 			},
 			Ingress: []networkingv1.NetworkPolicyIngressRule{
-				networkingv1.NetworkPolicyIngressRule{
+				{
 					From: []networkingv1.NetworkPolicyPeer{
-						networkingv1.NetworkPolicyPeer{
+						{
 							IPBlock: &networkingv1.IPBlock{
 								CIDR: "172.17.0.0/16",
 							},
@@ -966,4 +963,15 @@ func exists(i []string, o string) bool {
 		}
 	}
 	return false
+}
+
+func eventFound(events corev1.EventList, kind, reason string) bool {
+	objectFound := false
+	for _, event := range events.Items {
+		GinkgoWriter.Println("Gourish event reason is ", event.Reason)
+		if event.InvolvedObject.Kind == kind && event.Reason == reason {
+			objectFound = true
+		}
+	}
+	return objectFound
 }

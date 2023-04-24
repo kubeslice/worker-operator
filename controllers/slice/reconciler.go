@@ -34,10 +34,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
+	"github.com/kubeslice/kubeslice-monitoring/pkg/events"
 	"github.com/kubeslice/kubeslice-monitoring/pkg/metrics"
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
 	"github.com/kubeslice/worker-operator/controllers"
-	"github.com/kubeslice/worker-operator/pkg/events"
+	ossEvents "github.com/kubeslice/worker-operator/events"
+
 	"github.com/kubeslice/worker-operator/pkg/logger"
 	"github.com/kubeslice/worker-operator/pkg/manifest"
 	"github.com/prometheus/client_golang/prometheus"
@@ -49,7 +51,8 @@ var sliceFinalizer = "networking.kubeslice.io/slice-finalizer"
 // SliceReconciler reconciles a Slice object
 type SliceReconciler struct {
 	client.Client
-	EventRecorder      *events.EventRecorder
+	// EventRecorder      *events.EventRecorder
+	EventRecorder      events.EventRecorder
 	Scheme             *runtime.Scheme
 	Log                logr.Logger
 	NetOpPods          []NetOpPod
@@ -159,15 +162,14 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 	err = r.SyncSliceQosProfileWithNetOp(ctx, slice)
 	if err != nil {
 		log.Error(err, "Failed to sync QoS profile with netop pods")
-		//post event to slice
-		r.EventRecorder.Record(
-			&events.Event{
-				Object:    slice,
-				EventType: events.EventTypeWarning,
-				Reason:    "Error",
-				Message:   "Failed to sync QoS profile with netop pods",
-			},
-		)
+		err := r.EventRecorder.RecordEvent(ctx, &events.Event{
+			Object:            slice,
+			Name:              ossEvents.EventSliceQoSProfileWithNetOpsSync,
+			ReportingInstance: "slice_reconciler",
+		})
+		if err != nil {
+			log.Error(err, "unable to update slice QoS profile with netop pods sync failure event")
+		}
 	}
 
 	log.Info("ExternalGatewayConfig", "egw", slice.Status.SliceConfig)
@@ -177,15 +179,14 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 		err = manifest.InstallEgress(ctx, r.Client, slice)
 		if err != nil {
 			log.Error(err, "unable to install egress")
-			//post event to slice
-			r.EventRecorder.Record(
-				&events.Event{
-					Object:    slice,
-					EventType: events.EventTypeWarning,
-					Reason:    "Error",
-					Message:   "Failed to install egress",
-				},
-			)
+			err := r.EventRecorder.RecordEvent(ctx, &events.Event{
+				Object:            slice,
+				Name:              ossEvents.EventSliceEgressInstallFailed,
+				ReportingInstance: "slice_reconciler",
+			})
+			if err != nil {
+				log.Error(err, "unable to update egress install failure event")
+			}
 			return ctrl.Result{}, nil
 		}
 	}
@@ -195,15 +196,14 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 		err = manifest.InstallIngress(ctx, r.Client, slice)
 		if err != nil {
 			log.Error(err, "unable to install ingress")
-			//post event to slice
-			r.EventRecorder.Record(
-				&events.Event{
-					Object:    slice,
-					EventType: events.EventTypeWarning,
-					Reason:    "Error",
-					Message:   "Failed to install ingress",
-				},
-			)
+			err := r.EventRecorder.RecordEvent(ctx, &events.Event{
+				Object:            slice,
+				Name:              ossEvents.EventSliceIngressInstallFailed,
+				ReportingInstance: "slice_reconciler",
+			})
+			if err != nil {
+				log.Error(err, "unable to update slice ingress install failure event")
+			}
 			return ctrl.Result{}, nil
 		}
 	}
@@ -241,15 +241,14 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 		sliceConfigName := slice.Name + "-" + controllers.ClusterName
 		if err = r.HubClient.UpdateAppPodsList(ctx, sliceConfigName, slice.Status.AppPods); err != nil {
 			log.Error(err, "Failed to update app pod list in hub")
-			//post event to slice
-			r.EventRecorder.Record(
-				&events.Event{
-					Object:    slice,
-					EventType: events.EventTypeWarning,
-					Reason:    "Error",
-					Message:   "Failed to update app pod list in kubeslice-controller cluster",
-				},
-			)
+			err := r.EventRecorder.RecordEvent(ctx, &events.Event{
+				Object:            slice,
+				Name:              ossEvents.EventSliceAppPodsListUpdateFailed,
+				ReportingInstance: "slice_reconciler",
+			})
+			if err != nil {
+				log.Error(err, "unable to update app pods list update failure event")
+			}
 			return ctrl.Result{}, err
 		}
 
@@ -332,7 +331,23 @@ func (r *SliceReconciler) handleDnsSvc(ctx context.Context, slice *kubeslicev1be
 			slice.Status.DNSIP = svc.Spec.ClusterIP
 			err := r.Status().Update(ctx, slice)
 			if err != nil {
+				err1 := r.EventRecorder.RecordEvent(ctx, &events.Event{
+					Object:            slice,
+					Name:              ossEvents.EventSliceUpdateFailed,
+					ReportingInstance: "slice_reconciler",
+				})
+				if err1 != nil {
+					log.Error(err, "unable to raise event for slice update failure")
+				}
 				return err
+			}
+			err = r.EventRecorder.RecordEvent(ctx, &events.Event{
+				Object:            slice,
+				Name:              ossEvents.EventSliceUpdated,
+				ReportingInstance: "slice_reconciler",
+			})
+			if err != nil {
+				log.Error(err, "unable to raise event for slice update")
 			}
 			return nil
 		})
@@ -371,12 +386,23 @@ func (r *SliceReconciler) handleSliceDeletion(slice *kubeslicev1beta1.Slice, ctx
 			}
 			if err := r.cleanupSliceResources(ctx, slice); err != nil {
 				log.Error(err, "error while deleting slice")
+				if err := r.EventRecorder.RecordEvent(ctx, &events.Event{Object: slice, Name: ossEvents.EventSliceDeletionFailed, ReportingInstance: "slice_reconciler"}); err != nil {
+					log.Error(err, "unable to update slice delete failure event")
+				}
 				return true, ctrl.Result{}, err
 			}
 			controllerutil.RemoveFinalizer(slice, sliceFinalizer)
 			if err := r.Update(ctx, slice); err != nil {
 				return true, ctrl.Result{}, err
 			}
+		}
+		err := r.EventRecorder.RecordEvent(ctx, &events.Event{
+			Object:            slice,
+			Name:              ossEvents.EventSliceDeleted,
+			ReportingInstance: "slice_reconciler",
+		})
+		if err != nil {
+			log.Error(err, "unable to update slice delete event")
 		}
 		return true, ctrl.Result{}, nil
 	}

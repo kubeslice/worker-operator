@@ -95,11 +95,16 @@ func Start(meshClient client.Client, ctx context.Context) {
 	)
 
 	// create slice-controller recorder
-	spokeSliceEventRecorder := events.NewEventRecorder(mgr.GetEventRecorderFor("spokeSlice-controller"))
+	spokeSliceEventRecorder := mevents.NewEventRecorder(meshClient, mgr.GetScheme(), ossEvents.EventsMap, mevents.EventRecorderOptions{
+		Cluster:   ClusterName,
+		Project:   ProjectNamespace,
+		Component: "spokeSlice-controller",
+		Namespace: controllers.ControlPlaneNamespace,
+	})
 
 	sliceReconciler := controllers.NewSliceReconciler(
 		meshClient,
-		spokeSliceEventRecorder,
+		&spokeSliceEventRecorder,
 		mf,
 	)
 	err = builder.

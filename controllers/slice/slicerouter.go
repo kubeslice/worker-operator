@@ -21,9 +21,11 @@ package slice
 import (
 	"context"
 	"fmt"
-	"github.com/kubeslice/worker-operator/pkg/events"
 	"os"
 	"time"
+
+	"github.com/kubeslice/kubeslice-monitoring/pkg/events"
+	ossEvents "github.com/kubeslice/worker-operator/events"
 
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
 	nsmv1 "github.com/networkservicemesh/sdk-k8s/pkg/tools/k8s/apis/networkservicemesh.io/v1"
@@ -349,13 +351,10 @@ func (r *SliceReconciler) deploySliceRouter(ctx context.Context, slice *kubeslic
 	err = r.Create(ctx, dep)
 	if err != nil {
 		log.Error(err, "Failed to create deployment for slice router")
-		r.EventRecorder.Record(
-			&events.Event{
-				Object:    slice,
-				EventType: events.EventTypeWarning,
-				Reason:    "Error",
-				Message:   "Error creating slice router",
-			},
+		r.EventRecorder.RecordEvent(ctx, &events.Event{
+			Object: slice,
+			Name:   ossEvents.EventSliceRouterDeploymentFailed,
+		},
 		)
 		return err
 	}
@@ -389,12 +388,10 @@ func (r *SliceReconciler) deploySliceRouterSvc(ctx context.Context, slice *kubes
 	err := r.Create(ctx, svc)
 	if err != nil {
 		log.Error(err, "Failed to create svc for slice router")
-		r.EventRecorder.Record(
+		r.EventRecorder.RecordEvent(ctx,
 			&events.Event{
-				Object:    slice,
-				EventType: events.EventTypeWarning,
-				Reason:    "Error",
-				Message:   "Error creating service for slice router",
+				Object: slice,
+				Name:   ossEvents.EventSliceRouterServiceFailed,
 			},
 		)
 		return err

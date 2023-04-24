@@ -26,10 +26,11 @@ import (
 	"strings"
 
 	"github.com/go-logr/logr"
+	"github.com/kubeslice/kubeslice-monitoring/pkg/events"
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
 	"github.com/kubeslice/worker-operator/controllers"
 	slicepkg "github.com/kubeslice/worker-operator/controllers/slice"
-	"github.com/kubeslice/worker-operator/pkg/events"
+	ossEvents "github.com/kubeslice/worker-operator/events"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -42,7 +43,7 @@ import (
 // SliceReconciler reconciles a Slice object
 type NetpolReconciler struct {
 	client.Client
-	EventRecorder   *events.EventRecorder
+	EventRecorder   events.EventRecorder
 	Scheme          *runtime.Scheme
 	Log             logr.Logger
 	privateIPBlocks []*net.IPNet
@@ -137,12 +138,11 @@ func (r *NetpolReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 
 	//extra network policy being added , compare and raise an event
 	clusterName := os.Getenv("CLUSTER_NAME")
-	r.EventRecorder.Record(
+	r.EventRecorder.RecordEvent(ctx,
 		&events.Event{
-			Object:    slice,
-			EventType: events.EventTypeWarning,
-			Reason:    "Added",
-			Message:   fmt.Sprintf("added network policy(%s) in slice(%s/%s) of cluster(%s)", netpol.Name, slice.Namespace, slice.Name, clusterName),
+			Object:            slice,
+			Name:              ossEvents.EventNetPolAdded,
+			ReportingInstance: "netpolreconciler",
 		},
 	)
 	log.Info(fmt.Sprintf("added network policy(%s) in slice(%s/%s) of cluster(%s)", netpol.Name, netpol.Namespace, slice.Name, clusterName))
@@ -182,12 +182,11 @@ func (c *NetpolReconciler) Compare(np *networkingv1.NetworkPolicy, slice *kubesl
 						if !Contains(&ApplicationNamespaces, item.Name) && !Contains(&AllowedNamespaces, item.Name) {
 							clusterName := os.Getenv("CLUSTER_NAME")
 							// Record net pol modified event
-							c.EventRecorder.Record(
+							c.EventRecorder.RecordEvent(context.Background(),
 								&events.Event{
-									Object:    slice,
-									EventType: events.EventTypeWarning,
-									Reason:    "Scope widened with reason - namespace violation",
-									Message:   fmt.Sprintf("widened scope with network policy(%s) in slice(%s/%s) of cluster(%s)", np.Name, slice.Namespace, slice.Name, clusterName),
+									Object:            slice,
+									Name:              ossEvents.EventNetPolScopeWidenedNamespace,
+									ReportingInstance: "netpolreconciler",
 								},
 							)
 							c.Log.Info(fmt.Sprintf("widened scope with network policy(%s) in slice(%s/%s) of cluster(%s)",
@@ -206,12 +205,11 @@ func (c *NetpolReconciler) Compare(np *networkingv1.NetworkPolicy, slice *kubesl
 						clusterName := os.Getenv("CLUSTER_NAME")
 						// Record net pol modified event
 
-						c.EventRecorder.Record(
+						c.EventRecorder.RecordEvent(context.Background(),
 							&events.Event{
-								Object:    slice,
-								EventType: events.EventTypeWarning,
-								Reason:    "Scope widened with reason - IPBlock violation",
-								Message:   fmt.Sprintf("widened scope with network policy(%s) in slice(%s/%s) of cluster(%s)", np.Name, slice.Namespace, slice.Name, clusterName),
+								Object:            slice,
+								Name:              ossEvents.EventNetPolScopeWidenedIPBlock,
+								ReportingInstance: "netpolreconciler",
 							},
 						)
 

@@ -54,11 +54,13 @@ import (
 	ocprom "contrib.go.opencensus.io/exporter/prometheus"
 	ctrlmetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
 
+	monitoringEvents "github.com/kubeslice/kubeslice-monitoring/pkg/events"
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
 	"github.com/kubeslice/worker-operator/controllers/serviceexport"
 	"github.com/kubeslice/worker-operator/controllers/serviceimport"
 	"github.com/kubeslice/worker-operator/controllers/slice"
 	"github.com/kubeslice/worker-operator/controllers/slicegateway"
+	ossEvents "github.com/kubeslice/worker-operator/events"
 	hub "github.com/kubeslice/worker-operator/pkg/hub/hubclient"
 	"github.com/kubeslice/worker-operator/pkg/hub/manager"
 	"github.com/kubeslice/worker-operator/pkg/logger"
@@ -173,7 +175,12 @@ func main() {
 		os.Exit(1)
 	}
 
-	sliceEventRecorder := events.NewEventRecorder(mgr.GetEventRecorderFor("slice-controller"))
+	sliceEventRecorder := monitoringEvents.NewEventRecorder(mgr.GetClient(), scheme, ossEvents.EventsMap, monitoringEvents.EventRecorderOptions{
+		Cluster:   controllers.ClusterName,
+		Project:   hub.ProjectNamespace,
+		Component: "worker-operator",
+		Namespace: controllers.ControlPlaneNamespace,
+	})
 	if err = (&slice.SliceReconciler{
 		Client:             mgr.GetClient(),
 		Log:                ctrl.Log.WithName("controllers").WithName("Slice"),
@@ -242,7 +249,12 @@ func main() {
 		setupLog.With("error", err, "controller", "namespace").Error("unable to create controller")
 		os.Exit(1)
 	}
-	netpolEventRecorder := events.NewEventRecorder(mgr.GetEventRecorderFor("networkpolicy-controller"))
+	netpolEventRecorder := monitoringEvents.NewEventRecorder(mgr.GetClient(), mgr.GetScheme(), ossEvents.EventsMap, monitoringEvents.EventRecorderOptions{
+		Cluster:   controllers.ClusterName,
+		Project:   hub.ProjectNamespace,
+		Component: "networkpolicy-controller",
+		Namespace: controllers.ControlPlaneNamespace,
+	})
 	if err = (&networkpolicy.NetpolReconciler{
 		Client:        mgr.GetClient(),
 		Log:           ctrl.Log.WithName("controllers").WithName("networkpolicy"),

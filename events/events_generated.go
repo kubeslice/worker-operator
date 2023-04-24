@@ -62,12 +62,372 @@ var EventsMap = map[events.EventName]*events.EventSchema{
 		ReportingController: "worker",
 		Message:             "Auto-detection of cluster node IP addresses failed",
 	},
+	"SliceCreated": {
+		Name:                "SliceCreated",
+		Reason:              "SliceCreated",
+		Action:              "CreateSlice",
+		Type:                events.EventTypeNormal,
+		ReportingController: "worker",
+		Message:             "Slice created successfully",
+	},
+	"SliceDeleted": {
+		Name:                "SliceDeleted",
+		Reason:              "SliceDeleted",
+		Action:              "DeleteSlice",
+		Type:                events.EventTypeNormal,
+		ReportingController: "worker",
+		Message:             "Slice delted successfully",
+	},
+	"SliceUpdated": {
+		Name:                "SliceUpdated",
+		Reason:              "SliceUpdated",
+		Action:              "UpdateSlice",
+		Type:                events.EventTypeNormal,
+		ReportingController: "worker",
+		Message:             "Slice updated successfully",
+	},
+	"SliceCreationFailed": {
+		Name:                "SliceCreationFailed",
+		Reason:              "SliceCreationFailed",
+		Action:              "CreateSlice",
+		Type:                events.EventTypeWarning,
+		ReportingController: "worker",
+		Message:             "Slice creation failed, please check the slice configuration.",
+	},
+	"SliceDeletionFailed": {
+		Name:                "SliceDeletionFailed",
+		Reason:              "SliceDeletionFailed",
+		Action:              "DeleteSlice",
+		Type:                events.EventTypeWarning,
+		ReportingController: "worker",
+		Message:             "Slice deletion failed, please check the slice status",
+	},
+	"SliceUpdateFailed": {
+		Name:                "SliceUpdateFailed",
+		Reason:              "SliceUpdateFailed",
+		Action:              "UpdateSlice",
+		Type:                events.EventTypeWarning,
+		ReportingController: "worker",
+		Message:             "Slice update failed",
+	},
+	"SliceQoSProfileWithNetOpsSync": {
+		Name:                "SliceQoSProfileWithNetOpsSync",
+		Reason:              "SliceQoSProfileWithNetOpsSyncFailed",
+		Action:              "ReconcileSlice",
+		Type:                events.EventTypeWarning,
+		ReportingController: "worker",
+		Message:             "Slice QoS Sync with NetOp failed - please ask admin to check the Slice QoS Profile",
+	},
+	"SliceIngressInstallFailed": {
+		Name:                "SliceIngressInstallFailed",
+		Reason:              "SliceIngressInstallFailed",
+		Action:              "ReconcileSlice",
+		Type:                events.EventTypeWarning,
+		ReportingController: "worker",
+		Message:             "slice ingress installation failed",
+	},
+	"SliceEgressInstallFailed": {
+		Name:                "SliceEgressInstallFailed",
+		Reason:              "SliceEgressInstallFailed",
+		Action:              "ReconcileSlice",
+		Type:                events.EventTypeWarning,
+		ReportingController: "worker",
+		Message:             "slice egress installation failed",
+	},
+	"SliceAppPodsListUpdateFailed": {
+		Name:                "SliceAppPodsListUpdateFailed",
+		Reason:              "SliceAppPodsListUpdateFailed",
+		Action:              "ReconcileSlice",
+		Type:                events.EventTypeWarning,
+		ReportingController: "worker",
+		Message:             "slice app pods list is not updated - please ask admin to check slice configuration.",
+	},
+	"SliceRouterDeploymentFailed": {
+		Name:                "SliceRouterDeploymentFailed",
+		Reason:              "SliceRouterDeploymentFailed",
+		Action:              "ReconcileSlice",
+		Type:                events.EventTypeWarning,
+		ReportingController: "worker",
+		Message:             "",
+	},
+	"SliceRouterServiceFailed": {
+		Name:                "SliceRouterServiceFailed",
+		Reason:              "SliceRouterServiceFailed",
+		Action:              "ReconcileSlice",
+		Type:                events.EventTypeWarning,
+		ReportingController: "worker",
+		Message:             "",
+	},
+	"WorkerSliceConfigCreated": {
+		Name:                "WorkerSliceConfigCreated",
+		Reason:              "WorkerSliceConfigCreated",
+		Action:              "CreateSliceConfig",
+		Type:                events.EventTypeNormal,
+		ReportingController: "worker",
+		Message:             "",
+	},
+	"WorkerSliceConfigCreateFailed": {
+		Name:                "WorkerSliceConfigCreateFailed",
+		Reason:              "WorkerSliceConfigCreateFailed",
+		Action:              "ReconcileWorkerSliceConfig",
+		Type:                events.EventTypeWarning,
+		ReportingController: "worker",
+		Message:             "",
+	},
+	"WorkerSliceConfigUpdated": {
+		Name:                "WorkerSliceConfigUpdated",
+		Reason:              "WorkerSliceConfigUpdated",
+		Action:              "ReconcileWorkerSliceConfig",
+		Type:                events.EventTypeNormal,
+		ReportingController: "worker",
+		Message:             "",
+	},
+	"WorkerSliceHealthUpdated": {
+		Name:                "WorkerSliceHealthUpdated",
+		Reason:              "WorkerSliceHealthUpdated",
+		Action:              "ReconcileWorkerSliceConfig",
+		Type:                events.EventTypeNormal,
+		ReportingController: "worker",
+		Message:             "",
+	},
+	"WorkerSliceHealthUpdateFailed": {
+		Name:                "WorkerSliceHealthUpdateFailed",
+		Reason:              "WorkerSliceHealthUpdateFailed",
+		Action:              "ReconcileWorkerSliceConfig",
+		Type:                events.EventTypeWarning,
+		ReportingController: "worker",
+		Message:             "",
+	},
+	"SliceGWCreated": {
+		Name:                "SliceGWCreated",
+		Reason:              "SliceGWCreated",
+		Action:              "CreateSliceGW",
+		Type:                events.EventTypeNormal,
+		ReportingController: "worker",
+		Message:             "",
+	},
+	"SliceGWDeleted": {
+		Name:                "SliceGWDeleted",
+		Reason:              "SliceGWDeleted",
+		Action:              "DeleteSliceGW",
+		Type:                events.EventTypeNormal,
+		ReportingController: "worker",
+		Message:             "",
+	},
+	"SliceGWUpdated": {
+		Name:                "SliceGWUpdated",
+		Reason:              "SliceGWUpdated",
+		Action:              "UpdateSliceGW",
+		Type:                events.EventTypeNormal,
+		ReportingController: "worker",
+		Message:             "",
+	},
+	"SliceGWCreateFailed": {
+		Name:                "SliceGWCreateFailed",
+		Reason:              "SliceGWCreateFailed",
+		Action:              "CreateSliceGW",
+		Type:                events.EventTypeWarning,
+		ReportingController: "worker",
+		Message:             "",
+	},
+	"SliceGWDeleteFailed": {
+		Name:                "SliceGWDeleteFailed",
+		Reason:              "SliceGWDeleteFailed",
+		Action:              "DeleteSliceGW",
+		Type:                events.EventTypeWarning,
+		ReportingController: "worker",
+		Message:             "",
+	},
+	"SliceGWUpdateFailed": {
+		Name:                "SliceGWUpdateFailed",
+		Reason:              "SliceGWUpdateFailed",
+		Action:              "UpdateSliceGW",
+		Type:                events.EventTypeWarning,
+		ReportingController: "worker",
+		Message:             "",
+	},
+	"SliceGWPodReconcileFailed": {
+		Name:                "SliceGWPodReconcileFailed",
+		Reason:              "SliceGWPodReconcileFailed",
+		Action:              "ReconcileSliceGWPod",
+		Type:                events.EventTypeWarning,
+		ReportingController: "worker",
+		Message:             "",
+	},
+	"SliceGWConnectionContextFailed": {
+		Name:                "SliceGWConnectionContextFailed",
+		Reason:              "SliceGWConnectionContextFailed",
+		Action:              "ReconcileSliceGWPod",
+		Type:                events.EventTypeWarning,
+		ReportingController: "worker",
+		Message:             "",
+	},
+	"SliceRouterConnectionContextFailed": {
+		Name:                "SliceRouterConnectionContextFailed",
+		Reason:              "SliceRouterConnectionContextFailed",
+		Action:              "ReconcileSliceGWPod",
+		Type:                events.EventTypeWarning,
+		ReportingController: "worker",
+		Message:             "",
+	},
+	"SliceNetopQoSSyncFailed": {
+		Name:                "SliceNetopQoSSyncFailed",
+		Reason:              "SliceNetopQoSSyncFailed",
+		Action:              "ReconcileSliceGWPod",
+		Type:                events.EventTypeWarning,
+		ReportingController: "worker",
+		Message:             "",
+	},
+	"SliceGWRebalancingFailed": {
+		Name:                "SliceGWRebalancingFailed",
+		Reason:              "SliceGWRebalancingFailed",
+		Action:              "ReconcileSliceGWPod",
+		Type:                events.EventTypeWarning,
+		ReportingController: "worker",
+		Message:             "",
+	},
+	"SliceGWRemotePodSyncFailed": {
+		Name:                "SliceGWRemotePodSyncFailed",
+		Reason:              "SliceGWRemotePodSyncFailed",
+		Action:              "ReconcileSliceGWPod",
+		Type:                events.EventTypeWarning,
+		ReportingController: "worker",
+		Message:             "",
+	},
+	"SliceGWRebalancingSuccess": {
+		Name:                "SliceGWRebalancingSuccess",
+		Reason:              "SliceGWRebalancingSuccess",
+		Action:              "ReconcileSliceGWPod",
+		Type:                events.EventTypeWarning,
+		ReportingController: "worker",
+		Message:             "",
+	},
+	"SliceGWServiceCreationFailed": {
+		Name:                "SliceGWServiceCreationFailed",
+		Reason:              "SliceGWServiceCreationFailed",
+		Action:              "ReconcileSliceGWPod",
+		Type:                events.EventTypeWarning,
+		ReportingController: "worker",
+		Message:             "",
+	},
+	"SliceGWNodePortUpdateFailed": {
+		Name:                "SliceGWNodePortUpdateFailed",
+		Reason:              "SliceGWNodePortUpdateFailed",
+		Action:              "ReconcileSliceGWPod",
+		Type:                events.EventTypeWarning,
+		ReportingController: "worker",
+		Message:             "",
+	},
+	"SliceServiceImportCreated": {
+		Name:                "SliceServiceImportCreated",
+		Reason:              "SliceServiceImportCreated",
+		Action:              "CreateSliceServiceImport",
+		Type:                events.EventTypeNormal,
+		ReportingController: "worker",
+		Message:             "",
+	},
+	"SliceServiceImportCreateFailed": {
+		Name:                "SliceServiceImportCreateFailed",
+		Reason:              "SliceServiceImportCreateFailed",
+		Action:              "CreateSliceServiceImport",
+		Type:                events.EventTypeWarning,
+		ReportingController: "worker",
+		Message:             "",
+	},
+	"SliceServiceImportUpdateAvailableEndpointsFailed": {
+		Name:                "SliceServiceImportUpdateAvailableEndpointsFailed",
+		Reason:              "SliceServiceImportUpdateAvailableEndpointsFailed",
+		Action:              "ReconcileServiceImport",
+		Type:                events.EventTypeWarning,
+		ReportingController: "worker",
+		Message:             "",
+	},
+	"SliceServiceImportDeleted": {
+		Name:                "SliceServiceImportDeleted",
+		Reason:              "SliceServiceImportDeleted",
+		Action:              "DeleteServiceImport",
+		Type:                events.EventTypeNormal,
+		ReportingController: "worker",
+		Message:             "",
+	},
+	"SliceServiceImportUpdatePorts": {
+		Name:                "SliceServiceImportUpdatePorts",
+		Reason:              "SliceServiceImportUpdatePorts",
+		Action:              "ReconcileServiceImport",
+		Type:                events.EventTypeNormal,
+		ReportingController: "worker",
+		Message:             "",
+	},
+	"NetPolAdded": {
+		Name:                "NetPolAdded",
+		Reason:              "NetPolAdded",
+		Action:              "ReconcileNetPol",
+		Type:                events.EventTypeWarning,
+		ReportingController: "worker",
+		Message:             "",
+	},
+	"NetPolScopeWidenedNamespace": {
+		Name:                "NetPolScopeWidenedNamespace",
+		Reason:              "Scope widened with reason - Namespace violation",
+		Action:              "ReconcileNetPol",
+		Type:                events.EventTypeWarning,
+		ReportingController: "worker",
+		Message:             "",
+	},
+	"NetPolScopeWidenedIPBlock": {
+		Name:                "NetPolScopeWidenedIPBlock",
+		Reason:              "Scope widened with reason - IPBlock violation",
+		Action:              "ReconcileNetPol",
+		Type:                events.EventTypeWarning,
+		ReportingController: "worker",
+		Message:             "",
+	},
 }
 
 var (
-	EventNetPolViolation                  events.EventName = "NetPolViolation"
-	EventClusterUnhealthy                 events.EventName = "ClusterUnhealthy"
-	EventClusterHealthy                   events.EventName = "ClusterHealthy"
-	EventClusterNodeIpAutoDetected        events.EventName = "ClusterNodeIpAutoDetected"
-	EventClusterNodeIpAutoDetectionFailed events.EventName = "ClusterNodeIpAutoDetectionFailed"
+	EventNetPolViolation                                  events.EventName = "NetPolViolation"
+	EventClusterUnhealthy                                 events.EventName = "ClusterUnhealthy"
+	EventClusterHealthy                                   events.EventName = "ClusterHealthy"
+	EventClusterNodeIpAutoDetected                        events.EventName = "ClusterNodeIpAutoDetected"
+	EventClusterNodeIpAutoDetectionFailed                 events.EventName = "ClusterNodeIpAutoDetectionFailed"
+	EventSliceCreated                                     events.EventName = "SliceCreated"
+	EventSliceDeleted                                     events.EventName = "SliceDeleted"
+	EventSliceUpdated                                     events.EventName = "SliceUpdated"
+	EventSliceCreationFailed                              events.EventName = "SliceCreationFailed"
+	EventSliceDeletionFailed                              events.EventName = "SliceDeletionFailed"
+	EventSliceUpdateFailed                                events.EventName = "SliceUpdateFailed"
+	EventSliceQoSProfileWithNetOpsSync                    events.EventName = "SliceQoSProfileWithNetOpsSync"
+	EventSliceIngressInstallFailed                        events.EventName = "SliceIngressInstallFailed"
+	EventSliceEgressInstallFailed                         events.EventName = "SliceEgressInstallFailed"
+	EventSliceAppPodsListUpdateFailed                     events.EventName = "SliceAppPodsListUpdateFailed"
+	EventSliceRouterDeploymentFailed                      events.EventName = "SliceRouterDeploymentFailed"
+	EventSliceRouterServiceFailed                         events.EventName = "SliceRouterServiceFailed"
+	EventWorkerSliceConfigCreated                         events.EventName = "WorkerSliceConfigCreated"
+	EventWorkerSliceConfigCreateFailed                    events.EventName = "WorkerSliceConfigCreateFailed"
+	EventWorkerSliceConfigUpdated                         events.EventName = "WorkerSliceConfigUpdated"
+	EventWorkerSliceHealthUpdated                         events.EventName = "WorkerSliceHealthUpdated"
+	EventWorkerSliceHealthUpdateFailed                    events.EventName = "WorkerSliceHealthUpdateFailed"
+	EventSliceGWCreated                                   events.EventName = "SliceGWCreated"
+	EventSliceGWDeleted                                   events.EventName = "SliceGWDeleted"
+	EventSliceGWUpdated                                   events.EventName = "SliceGWUpdated"
+	EventSliceGWCreateFailed                              events.EventName = "SliceGWCreateFailed"
+	EventSliceGWDeleteFailed                              events.EventName = "SliceGWDeleteFailed"
+	EventSliceGWUpdateFailed                              events.EventName = "SliceGWUpdateFailed"
+	EventSliceGWPodReconcileFailed                        events.EventName = "SliceGWPodReconcileFailed"
+	EventSliceGWConnectionContextFailed                   events.EventName = "SliceGWConnectionContextFailed"
+	EventSliceRouterConnectionContextFailed               events.EventName = "SliceRouterConnectionContextFailed"
+	EventSliceNetopQoSSyncFailed                          events.EventName = "SliceNetopQoSSyncFailed"
+	EventSliceGWRebalancingFailed                         events.EventName = "SliceGWRebalancingFailed"
+	EventSliceGWRemotePodSyncFailed                       events.EventName = "SliceGWRemotePodSyncFailed"
+	EventSliceGWRebalancingSuccess                        events.EventName = "SliceGWRebalancingSuccess"
+	EventSliceGWServiceCreationFailed                     events.EventName = "SliceGWServiceCreationFailed"
+	EventSliceGWNodePortUpdateFailed                      events.EventName = "SliceGWNodePortUpdateFailed"
+	EventSliceServiceImportCreated                        events.EventName = "SliceServiceImportCreated"
+	EventSliceServiceImportCreateFailed                   events.EventName = "SliceServiceImportCreateFailed"
+	EventSliceServiceImportUpdateAvailableEndpointsFailed events.EventName = "SliceServiceImportUpdateAvailableEndpointsFailed"
+	EventSliceServiceImportDeleted                        events.EventName = "SliceServiceImportDeleted"
+	EventSliceServiceImportUpdatePorts                    events.EventName = "SliceServiceImportUpdatePorts"
+	EventNetPolAdded                                      events.EventName = "NetPolAdded"
+	EventNetPolScopeWidenedNamespace                      events.EventName = "NetPolScopeWidenedNamespace"
+	EventNetPolScopeWidenedIPBlock                        events.EventName = "NetPolScopeWidenedIPBlock"
 )
