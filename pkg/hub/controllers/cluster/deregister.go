@@ -2,12 +2,14 @@ package cluster
 
 import (
 	"context"
+	"os"
 
 	hubv1alpha1 "github.com/kubeslice/apis/pkg/controller/v1alpha1"
 	"github.com/kubeslice/worker-operator/pkg/logger"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/util/retry"
@@ -27,40 +29,82 @@ var (
 func (r *Reconciler) createDeregisterJob(ctx context.Context, cluster *hubv1alpha1.Cluster) error {
 	log := logger.FromContext(ctx).WithName("cluster-deregister")
 	// Notify controller that the deregistration process of the cluster is in progress.
-	err := r.updateClusterDeregisterStatus("DeregisterInProgress", ctx, cluster)
+	err := r.updateClusterDeregisterStatus(hubv1alpha1.RegistrationStatusDeregisterInProgress, ctx, cluster)
 	if err != nil {
 		log.Error(err, "error updating status of deregistration on the controller")
 		return err
 	}
 	// Create a service account.
 	if err := r.MeshClient.Create(ctx, constructServiceAccount(), &client.CreateOptions{}); err != nil {
-		log.Error(err, "unable to create service account")
-		return err
+		if apierrors.IsAlreadyExists(err) {
+			log.Info("service account already exists", "sa", serviceAccountName)
+		} else {
+			log.Error(err, "unable to create service account")
+			return err
+		}
 	}
 	// Create a cluster role.
 	if err := r.MeshClient.Create(ctx, constructClusterRole(), &client.CreateOptions{}); err != nil {
-		log.Error(err, "unable to create cluster role")
-		return err
+		if apierrors.IsAlreadyExists(err) {
+			log.Info("cluster role already exists", "clusterrole", clusterRoleName)
+		} else {
+			log.Error(err, "unable to create cluster role")
+			return err
+		}
 	}
 	// Bind the service account with the cluster role.
 	if err := r.MeshClient.Create(ctx, constructClusterRoleBinding(), &client.CreateOptions{}); err != nil {
-		log.Error(err, "unable to create cluster rolebinding")
+		if apierrors.IsAlreadyExists(err) {
+			log.Info("cluster rolebinding already exists", "clusterrolebinding", clusterRoleBindingName)
+		} else {
+			log.Error(err, "unable to create cluster rolebinding")
+			return err
+		}
+	}
+	// get configmap data
+	data, err := getConfigmapData()
+	if err != nil {
+		log.Error(err, "unable to fetch configmap data")
 		return err
 	}
 	// Set up a configuration map which contains the script for the job.
-	if err := r.MeshClient.Create(ctx, constructConfigMap(), &client.CreateOptions{}); err != nil {
-		log.Error(err, "unable to create cluster configmap")
-		return err
+	if err := r.MeshClient.Create(ctx, constructConfigMap(data), &client.CreateOptions{}); err != nil {
+		if apierrors.IsAlreadyExists(err) {
+			log.Info("cluster configmap already exists", "configmap", clusterDeregisterConfigMap)
+		} else {
+			log.Error(err, "unable to create cluster configmap")
+			return err
+		}
 	}
+
+	// get the job
+	jobRef := types.NamespacedName{
+		Name:      deregisterJobName,
+		Namespace: ControlPlaneNamespace,
+	}
+	deregisterJob := constructJobForClusterDeregister()
+	if err := r.MeshClient.Get(ctx, jobRef, deregisterJob); err == nil {
+		// Job is already present we need to delete it
+		err = r.MeshClient.Delete(ctx, deregisterJob)
+		if err != nil {
+			log.Error(err, "error while deleting job object", "job", jobRef.Name)
+			return err
+		}
+	}
+
 	// Generate a job for deregistration with the configuration map mounted as a volume.
-	if err := r.MeshClient.Create(ctx, constructJobForClusterDeregister(), &client.CreateOptions{}); err != nil {
-		log.Error(err, "unable to create job for cluster deregister")
-		return err
+	if err := r.MeshClient.Create(ctx, deregisterJob, &client.CreateOptions{}); err != nil {
+		if apierrors.IsAlreadyExists(err) {
+			log.Info("cluster deregister job already exists", "job", clusterDeregisterConfigMap)
+		} else {
+			log.Error(err, "unable to create job for cluster deregister")
+			return err
+		}
 	}
 	return nil
 }
 
-func (r *Reconciler) updateClusterDeregisterStatus(status string, ctx context.Context, cluster *hubv1alpha1.Cluster) error {
+func (r *Reconciler) updateClusterDeregisterStatus(status hubv1alpha1.RegistrationStatus, ctx context.Context, cluster *hubv1alpha1.Cluster) error {
 	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		err := r.Get(ctx, types.NamespacedName{
 			Name:      cluster.Name,
@@ -70,6 +114,24 @@ func (r *Reconciler) updateClusterDeregisterStatus(status string, ctx context.Co
 			return err
 		}
 		cluster.Status.RegistrationStatus = status
+		return r.Status().Update(ctx, cluster)
+	})
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (r *Reconciler) setIsDeregisterInProgress(ctx context.Context, cluster *hubv1alpha1.Cluster, val bool) error {
+	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		err := r.Get(ctx, types.NamespacedName{
+			Name:      cluster.Name,
+			Namespace: cluster.Namespace,
+		}, cluster)
+		if err != nil {
+			return err
+		}
+		cluster.Status.IsDeregisterInProgress = val
 		return r.Status().Update(ctx, cluster)
 	})
 	if err != nil {
@@ -149,101 +211,40 @@ func constructClusterRoleBinding() *rbacv1.ClusterRoleBinding {
 	return clusterRole
 }
 
-func constructConfigMap() *corev1.ConfigMap {
-	// delete service account/cluster role/cluster rb after everything
-	// remove cluster finalizer
+func getConfigmapData() (string, error) {
+	fileName := "scripts/cleanup.sh"
+	data, err := os.ReadFile(fileName)
+	if err != nil {
+		return "", err
+	}
+	return string(data), nil
+}
+
+// delete service account/cluster role/cluster rb after everything
+// remove cluster finalizer
+func constructConfigMap(data string) *corev1.ConfigMap {
 	cm := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      clusterDeregisterConfigMap,
 			Namespace: ControlPlaneNamespace,
 		},
 		Data: map[string]string{
-			"kubeslice-cleanup.sh": `
-			#!/bin/bash
-
-			updateControllerClusterStatus() {
-			  kubectl patch clusters.controller.kubeslice.io $CLUSTER_NAME -n $PROJECT_NAMESPACE --type=merge --subresource status --patch "{\"status\": {\"registrationStatus\": \"$1\"}}"
-			}
-	
-			removeFinalizer() {
-			  kubectl get -o yaml clusters.controller.kubeslice.io $CLUSTER_NAME -n $PROJECT_NAMESPACE --token $TOKEN  --certificate-authority /ca.crt --server $HUB_ENDPOINT > ./cluster.yaml
-			  sed -i '/finalizers:/,/^[^ ]/ s/ *- networking.kubeslice.io\/cluster-deregister-finalizer//' cluster.yaml
-			  kubectl patch clusters.controller.kubeslice.io $CLUSTER_NAME -n $PROJECT_NAMESPACE --type=merge  --patch-file cluster.yaml --token $TOKEN  --certificate-authority /ca.crt --server $HUB_ENDPOINT
-			}
-	
-			deleteKubeSliceCRDs() {
-			  kubectl delete crd serviceexports.networking.kubeslice.io --ignore-not-found
-			  kubectl delete crd serviceimports.networking.kubeslice.io --ignore-not-found
-			  kubectl delete crd slices.networking.kubeslice.io --ignore-not-found
-			  kubectl delete crd slicegateways.networking.kubeslice.io --ignore-not-found
-			  kubectl delete crd slicenodeaffinities.networking.kubeslice.io --ignore-not-found
-			  kubectl delete crd sliceresourcequotas.networking.kubeslice.io --ignore-not-found
-			  kubectl delete crd slicerolebindings.networking.kubeslice.io --ignore-not-found
-			}
-	
-			deleteNamespace(){
-			  kubectl delete namespace kubeslice-system
-			}
-	
-			SECRET=kubeslice-hub
-			TOKEN=$(kubectl get secret ${SECRET} -o json | jq -Mr '.data.token' | base64 -d)
-			kubectl get secret ${SECRET} -o json | jq -Mr '.data["ca.crt"]' | base64 -d > /ca.crt
-			# get the worker release name
-			workerRelease=$(helm list --output json -n kubeslice-system | jq -r '.[] | select(.chart | startswith("kubeslice-worker-")).name')
-			echo workerRelease $workerRelease
-			if helm uninstall $workerRelease --namespace kubeslice-system
-			then
-				removeFinalizer
-				# delete crds
-				deleteKubeSliceCRDs
-				# delete namespace
-				deleteNamespace
-			else
-			  if helm uninstall $workerRelease --namespace kubeslice-system --no-hooks --dry-run
-			  then 
-				# deleting nsm mutatingwebhookconfig
-					WH=$(kubectl get pods -l app=admission-webhook-k8s  -o jsonpath='{.items[*].metadata.name}')
-					kubectl delete mutatingwebhookconfiguration --ignore-not-found ${WH}
-	
-				# removing finalizers from spire and kubeslice-system namespaces
-					NAMESPACES=(spire kubeslice-system)
-					for ns in ${NAMESPACES[@]}
-					do
-					  kubectl get ns $ns -o name  
-					  if [[ $? -eq 1 ]]; then
-						  echo "$ns namespace was deleted successfully"
-						  continue
-					  fi
-					  echo "finding and removing spiffeids in namespace $ns ..."
-					  for item in $(kubectl get spiffeid.spiffeid.spiffe.io -n $ns -o name); do
-						echo "removing item $item"
-						kubectl patch $item -p '{"metadata":{"finalizers":null}}' --type=merge -n $ns
-						kubectl delete $item --ignore-not-found -n $ns
-					  done
-					done
-					removeFinalizer
-					# delete crds
-					deleteKubeSliceCRDs
-					# delete namespace
-					deleteNamespace
-			  else 
-				updateControllerClusterStatus "DeregisterFailed"
-			  fi
-			fi`,
+			"kubeslice-cleanup.sh": data,
 		}}
 	return cm
 }
 
 func constructJobForClusterDeregister() *batchv1.Job {
-	// Todo: change docker image
 	backOffLimit := int32(0)
+	ttlSecondsAfterFinished := int32(600)
 	job := &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      deregisterJobName,
 			Namespace: ControlPlaneNamespace,
 		},
 		Spec: batchv1.JobSpec{
-			BackoffLimit: &backOffLimit,
+			BackoffLimit:            &backOffLimit,
+			TTLSecondsAfterFinished: &ttlSecondsAfterFinished,
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: deregisterJobName,
@@ -251,9 +252,12 @@ func constructJobForClusterDeregister() *batchv1.Job {
 				Spec: corev1.PodSpec{
 					ServiceAccountName: serviceAccountName,
 					Containers: []corev1.Container{{
-						Name:    serviceAccountName,
-						Image:   "dtzar/helm-kubectl",
-						Command: []string{"/bin/bash", "/tmp/kubeslice-cleanup.sh"},
+						Name:  serviceAccountName,
+						Image: "aveshadev/worker-installer:latest",
+						Command: []string{
+							"/bin/bash",
+							"/tmp/kubeslice-cleanup.sh",
+						},
 						Env: []corev1.EnvVar{
 							{
 								Name:  "PROJECT_NAMESPACE",
@@ -279,7 +283,9 @@ func constructJobForClusterDeregister() *batchv1.Job {
 						Name: "script-data",
 						VolumeSource: corev1.VolumeSource{
 							ConfigMap: &corev1.ConfigMapVolumeSource{
-								LocalObjectReference: corev1.LocalObjectReference{Name: clusterDeregisterConfigMap},
+								LocalObjectReference: corev1.LocalObjectReference{
+									Name: clusterDeregisterConfigMap,
+								},
 							},
 						}},
 					},
