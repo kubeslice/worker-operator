@@ -172,7 +172,7 @@ var _ = BeforeSuite(func() {
 	err = (&slicegateway.SliceGwReconciler{
 		Client: k8sClient,
 		Scheme: k8sClient.Scheme(),
-		Log:    ctrl.Log.WithName("SliceTest"),
+		Log:    ctrl.Log.WithName("SliceGwTest"),
 		EventRecorder: &events.EventRecorder{
 			Recorder: &record.FakeRecorder{},
 		},
