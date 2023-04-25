@@ -148,7 +148,7 @@ var EventsMap = map[events.EventName]*events.EventSchema{
 		Action:              "ReconcileSlice",
 		Type:                events.EventTypeWarning,
 		ReportingController: "worker",
-		Message:             "",
+		Message:             "slice Router Deployment failed.",
 	},
 	"SliceRouterServiceFailed": {
 		Name:                "SliceRouterServiceFailed",
@@ -156,7 +156,7 @@ var EventsMap = map[events.EventName]*events.EventSchema{
 		Action:              "ReconcileSlice",
 		Type:                events.EventTypeWarning,
 		ReportingController: "worker",
-		Message:             "",
+		Message:             "Slice Router Service failed",
 	},
 	"WorkerSliceConfigCreated": {
 		Name:                "WorkerSliceConfigCreated",
@@ -164,7 +164,7 @@ var EventsMap = map[events.EventName]*events.EventSchema{
 		Action:              "CreateSliceConfig",
 		Type:                events.EventTypeNormal,
 		ReportingController: "worker",
-		Message:             "",
+		Message:             "WorkerSliceConfig created.",
 	},
 	"WorkerSliceConfigCreateFailed": {
 		Name:                "WorkerSliceConfigCreateFailed",
@@ -172,7 +172,7 @@ var EventsMap = map[events.EventName]*events.EventSchema{
 		Action:              "ReconcileWorkerSliceConfig",
 		Type:                events.EventTypeWarning,
 		ReportingController: "worker",
-		Message:             "",
+		Message:             "WorkerSliceConfig Creation failed.",
 	},
 	"WorkerSliceConfigUpdated": {
 		Name:                "WorkerSliceConfigUpdated",
@@ -180,7 +180,7 @@ var EventsMap = map[events.EventName]*events.EventSchema{
 		Action:              "ReconcileWorkerSliceConfig",
 		Type:                events.EventTypeNormal,
 		ReportingController: "worker",
-		Message:             "",
+		Message:             "WorkerSliceConfig updated.",
 	},
 	"WorkerSliceHealthUpdated": {
 		Name:                "WorkerSliceHealthUpdated",
@@ -188,7 +188,7 @@ var EventsMap = map[events.EventName]*events.EventSchema{
 		Action:              "ReconcileWorkerSliceConfig",
 		Type:                events.EventTypeNormal,
 		ReportingController: "worker",
-		Message:             "",
+		Message:             "WorkerSliceHealth updated.",
 	},
 	"WorkerSliceHealthUpdateFailed": {
 		Name:                "WorkerSliceHealthUpdateFailed",
@@ -196,7 +196,7 @@ var EventsMap = map[events.EventName]*events.EventSchema{
 		Action:              "ReconcileWorkerSliceConfig",
 		Type:                events.EventTypeWarning,
 		ReportingController: "worker",
-		Message:             "",
+		Message:             "WorkerSliceHealth update failed.",
 	},
 	"SliceGWCreated": {
 		Name:                "SliceGWCreated",
@@ -204,7 +204,7 @@ var EventsMap = map[events.EventName]*events.EventSchema{
 		Action:              "CreateSliceGW",
 		Type:                events.EventTypeNormal,
 		ReportingController: "worker",
-		Message:             "",
+		Message:             "Slice GateWay created.",
 	},
 	"SliceGWDeleted": {
 		Name:                "SliceGWDeleted",
@@ -212,7 +212,7 @@ var EventsMap = map[events.EventName]*events.EventSchema{
 		Action:              "DeleteSliceGW",
 		Type:                events.EventTypeNormal,
 		ReportingController: "worker",
-		Message:             "",
+		Message:             "Slice GateWay deleted.",
 	},
 	"SliceGWUpdated": {
 		Name:                "SliceGWUpdated",
@@ -220,7 +220,7 @@ var EventsMap = map[events.EventName]*events.EventSchema{
 		Action:              "UpdateSliceGW",
 		Type:                events.EventTypeNormal,
 		ReportingController: "worker",
-		Message:             "",
+		Message:             "Slice GateWay updated.",
 	},
 	"SliceGWCreateFailed": {
 		Name:                "SliceGWCreateFailed",
@@ -228,7 +228,7 @@ var EventsMap = map[events.EventName]*events.EventSchema{
 		Action:              "CreateSliceGW",
 		Type:                events.EventTypeWarning,
 		ReportingController: "worker",
-		Message:             "",
+		Message:             "Slice GateWay creation failed.",
 	},
 	"SliceGWDeleteFailed": {
 		Name:                "SliceGWDeleteFailed",
@@ -236,7 +236,7 @@ var EventsMap = map[events.EventName]*events.EventSchema{
 		Action:              "DeleteSliceGW",
 		Type:                events.EventTypeWarning,
 		ReportingController: "worker",
-		Message:             "",
+		Message:             "Slice GateWay delete failed.",
 	},
 	"SliceGWUpdateFailed": {
 		Name:                "SliceGWUpdateFailed",
@@ -244,7 +244,7 @@ var EventsMap = map[events.EventName]*events.EventSchema{
 		Action:              "UpdateSliceGW",
 		Type:                events.EventTypeWarning,
 		ReportingController: "worker",
-		Message:             "",
+		Message:             "Slice GateWay update failed.",
 	},
 	"SliceGWPodReconcileFailed": {
 		Name:                "SliceGWPodReconcileFailed",
@@ -252,7 +252,7 @@ var EventsMap = map[events.EventName]*events.EventSchema{
 		Action:              "ReconcileSliceGWPod",
 		Type:                events.EventTypeWarning,
 		ReportingController: "worker",
-		Message:             "",
+		Message:             "Slice GateWay pod reconcilation failed.",
 	},
 	"SliceGWConnectionContextFailed": {
 		Name:                "SliceGWConnectionContextFailed",
@@ -260,7 +260,7 @@ var EventsMap = map[events.EventName]*events.EventSchema{
 		Action:              "ReconcileSliceGWPod",
 		Type:                events.EventTypeWarning,
 		ReportingController: "worker",
-		Message:             "",
+		Message:             "Slice GateWay Connection context has failed.",
 	},
 	"SliceRouterConnectionContextFailed": {
 		Name:                "SliceRouterConnectionContextFailed",
@@ -268,7 +268,7 @@ var EventsMap = map[events.EventName]*events.EventSchema{
 		Action:              "ReconcileSliceGWPod",
 		Type:                events.EventTypeWarning,
 		ReportingController: "worker",
-		Message:             "",
+		Message:             "Slice Router connection context has failed.",
 	},
 	"SliceNetopQoSSyncFailed": {
 		Name:                "SliceNetopQoSSyncFailed",
@@ -276,7 +276,7 @@ var EventsMap = map[events.EventName]*events.EventSchema{
 		Action:              "ReconcileSliceGWPod",
 		Type:                events.EventTypeWarning,
 		ReportingController: "worker",
-		Message:             "",
+		Message:             "Slice NetOp QoS sync failed.",
 	},
 	"SliceGWRebalancingFailed": {
 		Name:                "SliceGWRebalancingFailed",
@@ -284,7 +284,7 @@ var EventsMap = map[events.EventName]*events.EventSchema{
 		Action:              "ReconcileSliceGWPod",
 		Type:                events.EventTypeWarning,
 		ReportingController: "worker",
-		Message:             "",
+		Message:             "Slice GateWay rebalancing failed.",
 	},
 	"SliceGWRemotePodSyncFailed": {
 		Name:                "SliceGWRemotePodSyncFailed",
@@ -292,7 +292,7 @@ var EventsMap = map[events.EventName]*events.EventSchema{
 		Action:              "ReconcileSliceGWPod",
 		Type:                events.EventTypeWarning,
 		ReportingController: "worker",
-		Message:             "",
+		Message:             "Slice GateWay Remote pod sync failed.",
 	},
 	"SliceGWRebalancingSuccess": {
 		Name:                "SliceGWRebalancingSuccess",
@@ -300,7 +300,7 @@ var EventsMap = map[events.EventName]*events.EventSchema{
 		Action:              "ReconcileSliceGWPod",
 		Type:                events.EventTypeWarning,
 		ReportingController: "worker",
-		Message:             "",
+		Message:             "Slice GateWay rebalancing successfully.",
 	},
 	"SliceGWServiceCreationFailed": {
 		Name:                "SliceGWServiceCreationFailed",
@@ -308,7 +308,7 @@ var EventsMap = map[events.EventName]*events.EventSchema{
 		Action:              "ReconcileSliceGWPod",
 		Type:                events.EventTypeWarning,
 		ReportingController: "worker",
-		Message:             "",
+		Message:             "Slice GateWay Service creation failed.",
 	},
 	"SliceGWNodePortUpdateFailed": {
 		Name:                "SliceGWNodePortUpdateFailed",
@@ -316,7 +316,7 @@ var EventsMap = map[events.EventName]*events.EventSchema{
 		Action:              "ReconcileSliceGWPod",
 		Type:                events.EventTypeWarning,
 		ReportingController: "worker",
-		Message:             "",
+		Message:             "Slice GateWay NodePort update failed.",
 	},
 	"SliceServiceImportCreated": {
 		Name:                "SliceServiceImportCreated",
@@ -324,7 +324,7 @@ var EventsMap = map[events.EventName]*events.EventSchema{
 		Action:              "CreateSliceServiceImport",
 		Type:                events.EventTypeNormal,
 		ReportingController: "worker",
-		Message:             "",
+		Message:             "Slice ServiceImport created.",
 	},
 	"SliceServiceImportCreateFailed": {
 		Name:                "SliceServiceImportCreateFailed",
@@ -332,7 +332,7 @@ var EventsMap = map[events.EventName]*events.EventSchema{
 		Action:              "CreateSliceServiceImport",
 		Type:                events.EventTypeWarning,
 		ReportingController: "worker",
-		Message:             "",
+		Message:             "Slice ServiceImport creation failed.",
 	},
 	"SliceServiceImportUpdateAvailableEndpointsFailed": {
 		Name:                "SliceServiceImportUpdateAvailableEndpointsFailed",
@@ -340,7 +340,7 @@ var EventsMap = map[events.EventName]*events.EventSchema{
 		Action:              "ReconcileServiceImport",
 		Type:                events.EventTypeWarning,
 		ReportingController: "worker",
-		Message:             "",
+		Message:             "Slice ServiceImport Available endpoints update has failed.",
 	},
 	"SliceServiceImportDeleted": {
 		Name:                "SliceServiceImportDeleted",
@@ -348,7 +348,7 @@ var EventsMap = map[events.EventName]*events.EventSchema{
 		Action:              "DeleteServiceImport",
 		Type:                events.EventTypeNormal,
 		ReportingController: "worker",
-		Message:             "",
+		Message:             "Slice ServiceImport deleted.",
 	},
 	"SliceServiceImportUpdatePorts": {
 		Name:                "SliceServiceImportUpdatePorts",
@@ -356,7 +356,7 @@ var EventsMap = map[events.EventName]*events.EventSchema{
 		Action:              "ReconcileServiceImport",
 		Type:                events.EventTypeNormal,
 		ReportingController: "worker",
-		Message:             "",
+		Message:             "Slice ServiceImport ports updated.",
 	},
 	"NetPolAdded": {
 		Name:                "NetPolAdded",
@@ -364,7 +364,7 @@ var EventsMap = map[events.EventName]*events.EventSchema{
 		Action:              "ReconcileNetPol",
 		Type:                events.EventTypeWarning,
 		ReportingController: "worker",
-		Message:             "",
+		Message:             "Slice Network policy added.",
 	},
 	"NetPolScopeWidenedNamespace": {
 		Name:                "NetPolScopeWidenedNamespace",
@@ -372,7 +372,7 @@ var EventsMap = map[events.EventName]*events.EventSchema{
 		Action:              "ReconcileNetPol",
 		Type:                events.EventTypeWarning,
 		ReportingController: "worker",
-		Message:             "",
+		Message:             "Slice NetworkPolicy scope widened due to namespace violation.",
 	},
 	"NetPolScopeWidenedIPBlock": {
 		Name:                "NetPolScopeWidenedIPBlock",
@@ -380,7 +380,7 @@ var EventsMap = map[events.EventName]*events.EventSchema{
 		Action:              "ReconcileNetPol",
 		Type:                events.EventTypeWarning,
 		ReportingController: "worker",
-		Message:             "",
+		Message:             "Slice NetworkPolicy scope widened due to IP Block violation.",
 	},
 }
 

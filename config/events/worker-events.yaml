@@ -94,148 +94,178 @@ events:
     action: ReconcileSlice
     type: Warning
     reportingController: worker
+    message: slice Router Deployment failed.
   - name: SliceRouterServiceFailed
     reason: SliceRouterServiceFailed
     action: ReconcileSlice
     type: Warning
     reportingController: worker
+    message: Slice Router Service failed
   - name: WorkerSliceConfigCreated
     reason: WorkerSliceConfigCreated
     action: CreateSliceConfig
     type: Normal
     reportingController: worker
+    message: WorkerSliceConfig created.
   - name: WorkerSliceConfigCreateFailed
     reason: WorkerSliceConfigCreateFailed
     action: ReconcileWorkerSliceConfig
     type: Warning
     reportingController: worker
+    message: WorkerSliceConfig Creation failed.
   - name: WorkerSliceConfigUpdated
     reason: WorkerSliceConfigUpdated
     action: ReconcileWorkerSliceConfig
     type: Normal
     reportingController: worker
+    message: WorkerSliceConfig updated.
   - name: WorkerSliceHealthUpdated
     reason: WorkerSliceHealthUpdated
     action: ReconcileWorkerSliceConfig
     type: Normal
     reportingController: worker
+    message: WorkerSliceHealth updated.
   - name: WorkerSliceHealthUpdateFailed
     reason: WorkerSliceHealthUpdateFailed
     action: ReconcileWorkerSliceConfig
     type: Warning
     reportingController: worker
+    message: WorkerSliceHealth update failed.
   - name: SliceGWCreated
     reason: SliceGWCreated
     action: CreateSliceGW
     type: Normal
     reportingController: worker
+    message: Slice GateWay created.
   - name: SliceGWDeleted
     reason: SliceGWDeleted
     action: DeleteSliceGW
     type: Normal
     reportingController: worker
+    message: Slice GateWay deleted.
   - name: SliceGWUpdated
     reason: SliceGWUpdated
     action: UpdateSliceGW
     type: Normal
     reportingController: worker
+    message: Slice GateWay updated.
   - name: SliceGWCreateFailed
     reason: SliceGWCreateFailed
     action: CreateSliceGW
     type: Warning
     reportingController: worker
+    message: Slice GateWay creation failed.
   - name: SliceGWDeleteFailed
     reason: SliceGWDeleteFailed
     action: DeleteSliceGW
     type: Warning
     reportingController: worker
+    message: Slice GateWay delete failed.
   - name: SliceGWUpdateFailed
     reason: SliceGWUpdateFailed
     action: UpdateSliceGW
     type: Warning
     reportingController: worker
+    message: Slice GateWay update failed.
   - name: SliceGWPodReconcileFailed
     reason: SliceGWPodReconcileFailed
     action: ReconcileSliceGWPod
     type: Warning
     reportingController: worker
+    message: Slice GateWay pod reconcilation failed.
   - name: SliceGWConnectionContextFailed
     reason: SliceGWConnectionContextFailed
     action: ReconcileSliceGWPod
     type: Warning
     reportingController: worker
+    message: Slice GateWay Connection context has failed.
   - name: SliceRouterConnectionContextFailed
     reason: SliceRouterConnectionContextFailed
     action: ReconcileSliceGWPod
     type: Warning
     reportingController: worker
+    message: Slice Router connection context has failed.
   - name: SliceNetopQoSSyncFailed
     reason: SliceNetopQoSSyncFailed
     action: ReconcileSliceGWPod
     type: Warning
     reportingController: worker
+    message: Slice NetOp QoS sync failed.
   - name: SliceGWRebalancingFailed
     reason: SliceGWRebalancingFailed
     action: ReconcileSliceGWPod
     type: Warning
     reportingController: worker
+    message: Slice GateWay rebalancing failed.
   - name: SliceGWRemotePodSyncFailed
     reason: SliceGWRemotePodSyncFailed
     action: ReconcileSliceGWPod
     type: Warning
     reportingController: worker
+    message: Slice GateWay Remote pod sync failed.
   - name: SliceGWRebalancingSuccess
     reason: SliceGWRebalancingSuccess
     action: ReconcileSliceGWPod
     type: Warning
     reportingController: worker
+    message: Slice GateWay rebalancing successfully.
   - name: SliceGWServiceCreationFailed
     reason: SliceGWServiceCreationFailed
     action: ReconcileSliceGWPod
     type: Warning
     reportingController: worker
+    message: Slice GateWay Service creation failed.
   - name: SliceGWNodePortUpdateFailed
     reason: SliceGWNodePortUpdateFailed
     action: ReconcileSliceGWPod
     type: Warning
     reportingController: worker
+    message: Slice GateWay NodePort update failed.
   - name: SliceServiceImportCreated
     reason: SliceServiceImportCreated
     action: CreateSliceServiceImport
     type: Normal
     reportingController: worker
+    message: Slice ServiceImport created.
   - name: SliceServiceImportCreateFailed
     reason: SliceServiceImportCreateFailed
     action: CreateSliceServiceImport
     type: Warning
     reportingController: worker
+    message: Slice ServiceImport creation failed.
   - name: SliceServiceImportUpdateAvailableEndpointsFailed
     reason: SliceServiceImportUpdateAvailableEndpointsFailed
     action: ReconcileServiceImport
     type: Warning
     reportingController: worker
+    message: Slice ServiceImport Available endpoints update has failed.
   - name: SliceServiceImportDeleted
     reason: SliceServiceImportDeleted
     action: DeleteServiceImport
     type: Normal
     reportingController: worker
+    message: Slice ServiceImport deleted.
   - name: SliceServiceImportUpdatePorts
     reason: SliceServiceImportUpdatePorts
     action: ReconcileServiceImport
     type: Normal
     reportingController: worker
+    message: Slice ServiceImport ports updated.
   - name: NetPolAdded
     reason: NetPolAdded
     action: ReconcileNetPol
     type: Warning
     reportingController: worker
+    message: Slice Network policy added.
   - name: NetPolScopeWidenedNamespace
     reason: Scope widened with reason - Namespace violation
     action: ReconcileNetPol
     type: Warning
     reportingController: worker
+    message: Slice NetworkPolicy scope widened due to namespace violation.
   - name: NetPolScopeWidenedIPBlock
     reason: Scope widened with reason - IPBlock violation
     action: ReconcileNetPol
     type: Warning
     reportingController: worker
+    message: Slice NetworkPolicy scope widened due to IP Block violation.
