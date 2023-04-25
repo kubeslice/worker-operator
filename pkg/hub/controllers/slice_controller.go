@@ -62,6 +62,8 @@ func NewSliceReconciler(mc client.Client, er *events.EventRecorder, mf metrics.M
 		counterSliceCreationFailed: mf.NewCounter("slice_creation_failed_total", "Slice creation failed in worker", []string{"slice"}),
 		counterSliceUpdationFailed: mf.NewCounter("slice_updation_failed_total", "Slice updation failed in worker", []string{"slice"}),
 		counterSliceDeletionFailed: mf.NewCounter("slice_deletion_failed_total", "Slice deletion failed in worker", []string{"slice"}),
+		gaugeSliceUp:               mf.NewGauge("slice_up", "Kubeslice slice health status", []string{}),
+		gaugeComponentUp:           mf.NewGauge("slice_component_up", "Kubeslice slice component health status", []string{"component"}),
 	}
 }
 
@@ -113,12 +115,15 @@ type SliceReconciler struct {
 	EventRecorder     *events.EventRecorder
 	ReconcileInterval time.Duration
 
+	// metrics
 	counterSliceCreated        *prometheus.CounterVec
 	counterSliceUpdated        *prometheus.CounterVec
 	counterSliceDeleted        *prometheus.CounterVec
 	counterSliceCreationFailed *prometheus.CounterVec
 	counterSliceUpdationFailed *prometheus.CounterVec
 	counterSliceDeletionFailed *prometheus.CounterVec
+	gaugeSliceUp               *prometheus.GaugeVec
+	gaugeComponentUp           *prometheus.GaugeVec
 }
 
 var sliceFinalizer = "controller.kubeslice.io/hubSpokeSlice-finalizer"
@@ -219,6 +224,7 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req reconcile.Request) 
 		r.counterSliceUpdationFailed.WithLabelValues(slice.Name).Add(1)
 		return reconcile.Result{}, err
 	}
+	r.UpdateSliceHealthMetrics(slice)
 	slice.Status.SliceHealth.LastUpdated = metav1.Now()
 	if err := r.Status().Update(ctx, slice); err != nil {
 		log.Error(err, "unable to update slice CR")
@@ -491,4 +497,20 @@ func (r *SliceReconciler) fetchSliceGatewayHealth(ctx context.Context, c *compon
 		return nil, err
 	}
 	return cs, nil
+}
+
+func (r *SliceReconciler) UpdateSliceHealthMetrics(slice *spokev1alpha1.WorkerSliceConfig) {
+	if slice.Status.SliceHealth.SliceHealthStatus == spokev1alpha1.SliceHealthStatusNormal {
+		r.gaugeSliceUp.WithLabelValues().Set(1)
+	} else {
+		r.gaugeSliceUp.WithLabelValues().Set(0)
+	}
+
+	for _, cs := range slice.Status.SliceHealth.ComponentStatuses {
+		if cs.ComponentHealthStatus == spokev1alpha1.ComponentHealthStatusNormal {
+			r.gaugeComponentUp.WithLabelValues(cs.Component).Set(1)
+		} else {
+			r.gaugeComponentUp.WithLabelValues(cs.Component).Set(0)
+		}
+	}
 }
