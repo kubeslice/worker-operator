@@ -101,18 +101,6 @@ events:
     type: Warning
     reportingController: worker
     message: Slice Router Service failed
-  - name: WorkerSliceConfigCreated
-    reason: WorkerSliceConfigCreated
-    action: CreateSliceConfig
-    type: Normal
-    reportingController: worker
-    message: WorkerSliceConfig created.
-  - name: WorkerSliceConfigCreateFailed
-    reason: WorkerSliceConfigCreateFailed
-    action: ReconcileWorkerSliceConfig
-    type: Warning
-    reportingController: worker
-    message: WorkerSliceConfig Creation failed.
   - name: WorkerSliceConfigUpdated
     reason: WorkerSliceConfigUpdated
     action: ReconcileWorkerSliceConfig

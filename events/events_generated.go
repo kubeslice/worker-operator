@@ -158,22 +158,6 @@ var EventsMap = map[events.EventName]*events.EventSchema{
 		ReportingController: "worker",
 		Message:             "Slice Router Service failed",
 	},
-	"WorkerSliceConfigCreated": {
-		Name:                "WorkerSliceConfigCreated",
-		Reason:              "WorkerSliceConfigCreated",
-		Action:              "CreateSliceConfig",
-		Type:                events.EventTypeNormal,
-		ReportingController: "worker",
-		Message:             "WorkerSliceConfig created.",
-	},
-	"WorkerSliceConfigCreateFailed": {
-		Name:                "WorkerSliceConfigCreateFailed",
-		Reason:              "WorkerSliceConfigCreateFailed",
-		Action:              "ReconcileWorkerSliceConfig",
-		Type:                events.EventTypeWarning,
-		ReportingController: "worker",
-		Message:             "WorkerSliceConfig Creation failed.",
-	},
 	"WorkerSliceConfigUpdated": {
 		Name:                "WorkerSliceConfigUpdated",
 		Reason:              "WorkerSliceConfigUpdated",
@@ -402,8 +386,6 @@ var (
 	EventSliceAppPodsListUpdateFailed                     events.EventName = "SliceAppPodsListUpdateFailed"
 	EventSliceRouterDeploymentFailed                      events.EventName = "SliceRouterDeploymentFailed"
 	EventSliceRouterServiceFailed                         events.EventName = "SliceRouterServiceFailed"
-	EventWorkerSliceConfigCreated                         events.EventName = "WorkerSliceConfigCreated"
-	EventWorkerSliceConfigCreateFailed                    events.EventName = "WorkerSliceConfigCreateFailed"
 	EventWorkerSliceConfigUpdated                         events.EventName = "WorkerSliceConfigUpdated"
 	EventWorkerSliceHealthUpdated                         events.EventName = "WorkerSliceHealthUpdated"
 	EventWorkerSliceHealthUpdateFailed                    events.EventName = "WorkerSliceHealthUpdateFailed"
