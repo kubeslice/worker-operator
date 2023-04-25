@@ -178,7 +178,7 @@ var _ = BeforeSuite(func() {
 	err = (&slicegateway.SliceGwReconciler{
 		Client: k8sClient,
 		Scheme: k8sClient.Scheme(),
-		Log:    ctrl.Log.WithName("SliceTest"),
+		Log:    ctrl.Log.WithName("SliceGwTest"),
 		EventRecorder: mevents.NewEventRecorder(k8sClient, k8sManager.GetScheme(), ossEvents.EventsMap, mevents.EventRecorderOptions{
 			Cluster:   hub.ClusterName,
 			Project:   PROJECT_NS,

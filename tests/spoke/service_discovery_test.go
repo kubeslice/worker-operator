@@ -81,7 +81,8 @@ var _ = Describe("ServiceExportController", func() {
 					Selector: &metav1.LabelSelector{
 						MatchLabels: map[string]string{"app": "iperf"},
 					},
-					Ports: getTestServiceExportPorts(),
+					Ports:   getTestServiceExportPorts(),
+					Aliases: []string{"iperf-server.default.svc.cluster.local"},
 				},
 			}
 			Expect(k8sClient.Create(ctx, slice)).Should(Succeed())
@@ -179,9 +180,10 @@ var _ = Describe("ServiceExportController", func() {
 				Spec: kubeslicev1beta1.ServiceExportSpec{
 					Slice: "test-slice-1",
 					Selector: &metav1.LabelSelector{
-						MatchLabels: map[string]string{"app": "iperf"},
+						MatchLabels: map[string]string{"app": "iperf-server"},
 					},
-					Ports: getTestServiceExportPorts(),
+					Ports:   getTestServiceExportPorts(),
+					Aliases: []string{"iperf-server.default.svc.cluster.local"},
 				},
 			}
 			createdSlice = &kubeslicev1beta1.Slice{}
@@ -211,6 +213,150 @@ var _ = Describe("ServiceExportController", func() {
 				}, time.Second*30, time.Millisecond*250).Should(BeTrue())
 				log.Info("cleaned up after test")
 			})
+		})
+
+		It("Should update alias names in the service export status", func() {
+			err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+				err := k8sClient.Get(ctx, types.NamespacedName{
+					Name:      slice.Name,
+					Namespace: slice.Namespace,
+				}, createdSlice)
+				if err != nil {
+					return err
+				}
+				createdSlice.Status.SliceConfig = &kubeslicev1beta1.SliceConfig{}
+				createdSlice.Status.ApplicationNamespaces = []string{"default"}
+				return k8sClient.Status().Update(ctx, createdSlice)
+			})
+			Expect(err).To(BeNil())
+
+			svcKey := types.NamespacedName{Name: "iperf-server", Namespace: "default"}
+			createdSvcEx := &kubeslicev1beta1.ServiceExport{}
+
+			Expect(k8sClient.Create(ctx, svcex)).Should(Succeed())
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, svcKey, createdSvcEx)
+				if err != nil {
+					return false
+				}
+				return true
+			}, time.Second*30, time.Millisecond*250).Should(BeTrue())
+
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, svcKey, createdSvcEx)
+				if err != nil {
+					return false
+				}
+				if len(createdSvcEx.Status.Aliases) != 1 {
+					return false
+				}
+				numAliasesConfigured := 0
+				for _, alias := range createdSvcEx.Status.Aliases {
+					if alias == "iperf-server.default.svc.cluster.local" {
+						numAliasesConfigured++
+					}
+				}
+				if numAliasesConfigured != 1 {
+					return false
+				}
+				return true
+			}, time.Second*30, time.Millisecond*250).Should(BeTrue())
+
+			// Test adding a new alias to the spec
+			err = retry.RetryOnConflict(retry.DefaultRetry, func() error {
+				err := k8sClient.Get(ctx, svcKey, createdSvcEx)
+				if err != nil {
+					return err
+				}
+				createdSvcEx.Spec.Aliases = append(createdSvcEx.Spec.Aliases, "iperf-server.default.svc.cluster-x.com")
+				return k8sClient.Update(ctx, createdSvcEx)
+			})
+			Expect(err).To(BeNil())
+
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, svcKey, createdSvcEx)
+				if err != nil {
+					return false
+				}
+				if len(createdSvcEx.Status.Aliases) != 2 {
+					return false
+				}
+				numAliasesConfigured := 0
+				for _, alias := range createdSvcEx.Status.Aliases {
+					if alias == "iperf-server.default.svc.cluster.local" ||
+						alias == "iperf-server.default.svc.cluster-x.com" {
+						numAliasesConfigured++
+					}
+				}
+				if numAliasesConfigured != 2 {
+					return false
+				}
+				return true
+			}, time.Second*30, time.Millisecond*250).Should(BeTrue())
+
+			// Test updating an existing alias in the spec
+			err = retry.RetryOnConflict(retry.DefaultRetry, func() error {
+				err := k8sClient.Get(ctx, svcKey, createdSvcEx)
+				if err != nil {
+					return err
+				}
+				createdSvcEx.Spec.Aliases[0] = "iperf-server.default.svc.cluster-x.local"
+				return k8sClient.Update(ctx, createdSvcEx)
+			})
+			Expect(err).To(BeNil())
+
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, svcKey, createdSvcEx)
+				if err != nil {
+					return false
+				}
+				if len(createdSvcEx.Status.Aliases) != 2 {
+					return false
+				}
+				numAliasesConfigured := 0
+				for _, alias := range createdSvcEx.Status.Aliases {
+					if alias == "iperf-server.default.svc.cluster-x.local" ||
+						alias == "iperf-server.default.svc.cluster-x.com" {
+						numAliasesConfigured++
+					}
+				}
+				if numAliasesConfigured != 2 {
+					return false
+				}
+				return true
+			}, time.Second*30, time.Millisecond*250).Should(BeTrue())
+
+			// Test deleting an existing alias in the spec
+			svcex.Spec.Aliases = svcex.Spec.Aliases[:1]
+			err = retry.RetryOnConflict(retry.DefaultRetry, func() error {
+				err := k8sClient.Get(ctx, svcKey, createdSvcEx)
+				if err != nil {
+					return err
+				}
+				createdSvcEx.Spec.Aliases = createdSvcEx.Spec.Aliases[:1]
+				return k8sClient.Update(ctx, createdSvcEx)
+			})
+			Expect(err).To(BeNil())
+
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, svcKey, createdSvcEx)
+				if err != nil {
+					return false
+				}
+				if len(createdSvcEx.Status.Aliases) != 1 {
+					return false
+				}
+				numAliasesConfigured := 0
+				for _, alias := range createdSvcEx.Status.Aliases {
+					if alias == "iperf-server.default.svc.cluster-x.local" {
+						numAliasesConfigured++
+					}
+				}
+				if numAliasesConfigured != 1 {
+					return false
+				}
+				return true
+			}, time.Second*30, time.Millisecond*250).Should(BeTrue())
 		})
 
 		It("Should update service export status", func() {
