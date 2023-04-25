@@ -289,6 +289,7 @@ func (r *Reconciler) updateCNISubnetConfig(ctx context.Context, cr *hubv1alpha1.
 		}
 		if !reflect.DeepEqual(cr.Status.CniSubnet, cniSubnet) {
 			cr.Status.CniSubnet = cniSubnet
+			cr.Status.RegistrationStatus = hubv1alpha1.RegistrationStatusRegistered
 			toUpdate = true
 			return r.Status().Update(ctx, cr)
 		}
@@ -467,12 +468,13 @@ func (r *Reconciler) handleClusterDeletion(cluster *hubv1alpha1.Cluster, ctx con
 		}
 	} else {
 		// The object is being deleted
-		if controllerutil.ContainsFinalizer(cluster, clusterDeregisterFinalizer) {
+		if controllerutil.ContainsFinalizer(cluster, clusterDeregisterFinalizer) && !cluster.Status.IsDeregisterInProgress {
 			// our finalizer is present, so lets handle any external dependency
 			if err := r.createDeregisterJob(ctx, cluster); err != nil {
 				// unable to deregister the worker operator, return with an error and notify the controller's status.
 				log.Error(err, "unable to deregister the worker operator")
 				r.updateClusterDeregisterStatus("DeregisterFailed", ctx, cluster)
+				r.setIsDeregisterInProgress(ctx, cluster, false)
 				err := r.EventRecorder.RecordEvent(ctx, &events.Event{
 					Object:            cluster,
 					Name:              ossEvents.EventDeregitrationJobFailed,
