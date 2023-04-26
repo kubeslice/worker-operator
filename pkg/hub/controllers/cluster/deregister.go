@@ -197,8 +197,12 @@ func constructClusterRoleBinding() *rbacv1.ClusterRoleBinding {
 	return clusterRole
 }
 
-func getConfigmapScriptPath(filename string) string {
-	return path.Join("../../../../scripts", filename+".sh")
+func getConfigmapScriptPath(file string) string {
+	dir := os.Getenv("SCRIPT_PATH")
+	if dir != "" {
+		return path.Join(dir, file+".sh")
+	}
+	return path.Join("../../../../scripts", file+".sh")
 }
 
 func getConfigmapData() (string, error) {
