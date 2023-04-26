@@ -1,25 +1,25 @@
 #!/bin/bash
 updateControllerClusterStatus() {
+    echo "updating registration status"
     kubectl patch clusters.controller.kubeslice.io $CLUSTER_NAME -n $PROJECT_NAMESPACE --token $TOKEN --certificate-authority /ca.crt --server $HUB_ENDPOINT --type=merge --subresource status --patch "{\"status\": {\"registrationStatus\": \"$1\"}}"
 }
 
 removeFinalizer() {
+    echo "removing cluster deregister finalizer"
     kubectl get -o yaml clusters.controller.kubeslice.io $CLUSTER_NAME -n $PROJECT_NAMESPACE --token $TOKEN  --certificate-authority /ca.crt --server $HUB_ENDPOINT > ./cluster.yaml
     sed -i '/finalizers:/,/^[^ ]/ s/ *- networking.kubeslice.io\/cluster-deregister-finalizer//' cluster.yaml
     kubectl patch clusters.controller.kubeslice.io $CLUSTER_NAME -n $PROJECT_NAMESPACE --type=merge  --patch-file cluster.yaml --token $TOKEN  --certificate-authority /ca.crt --server $HUB_ENDPOINT
 }
 
 deleteKubeSliceCRDs() {
-    kubectl delete crd serviceexports.networking.kubeslice.io --ignore-not-found
-    kubectl delete crd serviceimports.networking.kubeslice.io --ignore-not-found
-    kubectl delete crd slices.networking.kubeslice.io --ignore-not-found
-    kubectl delete crd slicegateways.networking.kubeslice.io --ignore-not-found
-    kubectl delete crd slicenodeaffinities.networking.kubeslice.io --ignore-not-found
-    kubectl delete crd sliceresourcequotas.networking.kubeslice.io --ignore-not-found
-    kubectl delete crd slicerolebindings.networking.kubeslice.io --ignore-not-found
+    for item in $(kubectl get crd | grep "networking.kubeslice.io"); do
+    echo "removing item $item"
+    kubectl delete crd $item --ignore-not-found
+    done
 }
 
 deleteNamespace(){
+    echo "deleting kubeslice-system namespace"
     kubectl delete namespace kubeslice-system
 }
 
@@ -29,6 +29,7 @@ kubectl get secret ${SECRET} -o json | jq -Mr '.data["ca.crt"]' | base64 -d > /c
 # get the worker release name
 workerRelease=$(helm list --output json -n kubeslice-system | jq -r '.[] | select(.chart | startswith("kubeslice-worker-")).name')
 echo workerRelease $workerRelease
+echo "running helm uninstall"
 if helm uninstall $workerRelease --namespace kubeslice-system
 then
     # delete crds
@@ -43,6 +44,7 @@ then
     deleteNamespace
     # set the registration status
 else
+    echo "Failed to uninstall worker-operator retrying with --no-hooks flag"
     if helm uninstall $workerRelease --namespace kubeslice-system --no-hooks
     then 
         # deleting nsm mutatingwebhookconfig
@@ -75,7 +77,8 @@ else
         removeFinalizer
         # delete namespace
         deleteNamespace
-    else 
+    else
+        echo "Failed to uninstall worker-operator"
         updateControllerClusterStatus "DeregisterFailed"
     fi
 fi
