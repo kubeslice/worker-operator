@@ -3,6 +3,7 @@ package cluster
 import (
 	"context"
 	"os"
+	"path"
 
 	hubv1alpha1 "github.com/kubeslice/apis/pkg/controller/v1alpha1"
 	"github.com/kubeslice/worker-operator/pkg/logger"
@@ -22,6 +23,7 @@ var (
 	clusterRoleBindingName     = "cluster-deregister-rb"
 	clusterDeregisterConfigMap = "cluster-deregister-cm"
 	deregisterJobName          = "cluster-deregisteration-job"
+	operatorClusterRoleName    = "kubeslice-manager-role"
 )
 
 // createDeregisterJob creates a job to uninstall worker-operator and notify controller
@@ -43,8 +45,14 @@ func (r *Reconciler) createDeregisterJob(ctx context.Context, cluster *hubv1alph
 			return err
 		}
 	}
+	// get operator clusterrole
+	clusterRole, err := r.getOperatorClusterRole(ctx)
+	if err != nil {
+		log.Error(err, "unable to fetch operator clusterrole")
+		return err
+	}
 	// Create a cluster role.
-	if err := r.MeshClient.Create(ctx, constructClusterRole(), &client.CreateOptions{}); err != nil {
+	if err := r.MeshClient.Create(ctx, constructClusterRole(clusterRole), &client.CreateOptions{}); err != nil {
 		if apierrors.IsAlreadyExists(err) {
 			log.Info("cluster role already exists", "clusterrole", clusterRoleName)
 		} else {
@@ -150,45 +158,23 @@ func constructServiceAccount() *corev1.ServiceAccount {
 	return svcAcc
 }
 
-func constructClusterRole() *rbacv1.ClusterRole {
-	clusterRole := &rbacv1.ClusterRole{
+func (r *Reconciler) getOperatorClusterRole(ctx context.Context) (*rbacv1.ClusterRole, error) {
+	operatorClusterRole := &rbacv1.ClusterRole{}
+	err := r.MeshClient.Get(ctx, types.NamespacedName{Name: operatorClusterRoleName}, operatorClusterRole)
+	if err != nil {
+		return nil, err
+	}
+	return operatorClusterRole, nil
+}
+
+func constructClusterRole(clusterRole *rbacv1.ClusterRole) *rbacv1.ClusterRole {
+	clusterRoleCopy := &rbacv1.ClusterRole{
 		TypeMeta:   metav1.TypeMeta{},
 		ObjectMeta: metav1.ObjectMeta{Name: clusterRoleName, Namespace: ControlPlaneNamespace},
-		Rules: []rbacv1.PolicyRule{
-			{
-				APIGroups: []string{"apps"},
-				Resources: []string{"deployments", "daemonsets", "statefulsets", "replicasets"},
-				Verbs:     []string{"get", "list", "patch", "update", "create", "delete"},
-			},
-			{
-				APIGroups: []string{""},
-				Resources: []string{"endpoints", "pods", "secrets", "services", "configmaps", "serviceaccounts", "namespaces"},
-				Verbs:     []string{"delete", "list", "create", "get", "patch", "update"},
-			},
-			{
-				APIGroups: []string{"rbac.authorization.k8s.io"},
-				Resources: []string{"roles", "rolebindings", "clusterroles", "clusterrolebindings"},
-				Verbs:     []string{"get", "list", "patch", "update", "create", "delete"},
-			},
-			{
-				APIGroups: []string{"batch", "admissionregistration.k8s.io", "apiextensions.k8s.io", "scheduling.k8s.io"},
-				Resources: []string{"*"},
-				Verbs:     []string{"get", "list", "delete", "create", "watch"},
-			},
-			{
-				APIGroups: []string{"spiffeid.spiffe.io"},
-				Resources: []string{"spiffeids"},
-				Verbs:     []string{"create", "delete", "get", "list", "patch", "update", "watch"},
-			},
-			{
-				APIGroups: []string{"spiffeid.spiffe.io"},
-				Resources: []string{"spiffeids/status"},
-				Verbs:     []string{"get", "patch", "update"},
-			},
-		},
+		Rules:      clusterRole.Rules,
 	}
 
-	return clusterRole
+	return clusterRoleCopy
 }
 
 func constructClusterRoleBinding() *rbacv1.ClusterRoleBinding {
@@ -211,9 +197,13 @@ func constructClusterRoleBinding() *rbacv1.ClusterRoleBinding {
 	return clusterRole
 }
 
+func getConfigmapScriptPath(filename string) string {
+	return path.Join("../../../../scripts", filename+".sh")
+}
+
 func getConfigmapData() (string, error) {
-	fileName := "scripts/cleanup.sh"
-	data, err := os.ReadFile(fileName)
+	fileName := "cleanup"
+	data, err := os.ReadFile(getConfigmapScriptPath(fileName))
 	if err != nil {
 		return "", err
 	}
@@ -241,6 +231,9 @@ func constructJobForClusterDeregister() *batchv1.Job {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      deregisterJobName,
 			Namespace: ControlPlaneNamespace,
+			Labels: map[string]string{
+				"kubeslice-manager/api-gateway": "cluster-deregister-job",
+			},
 		},
 		Spec: batchv1.JobSpec{
 			BackoffLimit:            &backOffLimit,
