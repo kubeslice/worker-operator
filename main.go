@@ -194,7 +194,12 @@ func main() {
 		os.Exit(1)
 	}
 
-	sliceGwEventRecorder := events.NewEventRecorder(mgr.GetEventRecorderFor("sliceGw-controller"))
+	sliceGwEventRecorder := monitoringEvents.NewEventRecorder(mgr.GetClient(), scheme, ossEvents.EventsMap, monitoringEvents.EventRecorderOptions{
+		Cluster:   controllers.ClusterName,
+		Project:   hub.ProjectNamespace,
+		Component: "sliceGw-controller",
+		Namespace: controllers.ControlPlaneNamespace,
+	})
 	workerGWClient, err := sidecar.NewWorkerGWSidecarClientProvider()
 	if err != nil {
 		setupLog.With("error", err).Error("could not create spoke sidecar gateway client for slice gateway reconciler")

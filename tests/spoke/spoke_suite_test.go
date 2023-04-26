@@ -178,9 +178,12 @@ var _ = BeforeSuite(func() {
 		Client: k8sClient,
 		Scheme: k8sClient.Scheme(),
 		Log:    ctrl.Log.WithName("SliceTest"),
-		EventRecorder: &events.EventRecorder{
-			Recorder: &record.FakeRecorder{},
-		},
+		EventRecorder: mevents.NewEventRecorder(k8sClient, k8sManager.GetScheme(), ossEvents.EventsMap, mevents.EventRecorderOptions{
+			Cluster:   hub.ClusterName,
+			Project:   PROJECT_NS,
+			Component: "slicegw-operator",
+			Namespace: CONTROL_PLANE_NS,
+		}),
 		HubClient:             hubClientEmulator,
 		WorkerGWSidecarClient: workerClientSidecarGwEmulator,
 		WorkerRouterClient:    workerClientRouterEmulator,

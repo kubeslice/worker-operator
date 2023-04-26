@@ -173,11 +173,17 @@ var _ = Describe("Hub SlicegwController", func() {
 			}, time.Second*20, time.Second*1).Should(BeTrue())
 
 			for _, event := range events.Items {
+				if event.InvolvedObject.Kind == "WorkerSliceGateway" {
+					GinkgoWriter.Println("GOURISH event is ", event)
+				}
 				if event.Source.Component == "test-slicegw-controller" && event.InvolvedObject.Kind == "Slice" {
 					Expect(event.Message).To(Equal("Created slicegw on spoke cluster , slicegateway test-slicegateway"))
 				}
-				if event.Source.Component == "test-slicegw-controller" && event.InvolvedObject.Kind == "WorkerSliceGateway" {
+				if event.Source.Component == "test-slicegw-controller" && event.InvolvedObject.Kind == "WorkerSliceGateway" && event.Labels["eventTitle"] == "SliceGWCreated" {
 					Expect(event.Message).To(Equal("Slice GateWay created."))
+				}
+				if event.Source.Component == "test-slicegw-controller" && event.InvolvedObject.Kind == "WorkerSliceGateway" && event.Labels["eventTitle"] == "SliceGWUpdated" {
+					Expect(event.Message).To(Equal("Slice GateWay updated."))
 				}
 			}
 		})

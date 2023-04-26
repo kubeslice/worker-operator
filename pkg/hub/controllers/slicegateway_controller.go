@@ -81,12 +81,18 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req reconcile.Request
 	if err != nil {
 		if err := r.EventRecorder.RecordEvent(ctx, &events.Event{
 			Object:            sliceGw,
-			Name:              ossEvents.EventSliceGWCreated,
+			Name:              ossEvents.EventSliceGWCreateFailed,
 			ReportingInstance: "workerslicegw_controller",
 		}); err != nil {
 			log.Error(err, "unable to raise event")
 		}
 		return reconcile.Result{}, err
+	} else {
+		r.EventRecorder.RecordEvent(ctx, &events.Event{
+			Object:            sliceGw,
+			Name:              ossEvents.EventSliceGWCreated,
+			ReportingInstance: "workerslicegw_controller",
+		})
 	}
 	err = retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		sliceGwRef := client.ObjectKey{
@@ -113,8 +119,19 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req reconcile.Request
 		}
 		err = r.MeshClient.Status().Update(ctx, meshSliceGw)
 		if err != nil {
+			r.EventRecorder.RecordEvent(ctx, &events.Event{
+				Object:            sliceGw,
+				Name:              ossEvents.EventSliceGWUpdateFailed,
+				ReportingInstance: "workerslicegw_controller",
+			})
 			log.Error(err, "unable to update sliceGw status in spoke cluster", "sliceGw", sliceGwName)
 			return err
+		} else {
+			r.EventRecorder.RecordEvent(ctx, &events.Event{
+				Object:            sliceGw,
+				Name:              ossEvents.EventSliceGWUpdated,
+				ReportingInstance: "workerslicegw_controller",
+			})
 		}
 		return nil
 	})

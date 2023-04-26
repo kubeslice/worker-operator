@@ -51,7 +51,6 @@ var sliceFinalizer = "networking.kubeslice.io/slice-finalizer"
 // SliceReconciler reconciles a Slice object
 type SliceReconciler struct {
 	client.Client
-	// EventRecorder      *events.EventRecorder
 	EventRecorder      events.EventRecorder
 	Scheme             *runtime.Scheme
 	Log                logr.Logger
