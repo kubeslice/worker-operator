@@ -194,7 +194,7 @@ events:
   - name: SliceGWRebalancingSuccess
     reason: SliceGWRebalancingSuccess
     action: ReconcileSliceGWPod
-    type: Warning
+    type: Normal
     reportingController: worker
     message: Slice GateWay rebalancing successfully.
   - name: SliceGWServiceCreationFailed

@@ -282,7 +282,7 @@ var EventsMap = map[events.EventName]*events.EventSchema{
 		Name:                "SliceGWRebalancingSuccess",
 		Reason:              "SliceGWRebalancingSuccess",
 		Action:              "ReconcileSliceGWPod",
-		Type:                events.EventTypeWarning,
+		Type:                events.EventTypeNormal,
 		ReportingController: "worker",
 		Message:             "Slice GateWay rebalancing successfully.",
 	},
