@@ -232,7 +232,12 @@ func main() {
 		os.Exit(1)
 	}
 
-	serviceImportEventRecorder := events.NewEventRecorder(mgr.GetEventRecorderFor("serviceImport-controller"))
+	serviceImportEventRecorder := monitoringEvents.NewEventRecorder(mgr.GetClient(), scheme, ossEvents.EventsMap, monitoringEvents.EventRecorderOptions{
+		Cluster:   controllers.ClusterName,
+		Project:   hub.ProjectNamespace,
+		Component: "serviceImport-controller",
+		Namespace: controllers.ControlPlaneNamespace,
+	})
 	if err = (&serviceimport.Reconciler{
 		Client:        mgr.GetClient(),
 		Log:           ctrl.Log.WithName("controllers").WithName("ServiceImport"),

@@ -302,22 +302,6 @@ var EventsMap = map[events.EventName]*events.EventSchema{
 		ReportingController: "worker",
 		Message:             "Slice GateWay NodePort update failed.",
 	},
-	"SliceServiceImportCreated": {
-		Name:                "SliceServiceImportCreated",
-		Reason:              "SliceServiceImportCreated",
-		Action:              "CreateSliceServiceImport",
-		Type:                events.EventTypeNormal,
-		ReportingController: "worker",
-		Message:             "Slice ServiceImport created.",
-	},
-	"SliceServiceImportCreateFailed": {
-		Name:                "SliceServiceImportCreateFailed",
-		Reason:              "SliceServiceImportCreateFailed",
-		Action:              "CreateSliceServiceImport",
-		Type:                events.EventTypeWarning,
-		ReportingController: "worker",
-		Message:             "Slice ServiceImport creation failed.",
-	},
 	"SliceServiceImportUpdateAvailableEndpointsFailed": {
 		Name:                "SliceServiceImportUpdateAvailableEndpointsFailed",
 		Reason:              "SliceServiceImportUpdateAvailableEndpointsFailed",
@@ -334,6 +318,14 @@ var EventsMap = map[events.EventName]*events.EventSchema{
 		ReportingController: "worker",
 		Message:             "Slice ServiceImport deleted.",
 	},
+	"SliceServiceImportDeleteFailed": {
+		Name:                "SliceServiceImportDeleteFailed",
+		Reason:              "SliceServiceImportDeleteFailed",
+		Action:              "DeleteServiceImport",
+		Type:                events.EventTypeNormal,
+		ReportingController: "worker",
+		Message:             "Slice ServiceImport deletion failed.",
+	},
 	"SliceServiceImportUpdatePorts": {
 		Name:                "SliceServiceImportUpdatePorts",
 		Reason:              "SliceServiceImportUpdatePorts",
@@ -341,6 +333,30 @@ var EventsMap = map[events.EventName]*events.EventSchema{
 		Type:                events.EventTypeNormal,
 		ReportingController: "worker",
 		Message:             "Slice ServiceImport ports updated.",
+	},
+	"SliceServiceImportUpdatePortsFailed": {
+		Name:                "SliceServiceImportUpdatePortsFailed",
+		Reason:              "SliceServiceImportUpdatePortsFailed",
+		Action:              "ReconcileServiceImport",
+		Type:                events.EventTypeNormal,
+		ReportingController: "worker",
+		Message:             "Slice ServiceImport ports update failed.",
+	},
+	"SliceServiceImportUpdated": {
+		Name:                "SliceServiceImportUpdated",
+		Reason:              "SliceServiceImportUpdated",
+		Action:              "ReconcileServiceImport",
+		Type:                events.EventTypeNormal,
+		ReportingController: "worker",
+		Message:             "Slice ServiceImport updated.",
+	},
+	"SliceServiceImportUpdateFailed": {
+		Name:                "SliceServiceImportUpdateFailed",
+		Reason:              "SliceServiceImportUpdateFailed",
+		Action:              "ReconcileServiceImport",
+		Type:                events.EventTypeWarning,
+		ReportingController: "worker",
+		Message:             "Slice ServiceImport update failed.",
 	},
 	"NetPolAdded": {
 		Name:                "NetPolAdded",
@@ -365,6 +381,22 @@ var EventsMap = map[events.EventName]*events.EventSchema{
 		Type:                events.EventTypeWarning,
 		ReportingController: "worker",
 		Message:             "Slice NetworkPolicy scope widened due to IP Block violation.",
+	},
+	"WorkerServiceImportCreateFailed": {
+		Name:                "WorkerServiceImportCreateFailed",
+		Reason:              "WorkerServiceImportCreateFailed",
+		Action:              "CreateWorkerServiceImport",
+		Type:                events.EventTypeWarning,
+		ReportingController: "worker",
+		Message:             "Worker ServiceImport Creation failed.",
+	},
+	"WorkerServiceImportCreated": {
+		Name:                "WorkerServiceImportCreated",
+		Reason:              "WorkerServiceImportCreated",
+		Action:              "CreateWorkerServiceImport",
+		Type:                events.EventTypeNormal,
+		ReportingController: "worker",
+		Message:             "Worker ServiceImport created.",
 	},
 }
 
@@ -404,12 +436,16 @@ var (
 	EventSliceGWRebalancingSuccess                        events.EventName = "SliceGWRebalancingSuccess"
 	EventSliceGWServiceCreationFailed                     events.EventName = "SliceGWServiceCreationFailed"
 	EventSliceGWNodePortUpdateFailed                      events.EventName = "SliceGWNodePortUpdateFailed"
-	EventSliceServiceImportCreated                        events.EventName = "SliceServiceImportCreated"
-	EventSliceServiceImportCreateFailed                   events.EventName = "SliceServiceImportCreateFailed"
 	EventSliceServiceImportUpdateAvailableEndpointsFailed events.EventName = "SliceServiceImportUpdateAvailableEndpointsFailed"
 	EventSliceServiceImportDeleted                        events.EventName = "SliceServiceImportDeleted"
+	EventSliceServiceImportDeleteFailed                   events.EventName = "SliceServiceImportDeleteFailed"
 	EventSliceServiceImportUpdatePorts                    events.EventName = "SliceServiceImportUpdatePorts"
+	EventSliceServiceImportUpdatePortsFailed              events.EventName = "SliceServiceImportUpdatePortsFailed"
+	EventSliceServiceImportUpdated                        events.EventName = "SliceServiceImportUpdated"
+	EventSliceServiceImportUpdateFailed                   events.EventName = "SliceServiceImportUpdateFailed"
 	EventNetPolAdded                                      events.EventName = "NetPolAdded"
 	EventNetPolScopeWidenedNamespace                      events.EventName = "NetPolScopeWidenedNamespace"
 	EventNetPolScopeWidenedIPBlock                        events.EventName = "NetPolScopeWidenedIPBlock"
+	EventWorkerServiceImportCreateFailed                  events.EventName = "WorkerServiceImportCreateFailed"
+	EventWorkerServiceImportCreated                       events.EventName = "WorkerServiceImportCreated"
 )

@@ -144,7 +144,12 @@ func Start(meshClient client.Client, ctx context.Context) {
 		os.Exit(1)
 	}
 
-	spokeServiceImportEventRecorder := events.NewEventRecorder(mgr.GetEventRecorderFor("spokeServiceImport-controller"))
+	spokeServiceImportEventRecorder := mevents.NewEventRecorder(meshClient, mgr.GetScheme(), ossEvents.EventsMap, mevents.EventRecorderOptions{
+		Cluster:   ClusterName,
+		Project:   ProjectNamespace,
+		Component: "spokeServiceImport-controller",
+		Namespace: controllers.ControlPlaneNamespace,
+	})
 
 	serviceImportReconciler := &controllers.ServiceImportReconciler{
 		MeshClient:    meshClient,

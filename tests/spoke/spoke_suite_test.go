@@ -196,9 +196,12 @@ var _ = BeforeSuite(func() {
 		Client: k8sManager.GetClient(),
 		Scheme: k8sManager.GetScheme(),
 		Log:    ctrl.Log.WithName("SvcImTest"),
-		EventRecorder: &events.EventRecorder{
-			Recorder: &record.FakeRecorder{},
-		},
+		EventRecorder: mevents.NewEventRecorder(k8sClient, k8sManager.GetScheme(), ossEvents.EventsMap, mevents.EventRecorderOptions{
+			Cluster:   hub.ClusterName,
+			Project:   PROJECT_NS,
+			Component: "serviceimport-operator",
+			Namespace: CONTROL_PLANE_NS,
+		}),
 	}).SetupWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())
 

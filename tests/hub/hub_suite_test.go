@@ -185,7 +185,12 @@ var _ = BeforeSuite(func() {
 		Complete(sgwr)
 	Expect(err).ToNot(HaveOccurred())
 
-	testSvcimEventRecorder := events.NewEventRecorder(k8sManager.GetEventRecorderFor("test-svcim-controller"))
+	testSvcimEventRecorder := mevents.NewEventRecorder(k8sManager.GetClient(), k8sManager.GetScheme(), ossEvents.EventsMap, mevents.EventRecorderOptions{
+		Cluster:   CLUSTER_NAME,
+		Project:   PROJECT_NS,
+		Component: "test-svcim-controller",
+		Namespace: CONTROL_PLANE_NS,
+	})
 	serviceImportReconciler := &controllers.ServiceImportReconciler{
 		MeshClient:    k8sClient,
 		EventRecorder: testSvcimEventRecorder,
