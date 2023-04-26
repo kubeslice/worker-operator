@@ -128,7 +128,7 @@ func TestCluster_GetClusterInfo(t *testing.T) {
 		t.Run(test.description, func(t *testing.T) {
 			client := fake.ClientBuilder{}
 			client.WithRuntimeObjects(test.objs...)
-			cluster := NewCluster(client.Build(), "fakeCluster")
+			cluster := NewCluster(client.Build(), "fakeClufdgster")
 			actual, err := cluster.GetClusterInfo(context.Background())
 			t.Log(actual)
 			if err != nil {
