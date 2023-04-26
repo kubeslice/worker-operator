@@ -240,21 +240,7 @@ func (r *Reconciler) ReconcileAliases(
 	}
 
 	// Check if an update is needed to the alias info in the status
-	updateNeeded := false
-
-	// Status does not contain alias info. Could be the first iteration of the reconcile loop
-	if len(serviceexport.Status.Aliases) == 0 {
-		updateNeeded = true
-	}
-
-	for _, aliasInStatus := range serviceexport.Status.Aliases {
-		if !aliasRecordedInStatus(aliasInStatus, &serviceexport.Spec.Aliases) {
-			updateNeeded = true
-			break
-		}
-	}
-
-	if updateNeeded {
+	if !isAliasStatusInSync(serviceexport.Status.Aliases, serviceexport.Spec.Aliases) {
 		serviceexport.Status.Aliases = serviceexport.Spec.Aliases
 		serviceexport.Status.LastSync = 0
 		err := r.Status().Update(ctx, serviceexport)
@@ -269,12 +255,27 @@ func (r *Reconciler) ReconcileAliases(
 	return ctrl.Result{}, nil, false
 }
 
-func aliasRecordedInStatus(aliasInStatus string, aliasListInSpec *[]string) bool {
-	for _, alias := range *aliasListInSpec {
-		if alias == aliasInStatus {
-			return true
+func isAliasStatusInSync(aliasListInStatus []string, aliasListInSpec []string) bool {
+	if len(aliasListInStatus) != len(aliasListInSpec) {
+		return false
+	}
+	// Comparing the two lists by first creating a map from the Status list and doing a lookup
+	// against every element in the Spec list. Not using reflect.DeepEqual() as it requires the
+	// lists to be in the same order to be deeply equal, and also the DeepEqual() func is not
+	// performant.
+	// Rob Pike in the official Go blog:
+	// "It's a powerful tool that should be used with care and avoided unless strictly necessary"
+	// So using it to just compare two lists/slices might not be a good usecase.
+	aliasInStatusMap := make(map[string]struct{})
+	for _, aliasInStatus := range aliasListInStatus {
+		aliasInStatusMap[aliasInStatus] = struct{}{}
+	}
+	for _, aliasInSpec := range aliasListInSpec {
+		_, ok := aliasInStatusMap[aliasInSpec]
+		if !ok {
+			return false
 		}
 	}
 
-	return false
+	return true
 }

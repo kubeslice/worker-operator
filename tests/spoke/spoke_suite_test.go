@@ -24,7 +24,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/kubeslice/kubeslice-monitoring/pkg/metrics"
 	nsmv1 "github.com/networkservicemesh/sdk-k8s/pkg/tools/k8s/apis/networkservicemesh.io/v1"
+	ctrlmetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -135,6 +137,14 @@ var _ = BeforeSuite(func() {
 	workerClientNetopEmulator, err = workernetop.NewClientEmulator()
 	Expect(err).ToNot(HaveOccurred())
 
+	mf, err := metrics.NewMetricsFactory(ctrlmetrics.Registry, metrics.MetricsFactoryOptions{
+		Cluster:             "cluster-test",
+		Project:             PROJECT_NS,
+		ReportingController: "worker-operator",
+		Namespace:           CONTROL_PLANE_NS,
+	})
+	Expect(err).ToNot(HaveOccurred())
+
 	err = (&slice.SliceReconciler{
 		Client: k8sManager.GetClient(),
 		Scheme: k8sManager.GetScheme(),
@@ -145,26 +155,24 @@ var _ = BeforeSuite(func() {
 		HubClient:          hubClientEmulator,
 		WorkerRouterClient: workerClientRouterEmulator,
 		WorkerNetOpClient:  workerClientNetopEmulator,
-	}).SetupWithManager(k8sManager)
-	Expect(err).ToNot(HaveOccurred())
-
-	err = (&serviceexport.Reconciler{
-		Client:    k8sManager.GetClient(),
-		Scheme:    k8sManager.GetScheme(),
-		Log:       ctrl.Log.WithName("SliceGwTest"),
-		HubClient: hubClientEmulator,
-		EventRecorder: &events.EventRecorder{
-			Recorder: &record.FakeRecorder{},
-		},
-	}).SetupWithManager(k8sManager)
+	}).Setup(k8sManager, mf)
 	Expect(err).ToNot(HaveOccurred())
 
 	testSvcExEventRecorder := events.NewEventRecorder(k8sManager.GetEventRecorderFor("test-SvcEx-controller"))
 
+	err = (&serviceexport.Reconciler{
+		Client:        k8sManager.GetClient(),
+		Scheme:        k8sManager.GetScheme(),
+		Log:           ctrl.Log.WithName("SliceGwTest"),
+		HubClient:     hubClientEmulator,
+		EventRecorder: testSvcExEventRecorder,
+	}).Setup(k8sManager, mf)
+	Expect(err).ToNot(HaveOccurred())
+
 	err = (&slicegateway.SliceGwReconciler{
 		Client: k8sClient,
 		Scheme: k8sClient.Scheme(),
-		Log:    ctrl.Log.WithName("SliceTest"),
+		Log:    ctrl.Log.WithName("SliceGwTest"),
 		EventRecorder: &events.EventRecorder{
 			Recorder: &record.FakeRecorder{},
 		},
@@ -173,15 +181,6 @@ var _ = BeforeSuite(func() {
 		WorkerRouterClient:    workerClientRouterEmulator,
 		WorkerNetOpClient:     workerClientNetopEmulator,
 		NumberOfGateways:      2,
-	}).SetupWithManager(k8sManager)
-	Expect(err).ToNot(HaveOccurred())
-
-	err = (&serviceexport.Reconciler{
-		Client:        k8sManager.GetClient(),
-		Scheme:        k8sManager.GetScheme(),
-		Log:           ctrl.Log.WithName("SvcExTest"),
-		HubClient:     hubClientEmulator,
-		EventRecorder: testSvcExEventRecorder,
 	}).SetupWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())
 

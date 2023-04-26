@@ -40,11 +40,13 @@ import (
 	hubv1alpha1 "github.com/kubeslice/apis/pkg/controller/v1alpha1"
 	spokev1alpha1 "github.com/kubeslice/apis/pkg/worker/v1alpha1"
 	mevents "github.com/kubeslice/kubeslice-monitoring/pkg/events"
+	"github.com/kubeslice/kubeslice-monitoring/pkg/metrics"
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
 	ossEvents "github.com/kubeslice/worker-operator/events"
 	"github.com/kubeslice/worker-operator/pkg/events"
 	"github.com/kubeslice/worker-operator/pkg/hub/controllers"
 	"github.com/kubeslice/worker-operator/pkg/hub/controllers/cluster"
+	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/kubeslice/worker-operator/pkg/hub/controllers/workerslicegwrecycler"
 	workerrouter "github.com/kubeslice/worker-operator/tests/emulator/workerclient/router"
@@ -65,6 +67,8 @@ var cancel context.CancelFunc
 const CONTROL_PLANE_NS = "kubeslice-system"
 const PROJECT_NS = "project-example"
 const CLUSTER_NAME = "cluster-test"
+
+var MetricRegistry = prometheus.NewRegistry()
 
 var _ = BeforeSuite(func() {
 	logf.SetLogger(zap.New(zap.WriteTo(GinkgoWriter), zap.UseDevMode(true)))
@@ -128,12 +132,22 @@ var _ = BeforeSuite(func() {
 	workerClientRouterEmulator, err := workerrouter.NewClientEmulator()
 	Expect(err).ToNot(HaveOccurred())
 
+	mf, _ := metrics.NewMetricsFactory(
+		MetricRegistry,
+		metrics.MetricsFactoryOptions{
+			Project:             PROJECT_NS,
+			Cluster:             CLUSTER_NAME,
+			ReportingController: "worker-operator",
+			Namespace:           controllers.ControlPlaneNamespace,
+		},
+	)
+
 	testSliceEventRecorder := events.NewEventRecorder(k8sManager.GetEventRecorderFor("test-slice-controller"))
-	sr := &controllers.SliceReconciler{
-		MeshClient:    k8sClient,
-		Log:           ctrl.Log.WithName("hub").WithName("controllers").WithName("SliceConfig"),
-		EventRecorder: testSliceEventRecorder,
-	}
+	sr := controllers.NewSliceReconciler(
+		k8sClient,
+		testSliceEventRecorder,
+		mf,
+	)
 
 	testSliceGwEventRecorder := events.NewEventRecorder(k8sManager.GetEventRecorderFor("test-slicegw-controller"))
 	sgwr := &controllers.SliceGwReconciler{
@@ -195,10 +209,12 @@ var _ = BeforeSuite(func() {
 		Component: "worker-operator",
 		Namespace: CONTROL_PLANE_NS,
 	})
-	clusterReconciler := &cluster.Reconciler{
-		MeshClient:    k8sClient,
-		EventRecorder: spokeClusterEventRecorder,
-	}
+	clusterReconciler := cluster.NewReconciler(
+		k8sClient,
+		spokeClusterEventRecorder,
+		mf,
+	)
+	clusterReconciler.ReconcileInterval = 5 * time.Second
 	err = builder.
 		ControllerManagedBy(k8sManager).
 		For(&hubv1alpha1.Cluster{}).

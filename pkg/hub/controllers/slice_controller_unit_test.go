@@ -25,7 +25,9 @@ import (
 	"time"
 
 	workerv1alpha1 "github.com/kubeslice/apis/pkg/worker/v1alpha1"
+	"github.com/kubeslice/kubeslice-monitoring/pkg/metrics"
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/stretchr/testify/mock"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -91,11 +93,9 @@ func TestReconcileToReturnErrorWhileFetchingControllerSlice(t *testing.T) {
 		mock.IsType(&workerv1alpha1.WorkerSliceConfig{}),
 	).Return(errors.New("object not found"))
 
-	reconciler := &SliceReconciler{
-		Client:     client,
-		MeshClient: client,
-		Log:        ctrl.Log.WithName("controller").WithName("controllers").WithName("SliceConfig"),
-	}
+	mf, _ := metrics.NewMetricsFactory(prometheus.NewRegistry(), metrics.MetricsFactoryOptions{})
+	reconciler := NewSliceReconciler(client, nil, mf)
+	reconciler.InjectClient(client)
 	result, err := reconciler.Reconcile(expected.ctx, expected.req)
 	if expected.res != result {
 		t.Error("Expected response :", expected.res, " but got ", result)
@@ -140,11 +140,9 @@ func TestReconcileToReturnErrorWhileFetchingWorkerSlice(t *testing.T) {
 		mock.IsType(&kubeslicev1beta1.Slice{}),
 	).Return(errors.New("object not found"))
 
-	reconciler := &SliceReconciler{
-		Client:     client,
-		MeshClient: client,
-		Log:        ctrl.Log.WithName("controller").WithName("controllers").WithName("SliceConfig"),
-	}
+	mf, _ := metrics.NewMetricsFactory(prometheus.NewRegistry(), metrics.MetricsFactoryOptions{})
+	reconciler := NewSliceReconciler(client, nil, mf)
+	reconciler.InjectClient(client)
 	result, err := reconciler.Reconcile(expected.ctx, expected.req)
 	if expected.res != result {
 		t.Error("Expected response :", expected.res, " but got ", result)
@@ -163,7 +161,7 @@ func TestReconcileToUpdateWorkerSlice(t *testing.T) {
 	}{
 		context.WithValue(context.Background(), types.NamespacedName{Namespace: "kube-slice", Name: "kube-slice"}, controllerSlice),
 		reconcile.Request{NamespacedName: types.NamespacedName{Name: "test-slice", Namespace: "kubeslice-system"}},
-		reconcile.Result{RequeueAfter: ReconcileInterval},
+		reconcile.Result{RequeueAfter: time.Second * 120},
 		nil,
 	}
 	client := NewClient()
@@ -202,11 +200,9 @@ func TestReconcileToUpdateWorkerSlice(t *testing.T) {
 		mock.IsType([]k8sclient.UpdateOption(nil)),
 	).Return(nil)
 
-	reconciler := &SliceReconciler{
-		Client:     client,
-		MeshClient: client,
-		Log:        ctrl.Log.WithName("controller").WithName("controllers").WithName("SliceConfig"),
-	}
+	mf, _ := metrics.NewMetricsFactory(prometheus.NewRegistry(), metrics.MetricsFactoryOptions{})
+	reconciler := NewSliceReconciler(client, nil, mf)
+	reconciler.InjectClient(client)
 	result, err := reconciler.Reconcile(expected.ctx, expected.req)
 	if expected.res != result {
 		t.Error("Expected response :", expected.res, " but got ", result)
@@ -256,16 +252,14 @@ func TestUpdateSliceHealth(t *testing.T) {
 	}{
 		context.WithValue(context.Background(), types.NamespacedName{Namespace: "kubeslice-system", Name: "test-slice"}, controllerSlice),
 		reconcile.Request{NamespacedName: types.NamespacedName{Name: "test-slice", Namespace: "kubeslice-system"}},
-		reconcile.Result{RequeueAfter: ReconcileInterval},
+		reconcile.Result{RequeueAfter: 10 * time.Second},
 		nil,
 	}
 	client := NewClient()
 
-	reconciler := &SliceReconciler{
-		Client:     client,
-		MeshClient: client,
-		Log:        ctrl.Log.WithName("controller").WithName("controllers").WithName("SliceConfig"),
-	}
+	mf, _ := metrics.NewMetricsFactory(prometheus.NewRegistry(), metrics.MetricsFactoryOptions{})
+	reconciler := NewSliceReconciler(client, nil, mf)
+	reconciler.InjectClient(client)
 	ctx := context.WithValue(context.Background(), types.NamespacedName{Name: "test-slice", Namespace: "kubeslice-system"}, controllerSlice)
 
 	client.On("List",
@@ -307,11 +301,9 @@ func TestUpdateSliceConfigByModyfingSubnetOfControllerSlice(t *testing.T) {
 	}
 	client := NewClient()
 
-	reconciler := &SliceReconciler{
-		Client:     client,
-		MeshClient: client,
-		Log:        ctrl.Log.WithName("controller").WithName("controllers").WithName("SliceConfig"),
-	}
+	mf, _ := metrics.NewMetricsFactory(prometheus.NewRegistry(), metrics.MetricsFactoryOptions{})
+	reconciler := NewSliceReconciler(client, nil, mf)
+	reconciler.InjectClient(client)
 	ctx := context.WithValue(context.Background(), types.NamespacedName{Name: "test-slice", Namespace: "kubeslice-system"}, controllerSlice)
 
 	client.StatusMock.On("Update",
@@ -344,11 +336,9 @@ func TestDeleteSliceResourceOnWorker(t *testing.T) {
 
 	client := NewClient()
 
-	reconciler := &SliceReconciler{
-		Client:     client,
-		MeshClient: client,
-		Log:        ctrl.Log.WithName("controller").WithName("controllers").WithName("SliceConfig"),
-	}
+	mf, _ := metrics.NewMetricsFactory(prometheus.NewRegistry(), metrics.MetricsFactoryOptions{})
+	reconciler := NewSliceReconciler(client, nil, mf)
+	reconciler.InjectClient(client)
 
 	client.On("Delete",
 		mock.IsType(expected.ctx),

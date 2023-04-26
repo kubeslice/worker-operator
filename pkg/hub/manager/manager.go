@@ -30,11 +30,13 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	log "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
+	ctrlmetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	hubv1alpha1 "github.com/kubeslice/apis/pkg/controller/v1alpha1"
 	spokev1alpha1 "github.com/kubeslice/apis/pkg/worker/v1alpha1"
 	mevents "github.com/kubeslice/kubeslice-monitoring/pkg/events"
+	"github.com/kubeslice/kubeslice-monitoring/pkg/metrics"
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
 	ossEvents "github.com/kubeslice/worker-operator/events"
 	"github.com/kubeslice/worker-operator/pkg/events"
@@ -82,14 +84,24 @@ func Start(meshClient client.Client, ctx context.Context) {
 		os.Exit(1)
 	}
 
+	mf, _ := metrics.NewMetricsFactory(
+		ctrlmetrics.Registry,
+		metrics.MetricsFactoryOptions{
+			Project:             ProjectNamespace,
+			Cluster:             ClusterName,
+			ReportingController: "worker-operator",
+			Namespace:           controllers.ControlPlaneNamespace,
+		},
+	)
+
 	// create slice-controller recorder
 	spokeSliceEventRecorder := events.NewEventRecorder(mgr.GetEventRecorderFor("spokeSlice-controller"))
 
-	sliceReconciler := &controllers.SliceReconciler{
-		MeshClient:    meshClient,
-		Log:           ctrl.Log.WithName("hub").WithName("controllers").WithName("SliceConfig"),
-		EventRecorder: spokeSliceEventRecorder,
-	}
+	sliceReconciler := controllers.NewSliceReconciler(
+		meshClient,
+		spokeSliceEventRecorder,
+		mf,
+	)
 	err = builder.
 		ControllerManagedBy(mgr).
 		For(&spokev1alpha1.WorkerSliceConfig{}).
@@ -171,10 +183,11 @@ func Start(meshClient client.Client, ctx context.Context) {
 		Component: "worker-operator",
 		Namespace: controllers.ControlPlaneNamespace,
 	})
-	clusterReconciler := &hubCluster.Reconciler{
-		MeshClient:    meshClient,
-		EventRecorder: spokeClusterEventRecorder,
-	}
+	clusterReconciler := hubCluster.NewReconciler(
+		meshClient,
+		spokeClusterEventRecorder,
+		mf,
+	)
 	err = builder.
 		ControllerManagedBy(mgr).
 		For(&hubv1alpha1.Cluster{}).
