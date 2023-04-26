@@ -177,7 +177,7 @@ var _ = Describe("Hub SlicegwController", func() {
 					Expect(event.Message).To(Equal("Created slicegw on spoke cluster , slicegateway test-slicegateway"))
 				}
 				if event.Source.Component == "test-slicegw-controller" && event.InvolvedObject.Kind == "WorkerSliceGateway" {
-					Expect(event.Message).To(Equal("Created slicegw on spoke cluster , slicegateway test-slicegateway cluster "))
+					Expect(event.Message).To(Equal("Slice GateWay created."))
 				}
 			}
 		})

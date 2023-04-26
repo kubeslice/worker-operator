@@ -34,6 +34,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	k8sclient "sigs.k8s.io/controller-runtime/pkg/client"
@@ -146,7 +147,7 @@ func TestReconcileToReturnErrorWhileFetchingWorkerSlice(t *testing.T) {
 	).Return(errors.New("object not found"))
 
 	mf, _ := metrics.NewMetricsFactory(prometheus.NewRegistry(), metrics.MetricsFactoryOptions{})
-	eventRecorder := mevents.NewEventRecorder(client, nil, ossEvents.EventsMap, mevents.EventRecorderOptions{
+	eventRecorder := mevents.NewEventRecorder(client, &runtime.Scheme{}, ossEvents.EventsMap, mevents.EventRecorderOptions{
 		Cluster: clusterName,
 	})
 	reconciler := NewSliceReconciler(client, &eventRecorder, mf)
@@ -209,7 +210,7 @@ func TestReconcileToUpdateWorkerSlice(t *testing.T) {
 	).Return(nil)
 
 	mf, _ := metrics.NewMetricsFactory(prometheus.NewRegistry(), metrics.MetricsFactoryOptions{})
-	eventRecorder := mevents.NewEventRecorder(client, nil, ossEvents.EventsMap, mevents.EventRecorderOptions{
+	eventRecorder := mevents.NewEventRecorder(client, &runtime.Scheme{}, ossEvents.EventsMap, mevents.EventRecorderOptions{
 		Cluster: clusterName,
 	})
 	reconciler := NewSliceReconciler(client, &eventRecorder, mf)
@@ -269,7 +270,7 @@ func TestUpdateSliceHealth(t *testing.T) {
 	client := NewClient()
 
 	mf, _ := metrics.NewMetricsFactory(prometheus.NewRegistry(), metrics.MetricsFactoryOptions{})
-	eventRecorder := mevents.NewEventRecorder(client, nil, ossEvents.EventsMap, mevents.EventRecorderOptions{
+	eventRecorder := mevents.NewEventRecorder(client, &runtime.Scheme{}, ossEvents.EventsMap, mevents.EventRecorderOptions{
 		Cluster: clusterName,
 	})
 	reconciler := NewSliceReconciler(client, &eventRecorder, mf)
@@ -316,7 +317,7 @@ func TestUpdateSliceConfigByModyfingSubnetOfControllerSlice(t *testing.T) {
 	client := NewClient()
 
 	mf, _ := metrics.NewMetricsFactory(prometheus.NewRegistry(), metrics.MetricsFactoryOptions{})
-	eventRecorder := mevents.NewEventRecorder(client, nil, ossEvents.EventsMap, mevents.EventRecorderOptions{
+	eventRecorder := mevents.NewEventRecorder(client, &runtime.Scheme{}, ossEvents.EventsMap, mevents.EventRecorderOptions{
 		Cluster: clusterName,
 	})
 	reconciler := NewSliceReconciler(client, &eventRecorder, mf)
@@ -354,7 +355,7 @@ func TestDeleteSliceResourceOnWorker(t *testing.T) {
 	client := NewClient()
 
 	mf, _ := metrics.NewMetricsFactory(prometheus.NewRegistry(), metrics.MetricsFactoryOptions{})
-	eventRecorder := mevents.NewEventRecorder(client, nil, ossEvents.EventsMap, mevents.EventRecorderOptions{
+	eventRecorder := mevents.NewEventRecorder(client, &runtime.Scheme{}, ossEvents.EventsMap, mevents.EventRecorderOptions{
 		Cluster: clusterName,
 	})
 	reconciler := NewSliceReconciler(client, &eventRecorder, mf)

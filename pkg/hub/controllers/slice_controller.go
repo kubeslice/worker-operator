@@ -222,9 +222,24 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req reconcile.Request) 
 	slice.Status.SliceHealth.LastUpdated = metav1.Now()
 	if err := r.Status().Update(ctx, slice); err != nil {
 		log.Error(err, "unable to update slice CR")
+		if err := r.EventRecorder.RecordEvent(ctx, &events.Event{
+			Object:            slice,
+			Name:              ossEvents.EventWorkerSliceHealthUpdateFailed,
+			ReportingInstance: "workerslice_controller",
+		}); err != nil {
+			log.Error(err, "unable to raise event")
+		}
 		r.counterSliceUpdationFailed.WithLabelValues(slice.Name).Add(1)
 		return reconcile.Result{}, err
 	} else {
+		err := r.EventRecorder.RecordEvent(ctx, &events.Event{
+			Object:            slice,
+			Name:              ossEvents.EventWorkerSliceHealthUpdated,
+			ReportingInstance: "workerslice_controller",
+		})
+		if err != nil {
+			log.Error(err, "unable to raise event")
+		}
 		log.Info("succesfully updated the slice CR ", "slice CR ", slice)
 	}
 	r.counterSliceUpdated.WithLabelValues(slice.Name).Add(1)

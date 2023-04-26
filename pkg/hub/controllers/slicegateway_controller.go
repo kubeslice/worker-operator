@@ -24,9 +24,10 @@ import (
 	"time"
 
 	spokev1alpha1 "github.com/kubeslice/apis/pkg/worker/v1alpha1"
+	"github.com/kubeslice/kubeslice-monitoring/pkg/events"
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
 	"github.com/kubeslice/worker-operator/controllers"
-	"github.com/kubeslice/worker-operator/pkg/events"
+	ossEvents "github.com/kubeslice/worker-operator/events"
 	"github.com/kubeslice/worker-operator/pkg/logger"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -41,7 +42,7 @@ import (
 type SliceGwReconciler struct {
 	client.Client
 	MeshClient    client.Client
-	EventRecorder *events.EventRecorder
+	EventRecorder events.EventRecorder
 	ClusterName   string
 }
 
@@ -78,6 +79,13 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req reconcile.Request
 
 	err = r.createSliceGwOnSpoke(ctx, sliceGw, meshSliceGw)
 	if err != nil {
+		if err := r.EventRecorder.RecordEvent(ctx, &events.Event{
+			Object:            sliceGw,
+			Name:              ossEvents.EventSliceGWCreated,
+			ReportingInstance: "workerslicegw_controller",
+		}); err != nil {
+			log.Error(err, "unable to raise event")
+		}
 		return reconcile.Result{}, err
 	}
 	err = retry.RetryOnConflict(retry.DefaultRetry, func() error {

@@ -154,7 +154,13 @@ var _ = BeforeSuite(func() {
 		mf,
 	)
 
-	testSliceGwEventRecorder := events.NewEventRecorder(k8sManager.GetEventRecorderFor("test-slicegw-controller"))
+	// testSliceGwEventRecorder := events.NewEventRecorder(k8sManager.GetEventRecorderFor("test-slicegw-controller"))
+	testSliceGwEventRecorder := mevents.NewEventRecorder(k8sManager.GetClient(), k8sManager.GetScheme(), ossEvents.EventsMap, mevents.EventRecorderOptions{
+		Cluster:   CLUSTER_NAME,
+		Project:   PROJECT_NS,
+		Component: "test-slicegw-controller",
+		Namespace: CONTROL_PLANE_NS,
+	})
 	sgwr := &controllers.SliceGwReconciler{
 		MeshClient:    k8sClient,
 		EventRecorder: testSliceGwEventRecorder,
