@@ -229,7 +229,6 @@ github.com/vishvananda/netns
 go.opencensus.io
 go.opencensus.io/internal
 go.opencensus.io/internal/tagencoding
-go.opencensus.io/metric
 go.opencensus.io/metric/metricdata
 go.opencensus.io/metric/metricexport
 go.opencensus.io/metric/metricproducer
