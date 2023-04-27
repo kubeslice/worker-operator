@@ -52,7 +52,7 @@ COPY files files
 ENV MANIFEST_PATH="/files/manifests"
 # Copy script files
 ENV SCRIPT_PATH="/scripts"
-COPY scripts/ scripts/
+COPY scripts scripts
 
 USER nonroot:nonroot
 
