@@ -148,6 +148,7 @@ var _ = BeforeSuite(func() {
 		testSliceEventRecorder,
 		mf,
 	)
+	sr.ReconcileInterval = 5 * time.Second
 
 	testSliceGwEventRecorder := events.NewEventRecorder(k8sManager.GetEventRecorderFor("test-slicegw-controller"))
 	sgwr := &controllers.SliceGwReconciler{

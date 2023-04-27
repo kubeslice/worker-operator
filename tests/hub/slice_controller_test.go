@@ -481,7 +481,7 @@ var _ = Describe("Hub SliceController", func() {
 			}
 
 			// wait for next reconcile loop
-			time.Sleep(120 * time.Second)
+			time.Sleep(10 * time.Second)
 
 			Eventually(func() bool {
 				err := k8sClient.Get(ctx, types.NamespacedName{Name: hubSlice.Name, Namespace: hubSlice.Namespace}, hubSlice)
