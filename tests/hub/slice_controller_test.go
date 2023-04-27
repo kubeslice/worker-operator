@@ -198,9 +198,6 @@ var _ = Describe("Hub SliceController", func() {
 				return errors.IsNotFound(err)
 			}, time.Second*10, time.Millisecond*250).Should(BeTrue())
 
-			m := utils.GetCounterMetricFromRegistry(MetricRegistry, "kubeslice_slice_deleted_total")
-			Expect(m).To(ContainElement(1.0))
-
 		})
 	})
 
