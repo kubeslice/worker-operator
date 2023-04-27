@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
+	"github.com/kubeslice/kubeslice-monitoring/pkg/metrics"
 	"github.com/kubeslice/worker-operator/pkg/events"
 	"github.com/kubeslice/worker-operator/pkg/logger"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -30,6 +31,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
+	"github.com/prometheus/client_golang/prometheus"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
@@ -41,19 +43,12 @@ type Reconciler struct {
 	Scheme        *runtime.Scheme
 	ClusterID     string
 	EventRecorder *events.EventRecorder
+
+	// metrics
+	gaugeEndpoints *prometheus.GaugeVec
 }
 
 var finalizerName = "networking.kubeslice.io/serviceimport-finalizer"
-
-// NewReconciler creates a new reconciler for serviceimport
-func NewReconciler(c client.Client, s *runtime.Scheme, clusterId string) Reconciler {
-	return Reconciler{
-		Client:    c,
-		Log:       ctrl.Log.WithName("controllers").WithName("ServiceImport"),
-		Scheme:    s,
-		ClusterID: clusterId,
-	}
-}
 
 // +kubebuilder:rbac:groups=networking.kubeslice.io,resources=serviceimports,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=networking.kubeslice.io,resources=serviceimports/status,verbs=get;update;patch
@@ -88,6 +83,8 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	if requeue {
 		return result, err
 	}
+
+	r.gaugeEndpoints.WithLabelValues(serviceimport.Spec.Slice, serviceimport.Namespace, serviceimport.Name).Set(float64(serviceimport.Status.AvailableEndpoints))
 
 	if serviceimport.Status.ExposedPorts != portListToDisplayString(serviceimport.Spec.Ports) {
 		return r.updateServiceImportPorts(ctx, serviceimport)
@@ -132,6 +129,15 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	return ctrl.Result{
 		RequeueAfter: 10 * time.Second,
 	}, nil
+}
+
+// Setup ServiceImport Reconciler
+// Initializes metrics and sets up with manager
+func (r *Reconciler) Setup(mgr ctrl.Manager, mf metrics.MetricsFactory) error {
+
+	r.gaugeEndpoints = mf.NewGauge("serviceimport_endpoints", "Active endpoints in serviceimport", []string{"slice", "slice_namespace", "slice_service"})
+
+	return r.SetupWithManager(mgr)
 }
 
 // SetupWithManager sets up reconciler with manager
