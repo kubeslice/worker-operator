@@ -26,6 +26,7 @@ import (
 	hubv1alpha1 "github.com/kubeslice/apis/pkg/controller/v1alpha1"
 	clusterpkg "github.com/kubeslice/worker-operator/pkg/cluster"
 	hub "github.com/kubeslice/worker-operator/pkg/hub/hubclient"
+
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
@@ -89,7 +90,15 @@ var _ = Describe("Hub ClusterController", func() {
 
 			DeferCleanup(func() {
 				Expect(k8sClient.Delete(ctx, node)).Should(Succeed())
+				// remove finalizer from cluster CR
+				cluster.ObjectMeta.SetFinalizers([]string{})
+				Expect(k8sClient.Update(ctx, cluster)).Should(Succeed())
+				// Delete cluster object
 				Expect(k8sClient.Delete(ctx, cluster)).Should(Succeed())
+				Eventually(func() bool {
+					err := k8sClient.Get(ctx, types.NamespacedName{Name: cluster.Name, Namespace: cluster.Namespace}, cluster)
+					return errors.IsNotFound(err)
+				}, time.Second*100, time.Millisecond*250).Should(BeTrue())
 			})
 
 		})
@@ -275,6 +284,10 @@ var _ = Describe("Hub ClusterController", func() {
 			Expect(k8sClient.Create(ctx, cluster))
 
 			DeferCleanup(func() {
+				// remove finalizer from cluster CR
+				cluster.ObjectMeta.SetFinalizers([]string{})
+				Expect(k8sClient.Update(ctx, cluster)).Should(Succeed())
+				// Delete cluster object
 				k8sClient.Delete(ctx, cluster)
 				k8sClient.Delete(ctx, operatorSecret)
 				k8sClient.Delete(ctx, sa)
