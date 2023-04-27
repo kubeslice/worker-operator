@@ -23,6 +23,7 @@ import (
 	"time"
 
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
+	"github.com/kubeslice/worker-operator/tests/utils"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
@@ -41,6 +42,8 @@ var _ = Describe("ServiceImportController", func() {
 		var svcim *kubeslicev1beta1.ServiceImport
 		var createdSlice *kubeslicev1beta1.Slice
 		BeforeEach(func() {
+			utils.ResetMetricRegistry(MetricRegistry)
+
 			// Prepare k8s objects for slice and kubeslice-dns service
 			slice = &kubeslicev1beta1.Slice{
 				ObjectMeta: metav1.ObjectMeta{
@@ -151,6 +154,34 @@ var _ = Describe("ServiceImportController", func() {
 				}
 				return true
 			}, time.Second*30, time.Millisecond*250).Should(BeTrue())
+
+			err = retry.RetryOnConflict(retry.DefaultRetry, func() error {
+				err := k8sClient.Get(ctx, svcKey, createdSvcIm)
+				if err != nil {
+					return err
+				}
+				createdSvcIm.Status.Endpoints = []kubeslicev1beta1.ServiceEndpoint{{
+					Name: "test",
+					IP:   "test",
+				}}
+				return k8sClient.Status().Update(ctx, createdSvcIm)
+			})
+			Expect(err).To(BeNil())
+
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, svcKey, createdSvcIm)
+				if err != nil {
+					return false
+				}
+				if createdSvcIm.Status.AvailableEndpoints != 1 {
+					return false
+				}
+				return true
+			}, time.Second*30, time.Millisecond*250).Should(BeTrue())
+
+			m := utils.GetGaugeMetricFromRegistry(MetricRegistry, "kubeslice_serviceimport_endpoints")
+			Expect(m).To(ContainElement(1.0))
+
 		})
 	})
 })

@@ -84,14 +84,13 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		return result, err
 	}
 
-	r.gaugeEndpoints.WithLabelValues(serviceimport.Spec.Slice, serviceimport.Namespace, serviceimport.Name).Set(float64(serviceimport.Status.AvailableEndpoints))
-
 	if serviceimport.Status.ExposedPorts != portListToDisplayString(serviceimport.Spec.Ports) {
 		return r.updateServiceImportPorts(ctx, serviceimport)
 	}
 
 	if serviceimport.Status.AvailableEndpoints != len(serviceimport.Status.Endpoints) {
 		serviceimport.Status.AvailableEndpoints = len(serviceimport.Status.Endpoints)
+		r.gaugeEndpoints.WithLabelValues(serviceimport.Spec.Slice, serviceimport.Namespace, serviceimport.Name).Set(float64(serviceimport.Status.AvailableEndpoints))
 		err = r.Status().Update(ctx, serviceimport)
 		if err != nil {
 			log.Error(err, "Failed to update availableendpoints")
