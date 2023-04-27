@@ -1,4 +1,4 @@
-# Description
+## Description
 
 Please include a summary of the changes and the related issue. Please also include relevant motivation and context.
 
@@ -22,14 +22,14 @@ Please delete options that are not relevant.
 - [ ] This change requires a helm chart update (eg: CRD changes)
 - [ ] E2e not required (eg: Updates in test cases)
 
-# How Has This Been Tested?
+## How Has This Been Tested?
 
 Please describe the tests that you ran to verify your changes 
 
 - [ ] Test A
 - [ ] Test B
 
-# Checklist:
+## Checklist:
 
 - [ ] Run `go fmt`
 - [ ] Added relevant UTs and ITs
