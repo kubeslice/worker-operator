@@ -189,6 +189,10 @@ Prefixes:
 			}
 
 			DeferCleanup(func() {
+				// remove finalizer from cluster CR
+				cluster.ObjectMeta.SetFinalizers([]string{})
+				Expect(k8sClient.Update(ctx, cluster)).Should(Succeed())
+				// Delete cluster object
 				Expect(k8sClient.Delete(ctx, cluster)).Should(Succeed())
 				Eventually(func() bool {
 					err := k8sClient.Delete(ctx, node1)
