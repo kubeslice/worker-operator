@@ -78,6 +78,7 @@ func NewReconciler(mc client.Client, er events.EventRecorder, mf metrics.Metrics
 	}
 }
 
+var retryAttempts = 0
 var clusterDeregisterFinalizer = "networking.kubeslice.io/cluster-deregister-finalizer"
 
 func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
@@ -501,18 +502,25 @@ func (r *Reconciler) handleClusterDeletion(cluster *hubv1alpha1.Cluster, ctx con
 		}
 	} else {
 		// The object is being deleted
-		if controllerutil.ContainsFinalizer(cluster, clusterDeregisterFinalizer) {
+		if controllerutil.ContainsFinalizer(cluster, clusterDeregisterFinalizer) && !cluster.Status.IsDeregisterInProgress && retryAttempts <= 3 {
 			// our finalizer is present, so lets handle any external dependency
 			if err := r.createDeregisterJob(ctx, cluster); err != nil {
 				// unable to deregister the worker operator, return with an error and raise event
 				log.Error(err, "unable to deregister the worker operator")
-				err := r.EventRecorder.RecordEvent(ctx, &events.Event{
-					Object:            cluster,
-					Name:              ossEvents.EventDeregitrationJobFailed,
-					ReportingInstance: "cluster_reconciler",
-				})
-				if err != nil {
-					log.Error(err, "unable to record event for cluster deregistration")
+				// increment count for retryAttempts
+				retryAttempts++
+				// resetting isDeregisterInProgress to false
+				statusUpdateErr := r.updateRegistrationStatusAndDeregisterInProgress(ctx, cluster, hubv1alpha1.RegistrationStatusDeregisterFailed, false)
+				if statusUpdateErr != nil {
+					// log.Error(statusUpdateErr, "unable to update registration status")
+					recordEventErr := r.EventRecorder.RecordEvent(ctx, &events.Event{
+						Object:            cluster,
+						Name:              ossEvents.EventDeregitrationJobFailed,
+						ReportingInstance: "cluster_reconciler",
+					})
+					if recordEventErr != nil {
+						log.Error(recordEventErr, "unable to record event for cluster deregistration")
+					}
 				}
 				return true, reconcile.Result{}, err
 			}
