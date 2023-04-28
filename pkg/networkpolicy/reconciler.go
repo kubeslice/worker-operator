@@ -26,10 +26,12 @@ import (
 	"strings"
 
 	"github.com/go-logr/logr"
+	"github.com/kubeslice/kubeslice-monitoring/pkg/metrics"
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
 	"github.com/kubeslice/worker-operator/controllers"
 	slicepkg "github.com/kubeslice/worker-operator/controllers/slice"
 	"github.com/kubeslice/worker-operator/pkg/events"
+	"github.com/prometheus/client_golang/prometheus"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -46,6 +48,9 @@ type NetpolReconciler struct {
 	Scheme          *runtime.Scheme
 	Log             logr.Logger
 	privateIPBlocks []*net.IPNet
+
+	// metrics
+	gaugeViolations *prometheus.GaugeVec
 }
 
 func (r *NetpolReconciler) initPrivateIPBlocks() error {
@@ -194,6 +199,8 @@ func (c *NetpolReconciler) Compare(np *networkingv1.NetworkPolicy, slice *kubesl
 								np.Name,
 								slice.Namespace,
 								slice.Name, clusterName))
+
+							c.gaugeViolations.WithLabelValues(slice.Name, np.Namespace, np.Name, "scope").Set(1)
 						}
 					}
 				}
@@ -220,6 +227,8 @@ func (c *NetpolReconciler) Compare(np *networkingv1.NetworkPolicy, slice *kubesl
 							np.Name,
 							slice.Namespace,
 							slice.Name, clusterName))
+
+						c.gaugeViolations.WithLabelValues(slice.Name, np.Namespace, np.Name, "ipblock").Set(1)
 					}
 				}
 			}
@@ -276,6 +285,14 @@ func (c *NetpolReconciler) isPrivateIP(ip net.IP) bool {
 		}
 	}
 	return false
+}
+
+// Setup netpol Reconciler
+// Initializes metrics and sets up with manager
+func (r *NetpolReconciler) Setup(mgr ctrl.Manager, mf metrics.MetricsFactory) error {
+	r.gaugeViolations = mf.NewGauge("netpol_violations_active", "Active netpol violations", []string{"slice", "slice_namespace", "slice_networkpolicy", "slice_networkpolicy_violation"})
+
+	return r.SetupWithManager(mgr)
 }
 
 // SetupWithManager sets up the controller with the Manager.

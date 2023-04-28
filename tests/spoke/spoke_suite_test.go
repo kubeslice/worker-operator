@@ -213,7 +213,7 @@ var _ = BeforeSuite(func() {
 		Log:           ctrl.Log.WithName("controllers").WithName("networkpolicy"),
 		Scheme:        k8sManager.GetScheme(),
 		EventRecorder: netpolEventRecorder,
-	}).SetupWithManager(k8sManager)
+	}).Setup(k8sManager, mf)
 	Expect(err).ToNot(HaveOccurred())
 
 	err = (&cluster.NodeReconciler{

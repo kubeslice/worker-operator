@@ -248,7 +248,7 @@ func main() {
 		Log:           ctrl.Log.WithName("controllers").WithName("networkpolicy"),
 		Scheme:        mgr.GetScheme(),
 		EventRecorder: netpolEventRecorder,
-	}).SetupWithManager(mgr); err != nil {
+	}).Setup(mgr, mf); err != nil {
 		setupLog.With("error", err, "controller", "networkpolicy").Error("unable to create controller")
 		os.Exit(1)
 	}
