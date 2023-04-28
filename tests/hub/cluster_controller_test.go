@@ -292,6 +292,7 @@ var _ = Describe("Hub ClusterController", func() {
 				// Wait for cluster CR to be cleaned up
 				Eventually(func() bool {
 					err := k8sClient.Get(ctx, types.NamespacedName{Name: cluster.Name, Namespace: cluster.Namespace}, cluster)
+					fmt.Println("----------------- clusterobj finalizer", cluster.ObjectMeta.Finalizers)
 					return err != nil && errors.IsNotFound(err)
 				}, time.Second*100, time.Second*1).Should(BeTrue())
 				k8sClient.Delete(ctx, operatorSecret)
