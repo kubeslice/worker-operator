@@ -501,15 +501,11 @@ func (r *Reconciler) handleClusterDeletion(cluster *hubv1alpha1.Cluster, ctx con
 		}
 	} else {
 		// The object is being deleted
-		if controllerutil.ContainsFinalizer(cluster, clusterDeregisterFinalizer) && !cluster.Status.IsDeregisterInProgress {
+		if controllerutil.ContainsFinalizer(cluster, clusterDeregisterFinalizer) {
 			// our finalizer is present, so lets handle any external dependency
 			if err := r.createDeregisterJob(ctx, cluster); err != nil {
-				// unable to deregister the worker operator, return with an error and notify the controller's status.
+				// unable to deregister the worker operator, return with an error and raise event
 				log.Error(err, "unable to deregister the worker operator")
-				// update cluster deregister status
-				r.updateClusterDeregisterStatus("DeregisterFailed", ctx, cluster)
-				// resetting isDeregisterInProgress to false for retries during next reconcilation.
-				r.setIsDeregisterInProgress(ctx, cluster, false)
 				err := r.EventRecorder.RecordEvent(ctx, &events.Event{
 					Object:            cluster,
 					Name:              ossEvents.EventDeregitrationJobFailed,
