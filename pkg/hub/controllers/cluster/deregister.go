@@ -130,6 +130,25 @@ func (r *Reconciler) createDeregisterJob(ctx context.Context, cluster *hubv1alph
 	return nil
 }
 
+func (r *Reconciler) updateRegistrationStatusAndDeregisterInProgress(ctx context.Context, cluster *hubv1alpha1.Cluster, status hubv1alpha1.RegistrationStatus, isDeregisterInProgress bool) error {
+	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		err := r.Get(ctx, types.NamespacedName{
+			Name:      cluster.Name,
+			Namespace: cluster.Namespace,
+		}, cluster)
+		if err != nil {
+			return err
+		}
+		cluster.Status.RegistrationStatus = status
+		cluster.Status.IsDeregisterInProgress = isDeregisterInProgress
+		return r.Status().Update(ctx, cluster)
+	})
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 func (r *Reconciler) updateClusterDeregisterStatus(status hubv1alpha1.RegistrationStatus, ctx context.Context, cluster *hubv1alpha1.Cluster) error {
 	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		err := r.Get(ctx, types.NamespacedName{
@@ -148,7 +167,7 @@ func (r *Reconciler) updateClusterDeregisterStatus(status hubv1alpha1.Registrati
 	return nil
 }
 
-func (r *Reconciler) setIsDeregisterInProgress(ctx context.Context, cluster *hubv1alpha1.Cluster, val bool) error {
+func (r *Reconciler) setIsDeregisterInProgress(ctx context.Context, cluster *hubv1alpha1.Cluster, isDeregisterInProgress bool) error {
 	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		err := r.Get(ctx, types.NamespacedName{
 			Name:      cluster.Name,
@@ -157,7 +176,7 @@ func (r *Reconciler) setIsDeregisterInProgress(ctx context.Context, cluster *hub
 		if err != nil {
 			return err
 		}
-		cluster.Status.IsDeregisterInProgress = val
+		cluster.Status.IsDeregisterInProgress = isDeregisterInProgress
 		return r.Status().Update(ctx, cluster)
 	})
 	if err != nil {

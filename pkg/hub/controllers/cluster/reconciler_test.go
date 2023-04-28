@@ -228,16 +228,16 @@ func TestReconcilerHandleExternalDependency(t *testing.T) {
 
 func TestReconcilerToFailWhileCallingCreateDeregisterJob(t *testing.T) {
 	expected := struct {
-		ctx context.Context
-		req reconcile.Request
-		res reconcile.Result
-		err error
+		ctx    context.Context
+		req    reconcile.Request
+		res    reconcile.Result
+		errMsg string
 	}{
 
 		context.WithValue(context.Background(), types.NamespacedName{Namespace: "kube-slice", Name: "kube-slice"}, testClusterObjWithFinalizer),
 		reconcile.Request{NamespacedName: types.NamespacedName{Name: testClusterName, Namespace: testProjectNamespace}},
 		reconcile.Result{},
-		nil,
+		"error updating status of deregistration on the controller",
 	}
 	client := utilmock.NewClient()
 
@@ -278,7 +278,7 @@ func TestReconcilerToFailWhileCallingCreateDeregisterJob(t *testing.T) {
 	).Return(nil)
 
 	_, _, err = reconciler.handleClusterDeletion(testClusterObjWithFinalizer, ctx, expected.req)
-	if expected.err != err {
-		t.Error("Expected error:", expected.err, " but got ", err)
+	if expected.errMsg != err.Error() {
+		t.Error("Expected error:", expected.errMsg, " but got ", err.Error())
 	}
 }
