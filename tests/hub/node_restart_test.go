@@ -30,6 +30,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/util/retry"
 )
 
 var _ = Describe("NodeRestart Test Suite", func() {
@@ -189,9 +190,18 @@ Prefixes:
 			}
 
 			DeferCleanup(func() {
-				// remove finalizer from cluster CR
-				cluster.ObjectMeta.SetFinalizers([]string{})
-				Expect(k8sClient.Update(ctx, cluster)).Should(Succeed())
+				err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+					err := k8sClient.Get(ctx, types.NamespacedName{
+						Name: cluster.Name, Namespace: cluster.Namespace,
+					}, cluster)
+					if err != nil {
+						return err
+					}
+					// remove finalizer from cluster CR
+					cluster.ObjectMeta.SetFinalizers([]string{})
+					return k8sClient.Update(ctx, cluster)
+				})
+				Expect(err).To(BeNil())
 				// Delete cluster object
 				Expect(k8sClient.Delete(ctx, cluster)).Should(Succeed())
 				Eventually(func() bool {
