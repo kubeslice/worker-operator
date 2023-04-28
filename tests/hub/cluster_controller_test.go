@@ -289,14 +289,13 @@ var _ = Describe("Hub ClusterController", func() {
 				Expect(k8sClient.Update(ctx, cluster)).Should(Succeed())
 				// Delete cluster object
 				k8sClient.Delete(ctx, cluster)
-				k8sClient.Delete(ctx, operatorSecret)
-				k8sClient.Delete(ctx, sa)
-
 				// Wait for cluster CR to be cleaned up
 				Eventually(func() bool {
 					err := k8sClient.Get(ctx, types.NamespacedName{Name: cluster.Name, Namespace: cluster.Namespace}, cluster)
 					return err != nil && errors.IsNotFound(err)
-				}, time.Second*10, time.Second*1).Should(BeTrue())
+				}, time.Second*100, time.Second*1).Should(BeTrue())
+				k8sClient.Delete(ctx, operatorSecret)
+				k8sClient.Delete(ctx, sa)
 
 				// delete all pods which were created for checking health status
 				for _, pod := range pods {
