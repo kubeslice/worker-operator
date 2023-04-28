@@ -491,7 +491,9 @@ func (r *Reconciler) handleClusterDeletion(cluster *hubv1alpha1.Cluster, ctx con
 			if err := r.createDeregisterJob(ctx, cluster); err != nil {
 				// unable to deregister the worker operator, return with an error and notify the controller's status.
 				log.Error(err, "unable to deregister the worker operator")
+				// update cluster deregister status
 				r.updateClusterDeregisterStatus("DeregisterFailed", ctx, cluster)
+				// resetting isDeregisterInProgress to false for retries during next reconcilation.
 				r.setIsDeregisterInProgress(ctx, cluster, false)
 				err := r.EventRecorder.RecordEvent(ctx, &events.Event{
 					Object:            cluster,

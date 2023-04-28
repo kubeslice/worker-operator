@@ -64,13 +64,13 @@ func (r *Reconciler) createDeregisterJob(ctx context.Context, cluster *hubv1alph
 		}
 	}
 	// get operator clusterrole
-	clusterRole, err := r.getOperatorClusterRole(ctx)
+	operatorClusterRole, err := r.getOperatorClusterRole(ctx)
 	if err != nil {
 		log.Error(err, "unable to fetch operator clusterrole")
 		return err
 	}
 	// Create a cluster role.
-	if err := r.MeshClient.Create(ctx, constructClusterRole(clusterRole), &client.CreateOptions{}); err != nil {
+	if err := r.MeshClient.Create(ctx, constructClusterRole(operatorClusterRole), &client.CreateOptions{}); err != nil {
 		if apierrors.IsAlreadyExists(err) {
 			log.Info("cluster role already exists", "clusterrole", clusterRoleName)
 		} else {
@@ -232,8 +232,6 @@ func getConfigmapData() (string, error) {
 	return string(data), nil
 }
 
-// delete service account/cluster role/cluster rb after everything
-// remove cluster finalizer
 func constructConfigMap(data string) *corev1.ConfigMap {
 	cm := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{

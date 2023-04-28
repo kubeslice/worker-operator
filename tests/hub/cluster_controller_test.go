@@ -36,6 +36,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
+var clusterDeregisterFinalizer = "networking.kubeslice.io/cluster-deregister-finalizer"
+
 var _ = Describe("Hub ClusterController", func() {
 	Context("With Cluster CR Created at hub cluster", func() {
 		var ns *corev1.Namespace
@@ -130,10 +132,12 @@ var _ = Describe("Hub ClusterController", func() {
 				}
 				return nil
 			}, time.Second*120, time.Millisecond*500).ShouldNot(HaveOccurred())
+			Expect(cluster.ObjectMeta.Finalizers).Should(Equal([]string{clusterDeregisterFinalizer}))
 			Expect(cluster.Status.NodeIPs[0]).Should(Equal("35.235.10.1"))
 			Expect(cluster.Spec.ClusterProperty.GeoLocation.CloudProvider).Should(Equal("gcp"))
 			Expect(cluster.Spec.ClusterProperty.GeoLocation.CloudRegion).Should(Equal("us-east-1"))
 			Expect(cluster.Status.CniSubnet).Should(Equal([]string{"192.168.0.0/16", "10.96.0.0/12"}))
+			Expect(string(cluster.Status.RegistrationStatus)).Should(Equal(hubv1alpha1.RegistrationStatusRegistered))
 
 			events := &corev1.EventList{}
 			Eventually(func() bool {

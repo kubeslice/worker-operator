@@ -210,10 +210,9 @@ var _ = Describe("ClusterInfoUpdate", func() {
 					}
 					// remove finalizer from cluster CR
 					cluster.ObjectMeta.SetFinalizers([]string{})
-					return k8sClient.Status().Update(ctx, cluster)
+					return k8sClient.Update(ctx, cluster)
 				})
 				Expect(err).To(BeNil())
-				Expect(k8sClient.Update(ctx, cluster)).Should(Succeed())
 				// Delete cluster object
 				Expect(k8sClient.Delete(ctx, cluster)).Should(Succeed())
 			})
