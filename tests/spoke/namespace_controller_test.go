@@ -20,23 +20,23 @@ package spoke_test
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"time"
-
-	"k8s.io/apimachinery/pkg/api/errors"
 
 	hubv1alpha1 "github.com/kubeslice/apis/pkg/controller/v1alpha1"
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/util/retry"
 )
 
-var _ = XDescribe("ClusterInfoUpdate", func() {
+var _ = FDescribe("ClusterInfoUpdate", func() {
 	Context("With Namespace Created at spoke cluster", func() {
 		var ns *corev1.Namespace
 		var slice *kubeslicev1beta1.Slice
@@ -76,20 +76,9 @@ var _ = XDescribe("ClusterInfoUpdate", func() {
 
 			DeferCleanup(func() {
 				ctx := context.Background()
+				fmt.Println("cluster object before deletion -----", cluster.Name)
 				// Delete cluster object
 				Expect(k8sClient.Delete(ctx, cluster)).Should(Succeed())
-				err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-					err := k8sClient.Get(ctx, types.NamespacedName{
-						Name: cluster.Name, Namespace: cluster.Namespace,
-					}, cluster)
-					if err != nil {
-						return err
-					}
-					// remove finalizer from cluster CR
-					cluster.ObjectMeta.SetFinalizers([]string{})
-					return k8sClient.Update(ctx, cluster)
-				})
-				Expect(err).To(BeNil())
 				Expect(k8sClient.Delete(ctx, slice)).Should(Succeed())
 				Expect(k8sClient.Delete(ctx, ns)).Should(Succeed())
 				Expect(k8sClient.Delete(ctx, applicationNS)).Should(Succeed())
@@ -117,6 +106,7 @@ var _ = XDescribe("ClusterInfoUpdate", func() {
 				}
 				return idAdded
 			}, time.Second*10, time.Millisecond*250).Should(BeTrue())
+			fmt.Println("I am getting cluster name ----", cluster.Name)
 		})
 
 	})
@@ -212,18 +202,6 @@ var _ = XDescribe("ClusterInfoUpdate", func() {
 				ctx := context.Background()
 				// Delete cluster object
 				Expect(k8sClient.Delete(ctx, cluster)).Should(Succeed())
-				err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-					err := k8sClient.Get(ctx, types.NamespacedName{
-						Name: cluster.Name, Namespace: cluster.Namespace,
-					}, cluster)
-					if err != nil {
-						return err
-					}
-					// remove finalizer from cluster CR
-					cluster.ObjectMeta.SetFinalizers([]string{})
-					return k8sClient.Update(ctx, cluster)
-				})
-				Expect(err).To(BeNil())
 			})
 
 		})
@@ -319,18 +297,6 @@ var _ = XDescribe("ClusterInfoUpdate", func() {
 				ctx := context.Background()
 				// Delete cluster object
 				Expect(k8sClient.Delete(ctx, cluster)).Should(Succeed())
-				err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-					err := k8sClient.Get(ctx, types.NamespacedName{
-						Name: cluster.Name, Namespace: cluster.Namespace,
-					}, cluster)
-					if err != nil {
-						return err
-					}
-					// remove finalizer from cluster CR
-					cluster.ObjectMeta.SetFinalizers([]string{})
-					return k8sClient.Update(ctx, cluster)
-				})
-				Expect(err).To(BeNil())
 			})
 		})
 		It("Should update cluster CR with updated application namespace", func() {
@@ -421,18 +387,6 @@ var _ = XDescribe("ClusterInfoUpdate", func() {
 				ctx := context.Background()
 				// Delete cluster object
 				Expect(k8sClient.Delete(ctx, cluster)).Should(Succeed())
-				err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-					err := k8sClient.Get(ctx, types.NamespacedName{
-						Name: cluster.Name, Namespace: cluster.Namespace,
-					}, cluster)
-					if err != nil {
-						return err
-					}
-					// remove finalizer from cluster CR
-					cluster.ObjectMeta.SetFinalizers([]string{})
-					return k8sClient.Update(ctx, cluster)
-				})
-				Expect(err).To(BeNil())
 			})
 		})
 		It("Should update cluster CR with updated slice name", func() {
