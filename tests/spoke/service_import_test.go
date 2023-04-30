@@ -42,7 +42,6 @@ var _ = Describe("ServiceImportController", func() {
 		var svcim *kubeslicev1beta1.ServiceImport
 		var createdSlice *kubeslicev1beta1.Slice
 		BeforeEach(func() {
-			utils.ResetMetricRegistry(MetricRegistry)
 
 			// Prepare k8s objects for slice and kubeslice-dns service
 			slice = &kubeslicev1beta1.Slice{
@@ -179,9 +178,12 @@ var _ = Describe("ServiceImportController", func() {
 				return true
 			}, time.Second*30, time.Millisecond*250).Should(BeTrue())
 
-			m := utils.GetGaugeMetricFromRegistry(MetricRegistry, "kubeslice_serviceimport_endpoints")
-			Expect(m).To(ContainElement(1.0))
-
+			m, err := utils.GetGaugeMetricFromRegistry(MetricRegistry, "kubeslice_serviceimport_endpoints", map[string]string{
+				"slice":         "test-slice-2",
+				"slice_service": "iperf-server",
+			})
+			Expect(err).ToNot(HaveOccurred())
+			Expect(m).To(Equal(1.0))
 		})
 	})
 })
