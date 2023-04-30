@@ -76,6 +76,8 @@ var _ = Describe("ClusterInfoUpdate", func() {
 
 			DeferCleanup(func() {
 				ctx := context.Background()
+				// Delete cluster object
+				Expect(k8sClient.Delete(ctx, cluster)).Should(Succeed())
 				err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 					err := k8sClient.Get(ctx, types.NamespacedName{
 						Name: cluster.Name, Namespace: cluster.Namespace,
@@ -88,8 +90,6 @@ var _ = Describe("ClusterInfoUpdate", func() {
 					return k8sClient.Update(ctx, cluster)
 				})
 				Expect(err).To(BeNil())
-				// Delete cluster object
-				Expect(k8sClient.Delete(ctx, cluster)).Should(Succeed())
 				Expect(k8sClient.Delete(ctx, slice)).Should(Succeed())
 				Expect(k8sClient.Delete(ctx, ns)).Should(Succeed())
 				Expect(k8sClient.Delete(ctx, applicationNS)).Should(Succeed())
@@ -210,6 +210,8 @@ var _ = Describe("ClusterInfoUpdate", func() {
 
 			DeferCleanup(func() {
 				ctx := context.Background()
+				// Delete cluster object
+				Expect(k8sClient.Delete(ctx, cluster)).Should(Succeed())
 				err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 					err := k8sClient.Get(ctx, types.NamespacedName{
 						Name: cluster.Name, Namespace: cluster.Namespace,
@@ -222,8 +224,6 @@ var _ = Describe("ClusterInfoUpdate", func() {
 					return k8sClient.Update(ctx, cluster)
 				})
 				Expect(err).To(BeNil())
-				// Delete cluster object
-				Expect(k8sClient.Delete(ctx, cluster)).Should(Succeed())
 			})
 
 		})
@@ -317,6 +317,8 @@ var _ = Describe("ClusterInfoUpdate", func() {
 			}
 			DeferCleanup(func() {
 				ctx := context.Background()
+				// Delete cluster object
+				Expect(k8sClient.Delete(ctx, cluster)).Should(Succeed())
 				err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 					err := k8sClient.Get(ctx, types.NamespacedName{
 						Name: cluster.Name, Namespace: cluster.Namespace,
@@ -329,8 +331,6 @@ var _ = Describe("ClusterInfoUpdate", func() {
 					return k8sClient.Update(ctx, cluster)
 				})
 				Expect(err).To(BeNil())
-				// Delete cluster object
-				Expect(k8sClient.Delete(ctx, cluster)).Should(Succeed())
 			})
 		})
 		It("Should update cluster CR with updated application namespace", func() {
@@ -419,6 +419,8 @@ var _ = Describe("ClusterInfoUpdate", func() {
 			}
 			DeferCleanup(func() {
 				ctx := context.Background()
+				// Delete cluster object
+				Expect(k8sClient.Delete(ctx, cluster)).Should(Succeed())
 				err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 					err := k8sClient.Get(ctx, types.NamespacedName{
 						Name: cluster.Name, Namespace: cluster.Namespace,
@@ -431,8 +433,6 @@ var _ = Describe("ClusterInfoUpdate", func() {
 					return k8sClient.Update(ctx, cluster)
 				})
 				Expect(err).To(BeNil())
-				// Delete cluster object
-				Expect(k8sClient.Delete(ctx, cluster)).Should(Succeed())
 			})
 		})
 		It("Should update cluster CR with updated slice name", func() {
