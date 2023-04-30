@@ -76,19 +76,6 @@ var _ = Describe("ClusterInfoUpdate", func() {
 
 			DeferCleanup(func() {
 				ctx := context.Background()
-				err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-					err := k8sClient.Get(ctx, types.NamespacedName{
-						Name: cluster.Name, Namespace: cluster.Namespace,
-					}, cluster)
-					if err != nil {
-						return err
-					}
-					// remove finalizer from cluster CR
-					cluster.ObjectMeta.SetFinalizers([]string{})
-					return k8sClient.Update(ctx, cluster)
-				})
-				Expect(err).To(BeNil())
-				// Delete cluster object
 				Expect(k8sClient.Delete(ctx, cluster)).Should(Succeed())
 				Expect(k8sClient.Delete(ctx, slice)).Should(Succeed())
 				Expect(k8sClient.Delete(ctx, ns)).Should(Succeed())
@@ -210,19 +197,6 @@ var _ = Describe("ClusterInfoUpdate", func() {
 
 			DeferCleanup(func() {
 				ctx := context.Background()
-				err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-					err := k8sClient.Get(ctx, types.NamespacedName{
-						Name: cluster.Name, Namespace: cluster.Namespace,
-					}, cluster)
-					if err != nil {
-						return err
-					}
-					// remove finalizer from cluster CR
-					cluster.ObjectMeta.SetFinalizers([]string{})
-					return k8sClient.Update(ctx, cluster)
-				})
-				Expect(err).To(BeNil())
-				// Delete cluster object
 				Expect(k8sClient.Delete(ctx, cluster)).Should(Succeed())
 			})
 
@@ -317,19 +291,6 @@ var _ = Describe("ClusterInfoUpdate", func() {
 			}
 			DeferCleanup(func() {
 				ctx := context.Background()
-				err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-					err := k8sClient.Get(ctx, types.NamespacedName{
-						Name: cluster.Name, Namespace: cluster.Namespace,
-					}, cluster)
-					if err != nil {
-						return err
-					}
-					// remove finalizer from cluster CR
-					cluster.ObjectMeta.SetFinalizers([]string{})
-					return k8sClient.Update(ctx, cluster)
-				})
-				Expect(err).To(BeNil())
-				// Delete cluster object
 				Expect(k8sClient.Delete(ctx, cluster)).Should(Succeed())
 			})
 		})
@@ -419,19 +380,6 @@ var _ = Describe("ClusterInfoUpdate", func() {
 			}
 			DeferCleanup(func() {
 				ctx := context.Background()
-				err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-					err := k8sClient.Get(ctx, types.NamespacedName{
-						Name: cluster.Name, Namespace: cluster.Namespace,
-					}, cluster)
-					if err != nil {
-						return err
-					}
-					// remove finalizer from cluster CR
-					cluster.ObjectMeta.SetFinalizers([]string{})
-					return k8sClient.Update(ctx, cluster)
-				})
-				Expect(err).To(BeNil())
-				// Delete cluster object
 				Expect(k8sClient.Delete(ctx, cluster)).Should(Succeed())
 			})
 		})

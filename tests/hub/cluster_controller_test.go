@@ -91,6 +91,8 @@ var _ = Describe("Hub ClusterController", func() {
 
 			DeferCleanup(func() {
 				Expect(k8sClient.Delete(ctx, node)).Should(Succeed())
+				// Delete cluster object
+				Expect(k8sClient.Delete(ctx, cluster)).Should(Succeed())
 				err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 					err := k8sClient.Get(ctx, types.NamespacedName{
 						Name: cluster.Name, Namespace: cluster.Namespace,
@@ -103,8 +105,6 @@ var _ = Describe("Hub ClusterController", func() {
 					return k8sClient.Update(ctx, cluster)
 				})
 				Expect(err).To(BeNil())
-				// Delete cluster object
-				Expect(k8sClient.Delete(ctx, cluster)).Should(Succeed())
 				Eventually(func() bool {
 					err := k8sClient.Get(ctx, types.NamespacedName{Name: cluster.Name, Namespace: cluster.Namespace}, cluster)
 					return errors.IsNotFound(err)
@@ -294,6 +294,8 @@ var _ = Describe("Hub ClusterController", func() {
 			Expect(k8sClient.Create(ctx, cluster))
 
 			DeferCleanup(func() {
+				// Delete cluster object
+				k8sClient.Delete(ctx, cluster)
 				err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 					err := k8sClient.Get(ctx, types.NamespacedName{
 						Name: cluster.Name, Namespace: cluster.Namespace,
@@ -306,8 +308,6 @@ var _ = Describe("Hub ClusterController", func() {
 					return k8sClient.Update(ctx, cluster)
 				})
 				Expect(err).To(BeNil())
-				// Delete cluster object
-				k8sClient.Delete(ctx, cluster)
 				// Wait for cluster CR to be cleaned up
 				Eventually(func() bool {
 					err := k8sClient.Get(ctx, types.NamespacedName{Name: cluster.Name, Namespace: cluster.Namespace}, cluster)
