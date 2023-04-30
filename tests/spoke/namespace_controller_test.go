@@ -36,7 +36,7 @@ import (
 	"k8s.io/client-go/util/retry"
 )
 
-var _ = FDescribe("ClusterInfoUpdate", func() {
+var _ = Describe("ClusterInfoUpdate", func() {
 	Context("With Namespace Created at spoke cluster", func() {
 		var ns *corev1.Namespace
 		var slice *kubeslicev1beta1.Slice
