@@ -409,7 +409,7 @@ func (r *SliceReconciler) deleteAnnotationsAndLabels(ctx context.Context, slice 
 		client.InNamespace(appNs),
 	}
 	if err := r.List(ctx, &podList, listOpts...); err != nil {
-		log.Error(err, "Namespace offboarding:cannot list pods under ns", appNs)
+		log.Error(err, "Namespace offboarding: cannot list pods under ns", "namespace", appNs)
 	}
 
 	if len(podList.Items) != 0 {
@@ -441,7 +441,7 @@ func (r *SliceReconciler) deleteAnnotationsAndLabels(ctx context.Context, slice 
 				}
 			}
 			if err := r.Update(ctx, &pod); err != nil {
-				log.Error(err, "Error deleting labels and annotations from pod while namespace unbinding from slice", pod.ObjectMeta.Name)
+				log.Error(err, "Error deleting labels and annotations from pod while namespace unbinding from slice", "pod", pod.ObjectMeta.Name)
 				return err
 			}
 			log.Info("Removed slice labels and annotations", "pod", pod.Name)
@@ -453,7 +453,7 @@ func (r *SliceReconciler) deleteAnnotationsAndLabels(ctx context.Context, slice 
 		client.InNamespace(appNs),
 	}
 	if err := r.List(ctx, &deployList, listOpts...); err != nil {
-		log.Error(err, "Namespace offboarding:cannot list deployments under ns ", appNs)
+		log.Error(err, "Namespace offboarding: cannot list deployments under ns", "namespace", appNs)
 	}
 
 	if len(deployList.Items) != 0 {
@@ -492,7 +492,7 @@ func (r *SliceReconciler) deleteAnnotationsAndLabels(ctx context.Context, slice 
 				}
 			}
 			if err := r.Update(ctx, &deploy); err != nil {
-				log.Error(err, "Error deleting labels and annotations from deploy while namespace unbinding from slice", deploy.ObjectMeta.Name)
+				log.Error(err, "Error deleting labels and annotations from deploy while namespace unbinding from slice", "deployment", deploy.ObjectMeta.Name)
 				return err
 			}
 			log.Info("Removed slice labels and annotations", "deployment", deploy.Name)
@@ -504,7 +504,7 @@ func (r *SliceReconciler) deleteAnnotationsAndLabels(ctx context.Context, slice 
 		client.InNamespace(appNs),
 	}
 	if err := r.List(ctx, &statefulsetList, listOpts...); err != nil {
-		log.Error(err, "Namespace offboarding:cannot list statefulset under ns ", appNs)
+		log.Error(err, "Namespace offboarding: cannot list statefulset under ns", "namespace", appNs)
 	}
 
 	if len(statefulsetList.Items) != 0 {
@@ -543,7 +543,7 @@ func (r *SliceReconciler) deleteAnnotationsAndLabels(ctx context.Context, slice 
 				}
 			}
 			if err := r.Update(ctx, &statefulset); err != nil {
-				log.Error(err, "Error deleting labels and annotations from statefulset while namespace unbinding from slice", statefulset.ObjectMeta.Name)
+				log.Error(err, "Error deleting labels and annotations from statefulset while namespace unbinding from slice", "statefulset", statefulset.ObjectMeta.Name)
 				return err
 			}
 			log.Info("Removed slice labels and annotations", "statefulset", statefulset.Name)
@@ -555,7 +555,7 @@ func (r *SliceReconciler) deleteAnnotationsAndLabels(ctx context.Context, slice 
 		client.InNamespace(appNs),
 	}
 	if err := r.List(ctx, &daemonSetList, listOpts...); err != nil {
-		log.Error(err, "Namespace offboarding:cannot list daemonsets under ns ", appNs)
+		log.Error(err, "Namespace offboarding: cannot list daemonsets under ns", "namespace", appNs)
 	}
 
 	if len(daemonSetList.Items) != 0 {
@@ -594,7 +594,7 @@ func (r *SliceReconciler) deleteAnnotationsAndLabels(ctx context.Context, slice 
 				}
 			}
 			if err := r.Update(ctx, &daemonset); err != nil {
-				log.Error(err, "Error deleting labels and annotations from daemonset while namespace unbinding from slice", daemonset.ObjectMeta.Name)
+				log.Error(err, "Error deleting labels and annotations from daemonset while namespace unbinding from slice", "daemonset", daemonset.ObjectMeta.Name)
 				return err
 			}
 			log.Info("Removed slice labels and annotations", "daemonset", daemonset.Name)
