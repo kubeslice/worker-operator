@@ -190,6 +190,8 @@ Prefixes:
 			}
 
 			DeferCleanup(func() {
+				// Delete cluster object
+				Expect(k8sClient.Delete(ctx, cluster)).Should(Succeed())
 				err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 					err := k8sClient.Get(ctx, types.NamespacedName{
 						Name: cluster.Name, Namespace: cluster.Namespace,
@@ -202,8 +204,6 @@ Prefixes:
 					return k8sClient.Update(ctx, cluster)
 				})
 				Expect(err).To(BeNil())
-				// Delete cluster object
-				Expect(k8sClient.Delete(ctx, cluster)).Should(Succeed())
 				Eventually(func() bool {
 					err := k8sClient.Delete(ctx, node1)
 					return errors.IsNotFound(err)
