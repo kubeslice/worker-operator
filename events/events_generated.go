@@ -486,6 +486,54 @@ var EventsMap = map[events.EventName]*events.EventSchema{
 		ReportingController: "worker",
 		Message:             "ServiceExport status sync successful.",
 	},
+	"FSMNewGWSpawned": {
+		Name:                "FSMNewGWSpawned",
+		Reason:              "FSMNewGWSpawned",
+		Action:              "ReconcileWorkerSliceGWRecycler",
+		Type:                events.EventTypeNormal,
+		ReportingController: "worker",
+		Message:             "sliceGWRecyler - New GateWay spawned.",
+	},
+	"FSMRoutingTableUpdated": {
+		Name:                "FSMRoutingTableUpdated",
+		Reason:              "FSMRoutingTableUpdated",
+		Action:              "ReconcileWorkerSliceGWRecycler",
+		Type:                events.EventTypeNormal,
+		ReportingController: "worker",
+		Message:             "sliceGWRecyler - Routing table updated.",
+	},
+	"FSMDeleteOldGW": {
+		Name:                "FSMDeleteOldGW",
+		Reason:              "FSMDeleteOldGW",
+		Action:              "ReconcileWorkerSliceGWRecycler",
+		Type:                events.EventTypeNormal,
+		ReportingController: "worker",
+		Message:             "sliceGWRecyler - old GateWay deleted.",
+	},
+	"FSMNewGWSpawnFailed": {
+		Name:                "FSMNewGWSpawnFailed",
+		Reason:              "FSMNewGWSpawnFailed",
+		Action:              "ReconcileWorkerSliceGWRecycler",
+		Type:                events.EventTypeWarning,
+		ReportingController: "worker",
+		Message:             "sliceGWRecyler - new GateWay failed to spawn up.",
+	},
+	"FSMRoutingTableUpdateFailed": {
+		Name:                "FSMRoutingTableUpdateFailed",
+		Reason:              "FSMRoutingTableUpdateFailed",
+		Action:              "ReconcileWorkerSliceGWRecycler",
+		Type:                events.EventTypeWarning,
+		ReportingController: "worker",
+		Message:             "sliceGWRecyler - Routing table update failed.",
+	},
+	"FSMDeleteOldGWFailed": {
+		Name:                "FSMDeleteOldGWFailed",
+		Reason:              "FSMDeleteOldGWFailed",
+		Action:              "ReconcileWorkerSliceGWRecycler",
+		Type:                events.EventTypeWarning,
+		ReportingController: "worker",
+		Message:             "sliceGWRecyler - failed to delete old GateWay.",
+	},
 }
 
 var (
@@ -547,4 +595,10 @@ var (
 	EventIngressGWPodReconcileFailed                      events.EventName = "IngressGWPodReconcileFailed"
 	EventSyncServiceExportStatusFailed                    events.EventName = "SyncServiceExportStatusFailed"
 	EventSyncServiceExportStatusSuccessfully              events.EventName = "SyncServiceExportStatusSuccessfully"
+	EventFSMNewGWSpawned                                  events.EventName = "FSMNewGWSpawned"
+	EventFSMRoutingTableUpdated                           events.EventName = "FSMRoutingTableUpdated"
+	EventFSMDeleteOldGW                                   events.EventName = "FSMDeleteOldGW"
+	EventFSMNewGWSpawnFailed                              events.EventName = "FSMNewGWSpawnFailed"
+	EventFSMRoutingTableUpdateFailed                      events.EventName = "FSMRoutingTableUpdateFailed"
+	EventFSMDeleteOldGWFailed                             events.EventName = "FSMDeleteOldGWFailed"
 )

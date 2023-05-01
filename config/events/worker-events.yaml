@@ -281,12 +281,6 @@ events:
     type: Normal
     reportingController: worker
     message: Worker ServiceImport created.
-  - name: ServiceExportCreated
-    reason: ServiceExportCreated
-    action: CreateServiceExport
-    type: Normal
-    reportingController: worker
-    message: ServiceExport created.
   - name: ServiceExportDeleted
     reason: ServiceExportDeleted
     action: DeleteServiceExport
@@ -353,3 +347,39 @@ events:
     type: Normal
     reportingController: worker
     message: ServiceExport status sync successful.
+  - name: FSMNewGWSpawned
+    reason: FSMNewGWSpawned
+    action: ReconcileWorkerSliceGWRecycler
+    type: Normal
+    reportingController: worker
+    message: sliceGWRecyler - New GateWay spawned.
+  - name: FSMRoutingTableUpdated
+    reason: FSMRoutingTableUpdated
+    action: ReconcileWorkerSliceGWRecycler
+    type: Normal
+    reportingController: worker
+    message: sliceGWRecyler - Routing table updated.
+  - name: FSMDeleteOldGW
+    reason: FSMDeleteOldGW
+    action: ReconcileWorkerSliceGWRecycler
+    type: Normal
+    reportingController: worker
+    message: sliceGWRecyler - old GateWay deleted.
+  - name: FSMNewGWSpawnFailed
+    reason: FSMNewGWSpawnFailed
+    action: ReconcileWorkerSliceGWRecycler
+    type: Warning
+    reportingController: worker
+    message: sliceGWRecyler - new GateWay failed to spawn up.
+  - name: FSMRoutingTableUpdateFailed
+    reason: FSMRoutingTableUpdateFailed
+    action: ReconcileWorkerSliceGWRecycler
+    type: Warning
+    reportingController: worker
+    message: sliceGWRecyler - Routing table update failed.
+  - name: FSMDeleteOldGWFailed
+    reason: FSMDeleteOldGWFailed
+    action: ReconcileWorkerSliceGWRecycler
+    type: Warning
+    reportingController: worker
+    message: sliceGWRecyler - failed to delete old GateWay.

@@ -39,7 +39,6 @@ import (
 	"github.com/kubeslice/kubeslice-monitoring/pkg/metrics"
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
 	ossEvents "github.com/kubeslice/worker-operator/events"
-	"github.com/kubeslice/worker-operator/pkg/events"
 	sidecar "github.com/kubeslice/worker-operator/pkg/gwsidecar"
 	"github.com/kubeslice/worker-operator/pkg/hub/controllers"
 	hubCluster "github.com/kubeslice/worker-operator/pkg/hub/controllers/cluster"
@@ -185,7 +184,14 @@ func Start(meshClient client.Client, ctx context.Context) {
 		os.Exit(1)
 	}
 
-	workerSliceGwRecyclerEventRecorder := events.NewEventRecorder(mgr.GetEventRecorderFor("workerslicegwrecycler-controller"))
+	workerSliceGwRecyclerEventRecorder := mevents.NewEventRecorder(meshClient, mgr.GetScheme(), ossEvents.EventsMap, mevents.EventRecorderOptions{
+		Cluster:   ClusterName,
+		Project:   ProjectNamespace,
+		Component: "workerslicegwrecycler-controller",
+		Namespace: controllers.ControlPlaneNamespace,
+		Version:   utils.EventsVersion,
+		Slice:     utils.NotApplicable,
+	})
 	if err := (&workerslicegwrecycler.Reconciler{
 		MeshClient:            meshClient,
 		Log:                   ctrl.Log.WithName("controllers").WithName("workerslicegwrecycler"),

@@ -43,7 +43,6 @@ import (
 	"github.com/kubeslice/kubeslice-monitoring/pkg/metrics"
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
 	ossEvents "github.com/kubeslice/worker-operator/events"
-	"github.com/kubeslice/worker-operator/pkg/events"
 	"github.com/kubeslice/worker-operator/pkg/hub/controllers"
 	"github.com/kubeslice/worker-operator/pkg/hub/controllers/cluster"
 	"github.com/prometheus/client_golang/prometheus"
@@ -206,7 +205,12 @@ var _ = BeforeSuite(func() {
 		Complete(serviceImportReconciler)
 	Expect(err).ToNot(HaveOccurred())
 
-	workerSliceGwRecyclerEventRecorder := events.NewEventRecorder(k8sManager.GetEventRecorderFor("workerslicegwrecycler-controller"))
+	workerSliceGwRecyclerEventRecorder := mevents.NewEventRecorder(k8sManager.GetClient(), k8sManager.GetScheme(), ossEvents.EventsMap, mevents.EventRecorderOptions{
+		Cluster:   CLUSTER_NAME,
+		Project:   PROJECT_NS,
+		Component: "workerslicegwrecycler-controller",
+		Namespace: controllers.ControlPlaneNamespace,
+	})
 	if err := (&workerslicegwrecycler.Reconciler{
 		MeshClient:            k8sClient,
 		Log:                   ctrl.Log.WithName("controllers").WithName("workerslicegwrecycler"),
