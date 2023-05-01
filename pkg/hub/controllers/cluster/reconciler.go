@@ -127,6 +127,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			log.Error(err, "unable to update cluster CR")
 			return reconcile.Result{}, err
 		}
+		utils.RecordEvent(ctx, r.EventRecorder, cr, nil, ossEvents.EventClusterHealthStatusUpdated, controllerName)
 	}
 	utils.RecordEvent(ctx, r.EventRecorder, cr, nil, ossEvents.EventClusterHealthStatusUpdated, controllerName)
 	return reconcile.Result{RequeueAfter: r.ReconcileInterval}, nil
