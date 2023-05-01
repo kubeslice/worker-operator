@@ -84,6 +84,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	log = log.WithValues("slice", serviceimport.Spec.Slice)
 	debugLog := log.V(1)
 	ctx = logger.WithLogger(ctx, log)
+	r.EventRecorder = r.EventRecorder.WithSlice(serviceimport.Spec.Slice)
 
 	log.Info("reconciling", "serviceimport", serviceimport.Name)
 
@@ -102,13 +103,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		if err != nil {
 			log.Error(err, "Failed to update availableendpoints")
 			//post event to service import
-			// r.EventRecorder.RecordEvent(ctx,
-			// 	&events.Event{
-			// 		Object:            serviceimport,
-			// 		Name:              ossEvents.EventSliceServiceImportUpdateAvailableEndpointsFailed,
-			// 		ReportingInstance: "serviceimport_controller",
-			// 	},
-			// )
 			utils.RecordEvent(ctx, r.EventRecorder, serviceimport, nil, ossEvents.EventSliceServiceImportDeleteFailed, controllerName)
 			return ctrl.Result{}, err
 		}
@@ -160,11 +154,7 @@ func (r *Reconciler) handleServiceImportDeletion(ctx context.Context, serviceimp
 	if containsString(serviceimport.GetFinalizers(), finalizerName) {
 		log.Info("deleting serviceimport")
 		if err := r.DeleteServiceImportResources(ctx, serviceimport); err != nil {
-			r.EventRecorder.RecordEvent(ctx, &events.Event{
-				Object:            serviceimport,
-				Name:              ossEvents.EventSliceServiceImportDeleteFailed,
-				ReportingInstance: "serviceimport_controller",
-			})
+			utils.RecordEvent(ctx, r.EventRecorder, serviceimport, nil, ossEvents.EventSliceServiceImportDeleteFailed, controllerName)
 			log.Error(err, "unable to delete service import resources")
 			return true, ctrl.Result{}, err
 		}
@@ -174,11 +164,7 @@ func (r *Reconciler) handleServiceImportDeletion(ctx context.Context, serviceimp
 		if err := r.Update(ctx, serviceimport); err != nil {
 			return true, ctrl.Result{}, err
 		}
-		r.EventRecorder.RecordEvent(ctx, &events.Event{
-			Object:            serviceimport,
-			Name:              ossEvents.EventSliceServiceImportDeleted,
-			ReportingInstance: "serviceimport_controller",
-		})
+		utils.RecordEvent(ctx, r.EventRecorder, serviceimport, nil, ossEvents.EventSliceServiceImportDeleted, controllerName)
 	}
 	return true, ctrl.Result{}, nil
 }
@@ -193,20 +179,10 @@ func (r *Reconciler) updateServiceImportPorts(ctx context.Context, serviceimport
 	if err != nil {
 		log.Error(err, "Failed to update serviceimport ports")
 		//post event to service import
-		r.EventRecorder.RecordEvent(ctx,
-			&events.Event{
-				Object:            serviceimport,
-				Name:              ossEvents.EventSliceServiceImportUpdatePortsFailed,
-				ReportingInstance: "serviceimport_controller",
-			},
-		)
+		utils.RecordEvent(ctx, r.EventRecorder, serviceimport, nil, ossEvents.EventSliceServiceImportUpdateFailed, controllerName)
 		return ctrl.Result{}, err
 	}
-	r.EventRecorder.RecordEvent(ctx, &events.Event{
-		Object:            serviceimport,
-		Name:              ossEvents.EventSliceServiceImportUpdatePorts,
-		ReportingInstance: "serviceimport_controller",
-	})
+	utils.RecordEvent(ctx, r.EventRecorder, serviceimport, nil, ossEvents.EventSliceServiceImportUpdatePorts, controllerName)
 	log.Info("serviceimport updated with ports")
 	return ctrl.Result{Requeue: true}, nil
 }

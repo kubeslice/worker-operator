@@ -200,24 +200,12 @@ func (r *Reconciler) SyncSvcExportStatus(ctx context.Context, serviceexport *kub
 			return ctrl.Result{}, errN, true
 		}
 		//post event to service export
-		// r.EventRecorder.RecordEvent(ctx,
-		// 	&events.Event{
-		// 		Object:            serviceexport,
-		// 		Name:              ossEvents.EventSyncServiceExportStatusFailed,
-		// 		ReportingInstance: "serviceexport_controller",
-		// 	})
 		utils.RecordEvent(ctx, r.EventRecorder, serviceexport, nil, ossEvents.EventSyncServiceExportStatusFailed, controllerName)
 		return ctrl.Result{}, err, true
 	}
 
 	log.Info("serviceexport sync success")
 	//post event to service export
-	// r.EventRecorder.RecordEvent(ctx,
-	// 	&events.Event{
-	// 		Object:            serviceexport,
-	// 		Name:              ossEvents.EventSyncServiceExportStatusSuccessfully,
-	// 		ReportingInstance: "serviceexport_controller",
-	// 	})
 	utils.RecordEvent(ctx, r.EventRecorder, serviceexport, nil, ossEvents.EventSyncServiceExportStatusSuccessfully, controllerName)
 
 	currentTime := time.Now().Unix()

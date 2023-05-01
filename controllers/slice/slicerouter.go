@@ -24,7 +24,6 @@ import (
 	"os"
 	"time"
 
-	"github.com/kubeslice/kubeslice-monitoring/pkg/events"
 	ossEvents "github.com/kubeslice/worker-operator/events"
 
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
@@ -32,6 +31,7 @@ import (
 
 	"github.com/kubeslice/worker-operator/controllers"
 	"github.com/kubeslice/worker-operator/pkg/logger"
+	"github.com/kubeslice/worker-operator/pkg/utils"
 	webhook "github.com/kubeslice/worker-operator/pkg/webhook/pod"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -351,11 +351,7 @@ func (r *SliceReconciler) deploySliceRouter(ctx context.Context, slice *kubeslic
 	err = r.Create(ctx, dep)
 	if err != nil {
 		log.Error(err, "Failed to create deployment for slice router")
-		r.EventRecorder.RecordEvent(ctx, &events.Event{
-			Object: slice,
-			Name:   ossEvents.EventSliceRouterDeploymentFailed,
-		},
-		)
+		utils.RecordEvent(ctx, r.EventRecorder, slice, nil, ossEvents.EventSliceRouterDeploymentFailed, controllerName)
 		return err
 	}
 	log.Info("Created deployment spec for slice router: ", "Name: ", slice.Name, "cluster subnet: ", slice.Status.SliceConfig.ClusterSubnetCIDR)
@@ -388,12 +384,7 @@ func (r *SliceReconciler) deploySliceRouterSvc(ctx context.Context, slice *kubes
 	err := r.Create(ctx, svc)
 	if err != nil {
 		log.Error(err, "Failed to create svc for slice router")
-		r.EventRecorder.RecordEvent(ctx,
-			&events.Event{
-				Object: slice,
-				Name:   ossEvents.EventSliceRouterServiceFailed,
-			},
-		)
+		utils.RecordEvent(ctx, r.EventRecorder, slice, nil, ossEvents.EventSliceRouterServiceFailed, controllerName)
 		return err
 	}
 	log.Info("Created svc spec for slice router: ", "Name: ", slice.Name)

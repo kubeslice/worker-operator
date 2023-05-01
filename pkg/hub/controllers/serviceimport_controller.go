@@ -28,6 +28,7 @@ import (
 	"github.com/kubeslice/worker-operator/controllers"
 	ossEvents "github.com/kubeslice/worker-operator/events"
 	"github.com/kubeslice/worker-operator/pkg/logger"
+	"github.com/kubeslice/worker-operator/pkg/utils"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -43,6 +44,7 @@ type ServiceImportReconciler struct {
 }
 
 var svcimFinalizer = "controller.kubeslice.io/hubWorkerServiceImport-finalizer"
+var svcim_controllerName = "serviceimport_reconciler"
 
 func getProtocol(protocol string) corev1.Protocol {
 	switch protocol {
@@ -112,6 +114,7 @@ func (r *ServiceImportReconciler) Reconcile(ctx context.Context, req reconcile.R
 	}
 
 	log.Info("got service import from hub", "serviceimport", svcim)
+	r.EventRecorder = r.EventRecorder.WithSlice(svcim.Spec.SliceName)
 
 	// examine DeletionTimestamp to determine if object is under deletion
 	// Register finalizer.
@@ -153,33 +156,17 @@ func (r *ServiceImportReconciler) Reconcile(ctx context.Context, req reconcile.R
 	if err != nil {
 		log.Error(err, "unable to update service import in spoke cluster", "serviceimport", svcim.Name)
 		//post event to service import created on spoke
-		r.EventRecorder.RecordEvent(ctx,
-			&events.Event{
-				Object:            meshSvcIm,
-				Name:              ossEvents.EventSliceServiceImportUpdateFailed,
-				ReportingInstance: "workerserviceimport_controller",
-			},
-		)
+		utils.RecordEvent(ctx, r.EventRecorder, meshSvcIm, nil, ossEvents.EventSliceServiceImportUpdateFailed, svcim_controllerName)
 		return reconcile.Result{}, err
 	}
 	meshSvcIm.Status.Endpoints = getMeshServiceImportEpList(svcim)
 	err = r.MeshClient.Status().Update(ctx, meshSvcIm)
 	if err != nil {
 		log.Error(err, "unable to update service import in spoke cluster", "serviceimport", svcim.Name)
-		r.EventRecorder.RecordEvent(ctx,
-			&events.Event{
-				Object:            meshSvcIm,
-				Name:              ossEvents.EventSliceServiceImportUpdateFailed,
-				ReportingInstance: "workerserviceimport_controller",
-			},
-		)
+		utils.RecordEvent(ctx, r.EventRecorder, meshSvcIm, nil, ossEvents.EventSliceServiceImportUpdateFailed, svcim_controllerName)
 		return reconcile.Result{}, err
 	}
-	r.EventRecorder.RecordEvent(ctx, &events.Event{
-		Object:            meshSvcIm,
-		Name:              ossEvents.EventSliceServiceImportUpdated,
-		ReportingInstance: "workerserviceimport_controller",
-	})
+	utils.RecordEvent(ctx, r.EventRecorder, meshSvcIm, nil, ossEvents.EventSliceServiceImportUpdated, svcim_controllerName)
 
 	return reconcile.Result{}, nil
 }
@@ -198,23 +185,11 @@ func (r *ServiceImportReconciler) getMeshServiceImport(ctx context.Context, svci
 			if err != nil {
 				log.Error(err, "unable to create service import in spoke cluster", "serviceimport", svcim.Name)
 				//post event to spokeserviceimport
-				r.EventRecorder.RecordEvent(ctx,
-					&events.Event{
-						Object:            svcim,
-						Name:              ossEvents.EventWorkerServiceImportCreateFailed,
-						ReportingInstance: "workerserviceimport_controller",
-					},
-				)
+				utils.RecordEvent(ctx, r.EventRecorder, svcim, nil, ossEvents.EventWorkerServiceImportCreateFailed, svcim_controllerName)
 				return nil, err
 			}
 			//post event to spokeserviceimport
-			r.EventRecorder.RecordEvent(ctx,
-				&events.Event{
-					Object:            svcim,
-					Name:              ossEvents.EventWorkerServiceImportCreated,
-					ReportingInstance: "workerserviceimport_controller",
-				},
-			)
+			utils.RecordEvent(ctx, r.EventRecorder, svcim, nil, ossEvents.EventWorkerServiceImportCreated, svcim_controllerName)
 
 			meshSvcIm.Status.Endpoints = getMeshServiceImportEpList(svcim)
 			err = r.MeshClient.Status().Update(ctx, meshSvcIm)

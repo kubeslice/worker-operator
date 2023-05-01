@@ -166,22 +166,12 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		if noOfGwServices > r.NumberOfGateways {
 			reconcile, result, sliceGwNodePorts, err = r.handleSliceGwSvcCreation(ctx, sliceGw, noOfGwServices)
 			if reconcile {
-				// r.EventRecorder.RecordEvent(ctx, &events.Event{
-				// 	Object:            sliceGw,
-				// 	Name:              ossEvents.EventSliceGWServiceCreationFailed,
-				// 	ReportingInstance: "sliceGW_controller",
-				// })
 				utils.RecordEvent(ctx, r.EventRecorder, sliceGw, slice, ossEvents.EventSliceGWServiceCreationFailed, controllerName)
 				return result, err
 			}
 		} else {
 			reconcile, result, sliceGwNodePorts, err = r.handleSliceGwSvcCreation(ctx, sliceGw, r.NumberOfGateways)
 			if reconcile {
-				// r.EventRecorder.RecordEvent(ctx, &events.Event{
-				// 	Object:            sliceGw,
-				// 	Name:              ossEvents.EventSliceGWServiceCreationFailed,
-				// 	ReportingInstance: "sliceGW_controller",
-				// })
 				utils.RecordEvent(ctx, r.EventRecorder, sliceGw, slice, ossEvents.EventSliceGWServiceCreationFailed, controllerName)
 				return result, err
 			}
@@ -283,13 +273,6 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	if err != nil {
 		log.Error(err, "Failed to reconcile slice gw pod status")
 		//post event to slicegw
-		// r.EventRecorder.RecordEvent(ctx,
-		// 	&events.Event{
-		// 		Object:            sliceGw,
-		// 		Name:              ossEvents.EventSliceGWPodReconcileFailed,
-		// 		ReportingInstance: "sliceGW_controller",
-		// 	},
-		// )
 		utils.RecordEvent(ctx, r.EventRecorder, sliceGw, slice, ossEvents.EventSliceGWPodReconcileFailed, controllerName)
 		return ctrl.Result{}, err
 	}
@@ -301,13 +284,6 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	if err != nil {
 		log.Error(err, "Failed to send connection context to gw pod")
 		//post event to slicegw
-		// r.EventRecorder.RecordEvent(ctx,
-		// 	&events.Event{
-		// 		Object:            sliceGw,
-		// 		Name:              ossEvents.EventSliceGWConnectionContextFailed,
-		// 		ReportingInstance: "sliceGW_controller",
-		// 	},
-		// )
 		utils.RecordEvent(ctx, r.EventRecorder, sliceGw, slice, ossEvents.EventSliceGWConnectionContextFailed, controllerName)
 		return ctrl.Result{}, err
 	}
@@ -319,13 +295,6 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	if err != nil {
 		log.Error(err, "Failed to send connection context to slice router pod")
 		//post event to slicegw
-		// r.EventRecorder.RecordEvent(ctx,
-		// 	&events.Event{
-		// 		Object:            sliceGw,
-		// 		Name:              ossEvents.EventSliceRouterConnectionContextFailed,
-		// 		ReportingInstance: "sliceGW_controller",
-		// 	},
-		// )
 		utils.RecordEvent(ctx, r.EventRecorder, sliceGw, slice, ossEvents.EventSliceRouterConnectionContextFailed, controllerName)
 		return ctrl.Result{}, err
 	}
@@ -338,13 +307,6 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	if err != nil {
 		log.Error(err, "Error sending QOS Profile to netop pod")
 		//post event to slicegw
-		// r.EventRecorder.RecordEvent(ctx,
-		// 	&events.Event{
-		// 		Object:            sliceGw,
-		// 		Name:              ossEvents.EventSliceNetopQoSSyncFailed,
-		// 		ReportingInstance: "sliceGW_controller",
-		// 	},
-		// )
 		utils.RecordEvent(ctx, r.EventRecorder, sliceGw, slice, ossEvents.EventSliceNetopQoSSyncFailed, controllerName)
 		return ctrl.Result{}, err
 	}
@@ -352,13 +314,6 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		toRebalace, err := r.isRebalancingRequired(ctx, sliceGw)
 		if err != nil {
 			log.Error(err, "Unable to rebalace gw pods")
-			// r.EventRecorder.RecordEvent(ctx,
-			// 	&events.Event{
-			// 		Object:            sliceGw,
-			// 		Name:              ossEvents.EventSliceGWRebalancingFailed,
-			// 		ReportingInstance: "sliceGW_controller",
-			// 	},
-			// )
 			utils.RecordEvent(ctx, r.EventRecorder, sliceGw, slice, ossEvents.EventSliceGWRebalancingFailed, controllerName)
 			return ctrl.Result{}, err
 		}
@@ -376,13 +331,6 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 			if err != nil {
 				log.Error(err, "Error while fetching remote gw podName")
 				// post event to slicegw
-				// r.EventRecorder.RecordEvent(ctx,
-				// 	&events.Event{
-				// 		Object:            sliceGw,
-				// 		Name:              ossEvents.EventSliceGWRemotePodSyncFailed,
-				// 		ReportingInstance: "sliceGW_controller",
-				// 	},
-				// )
 				utils.RecordEvent(ctx, r.EventRecorder, sliceGw, slice, ossEvents.EventSliceGWRemotePodSyncFailed, controllerName)
 				return ctrl.Result{}, err
 			}
@@ -393,13 +341,6 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 				}
 				return ctrl.Result{}, err
 			}
-			// r.EventRecorder.RecordEvent(ctx,
-			// 	&events.Event{
-			// 		Object:            sliceGw,
-			// 		Name:              ossEvents.EventSliceGWRebalancingSuccess,
-			// 		ReportingInstance: "sliceGW_controller",
-			// 	},
-			// )
 			utils.RecordEvent(ctx, r.EventRecorder, sliceGw, slice, ossEvents.EventSliceGWRebalancingSuccess, controllerName)
 			// spawn a new gw nodeport service
 			_, _, _, err = r.handleSliceGwSvcCreation(ctx, sliceGw, r.NumberOfGateways+1)
@@ -524,14 +465,6 @@ func (r *SliceGwReconciler) handleSliceGwSvcCreation(ctx context.Context, sliceG
 	err := r.HubClient.UpdateNodePortForSliceGwServer(ctx, sliceGwNodePorts, sliceGwName)
 	if err != nil {
 		log.Error(err, "Failed to update NodePort for sliceGw in the hub")
-
-		// r.EventRecorder.RecordEvent(ctx,
-		// 	&events.Event{
-		// 		Object:            sliceGw,
-		// 		Name:              ossEvents.EventSliceGWNodePortUpdateFailed,
-		// 		ReportingInstance: "sliceGW_controller",
-		// 	},
-		// )
 		utils.RecordEvent(ctx, r.EventRecorder, sliceGw, nil, ossEvents.EventSliceGWNodePortUpdateFailed, controllerName)
 		return true, ctrl.Result{}, sliceGwNodePorts, err
 	}
@@ -559,9 +492,6 @@ func (r *SliceGwReconciler) handleSliceGwDeletion(sliceGw *kubeslicev1beta1.Slic
 
 			if err := r.cleanupSliceGwResources(ctx, sliceGw); err != nil {
 				log.Error(err, "error while deleting sliceGW")
-				// if err := r.EventRecorder.RecordEvent(ctx, &events.Event{Object: sliceGw, Name: ossEvents.EventSliceGWDeleteFailed, ReportingInstance: "sliceGW_controller"}); err != nil {
-				// 	log.Error(err, "unable to update sliceGW delete failure event")
-				// }
 				utils.RecordEvent(ctx, r.EventRecorder, sliceGw, nil, ossEvents.EventSliceGWDeleteFailed, controllerName)
 			}
 			controllerutil.RemoveFinalizer(sliceGw, sliceGwFinalizer)
@@ -569,14 +499,6 @@ func (r *SliceGwReconciler) handleSliceGwDeletion(sliceGw *kubeslicev1beta1.Slic
 				return true, ctrl.Result{}, err
 			}
 		}
-		// err := r.EventRecorder.RecordEvent(ctx, &events.Event{
-		// 	Object:            sliceGw,
-		// 	Name:              ossEvents.EventSliceGWDeleted,
-		// 	ReportingInstance: "sliceGW_controller",
-		// })
-		// if err != nil {
-		// 	log.Error(err, "unable to update sliceGW delete event")
-		// }
 		utils.RecordEvent(ctx, r.EventRecorder, sliceGw, nil, ossEvents.EventSliceGWDeleted, controllerName)
 		// Stop reconciliation as the item is being deleted
 		return true, ctrl.Result{}, nil

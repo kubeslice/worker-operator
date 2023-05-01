@@ -141,13 +141,6 @@ func (r Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resul
 		if err != nil {
 			log.Error(err, "Failed to update serviceexport ports")
 			//post event to service export
-			// r.EventRecorder.RecordEvent(ctx,
-			// 	&events.Event{
-			// 		Object:            serviceexport,
-			// 		Name:              ossEvents.EventServiceExportUpdatePortsFailed,
-			// 		ReportingInstance: "serviceexport_controller",
-			// 	},
-			// )
 			utils.RecordEvent(ctx, r.EventRecorder, serviceexport, nil, ossEvents.EventServiceExportUpdatePortsFailed, controllerName)
 			return ctrl.Result{}, err
 		}
@@ -271,11 +264,6 @@ func (r *Reconciler) handleServiceExportDeletion(ctx context.Context, serviceexp
 		}
 
 		if err := r.DeleteServiceExportResources(ctx, serviceexport); err != nil {
-			// r.EventRecorder.RecordEvent(ctx, &events.Event{
-			// 	Object:            serviceexport,
-			// 	Name:              ossEvents.EventServiceExportDeleteFailed,
-			// 	ReportingInstance: "serviceexport_controller",
-			// })
 			utils.RecordEvent(ctx, r.EventRecorder, serviceexport, nil, ossEvents.EventServiceExportDeleteFailed, controllerName)
 			log.Error(err, "unable to delete service export resources")
 			return true, ctrl.Result{}, err
@@ -287,11 +275,6 @@ func (r *Reconciler) handleServiceExportDeletion(ctx context.Context, serviceexp
 			log.Error(err, "unable to remove finalizer from serviceexport")
 			return true, ctrl.Result{}, err
 		}
-		// r.EventRecorder.RecordEvent(ctx, &events.Event{
-		// 	Object:            serviceexport,
-		// 	Name:              ossEvents.EventServiceExportDeleted,
-		// 	ReportingInstance: "serviceexport_controller",
-		// })
 		utils.RecordEvent(ctx, r.EventRecorder, serviceexport, nil, ossEvents.EventServiceExportDeleted, controllerName)
 	}
 	return true, ctrl.Result{}, nil
