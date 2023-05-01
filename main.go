@@ -176,9 +176,11 @@ func main() {
 	}
 
 	sliceEventRecorder := monitoringEvents.NewEventRecorder(mgr.GetClient(), scheme, ossEvents.EventsMap, monitoringEvents.EventRecorderOptions{
+		Version:   utils.EventsVersion,
+		Slice:     utils.NotApplicable,
 		Cluster:   controllers.ClusterName,
 		Project:   hub.ProjectNamespace,
-		Component: "worker-operator",
+		Component: "slice-controller",
 		Namespace: controllers.ControlPlaneNamespace,
 	})
 	if err = (&slice.SliceReconciler{
@@ -195,6 +197,8 @@ func main() {
 	}
 
 	sliceGwEventRecorder := monitoringEvents.NewEventRecorder(mgr.GetClient(), scheme, ossEvents.EventsMap, monitoringEvents.EventRecorderOptions{
+		Version:   utils.EventsVersion,
+		Slice:     utils.NotApplicable,
 		Cluster:   controllers.ClusterName,
 		Project:   hub.ProjectNamespace,
 		Component: "sliceGw-controller",
@@ -220,7 +224,14 @@ func main() {
 		os.Exit(1)
 	}
 
-	serviceExportEventRecorder := events.NewEventRecorder(mgr.GetEventRecorderFor("serviceExport-controller"))
+	serviceExportEventRecorder := monitoringEvents.NewEventRecorder(mgr.GetClient(), scheme, ossEvents.EventsMap, monitoringEvents.EventRecorderOptions{
+		Version:   utils.EventsVersion,
+		Slice:     utils.NotApplicable,
+		Cluster:   controllers.ClusterName,
+		Project:   hub.ProjectNamespace,
+		Component: "serviceExport-controller",
+		Namespace: controllers.ControlPlaneNamespace,
+	})
 	if err = (&serviceexport.Reconciler{
 		Client:        mgr.GetClient(),
 		Log:           ctrl.Log.WithName("controllers").WithName("ServiceExport"),
@@ -237,6 +248,8 @@ func main() {
 		Project:   hub.ProjectNamespace,
 		Component: "serviceImport-controller",
 		Namespace: controllers.ControlPlaneNamespace,
+		Version:   utils.EventsVersion,
+		Slice:     utils.NotApplicable,
 	})
 	if err = (&serviceimport.Reconciler{
 		Client:        mgr.GetClient(),
@@ -264,6 +277,8 @@ func main() {
 		Project:   hub.ProjectNamespace,
 		Component: "networkpolicy-controller",
 		Namespace: controllers.ControlPlaneNamespace,
+		Version:   utils.EventsVersion,
+		Slice:     utils.NotApplicable,
 	})
 	if err = (&networkpolicy.NetpolReconciler{
 		Client:        mgr.GetClient(),

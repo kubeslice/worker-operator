@@ -18,7 +18,14 @@
 
 package utils
 
-import "os"
+import (
+	"context"
+	"os"
+
+	"github.com/kubeslice/kubeslice-monitoring/pkg/events"
+	"github.com/kubeslice/worker-operator/pkg/logger"
+	"k8s.io/apimachinery/pkg/runtime"
+)
 
 func GetEnvOrDefault(key, def string) string {
 	val, ok := os.LookupEnv(key)
@@ -26,4 +33,17 @@ func GetEnvOrDefault(key, def string) string {
 		return def
 	}
 	return val
+}
+
+func RecordEvent(ctx context.Context, recorder events.EventRecorder, object, relatedObject runtime.Object, name events.EventName, controller string) {
+	log := logger.FromContext(ctx)
+	err := recorder.RecordEvent(ctx, &events.Event{
+		Object:            object,
+		RelatedObject:     relatedObject,
+		ReportingInstance: controller,
+		Name:              name,
+	})
+	if err != nil {
+		log.Error(err, "unable to raise event")
+	}
 }

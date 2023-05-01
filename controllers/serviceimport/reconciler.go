@@ -26,6 +26,7 @@ import (
 	"github.com/kubeslice/kubeslice-monitoring/pkg/events"
 	ossEvents "github.com/kubeslice/worker-operator/events"
 	"github.com/kubeslice/worker-operator/pkg/logger"
+	"github.com/kubeslice/worker-operator/pkg/utils"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -45,6 +46,7 @@ type Reconciler struct {
 }
 
 var finalizerName = "networking.kubeslice.io/serviceimport-finalizer"
+var controllerName = "serviceimport_controller"
 
 // NewReconciler creates a new reconciler for serviceimport
 func NewReconciler(c client.Client, s *runtime.Scheme, clusterId string) Reconciler {
@@ -100,13 +102,14 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		if err != nil {
 			log.Error(err, "Failed to update availableendpoints")
 			//post event to service import
-			r.EventRecorder.RecordEvent(ctx,
-				&events.Event{
-					Object:            serviceimport,
-					Name:              ossEvents.EventSliceServiceImportUpdateAvailableEndpointsFailed,
-					ReportingInstance: "serviceimport_controller",
-				},
-			)
+			// r.EventRecorder.RecordEvent(ctx,
+			// 	&events.Event{
+			// 		Object:            serviceimport,
+			// 		Name:              ossEvents.EventSliceServiceImportUpdateAvailableEndpointsFailed,
+			// 		ReportingInstance: "serviceimport_controller",
+			// 	},
+			// )
+			utils.RecordEvent(ctx, r.EventRecorder, serviceimport, nil, ossEvents.EventSliceServiceImportDeleteFailed, controllerName)
 			return ctrl.Result{}, err
 		}
 		log.Info("serviceimport updated with availableendpoints")

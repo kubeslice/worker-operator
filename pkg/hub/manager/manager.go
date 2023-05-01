@@ -46,6 +46,7 @@ import (
 	"github.com/kubeslice/worker-operator/pkg/hub/controllers/workerslicegwrecycler"
 	"github.com/kubeslice/worker-operator/pkg/logger"
 	"github.com/kubeslice/worker-operator/pkg/router"
+	"github.com/kubeslice/worker-operator/pkg/utils"
 	ctrl "sigs.k8s.io/controller-runtime"
 )
 
@@ -100,6 +101,8 @@ func Start(meshClient client.Client, ctx context.Context) {
 		Project:   ProjectNamespace,
 		Component: "spokeSlice-controller",
 		Namespace: controllers.ControlPlaneNamespace,
+		Version:   utils.EventsVersion,
+		Slice:     utils.NotApplicable,
 	})
 
 	sliceReconciler := controllers.NewSliceReconciler(
@@ -125,6 +128,8 @@ func Start(meshClient client.Client, ctx context.Context) {
 		Project:   ProjectNamespace,
 		Component: "spokeSliceGW-controller",
 		Namespace: controllers.ControlPlaneNamespace,
+		Version:   utils.EventsVersion,
+		Slice:     utils.NotApplicable,
 	})
 
 	sliceGwReconciler := &controllers.SliceGwReconciler{
@@ -149,6 +154,8 @@ func Start(meshClient client.Client, ctx context.Context) {
 		Project:   ProjectNamespace,
 		Component: "spokeServiceImport-controller",
 		Namespace: controllers.ControlPlaneNamespace,
+		Version:   utils.EventsVersion,
+		Slice:     utils.NotApplicable,
 	})
 
 	serviceImportReconciler := &controllers.ServiceImportReconciler{
@@ -197,6 +204,8 @@ func Start(meshClient client.Client, ctx context.Context) {
 		Project:   ProjectNamespace,
 		Component: "worker-operator",
 		Namespace: controllers.ControlPlaneNamespace,
+		Version:   utils.EventsVersion,
+		Slice:     utils.NotApplicable,
 	})
 	clusterReconciler := hubCluster.NewReconciler(
 		meshClient,

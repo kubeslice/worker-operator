@@ -163,14 +163,17 @@ var _ = BeforeSuite(func() {
 	}).Setup(k8sManager, mf)
 	Expect(err).ToNot(HaveOccurred())
 
-	testSvcExEventRecorder := events.NewEventRecorder(k8sManager.GetEventRecorderFor("test-SvcEx-controller"))
-
 	err = (&serviceexport.Reconciler{
-		Client:        k8sManager.GetClient(),
-		Scheme:        k8sManager.GetScheme(),
-		Log:           ctrl.Log.WithName("SliceGwTest"),
-		HubClient:     hubClientEmulator,
-		EventRecorder: testSvcExEventRecorder,
+		Client:    k8sManager.GetClient(),
+		Scheme:    k8sManager.GetScheme(),
+		Log:       ctrl.Log.WithName("SliceGwTest"),
+		HubClient: hubClientEmulator,
+		EventRecorder: mevents.NewEventRecorder(k8sClient, k8sManager.GetScheme(), ossEvents.EventsMap, mevents.EventRecorderOptions{
+			Cluster:   hub.ClusterName,
+			Project:   PROJECT_NS,
+			Component: "test-SvcEx-controller",
+			Namespace: CONTROL_PLANE_NS,
+		}),
 	}).Setup(k8sManager, mf)
 	Expect(err).ToNot(HaveOccurred())
 

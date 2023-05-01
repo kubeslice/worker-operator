@@ -281,3 +281,75 @@ events:
     type: Normal
     reportingController: worker
     message: Worker ServiceImport created.
+  - name: ServiceExportCreated
+    reason: ServiceExportCreated
+    action: CreateServiceExport
+    type: Normal
+    reportingController: worker
+    message: ServiceExport created.
+  - name: ServiceExportDeleted
+    reason: ServiceExportDeleted
+    action: DeleteServiceExport
+    type: Warning
+    reportingController: worker
+    message: ServiceExport deleted.
+  - name: ServiceExportDeleteFailed
+    reason: ServiceExportDeleteFailed
+    action: DeleteServiceExport
+    type: Warning
+    reportingController: worker
+    message: ServiceExport delete failed.
+  - name: ServiceExportInitialStatusUpdated
+    reason: ServiceExportInitialStatusUpdated
+    action: ReconcileServiceExport
+    type: Normal
+    reportingController: worker
+    message: ServiceExport initial status updated.
+  - name: SliceServiceExportInitialStatusUpdateFailed
+    reason: SliceServiceExportInitialStatusUpdateFailed
+    action: ReconcileServiceExport
+    type: Warning
+    reportingController: worker
+    message: ServiceExport initial status update failed.
+  - name: ServiceExportSliceFetchFailed
+    reason: ServiceExportSliceFetchFailed
+    action: ReconcileServiceExport
+    type: Warning
+    reportingController: worker
+    message: ServiceExport slice fetch failed.
+  - name: ServiceExportStatusPending
+    reason: ServiceExportStatusPending
+    action: ReconcileServiceExport
+    type: Warning
+    reportingController: worker
+    message: ServiceExport status pending.
+  - name: ServiceExportUpdatePortsFailed
+    reason: ServiceExportUpdatePortsFailed
+    action: ReconcileServiceExport
+    type: Warning
+    reportingController: worker
+    message: ServiceExport update of ports failed.
+  - name: IngressGWPodReconciledSuccessfully
+    reason: IngressGWPodReconciledSuccessfully
+    action: ReconcileServiceExport
+    type: Normal
+    reportingController: worker
+    message: Ingress GateWay pod reconciled.
+  - name: IngressGWPodReconcileFailed
+    reason: IngressGWPodReconcileFailed
+    action: ReconcileServiceExport
+    type: Warning
+    reportingController: worker
+    message: Ingress GateWay pod reconcilation failed.
+  - name: SyncServiceExportStatusFailed
+    reason: SyncServiceExportStatusFailed
+    action: ReconcileServiceExport
+    type: Warning
+    reportingController: worker
+    message: ServiceExport status sync failed.
+  - name: SyncServiceExportStatusSuccessfully
+    reason: SyncServiceExportStatusSuccessfully
+    action: ReconcileServiceExport
+    type: Normal
+    reportingController: worker
+    message: ServiceExport status sync successful.

@@ -14,6 +14,7 @@ import (
 	ossEvents "github.com/kubeslice/worker-operator/events"
 	"github.com/kubeslice/worker-operator/pkg/cluster"
 	"github.com/kubeslice/worker-operator/pkg/logger"
+	"github.com/kubeslice/worker-operator/pkg/utils"
 	"github.com/prometheus/client_golang/prometheus"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -27,9 +28,10 @@ import (
 )
 
 const (
-	GCP   string = "gcp"
-	AWS   string = "aws"
-	AZURE string = "azure"
+	GCP            string = "gcp"
+	AWS            string = "aws"
+	AZURE          string = "azure"
+	controllerName string = "cluster_reconciler"
 )
 
 type Reconciler struct {
@@ -141,24 +143,26 @@ func (r *Reconciler) updateClusterHealthStatus(ctx context.Context, cr *hubv1alp
 	if cr.Status.ClusterHealth.ClusterHealthStatus != chs {
 		if chs == hubv1alpha1.ClusterHealthStatusNormal {
 			log.Info("cluster health is back to normal")
-			err := r.EventRecorder.RecordEvent(ctx, &events.Event{
-				Object:            cr,
-				Name:              ossEvents.EventClusterHealthy,
-				ReportingInstance: "cluster_reconciler",
-			})
-			if err != nil {
-				log.Error(err, "unable to record event for health check")
-			}
+			// err := r.EventRecorder.RecordEvent(ctx, &events.Event{
+			// 	Object:            cr,
+			// 	Name:              ossEvents.EventClusterHealthy,
+			// 	ReportingInstance: "cluster_reconciler",
+			// })
+			// if err != nil {
+			// 	log.Error(err, "unable to record event for health check")
+			// }
+			utils.RecordEvent(ctx, r.EventRecorder, cr, nil, ossEvents.EventClusterHealthy, controllerName)
 		} else if chs == hubv1alpha1.ClusterHealthStatusWarning {
 			log.Info("cluster health is in warning state")
-			err := r.EventRecorder.RecordEvent(ctx, &events.Event{
-				Object:            cr,
-				Name:              ossEvents.EventClusterUnhealthy,
-				ReportingInstance: "cluster_reconciler",
-			})
-			if err != nil {
-				log.Error(err, "unable to record event for health check")
-			}
+			// err := r.EventRecorder.RecordEvent(ctx, &events.Event{
+			// 	Object:            cr,
+			// 	Name:              ossEvents.EventClusterUnhealthy,
+			// 	ReportingInstance: "cluster_reconciler",
+			// })
+			// if err != nil {
+			// 	log.Error(err, "unable to record event for health check")
+			// }
+			utils.RecordEvent(ctx, r.EventRecorder, cr, nil, ossEvents.EventClusterUnhealthy, controllerName)
 		}
 	}
 
@@ -326,25 +330,27 @@ func (r *Reconciler) updateNodeIps(ctx context.Context, cr *hubv1alpha1.Cluster)
 	})
 	if err != nil {
 		log.Error(err, "Error updating to node ip's on hub cluster")
-		err := r.EventRecorder.RecordEvent(ctx, &events.Event{
-			Object:            cr,
-			Name:              ossEvents.EventClusterNodeIpAutoDetectionFailed,
-			ReportingInstance: "cluster_reconciler",
-		})
-		if err != nil {
-			log.Error(err, "unable to record event for node ip update fail")
-		}
+		// err := r.EventRecorder.RecordEvent(ctx, &events.Event{
+		// 	Object:            cr,
+		// 	Name:              ossEvents.EventClusterNodeIpAutoDetectionFailed,
+		// 	ReportingInstance: "cluster_reconciler",
+		// })
+		// if err != nil {
+		// 	log.Error(err, "unable to record event for node ip update fail")
+		// }
+		utils.RecordEvent(ctx, r.EventRecorder, cr, nil, ossEvents.EventClusterNodeIpAutoDetectionFailed, controllerName)
 		return ctrl.Result{}, err, true
 	}
 	if toUpdate {
-		err := r.EventRecorder.RecordEvent(ctx, &events.Event{
-			Object:            cr,
-			Name:              ossEvents.EventClusterNodeIpAutoDetected,
-			ReportingInstance: "cluster_reconciler",
-		})
-		if err != nil {
-			log.Error(err, "unable to record event for node ip update")
-		}
+		// err := r.EventRecorder.RecordEvent(ctx, &events.Event{
+		// 	Object:            cr,
+		// 	Name:              ossEvents.EventClusterNodeIpAutoDetected,
+		// 	ReportingInstance: "cluster_reconciler",
+		// })
+		// if err != nil {
+		// 	log.Error(err, "unable to record event for node ip update")
+		// }
+		utils.RecordEvent(ctx, r.EventRecorder, cr, nil, ossEvents.EventClusterNodeIpAutoDetected, controllerName)
 		return ctrl.Result{Requeue: true}, nil, true
 	}
 	return ctrl.Result{}, nil, false

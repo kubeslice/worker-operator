@@ -398,6 +398,94 @@ var EventsMap = map[events.EventName]*events.EventSchema{
 		ReportingController: "worker",
 		Message:             "Worker ServiceImport created.",
 	},
+	"ServiceExportDeleted": {
+		Name:                "ServiceExportDeleted",
+		Reason:              "ServiceExportDeleted",
+		Action:              "DeleteServiceExport",
+		Type:                events.EventTypeWarning,
+		ReportingController: "worker",
+		Message:             "ServiceExport deleted.",
+	},
+	"ServiceExportDeleteFailed": {
+		Name:                "ServiceExportDeleteFailed",
+		Reason:              "ServiceExportDeleteFailed",
+		Action:              "DeleteServiceExport",
+		Type:                events.EventTypeWarning,
+		ReportingController: "worker",
+		Message:             "ServiceExport delete failed.",
+	},
+	"ServiceExportInitialStatusUpdated": {
+		Name:                "ServiceExportInitialStatusUpdated",
+		Reason:              "ServiceExportInitialStatusUpdated",
+		Action:              "ReconcileServiceExport",
+		Type:                events.EventTypeNormal,
+		ReportingController: "worker",
+		Message:             "ServiceExport initial status updated.",
+	},
+	"SliceServiceExportInitialStatusUpdateFailed": {
+		Name:                "SliceServiceExportInitialStatusUpdateFailed",
+		Reason:              "SliceServiceExportInitialStatusUpdateFailed",
+		Action:              "ReconcileServiceExport",
+		Type:                events.EventTypeWarning,
+		ReportingController: "worker",
+		Message:             "ServiceExport initial status update failed.",
+	},
+	"ServiceExportSliceFetchFailed": {
+		Name:                "ServiceExportSliceFetchFailed",
+		Reason:              "ServiceExportSliceFetchFailed",
+		Action:              "ReconcileServiceExport",
+		Type:                events.EventTypeWarning,
+		ReportingController: "worker",
+		Message:             "ServiceExport slice fetch failed.",
+	},
+	"ServiceExportStatusPending": {
+		Name:                "ServiceExportStatusPending",
+		Reason:              "ServiceExportStatusPending",
+		Action:              "ReconcileServiceExport",
+		Type:                events.EventTypeWarning,
+		ReportingController: "worker",
+		Message:             "ServiceExport status pending.",
+	},
+	"ServiceExportUpdatePortsFailed": {
+		Name:                "ServiceExportUpdatePortsFailed",
+		Reason:              "ServiceExportUpdatePortsFailed",
+		Action:              "ReconcileServiceExport",
+		Type:                events.EventTypeWarning,
+		ReportingController: "worker",
+		Message:             "ServiceExport update of ports failed.",
+	},
+	"IngressGWPodReconciledSuccessfully": {
+		Name:                "IngressGWPodReconciledSuccessfully",
+		Reason:              "IngressGWPodReconciledSuccessfully",
+		Action:              "ReconcileServiceExport",
+		Type:                events.EventTypeNormal,
+		ReportingController: "worker",
+		Message:             "Ingress GateWay pod reconciled.",
+	},
+	"IngressGWPodReconcileFailed": {
+		Name:                "IngressGWPodReconcileFailed",
+		Reason:              "IngressGWPodReconcileFailed",
+		Action:              "ReconcileServiceExport",
+		Type:                events.EventTypeWarning,
+		ReportingController: "worker",
+		Message:             "Ingress GateWay pod reconcilation failed.",
+	},
+	"SyncServiceExportStatusFailed": {
+		Name:                "SyncServiceExportStatusFailed",
+		Reason:              "SyncServiceExportStatusFailed",
+		Action:              "ReconcileServiceExport",
+		Type:                events.EventTypeWarning,
+		ReportingController: "worker",
+		Message:             "ServiceExport status sync failed.",
+	},
+	"SyncServiceExportStatusSuccessfully": {
+		Name:                "SyncServiceExportStatusSuccessfully",
+		Reason:              "SyncServiceExportStatusSuccessfully",
+		Action:              "ReconcileServiceExport",
+		Type:                events.EventTypeNormal,
+		ReportingController: "worker",
+		Message:             "ServiceExport status sync successful.",
+	},
 }
 
 var (
@@ -448,4 +536,15 @@ var (
 	EventNetPolScopeWidenedIPBlock                        events.EventName = "NetPolScopeWidenedIPBlock"
 	EventWorkerServiceImportCreateFailed                  events.EventName = "WorkerServiceImportCreateFailed"
 	EventWorkerServiceImportCreated                       events.EventName = "WorkerServiceImportCreated"
+	EventServiceExportDeleted                             events.EventName = "ServiceExportDeleted"
+	EventServiceExportDeleteFailed                        events.EventName = "ServiceExportDeleteFailed"
+	EventServiceExportInitialStatusUpdated                events.EventName = "ServiceExportInitialStatusUpdated"
+	EventSliceServiceExportInitialStatusUpdateFailed      events.EventName = "SliceServiceExportInitialStatusUpdateFailed"
+	EventServiceExportSliceFetchFailed                    events.EventName = "ServiceExportSliceFetchFailed"
+	EventServiceExportStatusPending                       events.EventName = "ServiceExportStatusPending"
+	EventServiceExportUpdatePortsFailed                   events.EventName = "ServiceExportUpdatePortsFailed"
+	EventIngressGWPodReconciledSuccessfully               events.EventName = "IngressGWPodReconciledSuccessfully"
+	EventIngressGWPodReconcileFailed                      events.EventName = "IngressGWPodReconcileFailed"
+	EventSyncServiceExportStatusFailed                    events.EventName = "SyncServiceExportStatusFailed"
+	EventSyncServiceExportStatusSuccessfully              events.EventName = "SyncServiceExportStatusSuccessfully"
 )

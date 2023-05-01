@@ -25,8 +25,9 @@ import (
 
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
 	"github.com/kubeslice/worker-operator/controllers"
-	"github.com/kubeslice/worker-operator/pkg/events"
+	ossEvents "github.com/kubeslice/worker-operator/events"
 	"github.com/kubeslice/worker-operator/pkg/logger"
+	"github.com/kubeslice/worker-operator/pkg/utils"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -199,25 +200,25 @@ func (r *Reconciler) SyncSvcExportStatus(ctx context.Context, serviceexport *kub
 			return ctrl.Result{}, errN, true
 		}
 		//post event to service export
-		r.EventRecorder.Record(
-			&events.Event{
-				Object:    serviceexport,
-				EventType: events.EventTypeWarning,
-				Reason:    "Error",
-				Message:   "Failed to post serviceexport to kubeslice-controller cluster",
-			})
+		// r.EventRecorder.RecordEvent(ctx,
+		// 	&events.Event{
+		// 		Object:            serviceexport,
+		// 		Name:              ossEvents.EventSyncServiceExportStatusFailed,
+		// 		ReportingInstance: "serviceexport_controller",
+		// 	})
+		utils.RecordEvent(ctx, r.EventRecorder, serviceexport, nil, ossEvents.EventSyncServiceExportStatusFailed, controllerName)
 		return ctrl.Result{}, err, true
 	}
 
 	log.Info("serviceexport sync success")
 	//post event to service export
-	r.EventRecorder.Record(
-		&events.Event{
-			Object:    serviceexport,
-			EventType: events.EventTypeNormal,
-			Reason:    "Success",
-			Message:   "Successfully posted serviceexport to kubeslice-controller cluster",
-		})
+	// r.EventRecorder.RecordEvent(ctx,
+	// 	&events.Event{
+	// 		Object:            serviceexport,
+	// 		Name:              ossEvents.EventSyncServiceExportStatusSuccessfully,
+	// 		ReportingInstance: "serviceexport_controller",
+	// 	})
+	utils.RecordEvent(ctx, r.EventRecorder, serviceexport, nil, ossEvents.EventSyncServiceExportStatusSuccessfully, controllerName)
 
 	currentTime := time.Now().Unix()
 	serviceexport.Status.LastSync = currentTime

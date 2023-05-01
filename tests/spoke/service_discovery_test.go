@@ -368,12 +368,12 @@ var _ = Describe("ServiceExportController", func() {
 				_ = k8sClient.List(ctx, &events)
 
 				for _, event := range events.Items {
-					if event.Source.Component == "test-SvcEx-controller" && event.InvolvedObject.Kind == "ServiceExport" {
+					if event.Source.Component == "test-SvcEx-controller" && event.Reason == "SyncServiceExportStatusSuccessfully" {
 						message = event.Message
 					}
 				}
 				return message
-			}, time.Second*10, time.Millisecond*250).Should(Equal("Successfully posted serviceexport to kubeslice-controller cluster"))
+			}, time.Second*10, time.Millisecond*250).Should(Equal("ServiceExport status sync successful."))
 		})
 	})
 })
