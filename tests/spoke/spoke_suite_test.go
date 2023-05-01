@@ -33,7 +33,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/scheme"
-	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
@@ -49,7 +48,6 @@ import (
 	"github.com/kubeslice/worker-operator/controllers/slicegateway"
 	ossEvents "github.com/kubeslice/worker-operator/events"
 	"github.com/kubeslice/worker-operator/pkg/cluster"
-	"github.com/kubeslice/worker-operator/pkg/events"
 	hub "github.com/kubeslice/worker-operator/pkg/hub/hubclient"
 	namespace "github.com/kubeslice/worker-operator/pkg/namespace/controllers"
 	"github.com/kubeslice/worker-operator/pkg/networkpolicy"
@@ -212,9 +210,12 @@ var _ = BeforeSuite(func() {
 		Client: k8sManager.GetClient(),
 		Scheme: k8sManager.GetScheme(),
 		Log:    ctrl.Log.WithName("NamespaceTest"),
-		EventRecorder: &events.EventRecorder{
-			Recorder: &record.FakeRecorder{},
-		},
+		EventRecorder: mevents.NewEventRecorder(k8sClient, k8sManager.GetScheme(), ossEvents.EventsMap, mevents.EventRecorderOptions{
+			Cluster:   hub.ClusterName,
+			Project:   PROJECT_NS,
+			Component: "namespace_reconciler",
+			Namespace: CONTROL_PLANE_NS,
+		}),
 		Hubclient: &hub.HubClientConfig{
 			Client: k8sClient,
 		},

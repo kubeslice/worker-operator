@@ -24,7 +24,6 @@ import (
 
 	"github.com/kubeslice/kubeslice-monitoring/pkg/metrics"
 	"github.com/kubeslice/worker-operator/controllers"
-	"github.com/kubeslice/worker-operator/pkg/events"
 	"github.com/kubeslice/worker-operator/pkg/monitoring"
 	namespacecontroller "github.com/kubeslice/worker-operator/pkg/namespace/controllers"
 	"github.com/prometheus/client_golang/prometheus"
@@ -261,7 +260,14 @@ func main() {
 		os.Exit(1)
 	}
 
-	namespaceEventRecorder := events.NewEventRecorder(mgr.GetEventRecorderFor("namespace-controller"))
+	namespaceEventRecorder := monitoringEvents.NewEventRecorder(mgr.GetClient(), scheme, ossEvents.EventsMap, monitoringEvents.EventRecorderOptions{
+		Cluster:   controllers.ClusterName,
+		Project:   hub.ProjectNamespace,
+		Component: "namespace-controller",
+		Namespace: controllers.ControlPlaneNamespace,
+		Version:   utils.EventsVersion,
+		Slice:     utils.NotApplicable,
+	})
 	if err = (&namespacecontroller.Reconciler{
 		Client:        mgr.GetClient(),
 		Log:           ctrl.Log.WithName("controllers").WithName("namespace"),

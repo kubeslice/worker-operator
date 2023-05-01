@@ -383,3 +383,87 @@ events:
     type: Warning
     reportingController: worker
     message: sliceGWRecyler - failed to delete old GateWay.
+  - name: ClusterProviderUpdateInfoSuccesfull
+    reason: ClusterProviderUpdateInfoSuccesfull
+    action: UpdateCluster
+    type: Normal
+    reportingController: worker
+    message: Cluster provider info updated successfully.
+  - name: ClusterProviderUpdateInfoFailed
+    reason: ClusterProviderUpdateInfoFailed
+    action: ReconcileCluster
+    type: Warning
+    reportingController: worker
+    message: cluster provider info update failed.
+  - name: ClusterCNISubnetUpdateSuccessfull
+    reason: ClusterCNISubnetUpdateSuccessfull
+    action: UpdateCluster
+    type: Normal
+    reportingController: worker
+    message: cluster CNI Subnet updated successfully.
+  - name: ClusterCNISubnetUpdateFailed
+    reason: ClusterCNISubnetUpdateFailed
+    action: ReconcileCluster
+    type: Warning
+    reportingController: worker
+    message: cluster CNI Subnet update failed.
+  - name: ClusterNodeIpUpdateSuccessfull
+    reason: ClusterNodeIpUpdateSuccessfull
+    action: UpdateCluster
+    type: Normal
+    reportingController: worker
+    message: cluster nodeIP updated successfully.
+  - name: ClusterNodeIpUpdateFailed
+    reason: ClusterNodeIpUpdateFailed
+    action: ReconcileCluster
+    type: Warning
+    reportingController: worker
+    message: cluster nodeIP update failed.
+  - name: ClusterDashboardCredsUpdated
+    reason: ClusterDashboardCredsUpdated
+    action: UpdateCluster
+    type: Normal
+    reportingController: worker
+    message: cluster dashboard credentials updated successfully.
+  - name: ClusterDashboardCredsUpdateFailed
+    reason: ClusterDashboardCredsUpdateFailed
+    action: ReconcileCluster
+    type: Warning
+    reportingController: worker
+    message: cluster dashboard credentails update failed.
+  - name: ClusterHealthStatusUpdated
+    reason: ClusterHealthStatusUpdated
+    action: UpdateCluster
+    type: Normal
+    reportingController: worker
+    message: cluster health status updated.
+  - name: ClusterHealthStatusUpdateFailed
+    reason: ClusterHealthStatusUpdateFailed
+    action: ReconcileCluster
+    type: Warning
+    reportingController: worker
+    message: cluster health status update failed.
+  - name: UpdatedNamespaceInfoToHub
+    reason: UpdatedNamespaceInfoToHub
+    action: ReconcileNamespace
+    type: Normal
+    reportingController: worker
+    message: namespace info updated to hub.
+  - name: UpdateNamespaceInfoToHubFailed
+    reason: UpdateNamespaceInfoToHubFailed
+    action: ReconcileNamespace
+    type: Warning
+    reportingController: worker
+    message: namespace info failed to update to hub.
+  - name: DeleteNamespaceInfoToHub
+    reason: DeleteNamespaceInfoToHub
+    action: ReconcileNamespace
+    type: Normal
+    reportingController: worker
+    message: namespace info deleted from hub.
+  - name: DeleteNamespaceInfoToHubFailed
+    reason: DeleteNamespaceInfoToHubFailed
+    action: ReconcileNamespace
+    type: Warning
+    reportingController: worker
+    message: namespace info failed to be deleted from hub.

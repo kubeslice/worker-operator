@@ -534,6 +534,118 @@ var EventsMap = map[events.EventName]*events.EventSchema{
 		ReportingController: "worker",
 		Message:             "sliceGWRecyler - failed to delete old GateWay.",
 	},
+	"ClusterProviderUpdateInfoSuccesfull": {
+		Name:                "ClusterProviderUpdateInfoSuccesfull",
+		Reason:              "ClusterProviderUpdateInfoSuccesfull",
+		Action:              "UpdateCluster",
+		Type:                events.EventTypeNormal,
+		ReportingController: "worker",
+		Message:             "Cluster provider info updated successfully.",
+	},
+	"ClusterProviderUpdateInfoFailed": {
+		Name:                "ClusterProviderUpdateInfoFailed",
+		Reason:              "ClusterProviderUpdateInfoFailed",
+		Action:              "ReconcileCluster",
+		Type:                events.EventTypeWarning,
+		ReportingController: "worker",
+		Message:             "cluster provider info update failed.",
+	},
+	"ClusterCNISubnetUpdateSuccessfull": {
+		Name:                "ClusterCNISubnetUpdateSuccessfull",
+		Reason:              "ClusterCNISubnetUpdateSuccessfull",
+		Action:              "UpdateCluster",
+		Type:                events.EventTypeNormal,
+		ReportingController: "worker",
+		Message:             "cluster CNI Subnet updated successfully.",
+	},
+	"ClusterCNISubnetUpdateFailed": {
+		Name:                "ClusterCNISubnetUpdateFailed",
+		Reason:              "ClusterCNISubnetUpdateFailed",
+		Action:              "ReconcileCluster",
+		Type:                events.EventTypeWarning,
+		ReportingController: "worker",
+		Message:             "cluster CNI Subnet update failed.",
+	},
+	"ClusterNodeIpUpdateSuccessfull": {
+		Name:                "ClusterNodeIpUpdateSuccessfull",
+		Reason:              "ClusterNodeIpUpdateSuccessfull",
+		Action:              "UpdateCluster",
+		Type:                events.EventTypeNormal,
+		ReportingController: "worker",
+		Message:             "cluster nodeIP updated successfully.",
+	},
+	"ClusterNodeIpUpdateFailed": {
+		Name:                "ClusterNodeIpUpdateFailed",
+		Reason:              "ClusterNodeIpUpdateFailed",
+		Action:              "ReconcileCluster",
+		Type:                events.EventTypeWarning,
+		ReportingController: "worker",
+		Message:             "cluster nodeIP update failed.",
+	},
+	"ClusterDashboardCredsUpdated": {
+		Name:                "ClusterDashboardCredsUpdated",
+		Reason:              "ClusterDashboardCredsUpdated",
+		Action:              "UpdateCluster",
+		Type:                events.EventTypeNormal,
+		ReportingController: "worker",
+		Message:             "cluster dashboard credentials updated successfully.",
+	},
+	"ClusterDashboardCredsUpdateFailed": {
+		Name:                "ClusterDashboardCredsUpdateFailed",
+		Reason:              "ClusterDashboardCredsUpdateFailed",
+		Action:              "ReconcileCluster",
+		Type:                events.EventTypeWarning,
+		ReportingController: "worker",
+		Message:             "cluster dashboard credentails update failed.",
+	},
+	"ClusterHealthStatusUpdated": {
+		Name:                "ClusterHealthStatusUpdated",
+		Reason:              "ClusterHealthStatusUpdated",
+		Action:              "UpdateCluster",
+		Type:                events.EventTypeNormal,
+		ReportingController: "worker",
+		Message:             "cluster health status updated.",
+	},
+	"ClusterHealthStatusUpdateFailed": {
+		Name:                "ClusterHealthStatusUpdateFailed",
+		Reason:              "ClusterHealthStatusUpdateFailed",
+		Action:              "ReconcileCluster",
+		Type:                events.EventTypeWarning,
+		ReportingController: "worker",
+		Message:             "cluster health status update failed.",
+	},
+	"UpdatedNamespaceInfoToHub": {
+		Name:                "UpdatedNamespaceInfoToHub",
+		Reason:              "UpdatedNamespaceInfoToHub",
+		Action:              "ReconcileNamespace",
+		Type:                events.EventTypeNormal,
+		ReportingController: "worker",
+		Message:             "namespace info updated to hub.",
+	},
+	"UpdateNamespaceInfoToHubFailed": {
+		Name:                "UpdateNamespaceInfoToHubFailed",
+		Reason:              "UpdateNamespaceInfoToHubFailed",
+		Action:              "ReconcileNamespace",
+		Type:                events.EventTypeWarning,
+		ReportingController: "worker",
+		Message:             "namespace info failed to update to hub.",
+	},
+	"DeleteNamespaceInfoToHub": {
+		Name:                "DeleteNamespaceInfoToHub",
+		Reason:              "DeleteNamespaceInfoToHub",
+		Action:              "ReconcileNamespace",
+		Type:                events.EventTypeNormal,
+		ReportingController: "worker",
+		Message:             "namespace info deleted from hub.",
+	},
+	"DeleteNamespaceInfoToHubFailed": {
+		Name:                "DeleteNamespaceInfoToHubFailed",
+		Reason:              "DeleteNamespaceInfoToHubFailed",
+		Action:              "ReconcileNamespace",
+		Type:                events.EventTypeWarning,
+		ReportingController: "worker",
+		Message:             "namespace info failed to be deleted from hub.",
+	},
 }
 
 var (
@@ -601,4 +713,18 @@ var (
 	EventFSMNewGWSpawnFailed                              events.EventName = "FSMNewGWSpawnFailed"
 	EventFSMRoutingTableUpdateFailed                      events.EventName = "FSMRoutingTableUpdateFailed"
 	EventFSMDeleteOldGWFailed                             events.EventName = "FSMDeleteOldGWFailed"
+	EventClusterProviderUpdateInfoSuccesfull              events.EventName = "ClusterProviderUpdateInfoSuccesfull"
+	EventClusterProviderUpdateInfoFailed                  events.EventName = "ClusterProviderUpdateInfoFailed"
+	EventClusterCNISubnetUpdateSuccessfull                events.EventName = "ClusterCNISubnetUpdateSuccessfull"
+	EventClusterCNISubnetUpdateFailed                     events.EventName = "ClusterCNISubnetUpdateFailed"
+	EventClusterNodeIpUpdateSuccessfull                   events.EventName = "ClusterNodeIpUpdateSuccessfull"
+	EventClusterNodeIpUpdateFailed                        events.EventName = "ClusterNodeIpUpdateFailed"
+	EventClusterDashboardCredsUpdated                     events.EventName = "ClusterDashboardCredsUpdated"
+	EventClusterDashboardCredsUpdateFailed                events.EventName = "ClusterDashboardCredsUpdateFailed"
+	EventClusterHealthStatusUpdated                       events.EventName = "ClusterHealthStatusUpdated"
+	EventClusterHealthStatusUpdateFailed                  events.EventName = "ClusterHealthStatusUpdateFailed"
+	EventUpdatedNamespaceInfoToHub                        events.EventName = "UpdatedNamespaceInfoToHub"
+	EventUpdateNamespaceInfoToHubFailed                   events.EventName = "UpdateNamespaceInfoToHubFailed"
+	EventDeleteNamespaceInfoToHub                         events.EventName = "DeleteNamespaceInfoToHub"
+	EventDeleteNamespaceInfoToHubFailed                   events.EventName = "DeleteNamespaceInfoToHubFailed"
 )

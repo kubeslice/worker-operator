@@ -72,31 +72,39 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	cl := cluster.NewCluster(r.MeshClient, cr.Name)
 	res, err, requeue := r.updateClusterCloudProviderInfo(ctx, cr, cl)
 	if err != nil {
+		utils.RecordEvent(ctx, r.EventRecorder, cr, nil, ossEvents.EventClusterProviderUpdateInfoFailed, controllerName)
 		log.Error(err, "unable to update cloud provider info to cluster")
 	}
 	if requeue {
 		return res, err
 	}
+	utils.RecordEvent(ctx, r.EventRecorder, cr, nil, ossEvents.EventClusterProviderUpdateInfoSuccesfull, controllerName)
 	res, err, requeue = r.updateCNISubnetConfig(ctx, cr, cl)
 	if err != nil {
+		utils.RecordEvent(ctx, r.EventRecorder, cr, nil, ossEvents.EventClusterCNISubnetUpdateFailed, controllerName)
 		log.Error(err, "unable to update cni subnet config to cluster")
 	}
 	if requeue {
 		return res, err
 	}
+	utils.RecordEvent(ctx, r.EventRecorder, cr, nil, ossEvents.EventClusterCNISubnetUpdateSuccessfull, controllerName)
 	res, err, requeue = r.updateNodeIps(ctx, cr)
 	if err != nil {
+		utils.RecordEvent(ctx, r.EventRecorder, cr, nil, ossEvents.EventClusterNodeIpUpdateFailed, controllerName)
 		log.Error(err, "unable to update node ips to cluster")
 	}
 	if requeue {
 		return res, err
 	}
+	utils.RecordEvent(ctx, r.EventRecorder, cr, nil, ossEvents.EventClusterNodeIpUpdateSuccessfull, controllerName)
 	// Update dashboard creds if it hasn't already (only one time event)
 	if !r.isDashboardCredsUpdated(ctx, cr) {
 		if err := r.updateDashboardCreds(ctx, cr); err != nil {
+			utils.RecordEvent(ctx, r.EventRecorder, cr, nil, ossEvents.EventClusterDashboardCredsUpdateFailed, controllerName)
 			log.Error(err, "unable to update dashboard creds")
 			return reconcile.Result{}, err
 		} else {
+			utils.RecordEvent(ctx, r.EventRecorder, cr, nil, ossEvents.EventClusterDashboardCredsUpdated, controllerName)
 			log.Info("Dashboard creds updated in hub")
 			return reconcile.Result{Requeue: true}, nil
 		}
@@ -106,6 +114,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	}
 
 	if err := r.updateClusterHealthStatus(ctx, cr); err != nil {
+		utils.RecordEvent(ctx, r.EventRecorder, cr, nil, ossEvents.EventClusterHealthStatusUpdateFailed, controllerName)
 		log.Error(err, "unable to update cluster health status")
 	}
 
@@ -113,10 +122,11 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	cr.Status.ClusterHealth.LastUpdated = metav1.Now()
 	if err := r.Status().Update(ctx, cr); err != nil {
+		utils.RecordEvent(ctx, r.EventRecorder, cr, nil, ossEvents.EventClusterHealthStatusUpdateFailed, controllerName)
 		log.Error(err, "unable to update cluster CR")
 		return reconcile.Result{}, err
 	}
-
+	utils.RecordEvent(ctx, r.EventRecorder, cr, nil, ossEvents.EventClusterHealthStatusUpdated, controllerName)
 	return reconcile.Result{RequeueAfter: r.ReconcileInterval}, nil
 }
 

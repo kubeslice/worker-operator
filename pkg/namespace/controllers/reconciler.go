@@ -21,10 +21,14 @@ import (
 	"context"
 
 	"github.com/go-logr/logr"
+	"github.com/kubeslice/kubeslice-monitoring/pkg/events"
+	ossEvents "github.com/kubeslice/worker-operator/events"
+
 	"github.com/kubeslice/worker-operator/controllers"
-	"github.com/kubeslice/worker-operator/pkg/events"
+
 	hub "github.com/kubeslice/worker-operator/pkg/hub/hubclient"
 	"github.com/kubeslice/worker-operator/pkg/logger"
+	"github.com/kubeslice/worker-operator/pkg/utils"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -38,7 +42,7 @@ import (
 
 type Reconciler struct {
 	client.Client
-	EventRecorder *events.EventRecorder
+	EventRecorder events.EventRecorder
 	Scheme        *runtime.Scheme
 	Log           logr.Logger
 	Hubclient     *hub.HubClientConfig
@@ -46,6 +50,8 @@ type Reconciler struct {
 
 var excludedNs = []string{"kube-system", "default", "kubeslice-system", "kube-node-lease",
 	"kube-public", "istio-system"}
+
+var controllerName string = "namespace_reconciler"
 
 func (c *Reconciler) getSliceNameFromNs(ns string) (string, error) {
 	namespace := corev1.Namespace{}
@@ -76,9 +82,11 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			log.Info("Namespace deleted on worker cluster, updating the cluster CR on conrtoller cluster")
 			err := hub.DeleteNamespaceInfoFromHub(ctx, r.Hubclient, req.Name)
 			if err != nil {
+				utils.RecordEvent(ctx, r.EventRecorder, &namespace, nil, ossEvents.EventDeleteNamespaceInfoToHubFailed, controllerName)
 				log.Error(err, "Failed to delete namespace on controller cluster")
 				return ctrl.Result{}, err
 			}
+			utils.RecordEvent(ctx, r.EventRecorder, &namespace, nil, ossEvents.EventDeleteNamespaceInfoToHub, controllerName)
 			// Return and don't requeue
 			return ctrl.Result{}, nil
 		}
@@ -92,11 +100,14 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		log.Error(err, "error while retrieving labels from namespace")
 		return ctrl.Result{}, err
 	}
+	r.EventRecorder = r.EventRecorder.WithSlice(sliceName)
 	err = hub.UpdateNamespaceInfoToHub(ctx, r.Hubclient, namespace.Name, sliceName)
 	if err != nil {
+		utils.RecordEvent(ctx, r.EventRecorder, &namespace, nil, ossEvents.EventUpdateNamespaceInfoToHubFailed, controllerName)
 		log.Error(err, "Failed to post namespace on controller cluster")
 		return ctrl.Result{}, err
 	}
+	utils.RecordEvent(ctx, r.EventRecorder, &namespace, nil, ossEvents.EventUpdatedNamespaceInfoToHub, controllerName)
 	return ctrl.Result{}, nil
 }
 
