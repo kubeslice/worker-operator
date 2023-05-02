@@ -138,7 +138,6 @@ var _ = BeforeSuite(func() {
 			Project:             PROJECT_NS,
 			Cluster:             CLUSTER_NAME,
 			ReportingController: "worker-operator",
-			Namespace:           controllers.ControlPlaneNamespace,
 		},
 	)
 
