@@ -24,6 +24,7 @@ import (
 
 	"github.com/go-logr/logr"
 	"github.com/kubeslice/kubeslice-monitoring/pkg/events"
+	"github.com/kubeslice/kubeslice-monitoring/pkg/metrics"
 	ossEvents "github.com/kubeslice/worker-operator/events"
 	"github.com/kubeslice/worker-operator/pkg/logger"
 	"github.com/kubeslice/worker-operator/pkg/utils"
