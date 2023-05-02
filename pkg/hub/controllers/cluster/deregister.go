@@ -44,6 +44,10 @@ var (
 	operatorClusterRoleName    = "kubeslice-manager-role"
 )
 
+const (
+	scriptPath = "../../../../scripts"
+)
+
 // createDeregisterJob creates a job to uninstall worker-operator and notify controller
 // about registration status.
 func (r *Reconciler) createDeregisterJob(ctx context.Context, cluster *hubv1alpha1.Cluster) error {
@@ -221,8 +225,8 @@ func getConfigmapScriptPath(file string) string {
 	if dir != "" {
 		return path.Join(dir, file+".sh")
 	}
-	// This is for test cases otherwise we are getting the path from /
-	return path.Join("../../../../scripts", file+".sh")
+
+	return path.Join(scriptPath, file+".sh")
 }
 
 func getConfigmapData() (string, error) {
