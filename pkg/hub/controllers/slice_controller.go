@@ -63,7 +63,7 @@ func NewSliceReconciler(mc client.Client, er *events.EventRecorder, mf metrics.M
 		counterSliceUpdationFailed: mf.NewCounter("slice_updation_failed_total", "Slice updation failed in worker", []string{"slice"}),
 		counterSliceDeletionFailed: mf.NewCounter("slice_deletion_failed_total", "Slice deletion failed in worker", []string{"slice"}),
 		gaugeSliceUp:               mf.NewGauge("slice_up", "Kubeslice slice health status", []string{}),
-		gaugeComponentUp:           mf.NewGauge("slice_component_up", "Kubeslice slice component health status", []string{"component"}),
+		gaugeComponentUp:           mf.NewGauge("slice_component_up", "Kubeslice slice component health status", []string{"slice_component"}),
 	}
 }
 
