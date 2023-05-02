@@ -37,6 +37,7 @@ import (
 
 var (
 	serviceAccountName         = "cluster-deregister-sa"
+	cleanupContainer           = "cluster-cleanup"
 	clusterRoleName            = "cluster-deregister-role"
 	clusterRoleBindingName     = "cluster-deregister-rb"
 	clusterDeregisterConfigMap = "cluster-deregister-cm"
@@ -255,7 +256,7 @@ func constructJobForClusterDeregister() *batchv1.Job {
 				Spec: corev1.PodSpec{
 					ServiceAccountName: serviceAccountName,
 					Containers: []corev1.Container{{
-						Name:  serviceAccountName,
+						Name:  cleanupContainer,
 						Image: "aveshadev/worker-installer:latest",
 						Command: []string{
 							"/bin/bash",
