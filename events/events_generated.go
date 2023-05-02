@@ -62,9 +62,9 @@ var EventsMap = map[events.EventName]*events.EventSchema{
 		ReportingController: "worker",
 		Message:             "Auto-detection of cluster node IP addresses failed",
 	},
-	"DeregitrationJobFailed": {
-		Name:                "DeregitrationJobFailed",
-		Reason:              "DeregitrationJobFailed",
+	"DeregistrationJobFailed": {
+		Name:                "DeregistrationJobFailed",
+		Reason:              "DeregistrationJobFailed",
 		Action:              "None",
 		Type:                events.EventTypeWarning,
 		ReportingController: "worker",
@@ -78,5 +78,5 @@ var (
 	EventClusterHealthy                   events.EventName = "ClusterHealthy"
 	EventClusterNodeIpAutoDetected        events.EventName = "ClusterNodeIpAutoDetected"
 	EventClusterNodeIpAutoDetectionFailed events.EventName = "ClusterNodeIpAutoDetectionFailed"
-	EventDeregitrationJobFailed           events.EventName = "DeregitrationJobFailed"
+	EventDeregistrationJobFailed          events.EventName = "DeregistrationJobFailed"
 )

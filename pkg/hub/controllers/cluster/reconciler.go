@@ -515,7 +515,7 @@ func (r *Reconciler) handleClusterDeletion(cluster *hubv1alpha1.Cluster, ctx con
 					// log.Error(statusUpdateErr, "unable to update registration status")
 					recordEventErr := r.EventRecorder.RecordEvent(ctx, &events.Event{
 						Object:            cluster,
-						Name:              ossEvents.EventDeregitrationJobFailed,
+						Name:              ossEvents.EventDeregistrationJobFailed,
 						ReportingInstance: "cluster_reconciler",
 					})
 					if recordEventErr != nil {
