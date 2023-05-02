@@ -38,7 +38,7 @@ events:
   - name: SliceDeleted
     reason: SliceDeleted
     action: DeleteSlice
-    type: Normal
+    type: Warning
     reportingController: worker
     message: Slice delted successfully
   - name: SliceUpdated
@@ -128,7 +128,7 @@ events:
   - name: SliceGWDeleted
     reason: SliceGWDeleted
     action: DeleteSliceGW
-    type: Normal
+    type: Warning
     reportingController: worker
     message: Slice GateWay deleted.
   - name: SliceGWUpdated
@@ -218,13 +218,13 @@ events:
   - name: SliceServiceImportDeleted
     reason: SliceServiceImportDeleted
     action: DeleteServiceImport
-    type: Normal
+    type: Warning
     reportingController: worker
     message: Slice ServiceImport deleted.
   - name: SliceServiceImportDeleteFailed
     reason: SliceServiceImportDeleteFailed
     action: DeleteServiceImport
-    type: Normal
+    type: Warning
     reportingController: worker
     message: Slice ServiceImport deletion failed.
   - name: SliceServiceImportUpdatePorts
@@ -362,7 +362,7 @@ events:
   - name: FSMDeleteOldGW
     reason: FSMDeleteOldGW
     action: ReconcileWorkerSliceGWRecycler
-    type: Normal
+    type: Warning
     reportingController: worker
     message: sliceGWRecyler - old GateWay deleted.
   - name: FSMNewGWSpawnFailed
@@ -458,7 +458,7 @@ events:
   - name: DeleteNamespaceInfoToHub
     reason: DeleteNamespaceInfoToHub
     action: ReconcileNamespace
-    type: Normal
+    type: Warning
     reportingController: worker
     message: namespace info deleted from hub.
   - name: DeleteNamespaceInfoToHubFailed
