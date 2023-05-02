@@ -495,7 +495,8 @@ func (r *Reconciler) handleClusterDeletion(cluster *hubv1alpha1.Cluster, ctx con
 				// increment count for retryAttempts
 				retryAttempts++
 				// resetting isDeregisterInProgress to false
-				statusUpdateErr := r.updateRegistrationStatusAndDeregisterInProgress(ctx, cluster, hubv1alpha1.RegistrationStatusDeregisterFailed, false)
+				isDeregisterInProgress := false
+				statusUpdateErr := r.updateRegistrationStatusAndDeregisterInProgress(ctx, cluster, hubv1alpha1.RegistrationStatusDeregisterFailed, &isDeregisterInProgress)
 				if statusUpdateErr != nil {
 					log.Error(statusUpdateErr, "unable to update registration status")
 				}
