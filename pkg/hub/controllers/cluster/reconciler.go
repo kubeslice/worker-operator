@@ -512,15 +512,15 @@ func (r *Reconciler) handleClusterDeletion(cluster *hubv1alpha1.Cluster, ctx con
 				// resetting isDeregisterInProgress to false
 				statusUpdateErr := r.updateRegistrationStatusAndDeregisterInProgress(ctx, cluster, hubv1alpha1.RegistrationStatusDeregisterFailed, false)
 				if statusUpdateErr != nil {
-					// log.Error(statusUpdateErr, "unable to update registration status")
-					recordEventErr := r.EventRecorder.RecordEvent(ctx, &events.Event{
-						Object:            cluster,
-						Name:              ossEvents.EventDeregistrationJobFailed,
-						ReportingInstance: "cluster_reconciler",
-					})
-					if recordEventErr != nil {
-						log.Error(recordEventErr, "unable to record event for cluster deregistration")
-					}
+					log.Error(statusUpdateErr, "unable to update registration status")
+				}
+				recordEventErr := r.EventRecorder.RecordEvent(ctx, &events.Event{
+					Object:            cluster,
+					Name:              ossEvents.EventDeregistrationJobFailed,
+					ReportingInstance: "cluster_reconciler",
+				})
+				if recordEventErr != nil {
+					log.Error(recordEventErr, "unable to record event for cluster deregistration")
 				}
 				return true, reconcile.Result{}, err
 			}
