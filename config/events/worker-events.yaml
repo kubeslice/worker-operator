@@ -40,7 +40,7 @@ events:
     action: DeleteSlice
     type: Warning
     reportingController: worker
-    message: Slice delted successfully
+    message: Slice deleted successfully
   - name: SliceUpdated
     reason: SliceUpdated
     action: UpdateSlice
@@ -100,7 +100,7 @@ events:
     action: ReconcileSlice
     type: Warning
     reportingController: worker
-    message: Slice Router Service failed
+    message: Failed to create Service for slice router.
   - name: WorkerSliceConfigUpdated
     reason: WorkerSliceConfigUpdated
     action: ReconcileWorkerSliceConfig
@@ -166,13 +166,13 @@ events:
     action: ReconcileSliceGWPod
     type: Warning
     reportingController: worker
-    message: Slice GateWay Connection context has failed.
+    message: Failed to update the connection context on slice GateWay pods.
   - name: SliceRouterConnectionContextFailed
     reason: SliceRouterConnectionContextFailed
     action: ReconcileSliceGWPod
     type: Warning
     reportingController: worker
-    message: Slice Router connection context has failed.
+    message: Failed to send connection context to slice router pod.
   - name: SliceNetopQoSSyncFailed
     reason: SliceNetopQoSSyncFailed
     action: ReconcileSliceGWPod
@@ -254,7 +254,7 @@ events:
   - name: NetPolAdded
     reason: NetPolAdded
     action: ReconcileNetPol
-    type: Warning
+    type: Normal
     reportingController: worker
     message: Slice Network policy added.
   - name: NetPolScopeWidenedNamespace
@@ -383,8 +383,8 @@ events:
     type: Warning
     reportingController: worker
     message: sliceGWRecyler - failed to delete old GateWay.
-  - name: ClusterProviderUpdateInfoSuccesfull
-    reason: ClusterProviderUpdateInfoSuccesfull
+  - name: ClusterProviderUpdateInfoSuccesful
+    reason: ClusterProviderUpdateInfoSuccesful
     action: UpdateCluster
     type: Normal
     reportingController: worker
@@ -395,8 +395,8 @@ events:
     type: Warning
     reportingController: worker
     message: cluster provider info update failed.
-  - name: ClusterCNISubnetUpdateSuccessfull
-    reason: ClusterCNISubnetUpdateSuccessfull
+  - name: ClusterCNISubnetUpdateSuccessful
+    reason: ClusterCNISubnetUpdateSuccessful
     action: UpdateCluster
     type: Normal
     reportingController: worker
@@ -407,8 +407,8 @@ events:
     type: Warning
     reportingController: worker
     message: cluster CNI Subnet update failed.
-  - name: ClusterNodeIpUpdateSuccessfull
-    reason: ClusterNodeIpUpdateSuccessfull
+  - name: ClusterNodeIpUpdateSuccessful
+    reason: ClusterNodeIpUpdateSuccessful
     action: UpdateCluster
     type: Normal
     reportingController: worker
@@ -448,22 +448,22 @@ events:
     action: ReconcileNamespace
     type: Normal
     reportingController: worker
-    message: namespace info updated to hub.
+    message: namespace info updated to Controller.
   - name: UpdateNamespaceInfoToHubFailed
     reason: UpdateNamespaceInfoToHubFailed
     action: ReconcileNamespace
     type: Warning
     reportingController: worker
-    message: namespace info failed to update to hub.
+    message: namespace info failed to update to Controller.
   - name: DeleteNamespaceInfoToHub
     reason: DeleteNamespaceInfoToHub
     action: ReconcileNamespace
     type: Normal
     reportingController: worker
-    message: namespace info deleted from hub.
+    message: namespace info deleted from Controller.
   - name: DeleteNamespaceInfoToHubFailed
     reason: DeleteNamespaceInfoToHubFailed
     action: ReconcileNamespace
     type: Warning
     reportingController: worker
-    message: namespace info failed to be deleted from hub.
+    message: namespace info failed to be deleted from Controller.

@@ -76,7 +76,7 @@ var EventsMap = map[events.EventName]*events.EventSchema{
 		Action:              "DeleteSlice",
 		Type:                events.EventTypeWarning,
 		ReportingController: "worker",
-		Message:             "Slice delted successfully",
+		Message:             "Slice deleted successfully",
 	},
 	"SliceUpdated": {
 		Name:                "SliceUpdated",
@@ -156,7 +156,7 @@ var EventsMap = map[events.EventName]*events.EventSchema{
 		Action:              "ReconcileSlice",
 		Type:                events.EventTypeWarning,
 		ReportingController: "worker",
-		Message:             "Slice Router Service failed",
+		Message:             "Failed to create Service for slice router.",
 	},
 	"WorkerSliceConfigUpdated": {
 		Name:                "WorkerSliceConfigUpdated",
@@ -244,7 +244,7 @@ var EventsMap = map[events.EventName]*events.EventSchema{
 		Action:              "ReconcileSliceGWPod",
 		Type:                events.EventTypeWarning,
 		ReportingController: "worker",
-		Message:             "Slice GateWay Connection context has failed.",
+		Message:             "Failed to update the connection context on slice GateWay pods.",
 	},
 	"SliceRouterConnectionContextFailed": {
 		Name:                "SliceRouterConnectionContextFailed",
@@ -252,7 +252,7 @@ var EventsMap = map[events.EventName]*events.EventSchema{
 		Action:              "ReconcileSliceGWPod",
 		Type:                events.EventTypeWarning,
 		ReportingController: "worker",
-		Message:             "Slice Router connection context has failed.",
+		Message:             "Failed to send connection context to slice router pod.",
 	},
 	"SliceNetopQoSSyncFailed": {
 		Name:                "SliceNetopQoSSyncFailed",
@@ -362,7 +362,7 @@ var EventsMap = map[events.EventName]*events.EventSchema{
 		Name:                "NetPolAdded",
 		Reason:              "NetPolAdded",
 		Action:              "ReconcileNetPol",
-		Type:                events.EventTypeWarning,
+		Type:                events.EventTypeNormal,
 		ReportingController: "worker",
 		Message:             "Slice Network policy added.",
 	},
@@ -534,9 +534,9 @@ var EventsMap = map[events.EventName]*events.EventSchema{
 		ReportingController: "worker",
 		Message:             "sliceGWRecyler - failed to delete old GateWay.",
 	},
-	"ClusterProviderUpdateInfoSuccesfull": {
-		Name:                "ClusterProviderUpdateInfoSuccesfull",
-		Reason:              "ClusterProviderUpdateInfoSuccesfull",
+	"ClusterProviderUpdateInfoSuccesful": {
+		Name:                "ClusterProviderUpdateInfoSuccesful",
+		Reason:              "ClusterProviderUpdateInfoSuccesful",
 		Action:              "UpdateCluster",
 		Type:                events.EventTypeNormal,
 		ReportingController: "worker",
@@ -550,9 +550,9 @@ var EventsMap = map[events.EventName]*events.EventSchema{
 		ReportingController: "worker",
 		Message:             "cluster provider info update failed.",
 	},
-	"ClusterCNISubnetUpdateSuccessfull": {
-		Name:                "ClusterCNISubnetUpdateSuccessfull",
-		Reason:              "ClusterCNISubnetUpdateSuccessfull",
+	"ClusterCNISubnetUpdateSuccessful": {
+		Name:                "ClusterCNISubnetUpdateSuccessful",
+		Reason:              "ClusterCNISubnetUpdateSuccessful",
 		Action:              "UpdateCluster",
 		Type:                events.EventTypeNormal,
 		ReportingController: "worker",
@@ -566,9 +566,9 @@ var EventsMap = map[events.EventName]*events.EventSchema{
 		ReportingController: "worker",
 		Message:             "cluster CNI Subnet update failed.",
 	},
-	"ClusterNodeIpUpdateSuccessfull": {
-		Name:                "ClusterNodeIpUpdateSuccessfull",
-		Reason:              "ClusterNodeIpUpdateSuccessfull",
+	"ClusterNodeIpUpdateSuccessful": {
+		Name:                "ClusterNodeIpUpdateSuccessful",
+		Reason:              "ClusterNodeIpUpdateSuccessful",
 		Action:              "UpdateCluster",
 		Type:                events.EventTypeNormal,
 		ReportingController: "worker",
@@ -620,7 +620,7 @@ var EventsMap = map[events.EventName]*events.EventSchema{
 		Action:              "ReconcileNamespace",
 		Type:                events.EventTypeNormal,
 		ReportingController: "worker",
-		Message:             "namespace info updated to hub.",
+		Message:             "namespace info updated to Controller.",
 	},
 	"UpdateNamespaceInfoToHubFailed": {
 		Name:                "UpdateNamespaceInfoToHubFailed",
@@ -628,7 +628,7 @@ var EventsMap = map[events.EventName]*events.EventSchema{
 		Action:              "ReconcileNamespace",
 		Type:                events.EventTypeWarning,
 		ReportingController: "worker",
-		Message:             "namespace info failed to update to hub.",
+		Message:             "namespace info failed to update to Controller.",
 	},
 	"DeleteNamespaceInfoToHub": {
 		Name:                "DeleteNamespaceInfoToHub",
@@ -636,7 +636,7 @@ var EventsMap = map[events.EventName]*events.EventSchema{
 		Action:              "ReconcileNamespace",
 		Type:                events.EventTypeNormal,
 		ReportingController: "worker",
-		Message:             "namespace info deleted from hub.",
+		Message:             "namespace info deleted from Controller.",
 	},
 	"DeleteNamespaceInfoToHubFailed": {
 		Name:                "DeleteNamespaceInfoToHubFailed",
@@ -644,7 +644,7 @@ var EventsMap = map[events.EventName]*events.EventSchema{
 		Action:              "ReconcileNamespace",
 		Type:                events.EventTypeWarning,
 		ReportingController: "worker",
-		Message:             "namespace info failed to be deleted from hub.",
+		Message:             "namespace info failed to be deleted from Controller.",
 	},
 }
 
@@ -713,11 +713,11 @@ var (
 	EventFSMNewGWSpawnFailed                              events.EventName = "FSMNewGWSpawnFailed"
 	EventFSMRoutingTableUpdateFailed                      events.EventName = "FSMRoutingTableUpdateFailed"
 	EventFSMDeleteOldGWFailed                             events.EventName = "FSMDeleteOldGWFailed"
-	EventClusterProviderUpdateInfoSuccesfull              events.EventName = "ClusterProviderUpdateInfoSuccesfull"
+	EventClusterProviderUpdateInfoSuccesful               events.EventName = "ClusterProviderUpdateInfoSuccesful"
 	EventClusterProviderUpdateInfoFailed                  events.EventName = "ClusterProviderUpdateInfoFailed"
-	EventClusterCNISubnetUpdateSuccessfull                events.EventName = "ClusterCNISubnetUpdateSuccessfull"
+	EventClusterCNISubnetUpdateSuccessful                 events.EventName = "ClusterCNISubnetUpdateSuccessful"
 	EventClusterCNISubnetUpdateFailed                     events.EventName = "ClusterCNISubnetUpdateFailed"
-	EventClusterNodeIpUpdateSuccessfull                   events.EventName = "ClusterNodeIpUpdateSuccessfull"
+	EventClusterNodeIpUpdateSuccessful                    events.EventName = "ClusterNodeIpUpdateSuccessful"
 	EventClusterNodeIpUpdateFailed                        events.EventName = "ClusterNodeIpUpdateFailed"
 	EventClusterDashboardCredsUpdated                     events.EventName = "ClusterDashboardCredsUpdated"
 	EventClusterDashboardCredsUpdateFailed                events.EventName = "ClusterDashboardCredsUpdateFailed"

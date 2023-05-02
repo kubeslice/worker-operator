@@ -78,7 +78,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	if requeue {
 		return res, err
 	}
-	utils.RecordEvent(ctx, r.EventRecorder, cr, nil, ossEvents.EventClusterProviderUpdateInfoSuccesfull, controllerName)
+	utils.RecordEvent(ctx, r.EventRecorder, cr, nil, ossEvents.EventClusterProviderUpdateInfoSuccesful, controllerName)
 	res, err, requeue = r.updateCNISubnetConfig(ctx, cr, cl)
 	if err != nil {
 		utils.RecordEvent(ctx, r.EventRecorder, cr, nil, ossEvents.EventClusterCNISubnetUpdateFailed, controllerName)
@@ -87,7 +87,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	if requeue {
 		return res, err
 	}
-	utils.RecordEvent(ctx, r.EventRecorder, cr, nil, ossEvents.EventClusterCNISubnetUpdateSuccessfull, controllerName)
+	utils.RecordEvent(ctx, r.EventRecorder, cr, nil, ossEvents.EventClusterCNISubnetUpdateSuccessful, controllerName)
 	res, err, requeue = r.updateNodeIps(ctx, cr)
 	if err != nil {
 		utils.RecordEvent(ctx, r.EventRecorder, cr, nil, ossEvents.EventClusterNodeIpUpdateFailed, controllerName)
@@ -96,7 +96,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	if requeue {
 		return res, err
 	}
-	utils.RecordEvent(ctx, r.EventRecorder, cr, nil, ossEvents.EventClusterNodeIpUpdateSuccessfull, controllerName)
+	utils.RecordEvent(ctx, r.EventRecorder, cr, nil, ossEvents.EventClusterNodeIpUpdateSuccessful, controllerName)
 	// Update dashboard creds if it hasn't already (only one time event)
 	if !r.isDashboardCredsUpdated(ctx, cr) {
 		if err := r.updateDashboardCreds(ctx, cr); err != nil {
