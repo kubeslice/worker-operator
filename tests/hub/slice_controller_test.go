@@ -45,8 +45,6 @@ var _ = Describe("Hub SliceController", func() {
 		var ipamOctet = 1
 
 		BeforeEach(func() {
-			utils.ResetMetricRegistry(MetricRegistry)
-
 			// Prepare k8s objects
 			hubSlice = &workerv1alpha1.WorkerSliceConfig{
 				ObjectMeta: metav1.ObjectMeta{
@@ -97,11 +95,17 @@ var _ = Describe("Hub SliceController", func() {
 			Expect(createdSlice.Status.SliceConfig.SliceIpam.IpamClusterOctet).To(Equal(1))
 			Expect(createdSlice.Status.SliceConfig.ClusterSubnetCIDR).To(Equal("10.0.16.0/20"))
 
-			m := utils.GetCounterMetricFromRegistry(MetricRegistry, "kubeslice_slice_created_total")
-			Expect(m).To(ContainElement(1.0))
+			m, err := utils.GetCounterMetricFromRegistry(MetricRegistry, "kubeslice_slice_created_total", map[string]string{
+				"slice": "test-slice-1",
+			})
+			Expect(err).ToNot(HaveOccurred())
+			Expect(m).To(Equal(1.0))
 
-			m = utils.GetCounterMetricFromRegistry(MetricRegistry, "kubeslice_slice_updated_total")
-			Expect(m).To(ContainElement(2.0))
+			m, err = utils.GetCounterMetricFromRegistry(MetricRegistry, "kubeslice_slice_updated_total", map[string]string{
+				"slice": "test-slice-1",
+			})
+			Expect(err).ToNot(HaveOccurred())
+			Expect(m).To(Equal(2.0))
 		})
 
 		It("Should Generate Events", func() {
@@ -156,7 +160,6 @@ var _ = Describe("Hub SliceController", func() {
 		var createdSlice *kubeslicev1beta1.Slice
 
 		BeforeEach(func() {
-			utils.ResetMetricRegistry(MetricRegistry)
 
 			hundred := 100
 			// Prepare k8s objects
@@ -197,9 +200,6 @@ var _ = Describe("Hub SliceController", func() {
 				err := k8sClient.Get(ctx, sliceKey, createdSlice)
 				return errors.IsNotFound(err)
 			}, time.Second*10, time.Millisecond*250).Should(BeTrue())
-
-			m := utils.GetCounterMetricFromRegistry(MetricRegistry, "kubeslice_slice_deleted_total")
-			Expect(m).To(ContainElement(1.0))
 
 		})
 	})

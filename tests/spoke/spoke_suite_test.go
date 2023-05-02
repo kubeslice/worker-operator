@@ -26,7 +26,7 @@ import (
 
 	"github.com/kubeslice/kubeslice-monitoring/pkg/metrics"
 	nsmv1 "github.com/networkservicemesh/sdk-k8s/pkg/tools/k8s/apis/networkservicemesh.io/v1"
-	ctrlmetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
+	"github.com/prometheus/client_golang/prometheus"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -75,6 +75,8 @@ var workerClientNetopEmulator *workernetop.ClientEmulator
 
 const CONTROL_PLANE_NS = "kubeslice-system"
 const PROJECT_NS = "kubeslice-cisco"
+
+var MetricRegistry = prometheus.NewRegistry()
 
 var _ = BeforeSuite(func() {
 	logf.SetLogger(zap.New(zap.WriteTo(GinkgoWriter), zap.UseDevMode(true)))
@@ -137,11 +139,10 @@ var _ = BeforeSuite(func() {
 	workerClientNetopEmulator, err = workernetop.NewClientEmulator()
 	Expect(err).ToNot(HaveOccurred())
 
-	mf, err := metrics.NewMetricsFactory(ctrlmetrics.Registry, metrics.MetricsFactoryOptions{
+	mf, err := metrics.NewMetricsFactory(MetricRegistry, metrics.MetricsFactoryOptions{
 		Cluster:             "cluster-test",
 		Project:             PROJECT_NS,
 		ReportingController: "worker-operator",
-		Namespace:           CONTROL_PLANE_NS,
 	})
 	Expect(err).ToNot(HaveOccurred())
 
@@ -203,7 +204,7 @@ var _ = BeforeSuite(func() {
 			Component: "serviceimport-operator",
 			Namespace: CONTROL_PLANE_NS,
 		}),
-	}).SetupWithManager(k8sManager)
+	}).Setup(k8sManager, mf)
 	Expect(err).ToNot(HaveOccurred())
 
 	err = (&namespace.Reconciler{

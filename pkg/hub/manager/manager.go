@@ -21,6 +21,7 @@ package manager
 import (
 	"context"
 	"os"
+	"strings"
 
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
@@ -87,10 +88,9 @@ func Start(meshClient client.Client, ctx context.Context) {
 	mf, _ := metrics.NewMetricsFactory(
 		ctrlmetrics.Registry,
 		metrics.MetricsFactoryOptions{
-			Project:             ProjectNamespace,
+			Project:             strings.TrimPrefix(ProjectNamespace, "kubeslice_"),
 			Cluster:             ClusterName,
 			ReportingController: "worker-operator",
-			Namespace:           controllers.ControlPlaneNamespace,
 		},
 	)
 

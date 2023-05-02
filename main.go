@@ -21,6 +21,7 @@ package main
 import (
 	"flag"
 	"os"
+	"strings"
 
 	"github.com/kubeslice/kubeslice-monitoring/pkg/metrics"
 	"github.com/kubeslice/worker-operator/controllers"
@@ -165,9 +166,8 @@ func main() {
 
 	mf, err := metrics.NewMetricsFactory(ctrlmetrics.Registry, metrics.MetricsFactoryOptions{
 		Cluster:             controllers.ClusterName,
-		Project:             hub.ProjectNamespace,
+		Project:             strings.TrimPrefix(hub.ProjectNamespace, "kubeslice_"),
 		ReportingController: "worker-operator",
-		Namespace:           controllers.ControlPlaneNamespace,
 	})
 	if err != nil {
 		setupLog.With("error", err).Error("unable to initializ metrics factory")

@@ -214,7 +214,7 @@ func (r Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resul
 // Setup ServiceExport Reconciler
 // Initializes metrics and sets up with manager
 func (r *Reconciler) Setup(mgr ctrl.Manager, mf metrics.MetricsFactory) error {
-	gaugeEndpoints := mf.NewGauge("serviceexport_endpoints", "Active endpoints in serviceexport", []string{"slice", "namespace", "service"})
+	gaugeEndpoints := mf.NewGauge("serviceexport_endpoints", "Active endpoints in serviceexport", []string{"slice", "slice_namespace", "slice_service"})
 
 	r.gaugeEndpoints = gaugeEndpoints
 
