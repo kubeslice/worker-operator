@@ -49,7 +49,7 @@ var (
 func (r *Reconciler) createDeregisterJob(ctx context.Context, cluster *hubv1alpha1.Cluster) error {
 	log := logger.FromContext(ctx).WithName("cluster-deregister")
 	// Notify controller that the deregistration process of the cluster is in progress.
-	err := r.updateRegistrationStatusAndDeregisterInProgress(ctx, cluster, hubv1alpha1.RegistrationStatusDeregisterInProgress, true)
+	err := r.updateClusterDeregisterStatus(ctx, cluster, hubv1alpha1.RegistrationStatusDeregisterInProgress)
 	if err != nil {
 		log.Error(err, "error updating status of deregistration on the controller")
 		return err
@@ -126,6 +126,24 @@ func (r *Reconciler) createDeregisterJob(ctx context.Context, cluster *hubv1alph
 			log.Error(err, "unable to create job for cluster deregister")
 			return err
 		}
+	}
+	return nil
+}
+
+func (r *Reconciler) updateClusterDeregisterStatus(ctx context.Context, cluster *hubv1alpha1.Cluster, status hubv1alpha1.RegistrationStatus) error {
+	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		err := r.Get(ctx, types.NamespacedName{
+			Name:      cluster.Name,
+			Namespace: cluster.Namespace,
+		}, cluster)
+		if err != nil {
+			return err
+		}
+		cluster.Status.RegistrationStatus = status
+		return r.Status().Update(ctx, cluster)
+	})
+	if err != nil {
+		return err
 	}
 	return nil
 }
