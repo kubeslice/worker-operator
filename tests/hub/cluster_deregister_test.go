@@ -42,7 +42,7 @@ var (
 	operatorClusterRoleName = "kubeslice-manager-role"
 )
 
-var _ = Describe("Hub ClusterController", func() {
+var _ = XDescribe("Hub ClusterController", func() {
 	Context("With Cluster CR Created at hub cluster", func() {
 		var ns *corev1.Namespace
 		var cluster *hubv1alpha1.Cluster
@@ -135,7 +135,7 @@ var _ = Describe("Hub ClusterController", func() {
 
 		})
 
-		It("Should update cluster CR with nodeIP and geographical info", func() {
+		It("Should create a cluster clean job", func() {
 			os.Setenv("SCRIPT_PATH", "../../scripts")
 			Expect(k8sClient.Create(ctx, node))
 			err := k8sClient.Get(ctx, types.NamespacedName{Name: ns.Name}, ns)

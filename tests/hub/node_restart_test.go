@@ -248,7 +248,7 @@ Prefixes:
 			}, time.Second*240, time.Millisecond*250).Should(BeTrue())
 		})
 
-		XIt("should update cluster CR with new node IP", func() {
+		It("should update cluster CR with new node IP", func() {
 			Expect(k8sClient.Create(ctx, internalNode1)).Should(Succeed())
 			os.Setenv("CLUSTER_NAME", cluster.Name)
 			os.Setenv("HUB_PROJECT_NAMESPACE", PROJECT_NS)
