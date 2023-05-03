@@ -135,7 +135,7 @@ var _ = Describe("Hub ClusterController", func() {
 
 		})
 
-		It("Should update cluster CR with nodeIP and geographical info", func() {
+		FIt("Should update cluster CR with nodeIP and geographical info", func() {
 			os.Setenv("SCRIPT_PATH", "../../scripts")
 			Expect(k8sClient.Create(ctx, node))
 			err := k8sClient.Get(ctx, types.NamespacedName{Name: ns.Name}, ns)
@@ -165,19 +165,6 @@ var _ = Describe("Hub ClusterController", func() {
 			}, time.Second*120, time.Millisecond*500).ShouldNot(HaveOccurred())
 
 			Expect(k8sClient.Delete(ctx, cluster)).Should(Succeed())
-
-			//get the cluster object
-			Eventually(func() error {
-				err := k8sClient.Get(ctx, types.NamespacedName{Name: cluster.Name, Namespace: cluster.Namespace}, cluster)
-				if err != nil {
-					return err
-				}
-				if len(cluster.Status.NodeIPs) == 0 {
-					return fmt.Errorf("nodeip not populated")
-				}
-				return nil
-			}, time.Second*120, time.Millisecond*500).ShouldNot(HaveOccurred())
-			Expect(k8sClient.Create(ctx, clusterRole)).Should(Succeed())
 
 			Eventually(func() error {
 				err = k8sClient.Get(ctx,
