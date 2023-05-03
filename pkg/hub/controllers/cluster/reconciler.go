@@ -81,7 +81,7 @@ func NewReconciler(mc client.Client, er *events.EventRecorder, mf metrics.Metric
 }
 
 var retryAttempts = 0
-var clusterDeregisterFinalizer = "networking.kubeslice.io/cluster-deregister-finalizer"
+var clusterDeregisterFinalizer = "worker.kubeslice.io/cluster-deregister-finalizer"
 
 func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
 	log := logger.FromContext(ctx).WithName("cluster-reconciler")
