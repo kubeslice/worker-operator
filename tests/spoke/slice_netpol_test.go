@@ -9,6 +9,7 @@ import (
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
 	"github.com/kubeslice/worker-operator/controllers"
 	slicepkg "github.com/kubeslice/worker-operator/controllers/slice"
+	"github.com/kubeslice/worker-operator/tests/utils"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
@@ -668,6 +669,16 @@ var _ = Describe("SliceNetpol", func() {
 			}, timeout, interval).Should(BeTrue())
 			Expect(eventList.Items[1].InvolvedObject.Kind).Should(Equal("Slice"))
 			Expect(eventList.Items[1].Reason).Should(Equal("Scope widened with reason - IPBlock violation"))
+
+			m, err := utils.GetGaugeMetricFromRegistry(MetricRegistry, "kubeslice_netpol_violations_active", map[string]string{
+				"slice":                         "test-slice-netpol",
+				"slice_cluster":                 "cluster-test",
+				"slice_namespace":               "application-ns-netpol",
+				"slice_networkpolicy":           "netpol-violation",
+				"slice_networkpolicy_violation": "ipblock",
+			})
+			Expect(err).ToNot(HaveOccurred())
+			Expect(m).To(Equal(1.0))
 		})
 		It("Should uninstall netpol when isolationEnabled is toggled off", func() {
 			Expect(k8sClient.Create(ctx, svc)).Should(Succeed())
