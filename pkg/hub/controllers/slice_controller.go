@@ -62,8 +62,8 @@ func NewSliceReconciler(mc client.Client, er *events.EventRecorder, mf metrics.M
 		counterSliceCreationFailed: mf.NewCounter("slice_creation_failed_total", "Slice creation failed in worker", []string{"slice"}),
 		counterSliceUpdationFailed: mf.NewCounter("slice_updation_failed_total", "Slice updation failed in worker", []string{"slice"}),
 		counterSliceDeletionFailed: mf.NewCounter("slice_deletion_failed_total", "Slice deletion failed in worker", []string{"slice"}),
-		gaugeSliceUp:               mf.NewGauge("slice_up", "Kubeslice slice health status", []string{}),
-		gaugeComponentUp:           mf.NewGauge("slice_component_up", "Kubeslice slice component health status", []string{"slice_component"}),
+		gaugeSliceUp:               mf.NewGauge("slice_up", "Kubeslice slice health status", []string{"slice"}),
+		gaugeComponentUp:           mf.NewGauge("slice_component_up", "Kubeslice slice component health status", []string{"slice", "slice_component"}),
 	}
 }
 
@@ -501,16 +501,16 @@ func (r *SliceReconciler) fetchSliceGatewayHealth(ctx context.Context, c *compon
 
 func (r *SliceReconciler) UpdateSliceHealthMetrics(slice *spokev1alpha1.WorkerSliceConfig) {
 	if slice.Status.SliceHealth.SliceHealthStatus == spokev1alpha1.SliceHealthStatusNormal {
-		r.gaugeSliceUp.WithLabelValues().Set(1)
+		r.gaugeSliceUp.WithLabelValues(slice.Name).Set(1)
 	} else {
-		r.gaugeSliceUp.WithLabelValues().Set(0)
+		r.gaugeSliceUp.WithLabelValues(slice.Name).Set(0)
 	}
 
 	for _, cs := range slice.Status.SliceHealth.ComponentStatuses {
 		if cs.ComponentHealthStatus == spokev1alpha1.ComponentHealthStatusNormal {
-			r.gaugeComponentUp.WithLabelValues(cs.Component).Set(1)
+			r.gaugeComponentUp.WithLabelValues(slice.Name, cs.Component).Set(1)
 		} else {
-			r.gaugeComponentUp.WithLabelValues(cs.Component).Set(0)
+			r.gaugeComponentUp.WithLabelValues(slice.Name, cs.Component).Set(0)
 		}
 	}
 }

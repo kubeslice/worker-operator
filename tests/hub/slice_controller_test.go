@@ -348,12 +348,15 @@ var _ = Describe("Hub SliceController", func() {
 			for _, c := range cs {
 				Expect(string(c.ComponentHealthStatus)).Should(Equal("Error"))
 				m, err := utils.GetGaugeMetricFromRegistry(MetricRegistry, "kubeslice_slice_component_up", map[string]string{
+					"slice":           "test-slice-4",
 					"slice_component": c.Component,
 				})
 				Expect(err).ToNot(HaveOccurred())
 				Expect(m).To(Equal(0.0))
 			}
-			m, err := utils.GetGaugeMetricFromRegistry(MetricRegistry, "kubeslice_slice_up", map[string]string{})
+			m, err := utils.GetGaugeMetricFromRegistry(MetricRegistry, "kubeslice_slice_up", map[string]string{
+				"slice": "test-slice-4",
+			})
 			Expect(err).ToNot(HaveOccurred())
 			Expect(m).To(Equal(0.0))
 		})
@@ -504,12 +507,15 @@ var _ = Describe("Hub SliceController", func() {
 				Expect(c.Component).Should(Equal(pods[i].ObjectMeta.Name))
 				Expect(string(c.ComponentHealthStatus)).Should(Equal("Normal"))
 				m, err := utils.GetGaugeMetricFromRegistry(MetricRegistry, "kubeslice_slice_component_up", map[string]string{
+					"slice":           "test-slice-4",
 					"slice_component": c.Component,
 				})
 				Expect(err).ToNot(HaveOccurred())
 				Expect(m).To(Equal(1.0))
 			}
-			m, err := utils.GetGaugeMetricFromRegistry(MetricRegistry, "kubeslice_slice_up", map[string]string{})
+			m, err := utils.GetGaugeMetricFromRegistry(MetricRegistry, "kubeslice_slice_up", map[string]string{
+				"slice": "test-slice-4",
+			})
 			Expect(err).ToNot(HaveOccurred())
 			Expect(m).To(Equal(1.0))
 		})
