@@ -308,6 +308,8 @@ func (r *Reconciler) updateCNISubnetConfig(ctx context.Context, cr *hubv1alpha1.
 		}
 		if !reflect.DeepEqual(cr.Status.CniSubnet, cniSubnet) {
 			cr.Status.CniSubnet = cniSubnet
+			// TODO: move this status declaration to outside this function when health check is implemented
+			// for CNI subnet and Node IP address.
 			cr.Status.RegistrationStatus = hubv1alpha1.RegistrationStatusRegistered
 			toUpdate = true
 			return r.Status().Update(ctx, cr)
