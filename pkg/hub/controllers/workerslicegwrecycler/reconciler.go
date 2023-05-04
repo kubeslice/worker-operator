@@ -81,8 +81,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			}
 		}
 	}
-	eventRecorder := *r.EventRecorder
-	*r.EventRecorder = eventRecorder.WithSlice(slicegw.Spec.SliceName)
+	*r.EventRecorder = (*r.EventRecorder).WithSlice(slicegw.Spec.SliceName)
 	isClient := slicegw.Status.Config.SliceGatewayHostType == "Client"
 
 	if isClient {

@@ -112,8 +112,7 @@ func (r *NetpolReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		log.Info(fmt.Sprintf("added network policy(%s) to namespace(%s) which is not part of slice.", netpol.Name, netpol.Namespace))
 		return ctrl.Result{}, nil
 	}
-	eventRecorder := *r.EventRecorder
-	*r.EventRecorder = eventRecorder.WithSlice(sliceName)
+	*r.EventRecorder = (*r.EventRecorder).WithSlice(sliceName)
 
 	//get slice
 	slice := &kubeslicev1beta1.Slice{}

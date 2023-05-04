@@ -78,8 +78,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	log = log.WithValues("slice", serviceimport.Spec.Slice)
 	debugLog := log.V(1)
 	ctx = logger.WithLogger(ctx, log)
-	eventRecorder := *r.EventRecorder
-	*r.EventRecorder = eventRecorder.WithSlice(serviceimport.Spec.Slice)
+	*r.EventRecorder = (*r.EventRecorder).WithSlice(serviceimport.Spec.Slice)
 
 	log.Info("reconciling", "serviceimport", serviceimport.Name)
 

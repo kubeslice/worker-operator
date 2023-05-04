@@ -114,8 +114,7 @@ func (r *ServiceImportReconciler) Reconcile(ctx context.Context, req reconcile.R
 	}
 
 	log.Info("got service import from hub", "serviceimport", svcim)
-	eventRecorder := *r.EventRecorder
-	*r.EventRecorder = eventRecorder.WithSlice(svcim.Spec.SliceName)
+	*r.EventRecorder = (*r.EventRecorder).WithSlice(svcim.Spec.SliceName)
 
 	// examine DeletionTimestamp to determine if object is under deletion
 	// Register finalizer.

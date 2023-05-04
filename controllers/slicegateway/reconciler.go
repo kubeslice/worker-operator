@@ -103,8 +103,7 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		log.Error(err, "Failed to get SliceGateway")
 		return ctrl.Result{}, err
 	}
-	eventRecorder := *r.EventRecorder
-	*r.EventRecorder = eventRecorder.WithSlice(sliceGw.Spec.SliceName)
+	*r.EventRecorder = (*r.EventRecorder).WithSlice(sliceGw.Spec.SliceName)
 	// Examine DeletionTimestamp to determine if object is under deletion
 	// The object is not being deleted, so if it does not have our finalizer,
 	// then lets add the finalizer and update the object. This is equivalent

@@ -81,8 +81,7 @@ func (r Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resul
 		}
 		return ctrl.Result{}, err
 	}
-	eventRecorder := *r.EventRecorder
-	*r.EventRecorder = eventRecorder.WithSlice(serviceexport.Spec.Slice)
+	*r.EventRecorder = (*r.EventRecorder).WithSlice(serviceexport.Spec.Slice)
 	log = log.WithValues("slice", serviceexport.Spec.Slice)
 	debugLog := log.V(1)
 	ctx = logger.WithLogger(ctx, log)

@@ -146,8 +146,7 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req reconcile.Request) 
 
 	log.Info("got slice from hub", "slice", slice.Name)
 	debuglog.Info("got slice from hub", "slice", slice)
-	eventRecorder := *r.EventRecorder
-	*r.EventRecorder = eventRecorder.WithSlice(slice.Name)
+	*r.EventRecorder = (*r.EventRecorder).WithSlice(slice.Name)
 	requeue, result, err := r.handleSliceDeletion(slice, ctx, req)
 	if requeue {
 		return result, err

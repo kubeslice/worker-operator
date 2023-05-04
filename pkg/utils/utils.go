@@ -37,8 +37,7 @@ func GetEnvOrDefault(key, def string) string {
 
 func RecordEvent(ctx context.Context, recorder *events.EventRecorder, object, relatedObject runtime.Object, name events.EventName, controller string) {
 	log := logger.FromContext(ctx)
-	eventRecorder := *recorder
-	err := eventRecorder.RecordEvent(ctx, &events.Event{
+	err := (*recorder).RecordEvent(ctx, &events.Event{
 		Object:            object,
 		RelatedObject:     relatedObject,
 		ReportingInstance: controller,
