@@ -92,14 +92,28 @@ func (r *Reconciler) createDeregisterJob(ctx context.Context, cluster *hubv1alph
 			return err
 		}
 	}
-	// get configmap data
-	data, err := getConfigmapData()
+	// get the cleanup script as a long string and construct a configmap from it
+	data, err := getCleanupScript()
 	if err != nil {
 		log.Error(err, "unable to fetch configmap data")
 		return err
 	}
-	// Set up a configuration map which contains the script for the job.
-	if err := r.MeshClient.Create(ctx, constructConfigMap(data), &client.CreateOptions{}); err != nil {
+
+	cleanupConfigMap := constructConfigMap(data)
+	cmRef := types.NamespacedName{
+		Name:      clusterDeregisterConfigMap,
+		Namespace: ControlPlaneNamespace,
+	}
+	// check if the cleanup configmap already exists, delete it to ensure it has correct data
+	if err := r.MeshClient.Get(ctx, cmRef, cleanupConfigMap); err == nil {
+		err = r.MeshClient.Delete(ctx, cleanupConfigMap)
+		if err != nil {
+			log.Error(err, "error while deleting job object", "job", cmRef.Name)
+			return err
+		}
+	}
+	// constructing cleanup configmap
+	if err := r.MeshClient.Create(ctx, cleanupConfigMap, &client.CreateOptions{}); err != nil {
 		if apierrors.IsAlreadyExists(err) {
 			log.Info("cluster configmap already exists", "configmap", clusterDeregisterConfigMap)
 		} else {
@@ -108,14 +122,13 @@ func (r *Reconciler) createDeregisterJob(ctx context.Context, cluster *hubv1alph
 		}
 	}
 
-	// get the job
+	// check if the cleanup job already exists, delete it to ensure it has correct spec
 	jobRef := types.NamespacedName{
 		Name:      deregisterJobName,
 		Namespace: ControlPlaneNamespace,
 	}
 	deregisterJob := constructJobForClusterDeregister()
 	if err := r.MeshClient.Get(ctx, jobRef, deregisterJob); err == nil {
-		// Job is already present we need to delete it
 		err = r.MeshClient.Delete(ctx, deregisterJob)
 		if err != nil {
 			log.Error(err, "error while deleting job object", "job", jobRef.Name)
@@ -123,7 +136,7 @@ func (r *Reconciler) createDeregisterJob(ctx context.Context, cluster *hubv1alph
 		}
 	}
 
-	// Generate a job for deregistration with the configuration map mounted as a volume.
+	// generate a job for deregistration with the cleanup configmap mounted as a volume
 	if err := r.MeshClient.Create(ctx, deregisterJob, &client.CreateOptions{}); err != nil {
 		if apierrors.IsAlreadyExists(err) {
 			log.Info("cluster deregister job already exists", "job", clusterDeregisterConfigMap)
@@ -205,13 +218,12 @@ func constructClusterRoleBinding() *rbacv1.ClusterRoleBinding {
 	return clusterRole
 }
 
-func getConfigmapData() (string, error) {
-	fileName := "cleanup"
-
-	filePath := path.Join(scriptPath, fileName+".sh")
+func getCleanupScript() (string, error) {
+	fileName := "cleanup.sh"
+	filePath := path.Join(scriptPath, fileName)
 	dir := os.Getenv("SCRIPT_PATH")
 	if dir != "" {
-		filePath = path.Join(dir, fileName+".sh")
+		filePath = path.Join(dir, fileName)
 	}
 	data, err := os.ReadFile(filePath)
 	if err != nil {

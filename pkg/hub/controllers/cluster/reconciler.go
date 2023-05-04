@@ -46,9 +46,10 @@ import (
 )
 
 const (
-	GCP   string = "gcp"
-	AWS   string = "aws"
-	AZURE string = "azure"
+	GCP                                 string = "gcp"
+	AWS                                 string = "aws"
+	AZURE                               string = "azure"
+	MAX_CLUSTER_DEREGISTRATION_ATTEMPTS        = 3
 )
 
 type Reconciler struct {
@@ -504,7 +505,7 @@ func (r *Reconciler) handleClusterDeletion(cluster *hubv1alpha1.Cluster, ctx con
 		}
 	} else {
 		// The object is being deleted
-		if controllerutil.ContainsFinalizer(cluster, clusterDeregisterFinalizer) && !cluster.Status.IsDeregisterInProgress && retryAttempts <= 3 {
+		if controllerutil.ContainsFinalizer(cluster, clusterDeregisterFinalizer) && !cluster.Status.IsDeregisterInProgress && retryAttempts <= MAX_CLUSTER_DEREGISTRATION_ATTEMPTS {
 			// our finalizer is present, so lets handle any external dependency
 			if err := r.createDeregisterJob(ctx, cluster); err != nil {
 				// unable to deregister the worker operator, return with an error and raise event
@@ -529,7 +530,9 @@ func (r *Reconciler) handleClusterDeletion(cluster *hubv1alpha1.Cluster, ctx con
 			}
 		}
 		// Stop reconciliation as the item is being deleted
-		return true, reconcile.Result{}, nil
+		return true, reconcile.Result{
+			RequeueAfter: 60 * time.Second,
+		}, nil
 	}
 	return false, reconcile.Result{}, nil
 }

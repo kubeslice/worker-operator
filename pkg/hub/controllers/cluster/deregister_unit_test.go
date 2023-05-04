@@ -142,6 +142,16 @@ func TestCreateDeregisterJobPositiveScenarios(t *testing.T) {
 		mock.IsType(&rbacv1.ClusterRoleBinding{}),
 		mock.IsType([]k8sclient.CreateOption(nil)),
 	).Return(nil)
+	client.On("Get",
+		mock.IsType(ctx),
+		mock.IsType(types.NamespacedName{Name: clusterDeregisterConfigMap, Namespace: ControlPlaneNamespace}),
+		mock.IsType(&corev1.ConfigMap{}),
+	).Return(nil)
+	client.On("Delete",
+		mock.IsType(ctx),
+		mock.IsType(&corev1.ConfigMap{}),
+		mock.IsType([]k8sclient.DeleteOption{}),
+	).Return(nil)
 	client.On("Create",
 		mock.IsType(ctx),
 		mock.IsType(&corev1.ConfigMap{}),
@@ -479,12 +489,21 @@ func TestReconcilerFailToCreateConfigmap(t *testing.T) {
 		mock.IsType(&rbacv1.ClusterRoleBinding{}),
 		mock.IsType([]k8sclient.CreateOption(nil)),
 	).Return(nil)
+	client.On("Get",
+		mock.IsType(ctx),
+		mock.IsType(types.NamespacedName{Name: clusterDeregisterConfigMap, Namespace: ControlPlaneNamespace}),
+		mock.IsType(&corev1.ConfigMap{}),
+	).Return(nil)
+	client.On("Delete",
+		mock.IsType(ctx),
+		mock.IsType(&corev1.ConfigMap{}),
+		mock.IsType([]k8sclient.DeleteOption{}),
+	).Return(nil)
 	client.On("Create",
 		mock.IsType(ctx),
 		mock.IsType(&corev1.ConfigMap{}),
 		mock.IsType([]k8sclient.CreateOption(nil)),
 	).Return(errors.New("Unable to create configmap"))
-
 	err := reconciler.createDeregisterJob(ctx, testClusterObj)
 	if expected.errMsg != err.Error() {
 		t.Error("Expected error:", expected.errMsg, " but got ", err)
@@ -546,6 +565,16 @@ func TestReconcilerFailToDeleteJob(t *testing.T) {
 		mock.IsType(ctx),
 		mock.IsType(&rbacv1.ClusterRoleBinding{}),
 		mock.IsType([]k8sclient.CreateOption(nil)),
+	).Return(nil)
+	client.On("Get",
+		mock.IsType(ctx),
+		mock.IsType(types.NamespacedName{Name: clusterDeregisterConfigMap, Namespace: ControlPlaneNamespace}),
+		mock.IsType(&corev1.ConfigMap{}),
+	).Return(nil)
+	client.On("Delete",
+		mock.IsType(ctx),
+		mock.IsType(&corev1.ConfigMap{}),
+		mock.IsType([]k8sclient.DeleteOption{}),
 	).Return(nil)
 	client.On("Create",
 		mock.IsType(ctx),
@@ -625,6 +654,16 @@ func TestReconcilerFailToCreateDeregisterJob(t *testing.T) {
 		mock.IsType(&rbacv1.ClusterRoleBinding{}),
 		mock.IsType([]k8sclient.CreateOption(nil)),
 	).Return(nil)
+	client.On("Get",
+		mock.IsType(ctx),
+		mock.IsType(types.NamespacedName{Name: clusterDeregisterConfigMap, Namespace: ControlPlaneNamespace}),
+		mock.IsType(&corev1.ConfigMap{}),
+	).Return(nil)
+	client.On("Delete",
+		mock.IsType(ctx),
+		mock.IsType(&corev1.ConfigMap{}),
+		mock.IsType([]k8sclient.DeleteOption{}),
+	).Return(nil)
 	client.On("Create",
 		mock.IsType(ctx),
 		mock.IsType(&corev1.ConfigMap{}),
@@ -653,7 +692,7 @@ func TestReconcilerFailToCreateDeregisterJob(t *testing.T) {
 }
 
 func TestGetConfigmapScriptData(t *testing.T) {
-	data, err := getConfigmapData()
+	data, err := getCleanupScript()
 	AssertNoError(t, err)
 	if len(data) == 0 {
 		t.Fatalf("unable to get configmap data")
