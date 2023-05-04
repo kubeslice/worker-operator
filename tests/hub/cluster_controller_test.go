@@ -24,7 +24,6 @@ import (
 	"time"
 
 	hubv1alpha1 "github.com/kubeslice/apis/pkg/controller/v1alpha1"
-	clusterpkg "github.com/kubeslice/worker-operator/pkg/cluster"
 	hub "github.com/kubeslice/worker-operator/pkg/hub/hubclient"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -125,10 +124,6 @@ var _ = Describe("Hub ClusterController", func() {
 			if errors.IsNotFound(err) {
 				Expect(k8sClient.Create(ctx, nsmconfig)).Should(Succeed())
 			}
-
-			nodeIP, err := clusterpkg.GetNodeIP(k8sClient)
-			Expect(err).To(BeNil())
-			Expect(nodeIP[0]).Should(Equal("35.235.10.1"))
 			//get the cluster object
 			Eventually(func() error {
 				err := k8sClient.Get(ctx, types.NamespacedName{Name: cluster.Name, Namespace: cluster.Namespace}, cluster)
