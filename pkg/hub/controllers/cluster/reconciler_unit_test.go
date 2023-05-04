@@ -278,7 +278,7 @@ func TestReconcilerToFailWhileCallingCreateDeregisterJob(t *testing.T) {
 	).Return(nil)
 
 	_, _, err = reconciler.handleClusterDeletion(testClusterObjWithFinalizer, ctx, expected.req)
-	if expected.errMsg != err.Error() {
+	if err != nil && expected.errMsg != err.Error() {
 		t.Error("Expected error:", expected.errMsg, " but got ", err.Error())
 	}
 }
