@@ -7,12 +7,12 @@ updateControllerClusterStatus() {
 removeFinalizer() {
     echo "🗑 Removing cluster deregister finalizer"
     kubectl get -o yaml clusters.controller.kubeslice.io $CLUSTER_NAME -n $PROJECT_NAMESPACE --token $TOKEN  --certificate-authority /ca.crt --server $HUB_ENDPOINT > ./cluster.yaml
-    sed -i '/finalizers:/,/^[^ ]/ s/ *- networking.kubeslice.io\/cluster-deregister-finalizer//' cluster.yaml
+    sed -i '/finalizers:/,/^[^ ]/ s/ *- worker.kubeslice.io\/cluster-deregister-finalizer//' cluster.yaml
     kubectl patch clusters.controller.kubeslice.io $CLUSTER_NAME -n $PROJECT_NAMESPACE --type=merge  --patch-file cluster.yaml --token $TOKEN  --certificate-authority /ca.crt --server $HUB_ENDPOINT
 }
 
 deleteKubeSliceCRDs() {
-    for item in $(kubectl get crd | grep "networking.kubeslice.io"); do
+    for item in $(kubectl get crd | grep "networking.kubeslice.io" | awk '{print $1}'); do
     echo "🗑 Removing item $item"
     kubectl delete crd $item --ignore-not-found
     done
