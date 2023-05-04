@@ -54,7 +54,7 @@ type component struct {
 func NewSliceReconciler(mc client.Client, er *events.EventRecorder, mf metrics.MetricsFactory) *SliceReconciler {
 	return &SliceReconciler{
 		MeshClient:        mc,
-		EventRecorder:     *er,
+		EventRecorder:     er,
 		Log:               ctrl.Log.WithName("hub").WithName("controllers").WithName("SliceConfig"),
 		ReconcileInterval: 120 * time.Second,
 
@@ -113,7 +113,7 @@ type SliceReconciler struct {
 	client.Client
 	Log               logr.Logger
 	MeshClient        client.Client
-	EventRecorder     events.EventRecorder
+	EventRecorder     *events.EventRecorder
 	ReconcileInterval time.Duration
 
 	counterSliceCreated        *prometheus.CounterVec
@@ -146,7 +146,8 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req reconcile.Request) 
 
 	log.Info("got slice from hub", "slice", slice.Name)
 	debuglog.Info("got slice from hub", "slice", slice)
-	r.EventRecorder = r.EventRecorder.WithSlice(slice.Name)
+	eventRecorder := *r.EventRecorder
+	*r.EventRecorder = eventRecorder.WithSlice(slice.Name)
 	requeue, result, err := r.handleSliceDeletion(slice, ctx, req)
 	if requeue {
 		return result, err

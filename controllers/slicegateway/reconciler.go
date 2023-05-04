@@ -63,7 +63,7 @@ type SliceGwReconciler struct {
 	WorkerNetOpClient     WorkerNetOpClientProvider
 	WorkerGWSidecarClient WorkerGWSidecarClientProvider
 	NetOpPods             []NetOpPod
-	EventRecorder         events.EventRecorder
+	EventRecorder         *events.EventRecorder
 	NodeIPs               []string
 	NumberOfGateways      int
 }
@@ -103,7 +103,8 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		log.Error(err, "Failed to get SliceGateway")
 		return ctrl.Result{}, err
 	}
-	r.EventRecorder = r.EventRecorder.WithSlice(sliceGw.Spec.SliceName)
+	eventRecorder := *r.EventRecorder
+	*r.EventRecorder = eventRecorder.WithSlice(sliceGw.Spec.SliceName)
 	// Examine DeletionTimestamp to determine if object is under deletion
 	// The object is not being deleted, so if it does not have our finalizer,
 	// then lets add the finalizer and update the object. This is equivalent

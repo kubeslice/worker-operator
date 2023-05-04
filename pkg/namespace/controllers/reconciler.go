@@ -42,7 +42,7 @@ import (
 
 type Reconciler struct {
 	client.Client
-	EventRecorder events.EventRecorder
+	EventRecorder *events.EventRecorder
 	Scheme        *runtime.Scheme
 	Log           logr.Logger
 	Hubclient     *hub.HubClientConfig
@@ -100,7 +100,8 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		log.Error(err, "error while retrieving labels from namespace")
 		return ctrl.Result{}, err
 	}
-	r.EventRecorder = r.EventRecorder.WithSlice(sliceName)
+	eventRecorder := *r.EventRecorder
+	*r.EventRecorder = eventRecorder.WithSlice(sliceName)
 	err = hub.UpdateNamespaceInfoToHub(ctx, r.Hubclient, namespace.Name, sliceName)
 	if err != nil {
 		utils.RecordEvent(ctx, r.EventRecorder, &namespace, nil, ossEvents.EventUpdateNamespaceInfoToHubFailed, controllerName)

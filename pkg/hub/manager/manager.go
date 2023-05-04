@@ -133,7 +133,7 @@ func Start(meshClient client.Client, ctx context.Context) {
 
 	sliceGwReconciler := &controllers.SliceGwReconciler{
 		MeshClient:    meshClient,
-		EventRecorder: spokeSliceGatewayEventRecorder,
+		EventRecorder: &spokeSliceGatewayEventRecorder,
 		ClusterName:   ClusterName,
 	}
 	err = builder.
@@ -159,7 +159,7 @@ func Start(meshClient client.Client, ctx context.Context) {
 
 	serviceImportReconciler := &controllers.ServiceImportReconciler{
 		MeshClient:    meshClient,
-		EventRecorder: spokeServiceImportEventRecorder,
+		EventRecorder: &spokeServiceImportEventRecorder,
 	}
 	err = builder.
 		ControllerManagedBy(mgr).
@@ -199,7 +199,7 @@ func Start(meshClient client.Client, ctx context.Context) {
 		Client:                mgr.GetClient(),
 		WorkerGWSidecarClient: workerGWClient,
 		WorkerRouterClient:    workerRouterClient,
-		EventRecorder:         workerSliceGwRecyclerEventRecorder,
+		EventRecorder:         &workerSliceGwRecyclerEventRecorder,
 	}).SetupWithManager(mgr); err != nil {
 		log.Error(err, "could not create controller")
 		os.Exit(1)
@@ -215,7 +215,7 @@ func Start(meshClient client.Client, ctx context.Context) {
 	})
 	clusterReconciler := hubCluster.NewReconciler(
 		meshClient,
-		spokeClusterEventRecorder,
+		&spokeClusterEventRecorder,
 		mf,
 	)
 	err = builder.

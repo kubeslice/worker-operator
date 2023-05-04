@@ -44,7 +44,7 @@ import (
 // SliceReconciler reconciles a Slice object
 type NetpolReconciler struct {
 	client.Client
-	EventRecorder   events.EventRecorder
+	EventRecorder   *events.EventRecorder
 	Scheme          *runtime.Scheme
 	Log             logr.Logger
 	privateIPBlocks []*net.IPNet
@@ -112,7 +112,8 @@ func (r *NetpolReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		log.Info(fmt.Sprintf("added network policy(%s) to namespace(%s) which is not part of slice.", netpol.Name, netpol.Namespace))
 		return ctrl.Result{}, nil
 	}
-	r.EventRecorder = r.EventRecorder.WithSlice(sliceName)
+	eventRecorder := *r.EventRecorder
+	*r.EventRecorder = eventRecorder.WithSlice(sliceName)
 
 	//get slice
 	slice := &kubeslicev1beta1.Slice{}

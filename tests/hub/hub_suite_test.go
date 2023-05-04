@@ -161,7 +161,7 @@ var _ = BeforeSuite(func() {
 	})
 	sgwr := &controllers.SliceGwReconciler{
 		MeshClient:    k8sClient,
-		EventRecorder: testSliceGwEventRecorder,
+		EventRecorder: &testSliceGwEventRecorder,
 		ClusterName:   CLUSTER_NAME,
 	}
 
@@ -191,7 +191,7 @@ var _ = BeforeSuite(func() {
 	})
 	serviceImportReconciler := &controllers.ServiceImportReconciler{
 		MeshClient:    k8sClient,
-		EventRecorder: testSvcimEventRecorder,
+		EventRecorder: &testSvcimEventRecorder,
 		Client:        k8sClient,
 	}
 
@@ -217,7 +217,7 @@ var _ = BeforeSuite(func() {
 		Client:                k8sClient,
 		WorkerGWSidecarClient: workerClientSidecarGwEmulator,
 		WorkerRouterClient:    workerClientRouterEmulator,
-		EventRecorder:         workerSliceGwRecyclerEventRecorder,
+		EventRecorder:         &workerSliceGwRecyclerEventRecorder,
 	}).SetupWithManager(k8sManager); err != nil {
 		os.Exit(1)
 	}
@@ -230,7 +230,7 @@ var _ = BeforeSuite(func() {
 	})
 	clusterReconciler := cluster.NewReconciler(
 		k8sClient,
-		spokeClusterEventRecorder,
+		&spokeClusterEventRecorder,
 		mf,
 	)
 	clusterReconciler.ReconcileInterval = 5 * time.Second

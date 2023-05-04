@@ -37,7 +37,7 @@ const (
 type Reconciler struct {
 	client.Client
 	MeshClient    client.Client
-	EventRecorder events.EventRecorder
+	EventRecorder *events.EventRecorder
 
 	// metrics
 	gaugeClusterUp   *prometheus.GaugeVec
@@ -46,7 +46,7 @@ type Reconciler struct {
 	ReconcileInterval time.Duration
 }
 
-func NewReconciler(mc client.Client, er events.EventRecorder, mf metrics.MetricsFactory) *Reconciler {
+func NewReconciler(mc client.Client, er *events.EventRecorder, mf metrics.MetricsFactory) *Reconciler {
 	gaugeClusterUp := mf.NewGauge("cluster_up", "Kubeslice cluster health status", []string{})
 	gaugeComponentUp := mf.NewGauge("cluster_component_up", "Kubeslice cluster component health status", []string{"slice_cluster_component"})
 

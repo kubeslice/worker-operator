@@ -47,7 +47,7 @@ type Reconciler struct {
 	Log           logr.Logger
 	Scheme        *runtime.Scheme
 	HubClient     HubClientProvider
-	EventRecorder events.EventRecorder
+	EventRecorder *events.EventRecorder
 
 	// metrics
 	gaugeEndpoints *prometheus.GaugeVec
@@ -81,7 +81,8 @@ func (r Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resul
 		}
 		return ctrl.Result{}, err
 	}
-	r.EventRecorder = r.EventRecorder.WithSlice(serviceexport.Spec.Slice)
+	eventRecorder := *r.EventRecorder
+	*r.EventRecorder = eventRecorder.WithSlice(serviceexport.Spec.Slice)
 	log = log.WithValues("slice", serviceexport.Spec.Slice)
 	debugLog := log.V(1)
 	ctx = logger.WithLogger(ctx, log)

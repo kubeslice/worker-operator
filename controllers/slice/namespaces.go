@@ -24,7 +24,9 @@ import (
 
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
 	"github.com/kubeslice/worker-operator/controllers"
+	ossEvents "github.com/kubeslice/worker-operator/events"
 	"github.com/kubeslice/worker-operator/pkg/logger"
+	"github.com/kubeslice/worker-operator/pkg/utils"
 	webhook "github.com/kubeslice/worker-operator/pkg/webhook/pod"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -659,6 +661,7 @@ func (r *SliceReconciler) reconcileSliceNetworkPolicy(ctx context.Context, slice
 			log.Error(err, "Failed to install network policy", "namespace", appNsObj.ObjectMeta.Name)
 			return err
 		}
+		utils.RecordEvent(ctx, r.EventRecorder, slice, nil, ossEvents.EventNetPolAdded, "slice_reconciler")
 		log.Info("Installed netpol for namespace successfully", "namespace", appNsObj.ObjectMeta.Name)
 	}
 	slice.Status.NetworkPoliciesInstalled = true

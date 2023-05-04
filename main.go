@@ -187,7 +187,7 @@ func main() {
 		Log:                ctrl.Log.WithName("controllers").WithName("Slice"),
 		Scheme:             mgr.GetScheme(),
 		HubClient:          hubClient,
-		EventRecorder:      sliceEventRecorder,
+		EventRecorder:      &sliceEventRecorder,
 		WorkerRouterClient: workerRouterClient,
 		WorkerNetOpClient:  workerNetOPClient,
 	}).Setup(mgr, mf); err != nil {
@@ -216,7 +216,7 @@ func main() {
 		WorkerGWSidecarClient: workerGWClient,
 		WorkerRouterClient:    workerRouterClient,
 		WorkerNetOpClient:     workerNetOPClient,
-		EventRecorder:         sliceGwEventRecorder,
+		EventRecorder:         &sliceGwEventRecorder,
 		NumberOfGateways:      2,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.With("error", err).Error("unable to create controller", "controller", "SliceGw")
@@ -236,7 +236,7 @@ func main() {
 		Log:           ctrl.Log.WithName("controllers").WithName("ServiceExport"),
 		Scheme:        mgr.GetScheme(),
 		HubClient:     hubClient,
-		EventRecorder: serviceExportEventRecorder,
+		EventRecorder: &serviceExportEventRecorder,
 	}).Setup(mgr, mf); err != nil {
 		setupLog.With("error", err, "controller", "ServiceExport").Error("unable to create controller")
 		os.Exit(1)
@@ -254,7 +254,7 @@ func main() {
 		Client:        mgr.GetClient(),
 		Log:           ctrl.Log.WithName("controllers").WithName("ServiceImport"),
 		Scheme:        mgr.GetScheme(),
-		EventRecorder: serviceImportEventRecorder,
+		EventRecorder: &serviceImportEventRecorder,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.With("error", err, "controller", "ServiceImport").Error("unable to create controller")
 		os.Exit(1)
@@ -272,7 +272,7 @@ func main() {
 		Client:        mgr.GetClient(),
 		Log:           ctrl.Log.WithName("controllers").WithName("namespace"),
 		Scheme:        mgr.GetScheme(),
-		EventRecorder: namespaceEventRecorder,
+		EventRecorder: &namespaceEventRecorder,
 		Hubclient:     hubClient,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.With("error", err, "controller", "namespace").Error("unable to create controller")
@@ -290,7 +290,7 @@ func main() {
 		Client:        mgr.GetClient(),
 		Log:           ctrl.Log.WithName("controllers").WithName("networkpolicy"),
 		Scheme:        mgr.GetScheme(),
-		EventRecorder: netpolEventRecorder,
+		EventRecorder: &netpolEventRecorder,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.With("error", err, "controller", "networkpolicy").Error("unable to create controller")
 		os.Exit(1)

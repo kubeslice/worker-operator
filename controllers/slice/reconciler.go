@@ -53,7 +53,7 @@ var controllerName = "slice_reconciler"
 // SliceReconciler reconciles a Slice object
 type SliceReconciler struct {
 	client.Client
-	EventRecorder      events.EventRecorder
+	EventRecorder      *events.EventRecorder
 	Scheme             *runtime.Scheme
 	Log                logr.Logger
 	NetOpPods          []NetOpPod
@@ -104,8 +104,9 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 	}
 
 	log.Info("reconciling", "slice", slice.Name)
-	r.EventRecorder = r.EventRecorder.WithSlice(slice.Name)
 
+	eventRecorder := *r.EventRecorder
+	*r.EventRecorder = eventRecorder.WithSlice(slice.Name)
 	// label kubeslice-system namespace with kubeslice.io/inject=true label
 	namespace := &corev1.Namespace{}
 	err = r.Get(ctx, types.NamespacedName{Name: "kubeslice-system"}, namespace)

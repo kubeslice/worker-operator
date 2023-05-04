@@ -43,7 +43,7 @@ type Reconciler struct {
 	MeshClient            client.Client
 	WorkerGWSidecarClient WorkerGWSidecarClientProvider
 	WorkerRouterClient    WorkerRouterClientProvider
-	EventRecorder         events.EventRecorder
+	EventRecorder         *events.EventRecorder
 	FSM                   *fsm.FSM
 }
 
@@ -81,7 +81,8 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			}
 		}
 	}
-	r.EventRecorder = r.EventRecorder.WithSlice(slicegw.Spec.SliceName)
+	eventRecorder := *r.EventRecorder
+	*r.EventRecorder = eventRecorder.WithSlice(slicegw.Spec.SliceName)
 	isClient := slicegw.Status.Config.SliceGatewayHostType == "Client"
 
 	if isClient {
