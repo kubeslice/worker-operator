@@ -61,6 +61,8 @@ func NewReconciler(mc client.Client, er events.EventRecorder, mf metrics.Metrics
 	}
 }
 
+//+kubebuilder:rbac:groups=core,resources=events,verbs=get;list;watch;create;update;patch;delete
+
 func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
 	log := logger.FromContext(ctx).WithName("cluster-reconciler")
 	ctx = logger.WithLogger(ctx, log)
