@@ -199,6 +199,16 @@ func TestReconcilerHandleExternalDependency(t *testing.T) {
 		mock.IsType(&rbacv1.ClusterRoleBinding{}),
 		mock.IsType([]k8sclient.CreateOption(nil)),
 	).Return(nil)
+	client.On("Get",
+		mock.IsType(ctx),
+		mock.IsType(types.NamespacedName{Name: clusterDeregisterConfigMap, Namespace: ControlPlaneNamespace}),
+		mock.IsType(&corev1.ConfigMap{}),
+	).Return(nil)
+	client.On("Delete",
+		mock.IsType(ctx),
+		mock.IsType(&corev1.ConfigMap{}),
+		mock.IsType([]k8sclient.DeleteOption{}),
+	).Return(nil)
 	client.On("Create",
 		mock.IsType(ctx),
 		mock.IsType(&corev1.ConfigMap{}),
