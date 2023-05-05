@@ -117,6 +117,12 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	if requeue {
 		return res, err
 	}
+
+	// Update registration status
+	if _, err = r.updateRegistrationStatus(ctx, cr); err != nil {
+		log.Error(err, "unable to update registration status")
+	}
+
 	// Update dashboard creds if it hasn't already (only one time event)
 	if !r.isDashboardCredsUpdated(ctx, cr) {
 		if err := r.updateDashboardCreds(ctx, cr); err != nil {
@@ -146,6 +152,18 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	}
 
 	return reconcile.Result{RequeueAfter: r.ReconcileInterval}, nil
+}
+
+func (r *Reconciler) updateRegistrationStatus(ctx context.Context, cr *hubv1alpha1.Cluster) (ctrl.Result, error) {
+	// TODO: update this status declaration when health check is implemented
+	// for CNI subnet and Node IP address.
+	if (cr.Status.RegistrationStatus == "" || cr.Status.RegistrationStatus == hubv1alpha1.RegistrationStatusPending) && len(cr.Status.CniSubnet) > 0 {
+		cr.Status.RegistrationStatus = hubv1alpha1.RegistrationStatusRegistered
+		if err := r.Status().Update(ctx, cr); err != nil {
+			return reconcile.Result{}, err
+		}
+	}
+	return reconcile.Result{}, nil
 }
 
 func (r *Reconciler) updateClusterHealthStatus(ctx context.Context, cr *hubv1alpha1.Cluster) error {
@@ -310,9 +328,6 @@ func (r *Reconciler) updateCNISubnetConfig(ctx context.Context, cr *hubv1alpha1.
 		}
 		if !reflect.DeepEqual(cr.Status.CniSubnet, cniSubnet) {
 			cr.Status.CniSubnet = cniSubnet
-			// TODO: move this status declaration to outside this function when health check is implemented
-			// for CNI subnet and Node IP address.
-			cr.Status.RegistrationStatus = hubv1alpha1.RegistrationStatusRegistered
 			toUpdate = true
 			return r.Status().Update(ctx, cr)
 		}
