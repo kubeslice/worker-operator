@@ -36,6 +36,11 @@ helm_uninstall_succeeded(){
     return $?
 }
 
+delete_dashboard_rbac(){
+    kubectl delete clusterrole kubeslice-kubernetes-dashboard
+    kubectl delete clusterrolebinding kubeslice-kubernetes-dashboard
+}
+
 run_post_uninstall_cleanup() {
     # delete crds
     delete_kubeSlice_CRDs
@@ -46,6 +51,7 @@ run_post_uninstall_cleanup() {
     # remove worker finalizer from cluster object
     remove_cluster_finalizer
     echo "🎉 Deregister successful."
+    delete_dashboard_rbac
     # delete namespace
     delete_worker_namespace
 }
@@ -85,6 +91,7 @@ run_forced_post_uninstall_cleanup(){
     # remove worker finalizer from cluster object
     remove_cluster_finalizer
     echo "🎉 Deregister successful."
+    delete_dashboard_rbac
     # delete namespace
     delete_worker_namespace
 }
