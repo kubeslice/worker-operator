@@ -189,6 +189,11 @@ func TestReconcilerHandleExternalDependency(t *testing.T) {
 		mock.IsType(types.NamespacedName{Name: operatorClusterRoleName}),
 		mock.IsType(&rbacv1.ClusterRole{}),
 	).Return(nil)
+	client.On("Get",
+		mock.IsType(ctx),
+		mock.IsType(types.NamespacedName{Name: ControlPlaneNamespace}),
+		mock.IsType(&corev1.Namespace{}),
+	).Return(nil)
 	client.On("Create",
 		mock.IsType(ctx),
 		mock.IsType(&rbacv1.ClusterRole{}),

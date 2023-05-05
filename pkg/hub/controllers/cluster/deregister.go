@@ -74,8 +74,20 @@ func (r *Reconciler) createDeregisterJob(ctx context.Context, cluster *hubv1alph
 		log.Error(err, "unable to fetch operator clusterrole")
 		return err
 	}
+	ns := &corev1.Namespace{}
+	nsRef := types.NamespacedName{
+		Name: ControlPlaneNamespace,
+	}
+	err = r.MeshClient.Get(ctx, nsRef, ns)
+	if err != nil {
+		log.Error(err, "Failed to get worker operator namespace info")
+		return err
+	}
+	// We set the namespace as the owner reference for the cluster role and cluster role binding.
+	// This ensures that when the namespace is deleted, the corresponding cluster role and cluster role binding are also deleted.
+	ownerUid := ns.UID
 	// Create a cluster role.
-	if err := r.MeshClient.Create(ctx, constructClusterRole(operatorClusterRole), &client.CreateOptions{}); err != nil {
+	if err := r.MeshClient.Create(ctx, constructClusterRole(operatorClusterRole, ownerUid), &client.CreateOptions{}); err != nil {
 		if apierrors.IsAlreadyExists(err) {
 			log.Info("cluster role already exists", "clusterrole", clusterRoleName)
 		} else {
@@ -84,7 +96,7 @@ func (r *Reconciler) createDeregisterJob(ctx context.Context, cluster *hubv1alph
 		}
 	}
 	// Bind the service account with the cluster role.
-	if err := r.MeshClient.Create(ctx, constructClusterRoleBinding(), &client.CreateOptions{}); err != nil {
+	if err := r.MeshClient.Create(ctx, constructClusterRoleBinding(ownerUid), &client.CreateOptions{}); err != nil {
 		if apierrors.IsAlreadyExists(err) {
 			log.Info("cluster rolebinding already exists", "clusterrolebinding", clusterRoleBindingName)
 		} else {
@@ -185,18 +197,24 @@ func (r *Reconciler) getOperatorClusterRole(ctx context.Context) (*rbacv1.Cluste
 	return operatorClusterRole, nil
 }
 
-func constructClusterRole(clusterRole *rbacv1.ClusterRole) *rbacv1.ClusterRole {
+func constructClusterRole(clusterRole *rbacv1.ClusterRole, ownerUid types.UID) *rbacv1.ClusterRole {
 	clusterRoleCopy := &rbacv1.ClusterRole{
 		TypeMeta:   metav1.TypeMeta{},
 		ObjectMeta: metav1.ObjectMeta{Name: clusterRoleName, Namespace: ControlPlaneNamespace},
 		Rules:      clusterRole.Rules,
 	}
-
+	ownerRef := metav1.OwnerReference{
+		APIVersion: "v1",
+		Kind:       "Namespace",
+		Name:       ControlPlaneNamespace,
+		UID:        types.UID(ownerUid),
+	}
+	clusterRoleCopy.ObjectMeta.OwnerReferences = append(clusterRoleCopy.ObjectMeta.OwnerReferences, ownerRef)
 	return clusterRoleCopy
 }
 
-func constructClusterRoleBinding() *rbacv1.ClusterRoleBinding {
-	clusterRole := &rbacv1.ClusterRoleBinding{
+func constructClusterRoleBinding(ownerUid types.UID) *rbacv1.ClusterRoleBinding {
+	clusterRoleBinding := &rbacv1.ClusterRoleBinding{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      clusterRoleBindingName,
 			Namespace: ControlPlaneNamespace,
@@ -212,7 +230,14 @@ func constructClusterRoleBinding() *rbacv1.ClusterRoleBinding {
 			Namespace: ControlPlaneNamespace,
 		}},
 	}
-	return clusterRole
+	ownerRef := metav1.OwnerReference{
+		APIVersion: "v1",
+		Kind:       "Namespace",
+		Name:       ControlPlaneNamespace,
+		UID:        types.UID(ownerUid),
+	}
+	clusterRoleBinding.ObjectMeta.OwnerReferences = append(clusterRoleBinding.ObjectMeta.OwnerReferences, ownerRef)
+	return clusterRoleBinding
 }
 
 func getCleanupScript() (string, error) {

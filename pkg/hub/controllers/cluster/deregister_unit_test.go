@@ -132,6 +132,11 @@ func TestCreateDeregisterJobPositiveScenarios(t *testing.T) {
 		mock.IsType(types.NamespacedName{Name: operatorClusterRoleName}),
 		mock.IsType(&rbacv1.ClusterRole{}),
 	).Return(nil)
+	client.On("Get",
+		mock.IsType(ctx),
+		mock.IsType(types.NamespacedName{Name: ControlPlaneNamespace}),
+		mock.IsType(&corev1.Namespace{}),
+	).Return(nil)
 	client.On("Create",
 		mock.IsType(ctx),
 		mock.IsType(&rbacv1.ClusterRole{}),
@@ -358,6 +363,11 @@ func TestReconcilerFailToCreateClusterRole(t *testing.T) {
 		mock.IsType(types.NamespacedName{Name: operatorClusterRoleName}),
 		mock.IsType(&rbacv1.ClusterRole{}),
 	).Return(nil)
+	client.On("Get",
+		mock.IsType(ctx),
+		mock.IsType(types.NamespacedName{Name: ControlPlaneNamespace}),
+		mock.IsType(&corev1.Namespace{}),
+	).Return(nil)
 	client.On("Create",
 		mock.IsType(ctx),
 		mock.IsType(&rbacv1.ClusterRole{}),
@@ -415,6 +425,11 @@ func TestReconcilerFailToCreateClusterRoleBinding(t *testing.T) {
 		mock.IsType(ctx),
 		mock.IsType(types.NamespacedName{Name: operatorClusterRoleName}),
 		mock.IsType(&rbacv1.ClusterRole{}),
+	).Return(nil)
+	client.On("Get",
+		mock.IsType(ctx),
+		mock.IsType(types.NamespacedName{Name: ControlPlaneNamespace}),
+		mock.IsType(&corev1.Namespace{}),
 	).Return(nil)
 	client.On("Create",
 		mock.IsType(ctx),
@@ -478,6 +493,11 @@ func TestReconcilerFailToCreateConfigmap(t *testing.T) {
 		mock.IsType(ctx),
 		mock.IsType(types.NamespacedName{Name: operatorClusterRoleName}),
 		mock.IsType(&rbacv1.ClusterRole{}),
+	).Return(nil)
+	client.On("Get",
+		mock.IsType(ctx),
+		mock.IsType(types.NamespacedName{Name: ControlPlaneNamespace}),
+		mock.IsType(&corev1.Namespace{}),
 	).Return(nil)
 	client.On("Create",
 		mock.IsType(ctx),
@@ -555,6 +575,11 @@ func TestReconcilerFailToDeleteJob(t *testing.T) {
 		mock.IsType(ctx),
 		mock.IsType(types.NamespacedName{Name: operatorClusterRoleName}),
 		mock.IsType(&rbacv1.ClusterRole{}),
+	).Return(nil)
+	client.On("Get",
+		mock.IsType(ctx),
+		mock.IsType(types.NamespacedName{Name: ControlPlaneNamespace}),
+		mock.IsType(&corev1.Namespace{}),
 	).Return(nil)
 	client.On("Create",
 		mock.IsType(ctx),
@@ -644,6 +669,11 @@ func TestReconcilerFailToCreateDeregisterJob(t *testing.T) {
 		mock.IsType(types.NamespacedName{Name: operatorClusterRoleName}),
 		mock.IsType(&rbacv1.ClusterRole{}),
 	).Return(nil)
+	client.On("Get",
+		mock.IsType(ctx),
+		mock.IsType(types.NamespacedName{Name: ControlPlaneNamespace}),
+		mock.IsType(&corev1.Namespace{}),
+	).Return(nil)
 	client.On("Create",
 		mock.IsType(ctx),
 		mock.IsType(&rbacv1.ClusterRole{}),
@@ -712,7 +742,7 @@ func TestConstructServiceAccount(t *testing.T) {
 }
 
 func TestConstructClusterRole(t *testing.T) {
-	cr := constructClusterRole(testOperatorClusterRole)
+	cr := constructClusterRole(testOperatorClusterRole, "random-uid")
 	isEqual := reflect.DeepEqual(cr.Rules, testOperatorClusterRole.Rules)
 	if !isEqual {
 		t.Fatalf("got invalid data in clusterrole Rules: got -- %q want -- %q", &cr.Rules[0], &testOperatorClusterRole.Rules[0])
@@ -720,7 +750,7 @@ func TestConstructClusterRole(t *testing.T) {
 }
 
 func TestConstructClusterRoleBinding(t *testing.T) {
-	crb := constructClusterRoleBinding()
+	crb := constructClusterRoleBinding("random-uid")
 	AssertEqual(t, crb.Name, clusterRoleBindingName)
 	AssertEqual(t, crb.RoleRef, testClusterRoleRef)
 	AssertEqual(t, len(crb.Subjects), 1)

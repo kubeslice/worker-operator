@@ -62,6 +62,8 @@ func NewEventRecorder(c client.Writer, s *runtime.Scheme, em map[EventName]*Even
 }
 
 var _ EventRecorder = (*eventRecorder)(nil)
+
+type EventRecorderOptions struct {
 	// Version is the version of the component
 	Cluster string
 	// Project is the name of the project
