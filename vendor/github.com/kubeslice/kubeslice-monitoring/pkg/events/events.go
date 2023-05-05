@@ -19,6 +19,7 @@
 package events
 
 import (
+	b64 "encoding/base64"
 	"fmt"
 	"strings"
 	"sync"
@@ -56,11 +57,12 @@ func NewEventRecorder(c client.Writer, s *runtime.Scheme, em map[EventName]*Even
 		EventsMap: em,
 		Options:   o,
 		Logger:    log,
-		cache: lru.New(4096),
+		cache:     lru.New(4096),
 	}
 }
 
 var _ EventRecorder = (*eventRecorder)(nil)
+
 type EventRecorderOptions struct {
 	// Version is the version of the component
 	Version string
@@ -89,24 +91,28 @@ type Event struct {
 
 // getEventKey builds unique event key based on source, involvedObject, reason, message
 func GetEventKey(event *corev1.Event) string {
-	return strings.Join([]string{
-		event.Source.Component,
-		event.Source.Host,
-		event.InvolvedObject.Kind,
-		event.InvolvedObject.Namespace,
-		event.InvolvedObject.Name,
-		event.InvolvedObject.FieldPath,
-		string(event.InvolvedObject.UID),
-		event.InvolvedObject.APIVersion,
-		event.Type,
-		event.Reason,
-		event.Message,
-		event.Labels["sliceName"],
-		event.Labels["sliceCluster"],
-		event.Labels["sliceProject"],
-		event.Labels["eventTitle"],
-	},
-		"")
+	return b64.StdEncoding.EncodeToString(
+		[]byte(
+			strings.Join([]string{
+				event.Source.Component,
+				event.Source.Host,
+				event.InvolvedObject.Kind,
+				event.InvolvedObject.Namespace,
+				event.InvolvedObject.Name,
+				event.InvolvedObject.FieldPath,
+				string(event.InvolvedObject.UID),
+				event.InvolvedObject.APIVersion,
+				event.Type,
+				event.Reason,
+				event.Message,
+				event.Labels["sliceName"],
+				event.Labels["sliceCluster"],
+				event.Labels["sliceProject"],
+				event.Labels["eventTitle"],
+			},
+				""),
+		),
+	)
 }
 
 type eventRecorder struct {
@@ -115,8 +121,8 @@ type eventRecorder struct {
 	Scheme    *runtime.Scheme
 	EventsMap map[EventName]*EventSchema
 	Options   EventRecorderOptions
-	cache     *lru.Cache // cache of last seen events
-	cacheLock sync.RWMutex             // mutex to synchronize access to cache
+	cache     *lru.Cache   // cache of last seen events
+	cacheLock sync.RWMutex // mutex to synchronize access to cache
 }
 
 func (er *eventRecorder) Copy() *eventRecorder {
@@ -125,6 +131,7 @@ func (er *eventRecorder) Copy() *eventRecorder {
 		Logger:    er.Logger,
 		Scheme:    er.Scheme,
 		EventsMap: er.EventsMap,
+		cache:     er.cache,
 		Options: EventRecorderOptions{
 			Version:   er.Options.Version,
 			Cluster:   er.Options.Cluster,
@@ -229,17 +236,19 @@ func (er *eventRecorder) RecordEvent(ctx context.Context, e *Event) error {
 		er.cache = lru.New(4096)
 	}
 	key := GetEventKey(ev)
+	er.Logger.Debugf("event key %s", key)
 	er.cacheLock.Lock()
 	defer er.cacheLock.Unlock()
-	lastSeenEvent,ok := er.cache.Get(key)
-	if !ok{
+	lastSeenEvent, ok := er.cache.Get(key)
+	if !ok {
 		ev.FirstTimestamp = t
 		if err := er.Client.Create(ctx, ev); err != nil {
 			er.Logger.With("error", err, "event", ev).Error("Unable to create event")
 			return err
 		} else {
-			er.cache.Add(key,ev)
+			er.cache.Add(key, ev)
 		}
+		er.Logger.Infof("event has been created %v", ev)
 	} else {
 		// event already present in cache
 		e := lastSeenEvent.(*corev1.Event)
@@ -250,7 +259,8 @@ func (er *eventRecorder) RecordEvent(ctx context.Context, e *Event) error {
 			return err
 		}
 		// update the cache
-		er.cache.Add(key,e)
+		er.cache.Add(key, e)
+		er.Logger.Infof("event has been updated %v", ev)
 	}
 	return nil
 }

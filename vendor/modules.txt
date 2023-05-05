@@ -124,7 +124,7 @@ github.com/kubeslice/gateway-sidecar/pkg/metrics
 github.com/kubeslice/gateway-sidecar/pkg/nettools
 github.com/kubeslice/gateway-sidecar/pkg/sidecar/sidecarpb
 github.com/kubeslice/gateway-sidecar/pkg/status
-# github.com/kubeslice/kubeslice-monitoring v0.1.8
+# github.com/kubeslice/kubeslice-monitoring v0.1.10
 ## explicit; go 1.19
 github.com/kubeslice/kubeslice-monitoring/pkg/events
 github.com/kubeslice/kubeslice-monitoring/pkg/logger
