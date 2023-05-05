@@ -165,6 +165,8 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 	if err != nil {
 		log.Error(err, "Failed to sync QoS profile with netop pods")
 		utils.RecordEvent(ctx, r.EventRecorder, slice, nil, ossEvents.EventSliceQoSProfileWithNetOpsSync, controllerName)
+	} else {
+		utils.RecordEvent(ctx, r.EventRecorder, slice, nil, ossEvents.EventSliceUpdated, controllerName)
 	}
 
 	log.Info("ExternalGatewayConfig", "egw", slice.Status.SliceConfig)
@@ -266,6 +268,7 @@ func (r *SliceReconciler) handleAppPodStatusChange(appPods []kubeslicev1beta1.Ap
 		return ctrl.Result{}, err
 	}
 	log.Info("App pod status updated in slice")
+	utils.RecordEvent(ctx, r.EventRecorder, slice, nil, ossEvents.EventSliceUpdated, controllerName)
 
 	return ctrl.Result{Requeue: true}, nil
 }

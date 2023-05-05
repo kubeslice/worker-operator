@@ -24,7 +24,9 @@ import (
 
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
 	"github.com/kubeslice/worker-operator/controllers"
+	ossEvents "github.com/kubeslice/worker-operator/events"
 	"github.com/kubeslice/worker-operator/pkg/logger"
+	"github.com/kubeslice/worker-operator/pkg/utils"
 	webhook "github.com/kubeslice/worker-operator/pkg/webhook/pod"
 
 	corev1 "k8s.io/api/core/v1"
@@ -167,6 +169,7 @@ func (r *SliceReconciler) updateSliceAppPodStatus(ctx context.Context, pod *kube
 		return ctrl.Result{}, err, true
 	}
 	debugLog.Info("App pod status updated and nsmip peerip set to null")
+	utils.RecordEvent(ctx, r.EventRecorder, slice, nil, ossEvents.EventSliceUpdated, controllerName)
 	return ctrl.Result{}, nil, true
 }
 
@@ -195,5 +198,6 @@ func (r *SliceReconciler) labelAppPodWithNsmIp(ctx context.Context, pod *kubesli
 		return ctrl.Result{}, err, true
 	}
 	log.Info("App pod status updated")
+	utils.RecordEvent(ctx, r.EventRecorder, slice, nil, ossEvents.EventSliceUpdated, controllerName)
 	return ctrl.Result{}, nil, true
 }
