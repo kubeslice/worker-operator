@@ -490,16 +490,16 @@ func (r *Reconciler) handleClusterDeletion(cluster *hubv1alpha1.Cluster, ctx con
 		}
 	} else {
 		// The object is being deleted
-		if controllerutil.ContainsFinalizer(cluster, clusterDeregisterFinalizer) && !cluster.Status.IsDeregisterInProgress && retryAttempts <= MAX_CLUSTER_DEREGISTRATION_ATTEMPTS {
+		if controllerutil.ContainsFinalizer(cluster, clusterDeregisterFinalizer) &&
+			cluster.Status.RegistrationStatus != hubv1alpha1.RegistrationStatusDeregisterInProgress &&
+			retryAttempts < MAX_CLUSTER_DEREGISTRATION_ATTEMPTS {
 			// our finalizer is present, so lets handle any external dependency
 			if err := r.createDeregisterJob(ctx, cluster); err != nil {
 				// unable to deregister the worker operator, return with an error and raise event
 				log.Error(err, "unable to deregister the worker operator")
 				// increment count for retryAttempts
 				retryAttempts++
-				// resetting isDeregisterInProgress to false
-				isDeregisterInProgress := false
-				statusUpdateErr := r.updateRegistrationStatusAndDeregisterInProgress(ctx, cluster, hubv1alpha1.RegistrationStatusDeregisterFailed, &isDeregisterInProgress)
+				statusUpdateErr := r.updateRegistrationStatusAndDeregisterInProgress(ctx, cluster, hubv1alpha1.RegistrationStatusDeregisterFailed)
 				if statusUpdateErr != nil {
 					log.Error(statusUpdateErr, "unable to update registration status")
 				}
