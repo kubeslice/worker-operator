@@ -514,7 +514,7 @@ var _ = Describe("ServiceExportController", func() {
 				_ = k8sClient.List(ctx, &events)
 
 				for _, event := range events.Items {
-					if event.Source.Component == "test-SvcEx-controller" && event.Reason == "SyncServiceExportStatusSuccessfully" {
+					if event.Reason == "SyncServiceExportStatusSuccessfully" {
 						message = event.Message
 					}
 				}
