@@ -169,8 +169,20 @@ func (r *Reconciler) updateRegistrationStatus(ctx context.Context, cluster *hubv
 		if err != nil {
 			return err
 		}
-		cluster.Status.RegistrationStatus = status
-		return r.Status().Update(ctx, cluster)
+		if status == hubv1alpha1.RegistrationStatusRegistered {
+			// TODO: update this status declaration when health check is implemented
+			// for CNI subnet and Node IP address.
+			if (cluster.Status.RegistrationStatus == "" || cluster.Status.RegistrationStatus == hubv1alpha1.RegistrationStatusPending) &&
+				len(cluster.Status.CniSubnet) > 0 {
+				// we mark registered only when status is empty or in pending state and cluster has CNI Subnet
+				cluster.Status.RegistrationStatus = status
+				return r.Status().Update(ctx, cluster)
+			}
+			return nil
+		} else {
+			cluster.Status.RegistrationStatus = status
+			return r.Status().Update(ctx, cluster)
+		}
 	})
 	if err != nil {
 		return err
