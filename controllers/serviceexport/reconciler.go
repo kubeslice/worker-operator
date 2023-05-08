@@ -60,7 +60,7 @@ type HubClientProvider interface {
 }
 
 var finalizerName = "networking.kubeslice.io/serviceexport-finalizer"
-var controllerName = "serviceexport_controller"
+var controllerName = "serviceExportController"
 
 // +kubebuilder:rbac:groups=networking.kubeslice.io,resources=serviceexports,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=networking.kubeslice.io,resources=serviceexports/status,verbs=get;update;patch

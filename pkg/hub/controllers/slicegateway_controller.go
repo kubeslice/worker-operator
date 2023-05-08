@@ -47,7 +47,7 @@ type SliceGwReconciler struct {
 	ClusterName   string
 }
 
-var slicegw_controller = "workerslicegw_controller"
+var sliceGWController = "workersliceGWController"
 
 func (r *SliceGwReconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
 	log := logger.FromContext(ctx)
@@ -82,10 +82,10 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req reconcile.Request
 
 	err = r.createSliceGwOnSpoke(ctx, sliceGw, meshSliceGw)
 	if err != nil {
-		utils.RecordEvent(ctx, r.EventRecorder, sliceGw, nil, ossEvents.EventSliceGWCreateFailed, slicegw_controller)
+		utils.RecordEvent(ctx, r.EventRecorder, sliceGw, nil, ossEvents.EventSliceGWCreateFailed, sliceGWController)
 		return reconcile.Result{}, err
 	} else {
-		utils.RecordEvent(ctx, r.EventRecorder, sliceGw, nil, ossEvents.EventSliceGWCreated, slicegw_controller)
+		utils.RecordEvent(ctx, r.EventRecorder, sliceGw, nil, ossEvents.EventSliceGWCreated, sliceGWController)
 	}
 	err = retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		sliceGwRef := client.ObjectKey{
@@ -112,11 +112,11 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req reconcile.Request
 		}
 		err = r.MeshClient.Status().Update(ctx, meshSliceGw)
 		if err != nil {
-			utils.RecordEvent(ctx, r.EventRecorder, sliceGw, nil, ossEvents.EventSliceGWUpdateFailed, slicegw_controller)
+			utils.RecordEvent(ctx, r.EventRecorder, sliceGw, nil, ossEvents.EventSliceGWUpdateFailed, sliceGWController)
 			log.Error(err, "unable to update sliceGw status in spoke cluster", "sliceGw", sliceGwName)
 			return err
 		} else {
-			utils.RecordEvent(ctx, r.EventRecorder, sliceGw, nil, ossEvents.EventSliceGWUpdated, slicegw_controller)
+			utils.RecordEvent(ctx, r.EventRecorder, sliceGw, nil, ossEvents.EventSliceGWUpdated, sliceGWController)
 		}
 		return nil
 	})

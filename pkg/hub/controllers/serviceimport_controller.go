@@ -44,7 +44,7 @@ type ServiceImportReconciler struct {
 }
 
 var svcimFinalizer = "controller.kubeslice.io/hubWorkerServiceImport-finalizer"
-var svcim_controllerName = "serviceimport_reconciler"
+var svcimControllerName = "serviceImportReconciler"
 
 func getProtocol(protocol string) corev1.Protocol {
 	switch protocol {
@@ -156,17 +156,17 @@ func (r *ServiceImportReconciler) Reconcile(ctx context.Context, req reconcile.R
 	if err != nil {
 		log.Error(err, "unable to update service import in spoke cluster", "serviceimport", svcim.Name)
 		//post event to service import created on spoke
-		utils.RecordEvent(ctx, r.EventRecorder, meshSvcIm, nil, ossEvents.EventSliceServiceImportUpdateFailed, svcim_controllerName)
+		utils.RecordEvent(ctx, r.EventRecorder, meshSvcIm, nil, ossEvents.EventSliceServiceImportUpdateFailed, svcimControllerName)
 		return reconcile.Result{}, err
 	}
 	meshSvcIm.Status.Endpoints = getMeshServiceImportEpList(svcim)
 	err = r.MeshClient.Status().Update(ctx, meshSvcIm)
 	if err != nil {
 		log.Error(err, "unable to update service import in spoke cluster", "serviceimport", svcim.Name)
-		utils.RecordEvent(ctx, r.EventRecorder, meshSvcIm, nil, ossEvents.EventSliceServiceImportUpdateFailed, svcim_controllerName)
+		utils.RecordEvent(ctx, r.EventRecorder, meshSvcIm, nil, ossEvents.EventSliceServiceImportUpdateFailed, svcimControllerName)
 		return reconcile.Result{}, err
 	}
-	utils.RecordEvent(ctx, r.EventRecorder, meshSvcIm, nil, ossEvents.EventSliceServiceImportUpdated, svcim_controllerName)
+	utils.RecordEvent(ctx, r.EventRecorder, meshSvcIm, nil, ossEvents.EventSliceServiceImportUpdated, svcimControllerName)
 
 	return reconcile.Result{}, nil
 }
@@ -185,11 +185,11 @@ func (r *ServiceImportReconciler) getMeshServiceImport(ctx context.Context, svci
 			if err != nil {
 				log.Error(err, "unable to create service import in spoke cluster", "serviceimport", svcim.Name)
 				//post event to spokeserviceimport
-				utils.RecordEvent(ctx, r.EventRecorder, svcim, nil, ossEvents.EventWorkerServiceImportCreateFailed, svcim_controllerName)
+				utils.RecordEvent(ctx, r.EventRecorder, svcim, nil, ossEvents.EventWorkerServiceImportCreateFailed, svcimControllerName)
 				return nil, err
 			}
 			//post event to spokeserviceimport
-			utils.RecordEvent(ctx, r.EventRecorder, svcim, nil, ossEvents.EventWorkerServiceImportCreated, svcim_controllerName)
+			utils.RecordEvent(ctx, r.EventRecorder, svcim, nil, ossEvents.EventWorkerServiceImportCreated, svcimControllerName)
 
 			meshSvcIm.Status.Endpoints = getMeshServiceImportEpList(svcim)
 			err = r.MeshClient.Status().Update(ctx, meshSvcIm)

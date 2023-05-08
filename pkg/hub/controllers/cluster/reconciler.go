@@ -31,7 +31,7 @@ const (
 	GCP            string = "gcp"
 	AWS            string = "aws"
 	AZURE          string = "azure"
-	controllerName string = "cluster_reconciler"
+	controllerName string = "clusterReconciler"
 )
 
 type Reconciler struct {

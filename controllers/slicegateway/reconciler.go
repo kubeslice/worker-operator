@@ -51,7 +51,7 @@ import (
 )
 
 var sliceGwFinalizer = "networking.kubeslice.io/slicegw-finalizer"
-var controllerName = "sliceGW_controller"
+var controllerName = "sliceGWController"
 
 // SliceReconciler reconciles a Slice object
 type SliceGwReconciler struct {

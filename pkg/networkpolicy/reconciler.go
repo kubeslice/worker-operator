@@ -50,7 +50,7 @@ type NetpolReconciler struct {
 	privateIPBlocks []*net.IPNet
 }
 
-var netpol_controllerName = "netpolreconciler"
+var netpolControllerName = "netpolReconciler"
 
 func (r *NetpolReconciler) initPrivateIPBlocks() error {
 	for _, cidr := range []string{
@@ -142,7 +142,7 @@ func (r *NetpolReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 
 	//extra network policy being added , compare and raise an event
 	clusterName := os.Getenv("CLUSTER_NAME")
-	utils.RecordEvent(ctx, r.EventRecorder, slice, nil, ossEvents.EventNetPolAdded, netpol_controllerName)
+	utils.RecordEvent(ctx, r.EventRecorder, slice, nil, ossEvents.EventNetPolAdded, netpolControllerName)
 	log.Info(fmt.Sprintf("added network policy(%s) in slice(%s/%s) of cluster(%s)", netpol.Name, netpol.Namespace, slice.Name, clusterName))
 
 	return r.Compare(&netpol, slice)
@@ -180,7 +180,7 @@ func (c *NetpolReconciler) Compare(np *networkingv1.NetworkPolicy, slice *kubesl
 						if !Contains(&ApplicationNamespaces, item.Name) && !Contains(&AllowedNamespaces, item.Name) {
 							clusterName := os.Getenv("CLUSTER_NAME")
 							// Record net pol modified event
-							utils.RecordEvent(context.Background(), c.EventRecorder, slice, nil, ossEvents.EventNetPolScopeWidenedNamespace, netpol_controllerName)
+							utils.RecordEvent(context.Background(), c.EventRecorder, slice, nil, ossEvents.EventNetPolScopeWidenedNamespace, netpolControllerName)
 							c.Log.Info(fmt.Sprintf("widened scope with network policy(%s) in slice(%s/%s) of cluster(%s)",
 								np.Name,
 								slice.Namespace,
@@ -196,7 +196,7 @@ func (c *NetpolReconciler) Compare(np *networkingv1.NetworkPolicy, slice *kubesl
 					if c.isPrivateIP(netpolNet.IP) {
 						clusterName := os.Getenv("CLUSTER_NAME")
 						// Record net pol modified event
-						utils.RecordEvent(context.Background(), c.EventRecorder, slice, nil, ossEvents.EventNetPolScopeWidenedIPBlock, netpol_controllerName)
+						utils.RecordEvent(context.Background(), c.EventRecorder, slice, nil, ossEvents.EventNetPolScopeWidenedIPBlock, netpolControllerName)
 
 						c.Log.Info(fmt.Sprintf("widened scope with network policy(%s) in slice(%s/%s) of cluster("+
 							"%s) : Reason(IPBlock violation)",

@@ -125,7 +125,7 @@ type SliceReconciler struct {
 }
 
 var sliceFinalizer = "controller.kubeslice.io/hubSpokeSlice-finalizer"
-var slice_controllerName string = "workerslice_controller"
+var sliceControllerName string = "workerSliceController"
 
 func (r *SliceReconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
 	log := r.Log.WithValues("sliceconfig", req.NamespacedName)
@@ -175,20 +175,20 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req reconcile.Request) 
 			err = r.MeshClient.Create(ctx, s)
 			if err != nil {
 				log.Error(err, "unable to create slice in spoke cluster", "slice", s)
-				utils.RecordEvent(ctx, r.EventRecorder, slice, nil, ossEvents.EventSliceCreationFailed, slice_controllerName)
+				utils.RecordEvent(ctx, r.EventRecorder, slice, nil, ossEvents.EventSliceCreationFailed, sliceControllerName)
 				r.counterSliceCreationFailed.WithLabelValues(s.Name).Add(1)
 				return reconcile.Result{}, err
 			}
 			log.Info("slice created in spoke cluster")
 			r.counterSliceCreated.WithLabelValues(s.Name).Add(1)
-			utils.RecordEvent(ctx, r.EventRecorder, slice, nil, ossEvents.EventSliceCreated, slice_controllerName)
+			utils.RecordEvent(ctx, r.EventRecorder, slice, nil, ossEvents.EventSliceCreated, sliceControllerName)
 			err = r.updateSliceConfig(ctx, s, slice)
 			if err != nil {
 				log.Error(err, "unable to update slice status in spoke cluster", "slice", s)
 				return reconcile.Result{}, err
 			}
 			log.Info("slice status updated in spoke cluster")
-			utils.RecordEvent(ctx, r.EventRecorder, slice, nil, ossEvents.EventWorkerSliceConfigUpdated, slice_controllerName)
+			utils.RecordEvent(ctx, r.EventRecorder, slice, nil, ossEvents.EventWorkerSliceConfigUpdated, sliceControllerName)
 			return reconcile.Result{RequeueAfter: r.ReconcileInterval}, nil
 		}
 		r.counterSliceUpdationFailed.WithLabelValues(slice.Name).Add(1)
@@ -213,11 +213,11 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req reconcile.Request) 
 	slice.Status.SliceHealth.LastUpdated = metav1.Now()
 	if err := r.Status().Update(ctx, slice); err != nil {
 		log.Error(err, "unable to update slice CR")
-		utils.RecordEvent(ctx, r.EventRecorder, slice, nil, ossEvents.EventWorkerSliceHealthUpdateFailed, slice_controllerName)
+		utils.RecordEvent(ctx, r.EventRecorder, slice, nil, ossEvents.EventWorkerSliceHealthUpdateFailed, sliceControllerName)
 		r.counterSliceUpdationFailed.WithLabelValues(slice.Name).Add(1)
 		return reconcile.Result{}, err
 	} else {
-		utils.RecordEvent(ctx, r.EventRecorder, slice, nil, ossEvents.EventWorkerSliceHealthUpdated, slice_controllerName)
+		utils.RecordEvent(ctx, r.EventRecorder, slice, nil, ossEvents.EventWorkerSliceHealthUpdated, sliceControllerName)
 		log.Info("succesfully updated the slice CR ", "slice CR ", slice)
 	}
 	r.counterSliceUpdated.WithLabelValues(slice.Name).Add(1)

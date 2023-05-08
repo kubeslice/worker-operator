@@ -50,7 +50,7 @@ type Reconciler struct {
 }
 
 var finalizerName = "networking.kubeslice.io/serviceimport-finalizer"
-var controllerName = "serviceimport_controller"
+var controllerName = "serviceImportController"
 
 // +kubebuilder:rbac:groups=networking.kubeslice.io,resources=serviceimports,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=networking.kubeslice.io,resources=serviceimports/status,verbs=get;update;patch

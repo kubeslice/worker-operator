@@ -33,7 +33,7 @@ const (
 	verify_new_deployment_created string = "verify_new_deployment_created"
 	update_routing_table          string = "update_routing_table"
 	delete_old_gw_pods            string = "delete_old_gw_pods"
-	controllerName                string = "workerslicegwrecycler-controller"
+	controllerName                string = "workerSliceGWRecyclerController"
 )
 
 type Reconciler struct {

@@ -115,7 +115,7 @@ func main() {
 		Scheme:    mgr.GetScheme(),
 		Logger:    logger.NewLogger(),
 		Cluster:   os.Getenv("CLUSTER_NAME"),
-		Component: "worker-operator",
+		Component: "workerOperator",
 	}
 
 	// Use an environment variable to be able to disable webhooks, so that we can run the operator locally
@@ -167,7 +167,7 @@ func main() {
 	mf, err := metrics.NewMetricsFactory(ctrlmetrics.Registry, metrics.MetricsFactoryOptions{
 		Cluster:             controllers.ClusterName,
 		Project:             strings.TrimPrefix(hub.ProjectNamespace, "kubeslice_"),
-		ReportingController: "worker-operator",
+		ReportingController: "workerOperator",
 	})
 	if err != nil {
 		setupLog.With("error", err).Error("unable to initializ metrics factory")
@@ -179,7 +179,7 @@ func main() {
 		Slice:     utils.NotApplicable,
 		Cluster:   controllers.ClusterName,
 		Project:   hub.ProjectNamespace,
-		Component: "slice-controller",
+		Component: "sliceController",
 		Namespace: controllers.ControlPlaneNamespace,
 	})
 	if err = (&slice.SliceReconciler{
@@ -195,14 +195,6 @@ func main() {
 		os.Exit(1)
 	}
 
-	// sliceGwEventRecorder := monitoringEvents.NewEventRecorder(mgr.GetClient(), scheme, ossEvents.EventsMap, monitoringEvents.EventRecorderOptions{
-	// 	Version:   utils.EventsVersion,
-	// 	Slice:     utils.NotApplicable,
-	// 	Cluster:   controllers.ClusterName,
-	// 	Project:   hub.ProjectNamespace,
-	// 	Component: "sliceGw-controller",
-	// 	Namespace: controllers.ControlPlaneNamespace,
-	// })
 	workerGWClient, err := sidecar.NewWorkerGWSidecarClientProvider()
 	if err != nil {
 		setupLog.With("error", err).Error("could not create spoke sidecar gateway client for slice gateway reconciler")
@@ -223,14 +215,6 @@ func main() {
 		os.Exit(1)
 	}
 
-	// serviceExportEventRecorder := monitoringEvents.NewEventRecorder(mgr.GetClient(), scheme, ossEvents.EventsMap, monitoringEvents.EventRecorderOptions{
-	// 	Version:   utils.EventsVersion,
-	// 	Slice:     utils.NotApplicable,
-	// 	Cluster:   controllers.ClusterName,
-	// 	Project:   hub.ProjectNamespace,
-	// 	Component: "serviceExport-controller",
-	// 	Namespace: controllers.ControlPlaneNamespace,
-	// })
 	if err = (&serviceexport.Reconciler{
 		Client:        mgr.GetClient(),
 		Log:           ctrl.Log.WithName("controllers").WithName("ServiceExport"),
@@ -242,14 +226,6 @@ func main() {
 		os.Exit(1)
 	}
 
-	// serviceImportEventRecorder := monitoringEvents.NewEventRecorder(mgr.GetClient(), scheme, ossEvents.EventsMap, monitoringEvents.EventRecorderOptions{
-	// 	Cluster:   controllers.ClusterName,
-	// 	Project:   hub.ProjectNamespace,
-	// 	Component: "serviceImport-controller",
-	// 	Namespace: controllers.ControlPlaneNamespace,
-	// 	Version:   utils.EventsVersion,
-	// 	Slice:     utils.NotApplicable,
-	// })
 	if err = (&serviceimport.Reconciler{
 		Client:        mgr.GetClient(),
 		Log:           ctrl.Log.WithName("controllers").WithName("ServiceImport"),
@@ -260,14 +236,6 @@ func main() {
 		os.Exit(1)
 	}
 
-	// namespaceEventRecorder := monitoringEvents.NewEventRecorder(mgr.GetClient(), scheme, ossEvents.EventsMap, monitoringEvents.EventRecorderOptions{
-	// 	Cluster:   controllers.ClusterName,
-	// 	Project:   hub.ProjectNamespace,
-	// 	Component: "namespace-controller",
-	// 	Namespace: controllers.ControlPlaneNamespace,
-	// 	Version:   utils.EventsVersion,
-	// 	Slice:     utils.NotApplicable,
-	// })
 	if err = (&namespacecontroller.Reconciler{
 		Client:        mgr.GetClient(),
 		Log:           ctrl.Log.WithName("controllers").WithName("namespace"),
@@ -278,14 +246,6 @@ func main() {
 		setupLog.With("error", err, "controller", "namespace").Error("unable to create controller")
 		os.Exit(1)
 	}
-	// netpolEventRecorder := monitoringEvents.NewEventRecorder(mgr.GetClient(), mgr.GetScheme(), ossEvents.EventsMap, monitoringEvents.EventRecorderOptions{
-	// 	Cluster:   controllers.ClusterName,
-	// 	Project:   hub.ProjectNamespace,
-	// 	Component: "networkpolicy-controller",
-	// 	Namespace: controllers.ControlPlaneNamespace,
-	// 	Version:   utils.EventsVersion,
-	// 	Slice:     utils.NotApplicable,
-	// })
 	if err = (&networkpolicy.NetpolReconciler{
 		Client:        mgr.GetClient(),
 		Log:           ctrl.Log.WithName("controllers").WithName("networkpolicy"),

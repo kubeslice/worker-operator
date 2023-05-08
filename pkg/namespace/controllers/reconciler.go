@@ -51,7 +51,7 @@ type Reconciler struct {
 var excludedNs = []string{"kube-system", "default", "kubeslice-system", "kube-node-lease",
 	"kube-public", "istio-system"}
 
-var controllerName string = "namespace_reconciler"
+var controllerName string = "namespaceReconciler"
 
 func (c *Reconciler) getSliceNameFromNs(ns string) (string, error) {
 	namespace := corev1.Namespace{}

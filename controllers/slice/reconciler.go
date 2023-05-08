@@ -48,7 +48,7 @@ import (
 )
 
 var sliceFinalizer = "networking.kubeslice.io/slice-finalizer"
-var controllerName = "slice_reconciler"
+var controllerName = "sliceReconciler"
 
 // SliceReconciler reconciles a Slice object
 type SliceReconciler struct {
