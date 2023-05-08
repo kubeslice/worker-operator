@@ -126,8 +126,8 @@ var _ = Describe("Hub SliceController", func() {
 			}, time.Second*10, time.Millisecond*250).Should(BeTrue())
 
 			for _, event := range events.Items {
-				if event.Source.Component == "test-slice-controller" && event.InvolvedObject.Kind == "WorkerSliceConfig" {
-					Expect(event.Message).To(Equal("Created slice on spoke cluster , slice " + event.InvolvedObject.Name + " cluster "))
+				if event.Source.Component == "test-slice-controller" && event.Action == "CreatedSlice" {
+					Expect(event.Message).To(Equal("Slice created successfully"))
 				}
 			}
 		})

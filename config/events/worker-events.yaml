@@ -29,3 +29,441 @@ events:
     type: Warning
     reportingController: worker
     message: Auto-detection of cluster node IP addresses failed
+  - name: SliceCreated
+    reason: SliceCreated
+    action: CreateSlice
+    type: Normal
+    reportingController: worker
+    message: Slice created successfully
+  - name: SliceDeleted
+    reason: SliceDeleted
+    action: DeleteSlice
+    type: Warning
+    reportingController: worker
+    message: Slice deleted successfully
+  - name: SliceUpdated
+    reason: SliceUpdated
+    action: UpdateSlice
+    type: Normal
+    reportingController: worker
+    message: Slice updated successfully
+  - name: SliceCreationFailed
+    reason: SliceCreationFailed
+    action: CreateSlice
+    type: Warning
+    reportingController: worker
+    message: Slice creation failed, please check the slice configuration.
+  - name: SliceDeletionFailed
+    reason: SliceDeletionFailed
+    action: DeleteSlice
+    type: Warning
+    reportingController: worker
+    message: Slice deletion failed, please check the slice status
+  - name: SliceUpdateFailed
+    reason: SliceUpdateFailed
+    action: UpdateSlice
+    type: Warning
+    reportingController: worker
+    message: Slice update failed
+  - name: SliceQoSProfileWithNetOpsSync
+    reason: SliceQoSProfileWithNetOpsSyncFailed
+    action: ReconcileSlice
+    type: Warning
+    reportingController: worker
+    message: Slice QoS Sync with NetOp failed - please ask admin to check the Slice QoS Profile
+  - name: SliceIngressInstallFailed
+    reason: SliceIngressInstallFailed
+    action: ReconcileSlice
+    type: Warning
+    reportingController: worker
+    message: slice ingress installation failed
+  - name: SliceEgressInstallFailed
+    reason: SliceEgressInstallFailed
+    action: ReconcileSlice
+    type: Warning
+    reportingController: worker
+    message: slice egress installation failed
+  - name: SliceAppPodsListUpdateFailed
+    reason: SliceAppPodsListUpdateFailed
+    action: ReconcileSlice
+    type: Warning
+    reportingController: worker
+    message: slice app pods list is not updated - please ask admin to check slice configuration.
+  - name: SliceRouterDeploymentFailed
+    reason: SliceRouterDeploymentFailed
+    action: ReconcileSlice
+    type: Warning
+    reportingController: worker
+    message: slice Router Deployment failed.
+  - name: SliceRouterServiceFailed
+    reason: SliceRouterServiceFailed
+    action: ReconcileSlice
+    type: Warning
+    reportingController: worker
+    message: Failed to create Service for slice router.
+  - name: WorkerSliceConfigUpdated
+    reason: WorkerSliceConfigUpdated
+    action: ReconcileWorkerSliceConfig
+    type: Normal
+    reportingController: worker
+    message: WorkerSliceConfig updated.
+  - name: WorkerSliceHealthUpdated
+    reason: WorkerSliceHealthUpdated
+    action: ReconcileWorkerSliceConfig
+    type: Normal
+    reportingController: worker
+    message: WorkerSliceHealth updated.
+  - name: WorkerSliceHealthUpdateFailed
+    reason: WorkerSliceHealthUpdateFailed
+    action: ReconcileWorkerSliceConfig
+    type: Warning
+    reportingController: worker
+    message: WorkerSliceHealth update failed.
+  - name: SliceGWCreated
+    reason: SliceGWCreated
+    action: CreateSliceGW
+    type: Normal
+    reportingController: worker
+    message: Slice GateWay created.
+  - name: SliceGWDeleted
+    reason: SliceGWDeleted
+    action: DeleteSliceGW
+    type: Warning
+    reportingController: worker
+    message: Slice GateWay deleted.
+  - name: SliceGWUpdated
+    reason: SliceGWUpdated
+    action: UpdateSliceGW
+    type: Normal
+    reportingController: worker
+    message: Slice GateWay updated.
+  - name: SliceGWCreateFailed
+    reason: SliceGWCreateFailed
+    action: CreateSliceGW
+    type: Warning
+    reportingController: worker
+    message: Slice GateWay creation failed.
+  - name: SliceGWDeleteFailed
+    reason: SliceGWDeleteFailed
+    action: DeleteSliceGW
+    type: Warning
+    reportingController: worker
+    message: Slice GateWay delete failed.
+  - name: SliceGWUpdateFailed
+    reason: SliceGWUpdateFailed
+    action: UpdateSliceGW
+    type: Warning
+    reportingController: worker
+    message: Slice GateWay update failed.
+  - name: SliceGWPodReconcileFailed
+    reason: SliceGWPodReconcileFailed
+    action: ReconcileSliceGWPod
+    type: Warning
+    reportingController: worker
+    message: Slice GateWay pod reconcilation failed.
+  - name: SliceGWConnectionContextFailed
+    reason: SliceGWConnectionContextFailed
+    action: ReconcileSliceGWPod
+    type: Warning
+    reportingController: worker
+    message: Failed to update the connection context on slice GateWay pods.
+  - name: SliceRouterConnectionContextFailed
+    reason: SliceRouterConnectionContextFailed
+    action: ReconcileSliceGWPod
+    type: Warning
+    reportingController: worker
+    message: Failed to send connection context to slice router pod.
+  - name: SliceNetopQoSSyncFailed
+    reason: SliceNetopQoSSyncFailed
+    action: ReconcileSliceGWPod
+    type: Warning
+    reportingController: worker
+    message: Slice NetOp QoS sync failed.
+  - name: SliceGWRebalancingFailed
+    reason: SliceGWRebalancingFailed
+    action: ReconcileSliceGWPod
+    type: Warning
+    reportingController: worker
+    message: Slice GateWay rebalancing failed.
+  - name: SliceGWRemotePodSyncFailed
+    reason: SliceGWRemotePodSyncFailed
+    action: ReconcileSliceGWPod
+    type: Warning
+    reportingController: worker
+    message: Slice GateWay Remote pod sync failed.
+  - name: SliceGWRebalancingSuccess
+    reason: SliceGWRebalancingSuccess
+    action: ReconcileSliceGWPod
+    type: Normal
+    reportingController: worker
+    message: Slice GateWay rebalancing successfully.
+  - name: SliceGWServiceCreationFailed
+    reason: SliceGWServiceCreationFailed
+    action: ReconcileSliceGWPod
+    type: Warning
+    reportingController: worker
+    message: Slice GateWay Service creation failed.
+  - name: SliceGWNodePortUpdateFailed
+    reason: SliceGWNodePortUpdateFailed
+    action: ReconcileSliceGWPod
+    type: Warning
+    reportingController: worker
+    message: Slice GateWay NodePort update failed.
+  - name: SliceServiceImportUpdateAvailableEndpointsFailed
+    reason: SliceServiceImportUpdateAvailableEndpointsFailed
+    action: ReconcileServiceImport
+    type: Warning
+    reportingController: worker
+    message: Slice ServiceImport Available endpoints update has failed.
+  - name: SliceServiceImportDeleted
+    reason: SliceServiceImportDeleted
+    action: DeleteServiceImport
+    type: Warning
+    reportingController: worker
+    message: Slice ServiceImport deleted.
+  - name: SliceServiceImportDeleteFailed
+    reason: SliceServiceImportDeleteFailed
+    action: DeleteServiceImport
+    type: Warning
+    reportingController: worker
+    message: Slice ServiceImport deletion failed.
+  - name: SliceServiceImportUpdatePorts
+    reason: SliceServiceImportUpdatePorts
+    action: ReconcileServiceImport
+    type: Normal
+    reportingController: worker
+    message: Slice ServiceImport ports updated.
+  - name: SliceServiceImportUpdatePortsFailed
+    reason: SliceServiceImportUpdatePortsFailed
+    action: ReconcileServiceImport
+    type: Normal
+    reportingController: worker
+    message: Slice ServiceImport ports update failed.
+  - name: SliceServiceImportUpdated
+    reason: SliceServiceImportUpdated
+    action: ReconcileServiceImport
+    type: Normal
+    reportingController: worker
+    message: Slice ServiceImport updated.
+  - name: SliceServiceImportUpdateFailed
+    reason: SliceServiceImportUpdateFailed
+    action: ReconcileServiceImport
+    type: Warning
+    reportingController: worker
+    message: Slice ServiceImport update failed.
+  - name: NetPolAdded
+    reason: NetPolAdded
+    action: ReconcileNetPol
+    type: Normal
+    reportingController: worker
+    message: Slice Network policy added.
+  - name: NetPolScopeWidenedNamespace
+    reason: Scope widened with reason - Namespace violation
+    action: ReconcileNetPol
+    type: Warning
+    reportingController: worker
+    message: Slice NetworkPolicy scope widened due to namespace violation.
+  - name: NetPolScopeWidenedIPBlock
+    reason: Scope widened with reason - IPBlock violation
+    action: ReconcileNetPol
+    type: Warning
+    reportingController: worker
+    message: Slice NetworkPolicy scope widened due to IP Block violation.
+  - name: WorkerServiceImportCreateFailed
+    reason: WorkerServiceImportCreateFailed
+    action: CreateWorkerServiceImport
+    type: Warning
+    reportingController: worker
+    message: Worker ServiceImport Creation failed.
+  - name: WorkerServiceImportCreated
+    reason: WorkerServiceImportCreated
+    action: CreateWorkerServiceImport
+    type: Normal
+    reportingController: worker
+    message: Worker ServiceImport created.
+  - name: ServiceExportDeleted
+    reason: ServiceExportDeleted
+    action: DeleteServiceExport
+    type: Warning
+    reportingController: worker
+    message: ServiceExport deleted.
+  - name: ServiceExportDeleteFailed
+    reason: ServiceExportDeleteFailed
+    action: DeleteServiceExport
+    type: Warning
+    reportingController: worker
+    message: ServiceExport delete failed.
+  - name: ServiceExportInitialStatusUpdated
+    reason: ServiceExportInitialStatusUpdated
+    action: ReconcileServiceExport
+    type: Normal
+    reportingController: worker
+    message: ServiceExport initial status updated.
+  - name: SliceServiceExportInitialStatusUpdateFailed
+    reason: SliceServiceExportInitialStatusUpdateFailed
+    action: ReconcileServiceExport
+    type: Warning
+    reportingController: worker
+    message: ServiceExport initial status update failed.
+  - name: ServiceExportSliceFetchFailed
+    reason: ServiceExportSliceFetchFailed
+    action: ReconcileServiceExport
+    type: Warning
+    reportingController: worker
+    message: ServiceExport slice fetch failed.
+  - name: ServiceExportStatusPending
+    reason: ServiceExportStatusPending
+    action: ReconcileServiceExport
+    type: Warning
+    reportingController: worker
+    message: ServiceExport status pending.
+  - name: ServiceExportUpdatePortsFailed
+    reason: ServiceExportUpdatePortsFailed
+    action: ReconcileServiceExport
+    type: Warning
+    reportingController: worker
+    message: ServiceExport update of ports failed.
+  - name: IngressGWPodReconciledSuccessfully
+    reason: IngressGWPodReconciledSuccessfully
+    action: ReconcileServiceExport
+    type: Normal
+    reportingController: worker
+    message: Ingress GateWay pod reconciled.
+  - name: IngressGWPodReconcileFailed
+    reason: IngressGWPodReconcileFailed
+    action: ReconcileServiceExport
+    type: Warning
+    reportingController: worker
+    message: Ingress GateWay pod reconcilation failed.
+  - name: SyncServiceExportStatusFailed
+    reason: SyncServiceExportStatusFailed
+    action: ReconcileServiceExport
+    type: Warning
+    reportingController: worker
+    message: ServiceExport status sync failed.
+  - name: SyncServiceExportStatusSuccessfully
+    reason: SyncServiceExportStatusSuccessfully
+    action: ReconcileServiceExport
+    type: Normal
+    reportingController: worker
+    message: ServiceExport status sync successful.
+  - name: FSMNewGWSpawned
+    reason: FSMNewGWSpawned
+    action: ReconcileWorkerSliceGWRecycler
+    type: Normal
+    reportingController: worker
+    message: sliceGWRecyler - New GateWay spawned.
+  - name: FSMRoutingTableUpdated
+    reason: FSMRoutingTableUpdated
+    action: ReconcileWorkerSliceGWRecycler
+    type: Normal
+    reportingController: worker
+    message: sliceGWRecyler - Routing table updated.
+  - name: FSMDeleteOldGW
+    reason: FSMDeleteOldGW
+    action: ReconcileWorkerSliceGWRecycler
+    type: Warning
+    reportingController: worker
+    message: sliceGWRecyler - old GateWay deleted.
+  - name: FSMNewGWSpawnFailed
+    reason: FSMNewGWSpawnFailed
+    action: ReconcileWorkerSliceGWRecycler
+    type: Warning
+    reportingController: worker
+    message: sliceGWRecyler - new GateWay failed to spawn up.
+  - name: FSMRoutingTableUpdateFailed
+    reason: FSMRoutingTableUpdateFailed
+    action: ReconcileWorkerSliceGWRecycler
+    type: Warning
+    reportingController: worker
+    message: sliceGWRecyler - Routing table update failed.
+  - name: FSMDeleteOldGWFailed
+    reason: FSMDeleteOldGWFailed
+    action: ReconcileWorkerSliceGWRecycler
+    type: Warning
+    reportingController: worker
+    message: sliceGWRecyler - failed to delete old GateWay.
+  - name: ClusterProviderUpdateInfoSuccesful
+    reason: ClusterProviderUpdateInfoSuccesful
+    action: UpdateCluster
+    type: Normal
+    reportingController: worker
+    message: Cluster provider info updated successfully.
+  - name: ClusterProviderUpdateInfoFailed
+    reason: ClusterProviderUpdateInfoFailed
+    action: ReconcileCluster
+    type: Warning
+    reportingController: worker
+    message: cluster provider info update failed.
+  - name: ClusterCNISubnetUpdateSuccessful
+    reason: ClusterCNISubnetUpdateSuccessful
+    action: UpdateCluster
+    type: Normal
+    reportingController: worker
+    message: cluster CNI Subnet updated successfully.
+  - name: ClusterCNISubnetUpdateFailed
+    reason: ClusterCNISubnetUpdateFailed
+    action: ReconcileCluster
+    type: Warning
+    reportingController: worker
+    message: cluster CNI Subnet update failed.
+  - name: ClusterNodeIpUpdateSuccessful
+    reason: ClusterNodeIpUpdateSuccessful
+    action: UpdateCluster
+    type: Normal
+    reportingController: worker
+    message: cluster nodeIP updated successfully.
+  - name: ClusterNodeIpUpdateFailed
+    reason: ClusterNodeIpUpdateFailed
+    action: ReconcileCluster
+    type: Warning
+    reportingController: worker
+    message: cluster nodeIP update failed.
+  - name: ClusterDashboardCredsUpdated
+    reason: ClusterDashboardCredsUpdated
+    action: UpdateCluster
+    type: Normal
+    reportingController: worker
+    message: cluster dashboard credentials updated successfully.
+  - name: ClusterDashboardCredsUpdateFailed
+    reason: ClusterDashboardCredsUpdateFailed
+    action: ReconcileCluster
+    type: Warning
+    reportingController: worker
+    message: cluster dashboard credentails update failed.
+  - name: ClusterHealthStatusUpdated
+    reason: ClusterHealthStatusUpdated
+    action: UpdateCluster
+    type: Normal
+    reportingController: worker
+    message: cluster health status updated.
+  - name: ClusterHealthStatusUpdateFailed
+    reason: ClusterHealthStatusUpdateFailed
+    action: ReconcileCluster
+    type: Warning
+    reportingController: worker
+    message: cluster health status update failed.
+  - name: UpdatedNamespaceInfoToHub
+    reason: UpdatedNamespaceInfoToHub
+    action: ReconcileNamespace
+    type: Normal
+    reportingController: worker
+    message: namespace info updated to Controller.
+  - name: UpdateNamespaceInfoToHubFailed
+    reason: UpdateNamespaceInfoToHubFailed
+    action: ReconcileNamespace
+    type: Warning
+    reportingController: worker
+    message: namespace info failed to update to Controller.
+  - name: DeleteNamespaceInfoToHub
+    reason: DeleteNamespaceInfoToHub
+    action: ReconcileNamespace
+    type: Normal
+    reportingController: worker
+    message: namespace info deleted from Controller.
+  - name: DeleteNamespaceInfoToHubFailed
+    reason: DeleteNamespaceInfoToHubFailed
+    action: ReconcileNamespace
+    type: Warning
+    reportingController: worker
+    message: namespace info failed to be deleted from Controller.

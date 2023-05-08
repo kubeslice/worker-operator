@@ -127,11 +127,10 @@ var _ = Describe("Hub ClusterController", func() {
 			Expect(cluster.Status.CniSubnet).Should(Equal([]string{"192.168.0.0/16", "10.96.0.0/12"}))
 
 			events := &corev1.EventList{}
-			err = k8sClient.List(ctx, events, client.InNamespace("kubeslice-system"))
-			Expect(err).ToNot(HaveOccurred())
-			Expect(events.Items).ToNot(BeEmpty())
-			event := events.Items[len(events.Items)-1]
-			Expect(event.Labels["eventTitle"]).To(Equal("ClusterNodeIpAutoDetected"))
+			Eventually(func() bool {
+				err := k8sClient.List(ctx, events, client.InNamespace("kubeslice-system"))
+				return err == nil && len(events.Items) > 0 && eventFound(events, "ClusterNodeIpAutoDetected")
+			}, 30*time.Second, 1*time.Second).Should(BeTrue())
 		})
 	})
 
@@ -325,13 +324,10 @@ var _ = Describe("Hub ClusterController", func() {
 			}
 
 			events := &corev1.EventList{}
-			err := k8sClient.List(ctx, events, client.InNamespace("kubeslice-system"))
-			Expect(err).ToNot(HaveOccurred())
-
-			Expect(events.Items).ToNot(BeEmpty())
-
-			event := events.Items[len(events.Items)-1]
-			Expect(event.Labels["eventTitle"]).To(Equal("ClusterUnhealthy"))
+			Eventually(func() bool {
+				err := k8sClient.List(ctx, events, client.InNamespace("kubeslice-system"))
+				return err == nil && len(events.Items) > 0 && eventFound(events, "ClusterUnhealthy")
+			}, 30*time.Second, 1*time.Second).Should(BeTrue())
 		})
 
 		It("Should update cluster CR with component status as normal when pods running", func() {
@@ -453,14 +449,10 @@ var _ = Describe("Hub ClusterController", func() {
 			}
 
 			events := &corev1.EventList{}
-			err := k8sClient.List(ctx, events, client.InNamespace("kubeslice-system"))
-			Expect(err).ToNot(HaveOccurred())
-
-			Expect(events.Items).ToNot(BeEmpty())
-
-			event := events.Items[len(events.Items)-1]
-			Expect(event.Labels["eventTitle"]).To(Equal("ClusterHealthy"))
-
+			Eventually(func() bool {
+				err := k8sClient.List(ctx, events, client.InNamespace("kubeslice-system"))
+				return err == nil && len(events.Items) > 0 && eventFound(events, "ClusterHealthy")
+			}, 30*time.Second, 1*time.Second).Should(BeTrue())
 		})
 
 		It("Should update cluster CR with istio status", func() {
@@ -557,4 +549,13 @@ func getSecret(name, namespace string) *corev1.Secret {
 		Data: secretData,
 	}
 	return &secret
+}
+
+func eventFound(events *corev1.EventList, eventTitle string) bool {
+	for _, event := range events.Items {
+		if event.Labels["eventTitle"] == eventTitle {
+			return true
+		}
+	}
+	return false
 }

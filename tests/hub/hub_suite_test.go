@@ -43,7 +43,6 @@ import (
 	"github.com/kubeslice/kubeslice-monitoring/pkg/metrics"
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
 	ossEvents "github.com/kubeslice/worker-operator/events"
-	"github.com/kubeslice/worker-operator/pkg/events"
 	"github.com/kubeslice/worker-operator/pkg/hub/controllers"
 	"github.com/kubeslice/worker-operator/pkg/hub/controllers/cluster"
 	"github.com/prometheus/client_golang/prometheus"
@@ -141,18 +140,22 @@ var _ = BeforeSuite(func() {
 		},
 	)
 
-	testSliceEventRecorder := events.NewEventRecorder(k8sManager.GetEventRecorderFor("test-slice-controller"))
+	testSliceEventRecorder := mevents.NewEventRecorder(k8sClient, k8sManager.GetScheme(), ossEvents.EventsMap, mevents.EventRecorderOptions{
+		Cluster:   CLUSTER_NAME,
+		Project:   PROJECT_NS,
+		Component: "test-slice-controller",
+		Namespace: CONTROL_PLANE_NS,
+	})
 	sr := controllers.NewSliceReconciler(
 		k8sClient,
-		testSliceEventRecorder,
+		&testSliceEventRecorder,
 		mf,
 	)
 	sr.ReconcileInterval = 5 * time.Second
 
-	testSliceGwEventRecorder := events.NewEventRecorder(k8sManager.GetEventRecorderFor("test-slicegw-controller"))
 	sgwr := &controllers.SliceGwReconciler{
 		MeshClient:    k8sClient,
-		EventRecorder: testSliceGwEventRecorder,
+		EventRecorder: &testSliceEventRecorder,
 		ClusterName:   CLUSTER_NAME,
 	}
 
@@ -174,10 +177,9 @@ var _ = BeforeSuite(func() {
 		Complete(sgwr)
 	Expect(err).ToNot(HaveOccurred())
 
-	testSvcimEventRecorder := events.NewEventRecorder(k8sManager.GetEventRecorderFor("test-svcim-controller"))
 	serviceImportReconciler := &controllers.ServiceImportReconciler{
 		MeshClient:    k8sClient,
-		EventRecorder: testSvcimEventRecorder,
+		EventRecorder: &testSliceEventRecorder,
 		Client:        k8sClient,
 	}
 
@@ -190,7 +192,6 @@ var _ = BeforeSuite(func() {
 		Complete(serviceImportReconciler)
 	Expect(err).ToNot(HaveOccurred())
 
-	workerSliceGwRecyclerEventRecorder := events.NewEventRecorder(k8sManager.GetEventRecorderFor("workerslicegwrecycler-controller"))
 	if err := (&workerslicegwrecycler.Reconciler{
 		MeshClient:            k8sClient,
 		Log:                   ctrl.Log.WithName("controllers").WithName("workerslicegwrecycler"),
@@ -198,20 +199,14 @@ var _ = BeforeSuite(func() {
 		Client:                k8sClient,
 		WorkerGWSidecarClient: workerClientSidecarGwEmulator,
 		WorkerRouterClient:    workerClientRouterEmulator,
-		EventRecorder:         workerSliceGwRecyclerEventRecorder,
+		EventRecorder:         &testSliceEventRecorder,
 	}).SetupWithManager(k8sManager); err != nil {
 		os.Exit(1)
 	}
 
-	spokeClusterEventRecorder := mevents.NewEventRecorder(k8sClient, k8sManager.GetScheme(), ossEvents.EventsMap, mevents.EventRecorderOptions{
-		Cluster:   CLUSTER_NAME,
-		Project:   PROJECT_NS,
-		Component: "worker-operator",
-		Namespace: CONTROL_PLANE_NS,
-	})
 	clusterReconciler := cluster.NewReconciler(
 		k8sClient,
-		spokeClusterEventRecorder,
+		&testSliceEventRecorder,
 		mf,
 	)
 	clusterReconciler.ReconcileInterval = 5 * time.Second

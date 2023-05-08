@@ -25,10 +25,13 @@ import (
 
 	"github.com/go-logr/logr"
 	spokev1alpha1 "github.com/kubeslice/apis/pkg/worker/v1alpha1"
+	"github.com/kubeslice/kubeslice-monitoring/pkg/events"
 	"github.com/kubeslice/kubeslice-monitoring/pkg/metrics"
+	ossEvents "github.com/kubeslice/worker-operator/events"
+
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
-	"github.com/kubeslice/worker-operator/pkg/events"
 	"github.com/kubeslice/worker-operator/pkg/logger"
+	"github.com/kubeslice/worker-operator/pkg/utils"
 	"github.com/prometheus/client_golang/prometheus"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -127,6 +130,7 @@ type SliceReconciler struct {
 }
 
 var sliceFinalizer = "controller.kubeslice.io/hubSpokeSlice-finalizer"
+var sliceControllerName string = "workerSliceController"
 
 func (r *SliceReconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
 	log := r.Log.WithValues("sliceconfig", req.NamespacedName)
@@ -147,6 +151,7 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req reconcile.Request) 
 
 	log.Info("got slice from hub", "slice", slice.Name)
 	debuglog.Info("got slice from hub", "slice", slice)
+	*r.EventRecorder = (*r.EventRecorder).WithSlice(slice.Name)
 	requeue, result, err := r.handleSliceDeletion(slice, ctx, req)
 	if requeue {
 		return result, err
@@ -175,34 +180,20 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req reconcile.Request) 
 			err = r.MeshClient.Create(ctx, s)
 			if err != nil {
 				log.Error(err, "unable to create slice in spoke cluster", "slice", s)
-				r.EventRecorder.Record(
-					&events.Event{
-						Object:    slice,
-						EventType: events.EventTypeWarning,
-						Reason:    "Error",
-						Message:   "Error creating slice on spoke cluster , slice " + sliceName + " cluster " + clusterName,
-					},
-				)
+				utils.RecordEvent(ctx, r.EventRecorder, slice, nil, ossEvents.EventSliceCreationFailed, sliceControllerName)
 				r.counterSliceCreationFailed.WithLabelValues(s.Name).Add(1)
 				return reconcile.Result{}, err
 			}
 			log.Info("slice created in spoke cluster")
-			r.EventRecorder.Record(
-				&events.Event{
-					Object:    slice,
-					EventType: events.EventTypeNormal,
-					Reason:    "Created",
-					Message:   "Created slice on spoke cluster , slice " + sliceName + " cluster " + clusterName,
-				},
-			)
 			r.counterSliceCreated.WithLabelValues(s.Name).Add(1)
+			utils.RecordEvent(ctx, r.EventRecorder, slice, nil, ossEvents.EventSliceCreated, sliceControllerName)
 			err = r.updateSliceConfig(ctx, s, slice)
 			if err != nil {
 				log.Error(err, "unable to update slice status in spoke cluster", "slice", s)
 				return reconcile.Result{}, err
 			}
 			log.Info("slice status updated in spoke cluster")
-
+			utils.RecordEvent(ctx, r.EventRecorder, slice, nil, ossEvents.EventWorkerSliceConfigUpdated, sliceControllerName)
 			return reconcile.Result{RequeueAfter: r.ReconcileInterval}, nil
 		}
 		r.counterSliceUpdationFailed.WithLabelValues(slice.Name).Add(1)
@@ -228,9 +219,11 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req reconcile.Request) 
 	slice.Status.SliceHealth.LastUpdated = metav1.Now()
 	if err := r.Status().Update(ctx, slice); err != nil {
 		log.Error(err, "unable to update slice CR")
+		utils.RecordEvent(ctx, r.EventRecorder, slice, nil, ossEvents.EventWorkerSliceHealthUpdateFailed, sliceControllerName)
 		r.counterSliceUpdationFailed.WithLabelValues(slice.Name).Add(1)
 		return reconcile.Result{}, err
 	} else {
+		utils.RecordEvent(ctx, r.EventRecorder, slice, nil, ossEvents.EventWorkerSliceHealthUpdated, sliceControllerName)
 		log.Info("succesfully updated the slice CR ", "slice CR ", slice)
 	}
 	r.counterSliceUpdated.WithLabelValues(slice.Name).Add(1)

@@ -25,13 +25,16 @@ import (
 	"time"
 
 	workerv1alpha1 "github.com/kubeslice/apis/pkg/worker/v1alpha1"
+	mevents "github.com/kubeslice/kubeslice-monitoring/pkg/events"
 	"github.com/kubeslice/kubeslice-monitoring/pkg/metrics"
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
+	ossEvents "github.com/kubeslice/worker-operator/events"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/stretchr/testify/mock"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	k8sclient "sigs.k8s.io/controller-runtime/pkg/client"
@@ -94,7 +97,10 @@ func TestReconcileToReturnErrorWhileFetchingControllerSlice(t *testing.T) {
 	).Return(errors.New("object not found"))
 
 	mf, _ := metrics.NewMetricsFactory(prometheus.NewRegistry(), metrics.MetricsFactoryOptions{})
-	reconciler := NewSliceReconciler(client, nil, mf)
+	eventRecorder := mevents.NewEventRecorder(client, nil, ossEvents.EventsMap, mevents.EventRecorderOptions{
+		Cluster: clusterName,
+	})
+	reconciler := NewSliceReconciler(client, &eventRecorder, mf)
 	reconciler.InjectClient(client)
 	result, err := reconciler.Reconcile(expected.ctx, expected.req)
 	if expected.res != result {
@@ -141,7 +147,10 @@ func TestReconcileToReturnErrorWhileFetchingWorkerSlice(t *testing.T) {
 	).Return(errors.New("object not found"))
 
 	mf, _ := metrics.NewMetricsFactory(prometheus.NewRegistry(), metrics.MetricsFactoryOptions{})
-	reconciler := NewSliceReconciler(client, nil, mf)
+	eventRecorder := mevents.NewEventRecorder(client, &runtime.Scheme{}, ossEvents.EventsMap, mevents.EventRecorderOptions{
+		Cluster: clusterName,
+	})
+	reconciler := NewSliceReconciler(client, &eventRecorder, mf)
 	reconciler.InjectClient(client)
 	result, err := reconciler.Reconcile(expected.ctx, expected.req)
 	if expected.res != result {
@@ -201,7 +210,10 @@ func TestReconcileToUpdateWorkerSlice(t *testing.T) {
 	).Return(nil)
 
 	mf, _ := metrics.NewMetricsFactory(prometheus.NewRegistry(), metrics.MetricsFactoryOptions{})
-	reconciler := NewSliceReconciler(client, nil, mf)
+	eventRecorder := mevents.NewEventRecorder(client, &runtime.Scheme{}, ossEvents.EventsMap, mevents.EventRecorderOptions{
+		Cluster: clusterName,
+	})
+	reconciler := NewSliceReconciler(client, &eventRecorder, mf)
 	reconciler.InjectClient(client)
 	result, err := reconciler.Reconcile(expected.ctx, expected.req)
 	if expected.res != result {
@@ -258,7 +270,10 @@ func TestUpdateSliceHealth(t *testing.T) {
 	client := NewClient()
 
 	mf, _ := metrics.NewMetricsFactory(prometheus.NewRegistry(), metrics.MetricsFactoryOptions{})
-	reconciler := NewSliceReconciler(client, nil, mf)
+	eventRecorder := mevents.NewEventRecorder(client, &runtime.Scheme{}, ossEvents.EventsMap, mevents.EventRecorderOptions{
+		Cluster: clusterName,
+	})
+	reconciler := NewSliceReconciler(client, &eventRecorder, mf)
 	reconciler.InjectClient(client)
 	ctx := context.WithValue(context.Background(), types.NamespacedName{Name: "test-slice", Namespace: "kubeslice-system"}, controllerSlice)
 
@@ -302,7 +317,10 @@ func TestUpdateSliceConfigByModyfingSubnetOfControllerSlice(t *testing.T) {
 	client := NewClient()
 
 	mf, _ := metrics.NewMetricsFactory(prometheus.NewRegistry(), metrics.MetricsFactoryOptions{})
-	reconciler := NewSliceReconciler(client, nil, mf)
+	eventRecorder := mevents.NewEventRecorder(client, &runtime.Scheme{}, ossEvents.EventsMap, mevents.EventRecorderOptions{
+		Cluster: clusterName,
+	})
+	reconciler := NewSliceReconciler(client, &eventRecorder, mf)
 	reconciler.InjectClient(client)
 	ctx := context.WithValue(context.Background(), types.NamespacedName{Name: "test-slice", Namespace: "kubeslice-system"}, controllerSlice)
 
@@ -337,7 +355,10 @@ func TestDeleteSliceResourceOnWorker(t *testing.T) {
 	client := NewClient()
 
 	mf, _ := metrics.NewMetricsFactory(prometheus.NewRegistry(), metrics.MetricsFactoryOptions{})
-	reconciler := NewSliceReconciler(client, nil, mf)
+	eventRecorder := mevents.NewEventRecorder(client, &runtime.Scheme{}, ossEvents.EventsMap, mevents.EventRecorderOptions{
+		Cluster: clusterName,
+	})
+	reconciler := NewSliceReconciler(client, &eventRecorder, mf)
 	reconciler.InjectClient(client)
 
 	client.On("Delete",

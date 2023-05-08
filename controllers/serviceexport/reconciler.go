@@ -30,11 +30,14 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/kubeslice/kubeslice-monitoring/pkg/events"
 	"github.com/kubeslice/kubeslice-monitoring/pkg/metrics"
+
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
 	"github.com/kubeslice/worker-operator/controllers"
-	"github.com/kubeslice/worker-operator/pkg/events"
+	ossEvents "github.com/kubeslice/worker-operator/events"
 	"github.com/kubeslice/worker-operator/pkg/logger"
+	"github.com/kubeslice/worker-operator/pkg/utils"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
@@ -57,6 +60,7 @@ type HubClientProvider interface {
 }
 
 var finalizerName = "networking.kubeslice.io/serviceexport-finalizer"
+var controllerName = "serviceExportController"
 
 // +kubebuilder:rbac:groups=networking.kubeslice.io,resources=serviceexports,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=networking.kubeslice.io,resources=serviceexports/status,verbs=get;update;patch
@@ -77,7 +81,7 @@ func (r Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resul
 		}
 		return ctrl.Result{}, err
 	}
-
+	*r.EventRecorder = (*r.EventRecorder).WithSlice(serviceexport.Spec.Slice)
 	log = log.WithValues("slice", serviceexport.Spec.Slice)
 	debugLog := log.V(1)
 	ctx = logger.WithLogger(ctx, log)
@@ -102,17 +106,19 @@ func (r Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resul
 		err := r.Status().Update(ctx, serviceexport)
 		if err != nil {
 			log.Error(err, "Failed to update serviceexport initial status")
+			utils.RecordEvent(ctx, r.EventRecorder, serviceexport, nil, ossEvents.EventSliceServiceExportInitialStatusUpdateFailed, controllerName)
 			return ctrl.Result{}, err
 		}
 
 		log.Info("serviceexport updated with initial status")
-
+		utils.RecordEvent(ctx, r.EventRecorder, serviceexport, nil, ossEvents.EventServiceExportInitialStatusUpdated, controllerName)
 		return ctrl.Result{Requeue: true}, nil
 	}
 
 	slice, err := controllers.GetSlice(ctx, r.Client, serviceexport.Spec.Slice)
 	if err != nil {
 		log.Error(err, "Unable to fetch slice for serviceexport")
+		utils.RecordEvent(ctx, r.EventRecorder, serviceexport, nil, ossEvents.EventServiceExportSliceFetchFailed, controllerName)
 		return ctrl.Result{RequeueAfter: controllers.ReconcileInterval}, nil
 	}
 
@@ -124,6 +130,7 @@ func (r Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resul
 				log.Error(err, "unable to update serviceexport status")
 			}
 		}
+		utils.RecordEvent(ctx, r.EventRecorder, serviceexport, nil, ossEvents.EventServiceExportStatusPending, controllerName)
 		return ctrl.Result{RequeueAfter: controllers.ReconcileInterval}, nil
 	}
 
@@ -134,14 +141,7 @@ func (r Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resul
 		if err != nil {
 			log.Error(err, "Failed to update serviceexport ports")
 			//post event to service export
-			r.EventRecorder.Record(
-				&events.Event{
-					Object:    serviceexport,
-					EventType: events.EventTypeWarning,
-					Reason:    "Error",
-					Message:   "Failed to update serviceexport ports",
-				},
-			)
+			utils.RecordEvent(ctx, r.EventRecorder, serviceexport, nil, ossEvents.EventServiceExportUpdatePortsFailed, controllerName)
 			return ctrl.Result{}, err
 		}
 
@@ -159,10 +159,12 @@ func (r Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resul
 	r.gaugeEndpoints.WithLabelValues(serviceexport.Spec.Slice, serviceexport.Namespace, serviceexport.Name).Set(float64(serviceexport.Status.AvailableEndpoints))
 	res, err, requeue = r.ReconcileIngressGwPod(ctx, serviceexport)
 	if err != nil {
+		utils.RecordEvent(ctx, r.EventRecorder, serviceexport, nil, ossEvents.EventIngressGWPodReconcileFailed, controllerName)
 		return ctrl.Result{}, err
 	}
 	if requeue {
 		log.Info("ingress gw pod reconciled")
+		utils.RecordEvent(ctx, r.EventRecorder, serviceexport, nil, ossEvents.EventIngressGWPodReconciledSuccessfully, controllerName)
 		debugLog.Info("requeuing after ingress gw pod reconcile", "res", res, "er", err)
 		return res, nil
 	}
@@ -262,6 +264,7 @@ func (r *Reconciler) handleServiceExportDeletion(ctx context.Context, serviceexp
 		}
 
 		if err := r.DeleteServiceExportResources(ctx, serviceexport); err != nil {
+			utils.RecordEvent(ctx, r.EventRecorder, serviceexport, nil, ossEvents.EventServiceExportDeleteFailed, controllerName)
 			log.Error(err, "unable to delete service export resources")
 			return true, ctrl.Result{}, err
 		}
@@ -272,6 +275,7 @@ func (r *Reconciler) handleServiceExportDeletion(ctx context.Context, serviceexp
 			log.Error(err, "unable to remove finalizer from serviceexport")
 			return true, ctrl.Result{}, err
 		}
+		utils.RecordEvent(ctx, r.EventRecorder, serviceexport, nil, ossEvents.EventServiceExportDeleted, controllerName)
 	}
 	return true, ctrl.Result{}, nil
 }

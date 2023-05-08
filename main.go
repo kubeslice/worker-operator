@@ -25,7 +25,6 @@ import (
 
 	"github.com/kubeslice/kubeslice-monitoring/pkg/metrics"
 	"github.com/kubeslice/worker-operator/controllers"
-	"github.com/kubeslice/worker-operator/pkg/events"
 	"github.com/kubeslice/worker-operator/pkg/monitoring"
 	namespacecontroller "github.com/kubeslice/worker-operator/pkg/namespace/controllers"
 	"github.com/prometheus/client_golang/prometheus"
@@ -55,11 +54,13 @@ import (
 	ocprom "contrib.go.opencensus.io/exporter/prometheus"
 	ctrlmetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
 
+	monitoringEvents "github.com/kubeslice/kubeslice-monitoring/pkg/events"
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
 	"github.com/kubeslice/worker-operator/controllers/serviceexport"
 	"github.com/kubeslice/worker-operator/controllers/serviceimport"
 	"github.com/kubeslice/worker-operator/controllers/slice"
 	"github.com/kubeslice/worker-operator/controllers/slicegateway"
+	ossEvents "github.com/kubeslice/worker-operator/events"
 	hub "github.com/kubeslice/worker-operator/pkg/hub/hubclient"
 	"github.com/kubeslice/worker-operator/pkg/hub/manager"
 	"github.com/kubeslice/worker-operator/pkg/logger"
@@ -114,7 +115,7 @@ func main() {
 		Scheme:    mgr.GetScheme(),
 		Logger:    logger.NewLogger(),
 		Cluster:   os.Getenv("CLUSTER_NAME"),
-		Component: "worker-operator",
+		Component: "workerOperator",
 	}
 
 	// Use an environment variable to be able to disable webhooks, so that we can run the operator locally
@@ -166,20 +167,27 @@ func main() {
 	mf, err := metrics.NewMetricsFactory(ctrlmetrics.Registry, metrics.MetricsFactoryOptions{
 		Cluster:             controllers.ClusterName,
 		Project:             strings.TrimPrefix(hub.ProjectNamespace, "kubeslice_"),
-		ReportingController: "worker-operator",
+		ReportingController: "workerOperator",
 	})
 	if err != nil {
 		setupLog.With("error", err).Error("unable to initializ metrics factory")
 		os.Exit(1)
 	}
 
-	sliceEventRecorder := events.NewEventRecorder(mgr.GetEventRecorderFor("slice-controller"))
+	sliceEventRecorder := monitoringEvents.NewEventRecorder(mgr.GetClient(), scheme, ossEvents.EventsMap, monitoringEvents.EventRecorderOptions{
+		Version:   utils.EventsVersion,
+		Slice:     utils.NotApplicable,
+		Cluster:   controllers.ClusterName,
+		Project:   hub.ProjectNamespace,
+		Component: "sliceController",
+		Namespace: controllers.ControlPlaneNamespace,
+	})
 	if err = (&slice.SliceReconciler{
 		Client:             mgr.GetClient(),
 		Log:                ctrl.Log.WithName("controllers").WithName("Slice"),
 		Scheme:             mgr.GetScheme(),
 		HubClient:          hubClient,
-		EventRecorder:      sliceEventRecorder,
+		EventRecorder:      &sliceEventRecorder,
 		WorkerRouterClient: workerRouterClient,
 		WorkerNetOpClient:  workerNetOPClient,
 	}).Setup(mgr, mf); err != nil {
@@ -187,7 +195,6 @@ func main() {
 		os.Exit(1)
 	}
 
-	sliceGwEventRecorder := events.NewEventRecorder(mgr.GetEventRecorderFor("sliceGw-controller"))
 	workerGWClient, err := sidecar.NewWorkerGWSidecarClientProvider()
 	if err != nil {
 		setupLog.With("error", err).Error("could not create spoke sidecar gateway client for slice gateway reconciler")
@@ -201,53 +208,49 @@ func main() {
 		WorkerGWSidecarClient: workerGWClient,
 		WorkerRouterClient:    workerRouterClient,
 		WorkerNetOpClient:     workerNetOPClient,
-		EventRecorder:         sliceGwEventRecorder,
+		EventRecorder:         &sliceEventRecorder,
 		NumberOfGateways:      2,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.With("error", err).Error("unable to create controller", "controller", "SliceGw")
 		os.Exit(1)
 	}
 
-	serviceExportEventRecorder := events.NewEventRecorder(mgr.GetEventRecorderFor("serviceExport-controller"))
 	if err = (&serviceexport.Reconciler{
 		Client:        mgr.GetClient(),
 		Log:           ctrl.Log.WithName("controllers").WithName("ServiceExport"),
 		Scheme:        mgr.GetScheme(),
 		HubClient:     hubClient,
-		EventRecorder: serviceExportEventRecorder,
+		EventRecorder: &sliceEventRecorder,
 	}).Setup(mgr, mf); err != nil {
 		setupLog.With("error", err, "controller", "ServiceExport").Error("unable to create controller")
 		os.Exit(1)
 	}
 
-	serviceImportEventRecorder := events.NewEventRecorder(mgr.GetEventRecorderFor("serviceImport-controller"))
 	if err = (&serviceimport.Reconciler{
 		Client:        mgr.GetClient(),
 		Log:           ctrl.Log.WithName("controllers").WithName("ServiceImport"),
 		Scheme:        mgr.GetScheme(),
-		EventRecorder: serviceImportEventRecorder,
+		EventRecorder: &sliceEventRecorder,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.With("error", err, "controller", "ServiceImport").Error("unable to create controller")
 		os.Exit(1)
 	}
 
-	namespaceEventRecorder := events.NewEventRecorder(mgr.GetEventRecorderFor("namespace-controller"))
 	if err = (&namespacecontroller.Reconciler{
 		Client:        mgr.GetClient(),
 		Log:           ctrl.Log.WithName("controllers").WithName("namespace"),
 		Scheme:        mgr.GetScheme(),
-		EventRecorder: namespaceEventRecorder,
+		EventRecorder: &sliceEventRecorder,
 		Hubclient:     hubClient,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.With("error", err, "controller", "namespace").Error("unable to create controller")
 		os.Exit(1)
 	}
-	netpolEventRecorder := events.NewEventRecorder(mgr.GetEventRecorderFor("networkpolicy-controller"))
 	if err = (&networkpolicy.NetpolReconciler{
 		Client:        mgr.GetClient(),
 		Log:           ctrl.Log.WithName("controllers").WithName("networkpolicy"),
 		Scheme:        mgr.GetScheme(),
-		EventRecorder: netpolEventRecorder,
+		EventRecorder: &sliceEventRecorder,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.With("error", err, "controller", "networkpolicy").Error("unable to create controller")
 		os.Exit(1)

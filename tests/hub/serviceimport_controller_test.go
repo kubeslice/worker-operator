@@ -193,7 +193,7 @@ var _ = Describe("Hub serviceImportController", func() {
 
 			for _, event := range events.Items {
 				if event.Source.Component == "test-svcim-controller" && event.InvolvedObject.Kind == "WorkerServiceImport" {
-					Expect(event.Message).To(Equal("Successfully created service import on spoke cluster , svc import " + hubServiceImport.Spec.ServiceName + " cluster "))
+					Expect(event.Message).To(Equal("Worker ServiceImport created."))
 				}
 			}
 		})

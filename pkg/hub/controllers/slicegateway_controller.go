@@ -24,10 +24,12 @@ import (
 	"time"
 
 	spokev1alpha1 "github.com/kubeslice/apis/pkg/worker/v1alpha1"
+	"github.com/kubeslice/kubeslice-monitoring/pkg/events"
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
 	"github.com/kubeslice/worker-operator/controllers"
-	"github.com/kubeslice/worker-operator/pkg/events"
+	ossEvents "github.com/kubeslice/worker-operator/events"
 	"github.com/kubeslice/worker-operator/pkg/logger"
+	"github.com/kubeslice/worker-operator/pkg/utils"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -45,6 +47,8 @@ type SliceGwReconciler struct {
 	ClusterName   string
 }
 
+var sliceGWController = "workersliceGWController"
+
 func (r *SliceGwReconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
 	log := logger.FromContext(ctx)
 
@@ -61,7 +65,7 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req reconcile.Request
 	}
 
 	log.Info("got sliceGw from hub", "sliceGw", sliceGw.Name)
-
+	*r.EventRecorder = (*r.EventRecorder).WithSlice(sliceGw.Spec.SliceName)
 	// Return if the slice gw resource does not belong to our cluster
 	if sliceGw.Spec.LocalGatewayConfig.ClusterName != r.ClusterName {
 		log.Info("sliceGw doesn't belong to this cluster", "sliceGw", sliceGw.Name, "cluster", clusterName, "slicegw cluster", sliceGw.Spec.LocalGatewayConfig.ClusterName)
@@ -78,7 +82,10 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req reconcile.Request
 
 	err = r.createSliceGwOnSpoke(ctx, sliceGw, meshSliceGw)
 	if err != nil {
+		utils.RecordEvent(ctx, r.EventRecorder, sliceGw, nil, ossEvents.EventSliceGWCreateFailed, sliceGWController)
 		return reconcile.Result{}, err
+	} else {
+		utils.RecordEvent(ctx, r.EventRecorder, sliceGw, nil, ossEvents.EventSliceGWCreated, sliceGWController)
 	}
 	err = retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		sliceGwRef := client.ObjectKey{
@@ -105,8 +112,11 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req reconcile.Request
 		}
 		err = r.MeshClient.Status().Update(ctx, meshSliceGw)
 		if err != nil {
+			utils.RecordEvent(ctx, r.EventRecorder, sliceGw, nil, ossEvents.EventSliceGWUpdateFailed, sliceGWController)
 			log.Error(err, "unable to update sliceGw status in spoke cluster", "sliceGw", sliceGwName)
 			return err
+		} else {
+			utils.RecordEvent(ctx, r.EventRecorder, sliceGw, nil, ossEvents.EventSliceGWUpdated, sliceGWController)
 		}
 		return nil
 	})

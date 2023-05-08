@@ -14,6 +14,7 @@ import (
 	ossEvents "github.com/kubeslice/worker-operator/events"
 	"github.com/kubeslice/worker-operator/pkg/cluster"
 	"github.com/kubeslice/worker-operator/pkg/logger"
+	"github.com/kubeslice/worker-operator/pkg/utils"
 	"github.com/prometheus/client_golang/prometheus"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -27,15 +28,16 @@ import (
 )
 
 const (
-	GCP   string = "gcp"
-	AWS   string = "aws"
-	AZURE string = "azure"
+	GCP            string = "gcp"
+	AWS            string = "aws"
+	AZURE          string = "azure"
+	controllerName string = "clusterReconciler"
 )
 
 type Reconciler struct {
 	client.Client
 	MeshClient    client.Client
-	EventRecorder events.EventRecorder
+	EventRecorder *events.EventRecorder
 
 	// metrics
 	gaugeClusterUp   *prometheus.GaugeVec
@@ -44,7 +46,7 @@ type Reconciler struct {
 	ReconcileInterval time.Duration
 }
 
-func NewReconciler(mc client.Client, er events.EventRecorder, mf metrics.MetricsFactory) *Reconciler {
+func NewReconciler(mc client.Client, er *events.EventRecorder, mf metrics.MetricsFactory) *Reconciler {
 	gaugeClusterUp := mf.NewGauge("cluster_up", "Kubeslice cluster health status", []string{})
 	gaugeComponentUp := mf.NewGauge("cluster_component_up", "Kubeslice cluster component health status", []string{"slice_cluster_component"})
 
@@ -59,6 +61,8 @@ func NewReconciler(mc client.Client, er events.EventRecorder, mf metrics.Metrics
 	}
 }
 
+//+kubebuilder:rbac:groups=core,resources=events,verbs=get;list;watch;create;update;patch;delete
+
 func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
 	log := logger.FromContext(ctx).WithName("cluster-reconciler")
 	ctx = logger.WithLogger(ctx, log)
@@ -70,31 +74,39 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	cl := cluster.NewCluster(r.MeshClient, cr.Name)
 	res, err, requeue := r.updateClusterCloudProviderInfo(ctx, cr, cl)
 	if err != nil {
+		utils.RecordEvent(ctx, r.EventRecorder, cr, nil, ossEvents.EventClusterProviderUpdateInfoFailed, controllerName)
 		log.Error(err, "unable to update cloud provider info to cluster")
 	}
 	if requeue {
 		return res, err
 	}
+	utils.RecordEvent(ctx, r.EventRecorder, cr, nil, ossEvents.EventClusterProviderUpdateInfoSuccesful, controllerName)
 	res, err, requeue = r.updateCNISubnetConfig(ctx, cr, cl)
 	if err != nil {
+		utils.RecordEvent(ctx, r.EventRecorder, cr, nil, ossEvents.EventClusterCNISubnetUpdateFailed, controllerName)
 		log.Error(err, "unable to update cni subnet config to cluster")
 	}
 	if requeue {
 		return res, err
 	}
+	utils.RecordEvent(ctx, r.EventRecorder, cr, nil, ossEvents.EventClusterCNISubnetUpdateSuccessful, controllerName)
 	res, err, requeue = r.updateNodeIps(ctx, cr)
 	if err != nil {
+		utils.RecordEvent(ctx, r.EventRecorder, cr, nil, ossEvents.EventClusterNodeIpUpdateFailed, controllerName)
 		log.Error(err, "unable to update node ips to cluster")
 	}
 	if requeue {
 		return res, err
 	}
+	utils.RecordEvent(ctx, r.EventRecorder, cr, nil, ossEvents.EventClusterNodeIpUpdateSuccessful, controllerName)
 	// Update dashboard creds if it hasn't already (only one time event)
 	if !r.isDashboardCredsUpdated(ctx, cr) {
 		if err := r.updateDashboardCreds(ctx, cr); err != nil {
+			utils.RecordEvent(ctx, r.EventRecorder, cr, nil, ossEvents.EventClusterDashboardCredsUpdateFailed, controllerName)
 			log.Error(err, "unable to update dashboard creds")
 			return reconcile.Result{}, err
 		} else {
+			utils.RecordEvent(ctx, r.EventRecorder, cr, nil, ossEvents.EventClusterDashboardCredsUpdated, controllerName)
 			log.Info("Dashboard creds updated in hub")
 			return reconcile.Result{Requeue: true}, nil
 		}
@@ -104,6 +116,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	}
 
 	if err := r.updateClusterHealthStatus(ctx, cr); err != nil {
+		utils.RecordEvent(ctx, r.EventRecorder, cr, nil, ossEvents.EventClusterHealthStatusUpdateFailed, controllerName)
 		log.Error(err, "unable to update cluster health status")
 	}
 
@@ -112,11 +125,13 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	if time.Since(cr.Status.ClusterHealth.LastUpdated.Time) > r.ReconcileInterval {
 		cr.Status.ClusterHealth.LastUpdated = metav1.Now()
 		if err := r.Status().Update(ctx, cr); err != nil {
+			utils.RecordEvent(ctx, r.EventRecorder, cr, nil, ossEvents.EventClusterHealthStatusUpdateFailed, controllerName)
 			log.Error(err, "unable to update cluster CR")
 			return reconcile.Result{}, err
 		}
+		utils.RecordEvent(ctx, r.EventRecorder, cr, nil, ossEvents.EventClusterHealthStatusUpdated, controllerName)
 	}
-
+	utils.RecordEvent(ctx, r.EventRecorder, cr, nil, ossEvents.EventClusterHealthStatusUpdated, controllerName)
 	return reconcile.Result{RequeueAfter: r.ReconcileInterval}, nil
 }
 
@@ -143,24 +158,10 @@ func (r *Reconciler) updateClusterHealthStatus(ctx context.Context, cr *hubv1alp
 	if cr.Status.ClusterHealth.ClusterHealthStatus != chs {
 		if chs == hubv1alpha1.ClusterHealthStatusNormal {
 			log.Info("cluster health is back to normal")
-			err := r.EventRecorder.RecordEvent(ctx, &events.Event{
-				Object:            cr,
-				Name:              ossEvents.EventClusterHealthy,
-				ReportingInstance: "cluster_reconciler",
-			})
-			if err != nil {
-				log.Error(err, "unable to record event for health check")
-			}
+			utils.RecordEvent(ctx, r.EventRecorder, cr, nil, ossEvents.EventClusterHealthy, controllerName)
 		} else if chs == hubv1alpha1.ClusterHealthStatusWarning {
 			log.Info("cluster health is in warning state")
-			err := r.EventRecorder.RecordEvent(ctx, &events.Event{
-				Object:            cr,
-				Name:              ossEvents.EventClusterUnhealthy,
-				ReportingInstance: "cluster_reconciler",
-			})
-			if err != nil {
-				log.Error(err, "unable to record event for health check")
-			}
+			utils.RecordEvent(ctx, r.EventRecorder, cr, nil, ossEvents.EventClusterUnhealthy, controllerName)
 		}
 	}
 
@@ -328,25 +329,11 @@ func (r *Reconciler) updateNodeIps(ctx context.Context, cr *hubv1alpha1.Cluster)
 	})
 	if err != nil {
 		log.Error(err, "Error updating to node ip's on hub cluster")
-		err := r.EventRecorder.RecordEvent(ctx, &events.Event{
-			Object:            cr,
-			Name:              ossEvents.EventClusterNodeIpAutoDetectionFailed,
-			ReportingInstance: "cluster_reconciler",
-		})
-		if err != nil {
-			log.Error(err, "unable to record event for node ip update fail")
-		}
+		utils.RecordEvent(ctx, r.EventRecorder, cr, nil, ossEvents.EventClusterNodeIpAutoDetectionFailed, controllerName)
 		return ctrl.Result{}, err, true
 	}
 	if toUpdate {
-		err := r.EventRecorder.RecordEvent(ctx, &events.Event{
-			Object:            cr,
-			Name:              ossEvents.EventClusterNodeIpAutoDetected,
-			ReportingInstance: "cluster_reconciler",
-		})
-		if err != nil {
-			log.Error(err, "unable to record event for node ip update")
-		}
+		utils.RecordEvent(ctx, r.EventRecorder, cr, nil, ossEvents.EventClusterNodeIpAutoDetected, controllerName)
 		return ctrl.Result{Requeue: true}, nil, true
 	}
 	return ctrl.Result{}, nil, false

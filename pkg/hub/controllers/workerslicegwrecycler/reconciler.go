@@ -5,9 +5,13 @@ import (
 
 	"github.com/go-logr/logr"
 	spokev1alpha1 "github.com/kubeslice/apis/pkg/worker/v1alpha1"
+	"github.com/kubeslice/kubeslice-monitoring/pkg/events"
+	ossEvents "github.com/kubeslice/worker-operator/events"
+
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
-	"github.com/kubeslice/worker-operator/pkg/events"
+
 	"github.com/kubeslice/worker-operator/pkg/logger"
+	"github.com/kubeslice/worker-operator/pkg/utils"
 	"github.com/looplab/fsm"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -29,6 +33,7 @@ const (
 	verify_new_deployment_created string = "verify_new_deployment_created"
 	update_routing_table          string = "update_routing_table"
 	delete_old_gw_pods            string = "delete_old_gw_pods"
+	controllerName                string = "workerSliceGWRecyclerController"
 )
 
 type Reconciler struct {
@@ -76,6 +81,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			}
 		}
 	}
+	*r.EventRecorder = (*r.EventRecorder).WithSlice(slicegw.Spec.SliceName)
 	isClient := slicegw.Status.Config.SliceGatewayHostType == "Client"
 
 	if isClient {
@@ -83,84 +89,48 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		case verify_new_deployment_created:
 			err := r.FSM.Event(verify_new_deployment_created, workerslicegwrecycler, isClient)
 			if err != nil {
+				utils.RecordEvent(ctx, r.EventRecorder, workerslicegwrecycler, nil, ossEvents.EventFSMNewGWSpawnFailed, controllerName)
 				return ctrl.Result{}, err
 			}
-			r.EventRecorder.Record(
-				&events.Event{
-					Object:    workerslicegwrecycler,
-					EventType: events.EventTypeNormal,
-					Reason:    "Sucess",
-					Message:   "FSM current state - new gw spawned",
-				},
-			)
+			utils.RecordEvent(ctx, r.EventRecorder, workerslicegwrecycler, nil, ossEvents.EventFSMNewGWSpawned, controllerName)
 		case update_routing_table:
 			err := r.FSM.Event(update_routing_table, workerslicegwrecycler, isClient, slicegw)
 			if err != nil {
+				utils.RecordEvent(ctx, r.EventRecorder, workerslicegwrecycler, nil, ossEvents.EventFSMRoutingTableUpdateFailed, controllerName)
 				return ctrl.Result{}, err
 			}
-			r.EventRecorder.Record(
-				&events.Event{
-					Object:    workerslicegwrecycler,
-					EventType: events.EventTypeNormal,
-					Reason:    "Sucess",
-					Message:   "FSM current state - update routing table",
-				},
-			)
+			utils.RecordEvent(ctx, r.EventRecorder, workerslicegwrecycler, nil, ossEvents.EventFSMRoutingTableUpdated, controllerName)
 		case delete_old_gw_pods:
 			err := r.FSM.Event(delete_old_gw_pods, workerslicegwrecycler, isClient, slicegw)
 			if err != nil {
+				utils.RecordEvent(ctx, r.EventRecorder, workerslicegwrecycler, nil, ossEvents.EventFSMDeleteOldGWFailed, controllerName)
 				return ctrl.Result{}, err
 			}
-			r.EventRecorder.Record(
-				&events.Event{
-					Object:    workerslicegwrecycler,
-					EventType: events.EventTypeNormal,
-					Reason:    "Sucess",
-					Message:   "FSM current state - delete old gw",
-				},
-			)
+			utils.RecordEvent(ctx, r.EventRecorder, workerslicegwrecycler, nil, ossEvents.EventFSMDeleteOldGW, controllerName)
 		}
 	} else {
 		switch workerslicegwrecycler.Status.Client.Response {
 		case new_deployment_created:
 			err := r.FSM.Event(verify_new_deployment_created, workerslicegwrecycler, isClient)
 			if err != nil {
+				utils.RecordEvent(ctx, r.EventRecorder, workerslicegwrecycler, nil, ossEvents.EventFSMNewGWSpawnFailed, controllerName)
 				return ctrl.Result{}, err
 			}
-			r.EventRecorder.Record(
-				&events.Event{
-					Object:    workerslicegwrecycler,
-					EventType: events.EventTypeNormal,
-					Reason:    "Sucess",
-					Message:   "FSM current state - new gw spawned",
-				},
-			)
+			utils.RecordEvent(ctx, r.EventRecorder, workerslicegwrecycler, nil, ossEvents.EventFSMNewGWSpawned, controllerName)
 		case slicerouter_updated:
 			err := r.FSM.Event(update_routing_table, workerslicegwrecycler, isClient, slicegw)
 			if err != nil {
+				utils.RecordEvent(ctx, r.EventRecorder, workerslicegwrecycler, nil, ossEvents.EventFSMRoutingTableUpdateFailed, controllerName)
 				return ctrl.Result{}, err
 			}
-			r.EventRecorder.Record(
-				&events.Event{
-					Object:    workerslicegwrecycler,
-					EventType: events.EventTypeNormal,
-					Reason:    "Sucess",
-					Message:   "FSM current state - slicerouter updated",
-				},
-			)
+			utils.RecordEvent(ctx, r.EventRecorder, workerslicegwrecycler, nil, ossEvents.EventFSMRoutingTableUpdated, controllerName)
 		case old_gw_deleted:
 			err := r.FSM.Event(delete_old_gw_pods, workerslicegwrecycler, isClient, slicegw)
 			if err != nil {
+				utils.RecordEvent(ctx, r.EventRecorder, workerslicegwrecycler, nil, ossEvents.EventFSMDeleteOldGWFailed, controllerName)
 				return ctrl.Result{}, err
 			}
-			r.EventRecorder.Record(
-				&events.Event{
-					Object:    workerslicegwrecycler,
-					EventType: events.EventTypeNormal,
-					Reason:    "Sucess",
-					Message:   "FSM current state - Old gw pod deleted",
-				},
-			)
+			utils.RecordEvent(ctx, r.EventRecorder, workerslicegwrecycler, nil, ossEvents.EventFSMDeleteOldGW, controllerName)
 		}
 	}
 	return ctrl.Result{}, nil

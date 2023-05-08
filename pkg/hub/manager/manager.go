@@ -35,18 +35,18 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	hubv1alpha1 "github.com/kubeslice/apis/pkg/controller/v1alpha1"
-	spokev1alpha1 "github.com/kubeslice/apis/pkg/worker/v1alpha1"
+	workerv1alpha1 "github.com/kubeslice/apis/pkg/worker/v1alpha1"
 	mevents "github.com/kubeslice/kubeslice-monitoring/pkg/events"
 	"github.com/kubeslice/kubeslice-monitoring/pkg/metrics"
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
 	ossEvents "github.com/kubeslice/worker-operator/events"
-	"github.com/kubeslice/worker-operator/pkg/events"
 	sidecar "github.com/kubeslice/worker-operator/pkg/gwsidecar"
 	"github.com/kubeslice/worker-operator/pkg/hub/controllers"
 	hubCluster "github.com/kubeslice/worker-operator/pkg/hub/controllers/cluster"
 	"github.com/kubeslice/worker-operator/pkg/hub/controllers/workerslicegwrecycler"
 	"github.com/kubeslice/worker-operator/pkg/logger"
 	"github.com/kubeslice/worker-operator/pkg/router"
+	"github.com/kubeslice/worker-operator/pkg/utils"
 	ctrl "sigs.k8s.io/controller-runtime"
 )
 
@@ -55,7 +55,7 @@ var scheme = runtime.NewScheme()
 func init() {
 	log.SetLogger(logger.NewWrappedLogger())
 	clientgoscheme.AddToScheme(scheme)
-	utilruntime.Must(spokev1alpha1.AddToScheme(scheme))
+	utilruntime.Must(workerv1alpha1.AddToScheme(scheme))
 	utilruntime.Must(kubeslicev1beta1.AddToScheme(scheme))
 	utilruntime.Must(hubv1alpha1.AddToScheme(scheme))
 }
@@ -90,21 +90,28 @@ func Start(meshClient client.Client, ctx context.Context) {
 		metrics.MetricsFactoryOptions{
 			Project:             strings.TrimPrefix(ProjectNamespace, "kubeslice_"),
 			Cluster:             ClusterName,
-			ReportingController: "worker-operator",
+			ReportingController: "workerOperator",
 		},
 	)
 
 	// create slice-controller recorder
-	spokeSliceEventRecorder := events.NewEventRecorder(mgr.GetEventRecorderFor("spokeSlice-controller"))
+	workerSliceEventRecorder := mevents.NewEventRecorder(meshClient, mgr.GetScheme(), ossEvents.EventsMap, mevents.EventRecorderOptions{
+		Cluster:   ClusterName,
+		Project:   ProjectNamespace,
+		Component: "workerSliceController",
+		Namespace: controllers.ControlPlaneNamespace,
+		Version:   utils.EventsVersion,
+		Slice:     utils.NotApplicable,
+	})
 
 	sliceReconciler := controllers.NewSliceReconciler(
 		meshClient,
-		spokeSliceEventRecorder,
+		&workerSliceEventRecorder,
 		mf,
 	)
 	err = builder.
 		ControllerManagedBy(mgr).
-		For(&spokev1alpha1.WorkerSliceConfig{}).
+		For(&workerv1alpha1.WorkerSliceConfig{}).
 		WithEventFilter(predicate.NewPredicateFuncs(func(object client.Object) bool {
 			return object.GetLabels()["worker-cluster"] == ClusterName
 		})).
@@ -114,17 +121,14 @@ func Start(meshClient client.Client, ctx context.Context) {
 		os.Exit(1)
 	}
 
-	// create slice-controller recorder
-	spokeSliceGatewayEventRecorder := events.NewEventRecorder(mgr.GetEventRecorderFor("spokeSliceGateway-controller"))
-
 	sliceGwReconciler := &controllers.SliceGwReconciler{
 		MeshClient:    meshClient,
-		EventRecorder: spokeSliceGatewayEventRecorder,
+		EventRecorder: &workerSliceEventRecorder,
 		ClusterName:   ClusterName,
 	}
 	err = builder.
 		ControllerManagedBy(mgr).
-		For(&spokev1alpha1.WorkerSliceGateway{}).
+		For(&workerv1alpha1.WorkerSliceGateway{}).
 		WithEventFilter(predicate.NewPredicateFuncs(func(object client.Object) bool {
 			return object.GetLabels()["worker-cluster"] == ClusterName
 		})).
@@ -134,15 +138,13 @@ func Start(meshClient client.Client, ctx context.Context) {
 		os.Exit(1)
 	}
 
-	spokeServiceImportEventRecorder := events.NewEventRecorder(mgr.GetEventRecorderFor("spokeServiceImport-controller"))
-
 	serviceImportReconciler := &controllers.ServiceImportReconciler{
 		MeshClient:    meshClient,
-		EventRecorder: spokeServiceImportEventRecorder,
+		EventRecorder: &workerSliceEventRecorder,
 	}
 	err = builder.
 		ControllerManagedBy(mgr).
-		For(&spokev1alpha1.WorkerServiceImport{}).
+		For(&workerv1alpha1.WorkerServiceImport{}).
 		WithEventFilter(predicate.NewPredicateFuncs(func(object client.Object) bool {
 			return object.GetLabels()["worker-cluster"] == ClusterName
 		})).
@@ -154,16 +156,15 @@ func Start(meshClient client.Client, ctx context.Context) {
 
 	workerGWClient, err := sidecar.NewWorkerGWSidecarClientProvider()
 	if err != nil {
-		log.Error(err, "could not create spoke sidecar gateway client for slice gateway reconciler")
+		log.Error(err, "could not create worker sidecar gateway client for slice gateway reconciler")
 		os.Exit(1)
 	}
 	workerRouterClient, err := router.NewWorkerRouterClientProvider()
 	if err != nil {
-		log.Error(err, "could not create spoke router client for slice gateway reconciler")
+		log.Error(err, "could not create worker router client for slice gateway reconciler")
 		os.Exit(1)
 	}
 
-	workerSliceGwRecyclerEventRecorder := events.NewEventRecorder(mgr.GetEventRecorderFor("workerslicegwrecycler-controller"))
 	if err := (&workerslicegwrecycler.Reconciler{
 		MeshClient:            meshClient,
 		Log:                   ctrl.Log.WithName("controllers").WithName("workerslicegwrecycler"),
@@ -171,21 +172,15 @@ func Start(meshClient client.Client, ctx context.Context) {
 		Client:                mgr.GetClient(),
 		WorkerGWSidecarClient: workerGWClient,
 		WorkerRouterClient:    workerRouterClient,
-		EventRecorder:         workerSliceGwRecyclerEventRecorder,
+		EventRecorder:         &workerSliceEventRecorder,
 	}).SetupWithManager(mgr); err != nil {
 		log.Error(err, "could not create controller")
 		os.Exit(1)
 	}
 
-	spokeClusterEventRecorder := mevents.NewEventRecorder(meshClient, mgr.GetScheme(), ossEvents.EventsMap, mevents.EventRecorderOptions{
-		Cluster:   ClusterName,
-		Project:   ProjectNamespace,
-		Component: "worker-operator",
-		Namespace: controllers.ControlPlaneNamespace,
-	})
 	clusterReconciler := hubCluster.NewReconciler(
 		meshClient,
-		spokeClusterEventRecorder,
+		&workerSliceEventRecorder,
 		mf,
 	)
 	err = builder.
