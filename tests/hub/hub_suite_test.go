@@ -191,12 +191,6 @@ var _ = BeforeSuite(func() {
 		Complete(serviceImportReconciler)
 	Expect(err).ToNot(HaveOccurred())
 
-	// workerSliceGwRecyclerEventRecorder := mevents.NewEventRecorder(k8sManager.GetClient(), k8sManager.GetScheme(), ossEvents.EventsMap, mevents.EventRecorderOptions{
-	// 	Cluster:   CLUSTER_NAME,
-	// 	Project:   PROJECT_NS,
-	// 	Component: "workerslicegwrecycler-controller",
-	// 	Namespace: controllers.ControlPlaneNamespace,
-	// })
 	if err := (&workerslicegwrecycler.Reconciler{
 		MeshClient:            k8sClient,
 		Log:                   ctrl.Log.WithName("controllers").WithName("workerslicegwrecycler"),
@@ -209,12 +203,6 @@ var _ = BeforeSuite(func() {
 		os.Exit(1)
 	}
 
-	// spokeClusterEventRecorder := mevents.NewEventRecorder(k8sClient, k8sManager.GetScheme(), ossEvents.EventsMap, mevents.EventRecorderOptions{
-	// 	Cluster:   CLUSTER_NAME,
-	// 	Project:   PROJECT_NS,
-	// 	Component: "worker-operator",
-	// 	Namespace: CONTROL_PLANE_NS,
-	// })
 	clusterReconciler := cluster.NewReconciler(
 		k8sClient,
 		&testSliceEventRecorder,

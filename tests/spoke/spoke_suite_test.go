@@ -145,7 +145,7 @@ var _ = BeforeSuite(func() {
 		ReportingController: "worker-operator",
 	})
 	Expect(err).ToNot(HaveOccurred())
-	spokeSliceEventRecorder := mevents.NewEventRecorder(k8sClient, k8sManager.GetScheme(), ossEvents.EventsMap, mevents.EventRecorderOptions{
+	workerSliceEventRecorder := mevents.NewEventRecorder(k8sClient, k8sManager.GetScheme(), ossEvents.EventsMap, mevents.EventRecorderOptions{
 		Cluster:   hub.ClusterName,
 		Project:   PROJECT_NS,
 		Component: "worker-operator",
@@ -155,7 +155,7 @@ var _ = BeforeSuite(func() {
 		Client:             k8sManager.GetClient(),
 		Scheme:             k8sManager.GetScheme(),
 		Log:                ctrl.Log.WithName("SliceTest"),
-		EventRecorder:      &spokeSliceEventRecorder,
+		EventRecorder:      &workerSliceEventRecorder,
 		HubClient:          hubClientEmulator,
 		WorkerRouterClient: workerClientRouterEmulator,
 		WorkerNetOpClient:  workerClientNetopEmulator,
@@ -167,7 +167,7 @@ var _ = BeforeSuite(func() {
 		Scheme:        k8sManager.GetScheme(),
 		Log:           ctrl.Log.WithName("SliceGwTest"),
 		HubClient:     hubClientEmulator,
-		EventRecorder: &spokeSliceEventRecorder,
+		EventRecorder: &workerSliceEventRecorder,
 	}).Setup(k8sManager, mf)
 	Expect(err).ToNot(HaveOccurred())
 
@@ -175,7 +175,7 @@ var _ = BeforeSuite(func() {
 		Client:                k8sClient,
 		Scheme:                k8sClient.Scheme(),
 		Log:                   ctrl.Log.WithName("SliceGwTest"),
-		EventRecorder:         &spokeSliceEventRecorder,
+		EventRecorder:         &workerSliceEventRecorder,
 		HubClient:             hubClientEmulator,
 		WorkerGWSidecarClient: workerClientSidecarGwEmulator,
 		WorkerRouterClient:    workerClientRouterEmulator,
@@ -188,7 +188,7 @@ var _ = BeforeSuite(func() {
 		Client:        k8sManager.GetClient(),
 		Scheme:        k8sManager.GetScheme(),
 		Log:           ctrl.Log.WithName("SvcImTest"),
-		EventRecorder: &spokeSliceEventRecorder,
+		EventRecorder: &workerSliceEventRecorder,
 	}).Setup(k8sManager, mf)
 	Expect(err).ToNot(HaveOccurred())
 
@@ -196,7 +196,7 @@ var _ = BeforeSuite(func() {
 		Client:        k8sManager.GetClient(),
 		Scheme:        k8sManager.GetScheme(),
 		Log:           ctrl.Log.WithName("NamespaceTest"),
-		EventRecorder: &spokeSliceEventRecorder,
+		EventRecorder: &workerSliceEventRecorder,
 		Hubclient: &hub.HubClientConfig{
 			Client: k8sClient,
 		},
@@ -207,7 +207,7 @@ var _ = BeforeSuite(func() {
 		Client:        k8sManager.GetClient(),
 		Log:           ctrl.Log.WithName("controllers").WithName("networkpolicy"),
 		Scheme:        k8sManager.GetScheme(),
-		EventRecorder: &spokeSliceEventRecorder,
+		EventRecorder: &workerSliceEventRecorder,
 	}).SetupWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())
 
