@@ -499,18 +499,11 @@ func (r *Reconciler) handleClusterDeletion(cluster *hubv1alpha1.Cluster, ctx con
 				log.Error(err, "unable to deregister the worker operator")
 				// increment count for retryAttempts
 				retryAttempts++
-				statusUpdateErr := r.updateRegistrationStatusAndDeregisterInProgress(ctx, cluster, hubv1alpha1.RegistrationStatusDeregisterFailed)
+				statusUpdateErr := r.updateRegistrationStatus(ctx, cluster, hubv1alpha1.RegistrationStatusDeregisterFailed)
 				if statusUpdateErr != nil {
 					log.Error(statusUpdateErr, "unable to update registration status")
 				}
-				recordEventErr := r.EventRecorder.RecordEvent(ctx, &events.Event{
-					Object:            cluster,
-					Name:              ossEvents.EventDeregistrationJobFailed,
-					ReportingInstance: "cluster_reconciler",
-				})
-				if recordEventErr != nil {
-					log.Error(recordEventErr, "unable to record event for cluster deregistration")
-				}
+				utils.RecordEvent(ctx, r.EventRecorder, cluster, nil, ossEvents.EventDeregistrationJobFailed, controllerName)
 				return true, reconcile.Result{}, err
 			}
 		}

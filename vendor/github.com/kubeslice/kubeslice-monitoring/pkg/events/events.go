@@ -65,6 +65,8 @@ var _ EventRecorder = (*eventRecorder)(nil)
 
 type EventRecorderOptions struct {
 	// Version is the version of the component
+	Version string
+	// Cluster  is the name of the cluster
 	Cluster string
 	// Project is the name of the project
 	Project string

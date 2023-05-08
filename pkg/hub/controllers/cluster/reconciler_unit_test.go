@@ -271,7 +271,7 @@ func TestReconcilerToFailWhileCallingCreateDeregisterJob(t *testing.T) {
 		Namespace: controllers.ControlPlaneNamespace,
 	})
 	mf, _ := metrics.NewMetricsFactory(prometheus.NewRegistry(), metrics.MetricsFactoryOptions{})
-	reconciler := NewReconciler(client, testClusterEventRecorder, mf)
+	reconciler := NewReconciler(client, &testClusterEventRecorder, mf)
 	reconciler.InjectClient(client)
 	ctx := context.WithValue(context.Background(), types.NamespacedName{Name: testClusterName, Namespace: testProjectNamespace}, testClusterObjWithFinalizer)
 	clusterKey := types.NamespacedName{Namespace: testProjectNamespace, Name: testClusterName}

@@ -110,7 +110,6 @@ var _ = BeforeSuite(func() {
 			Namespace:           controllers.ControlPlaneNamespace,
 		},
 	)
-
 	spokeClusterEventRecorder := mevents.NewEventRecorder(k8sClient, k8sManager.GetScheme(), ossEvents.EventsMap, mevents.EventRecorderOptions{
 		Cluster:   CLUSTER_NAME,
 		Project:   PROJECT_NS,
@@ -119,7 +118,7 @@ var _ = BeforeSuite(func() {
 	})
 	clusterReconciler := NewReconciler(
 		k8sClient,
-		spokeClusterEventRecorder,
+		&spokeClusterEventRecorder,
 		mf,
 	)
 	clusterReconciler.ReconcileInterval = 5 * time.Second
