@@ -162,12 +162,6 @@ var _ = BeforeSuite(func() {
 	}).Setup(k8sManager, mf)
 	Expect(err).ToNot(HaveOccurred())
 
-	// spokeServiceExportEventRecorder := mevents.NewEventRecorder(k8sClient, k8sManager.GetScheme(), ossEvents.EventsMap, mevents.EventRecorderOptions{
-	// 	Cluster:   hub.ClusterName,
-	// 	Project:   PROJECT_NS,
-	// 	Component: "test-SvcEx-controller",
-	// 	Namespace: CONTROL_PLANE_NS,
-	// })
 	err = (&serviceexport.Reconciler{
 		Client:        k8sManager.GetClient(),
 		Scheme:        k8sManager.GetScheme(),
@@ -177,12 +171,6 @@ var _ = BeforeSuite(func() {
 	}).Setup(k8sManager, mf)
 	Expect(err).ToNot(HaveOccurred())
 
-	// spokeSliceGWEventRecorder := mevents.NewEventRecorder(k8sClient, k8sManager.GetScheme(), ossEvents.EventsMap, mevents.EventRecorderOptions{
-	// 	Cluster:   hub.ClusterName,
-	// 	Project:   PROJECT_NS,
-	// 	Component: "slicegw-operator",
-	// 	Namespace: CONTROL_PLANE_NS,
-	// })
 	err = (&slicegateway.SliceGwReconciler{
 		Client:                k8sClient,
 		Scheme:                k8sClient.Scheme(),
@@ -196,12 +184,6 @@ var _ = BeforeSuite(func() {
 	}).SetupWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())
 
-	// spokeServiceImportEventRecorder := mevents.NewEventRecorder(k8sClient, k8sManager.GetScheme(), ossEvents.EventsMap, mevents.EventRecorderOptions{
-	// 	Cluster:   hub.ClusterName,
-	// 	Project:   PROJECT_NS,
-	// 	Component: "serviceimport-operator",
-	// 	Namespace: CONTROL_PLANE_NS,
-	// })
 	err = (&serviceimport.Reconciler{
 		Client:        k8sManager.GetClient(),
 		Scheme:        k8sManager.GetScheme(),
@@ -210,12 +192,6 @@ var _ = BeforeSuite(func() {
 	}).Setup(k8sManager, mf)
 	Expect(err).ToNot(HaveOccurred())
 
-	// spokeNamespaceEventRecorder := mevents.NewEventRecorder(k8sClient, k8sManager.GetScheme(), ossEvents.EventsMap, mevents.EventRecorderOptions{
-	// 	Cluster:   hub.ClusterName,
-	// 	Project:   PROJECT_NS,
-	// 	Component: "namespace_reconciler",
-	// 	Namespace: CONTROL_PLANE_NS,
-	// })
 	err = (&namespace.Reconciler{
 		Client:        k8sManager.GetClient(),
 		Scheme:        k8sManager.GetScheme(),
@@ -227,12 +203,6 @@ var _ = BeforeSuite(func() {
 	}).SetupWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())
 
-	// netpolEventRecorder := mevents.NewEventRecorder(k8sClient, k8sManager.GetScheme(), ossEvents.EventsMap, mevents.EventRecorderOptions{
-	// 	Cluster:   hub.ClusterName,
-	// 	Project:   PROJECT_NS,
-	// 	Component: "networkpolicy-reconciler",
-	// 	Namespace: CONTROL_PLANE_NS,
-	// })
 	err = (&networkpolicy.NetpolReconciler{
 		Client:        k8sManager.GetClient(),
 		Log:           ctrl.Log.WithName("controllers").WithName("networkpolicy"),

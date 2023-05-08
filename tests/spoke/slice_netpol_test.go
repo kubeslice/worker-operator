@@ -666,8 +666,6 @@ var _ = Describe("SliceNetpol", func() {
 				err = k8sClient.List(ctx, &eventList, opts...)
 				return len(eventList.Items) > 1 && eventFound(eventList, "Slice", "Scope widened with reason - IPBlock violation")
 			}, timeout, interval).Should(BeTrue())
-			// Expect(eventFound(eventList, "Slice", "Scope widened with reason - IPBlock violation")).Should(BeTrue())
-
 		})
 		It("Should uninstall netpol when isolationEnabled is toggled off", func() {
 			Expect(k8sClient.Create(ctx, svc)).Should(Succeed())
