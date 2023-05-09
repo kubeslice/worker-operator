@@ -295,6 +295,9 @@ func constructJobForClusterDeregister() *batchv1.Job {
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: deregisterJobName,
+					Labels: map[string]string{
+						"kubeslice-manager/api-gateway": "cluster-deregister-job",
+					},
 				},
 				Spec: corev1.PodSpec{
 					ServiceAccountName: serviceAccountName,
