@@ -494,16 +494,16 @@ func (r *SliceReconciler) fetchSliceGatewayHealth(ctx context.Context, c *compon
 
 func (r *SliceReconciler) UpdateSliceHealthMetrics(slice *spokev1alpha1.WorkerSliceConfig) {
 	if slice.Status.SliceHealth.SliceHealthStatus == spokev1alpha1.SliceHealthStatusNormal {
-		r.gaugeSliceUp.WithLabelValues(slice.Name).Set(1)
+		r.gaugeSliceUp.WithLabelValues(slice.Spec.SliceName).Set(1)
 	} else {
-		r.gaugeSliceUp.WithLabelValues(slice.Name).Set(0)
+		r.gaugeSliceUp.WithLabelValues(slice.Spec.SliceName).Set(0)
 	}
 
 	for _, cs := range slice.Status.SliceHealth.ComponentStatuses {
 		if cs.ComponentHealthStatus == spokev1alpha1.ComponentHealthStatusNormal {
-			r.gaugeComponentUp.WithLabelValues(slice.Name, cs.Component).Set(1)
+			r.gaugeComponentUp.WithLabelValues(slice.Spec.SliceName, cs.Component).Set(1)
 		} else {
-			r.gaugeComponentUp.WithLabelValues(slice.Name, cs.Component).Set(0)
+			r.gaugeComponentUp.WithLabelValues(slice.Spec.SliceName, cs.Component).Set(0)
 		}
 	}
 }
