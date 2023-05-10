@@ -386,7 +386,7 @@ func isAppPodStatusChanged(current []kubeslicev1beta1.AppPod, old []kubeslicev1b
 // Setup SliceReconciler
 // Initializes metrics and sets up with manager
 func (r *SliceReconciler) Setup(mgr ctrl.Manager, mf metrics.MetricsFactory) error {
-	gaugeAppPods := mf.NewGauge("app_pods", "App pods in slice", []string{"slice", "namespace"})
+	gaugeAppPods := mf.NewGauge("app_pods", "App pods in slice", []string{"slice", "slice_namespace"})
 
 	r.gaugeAppPods = gaugeAppPods
 
