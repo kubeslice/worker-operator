@@ -1,3 +1,21 @@
+/*
+ *  Copyright (c) 2022 Avesha, Inc. All rights reserved.
+ *
+ *  SPDX-License-Identifier: Apache-2.0
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *  http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+
 package cluster
 
 import (
@@ -17,21 +35,23 @@ import (
 	"github.com/kubeslice/worker-operator/pkg/utils"
 	"github.com/prometheus/client_golang/prometheus"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
+
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/util/retry"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
 const (
-	GCP            string = "gcp"
-	AWS            string = "aws"
-	AZURE          string = "azure"
-	controllerName string = "clusterReconciler"
+	controllerName                      string = "clusterReconciler"
+	GCP                                 string = "gcp"
+	AWS                                 string = "aws"
+	AZURE                               string = "azure"
+	MAX_CLUSTER_DEREGISTRATION_ATTEMPTS        = 3
 )
 
 type Reconciler struct {
@@ -61,7 +81,8 @@ func NewReconciler(mc client.Client, er *events.EventRecorder, mf metrics.Metric
 	}
 }
 
-//+kubebuilder:rbac:groups=core,resources=events,verbs=get;list;watch;create;update;patch;delete
+var retryAttempts = 0
+var clusterDeregisterFinalizer = "worker.kubeslice.io/cluster-deregister-finalizer"
 
 func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
 	log := logger.FromContext(ctx).WithName("cluster-reconciler")
@@ -71,6 +92,11 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{}, err
 	}
 	log.Info("got cluster CR from hub", "cluster", cr)
+	requeue, result, err := r.handleClusterDeletion(cr, ctx, req)
+	if requeue {
+		return result, err
+	}
+
 	cl := cluster.NewCluster(r.MeshClient, cr.Name)
 	res, err, requeue := r.updateClusterCloudProviderInfo(ctx, cr, cl)
 	if err != nil {
@@ -89,6 +115,11 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	if requeue {
 		return res, err
 	}
+	// Update registration status to registered
+	if err = r.updateRegistrationStatus(ctx, cr, hubv1alpha1.RegistrationStatusRegistered); err != nil {
+		log.Error(err, "unable to update registration status")
+	}
+
 	utils.RecordEvent(ctx, r.EventRecorder, cr, nil, ossEvents.EventClusterCNISubnetUpdateSuccessful, controllerName)
 	res, err, requeue = r.updateNodeIps(ctx, cr)
 	if err != nil {
@@ -207,7 +238,7 @@ func (r *Reconciler) getComponentStatus(ctx context.Context, c *component) (*hub
 		return nil, nil
 	}
 	if len(pods) == 0 {
-		log.Error(fmt.Errorf("No pods running"), "unhealthy", "pod", c.name)
+		log.Error(fmt.Errorf("no pods running"), "unhealthy", "pod", c.name)
 		cs.ComponentHealthStatus = hubv1alpha1.ComponentHealthStatusError
 		return cs, nil
 	}
@@ -283,6 +314,9 @@ func (r *Reconciler) updateCNISubnetConfig(ctx context.Context, cr *hubv1alpha1.
 		}
 		if !reflect.DeepEqual(cr.Status.CniSubnet, cniSubnet) {
 			cr.Status.CniSubnet = cniSubnet
+			// TODO: move this status declaration to outside this function when health check is implemented
+			// for CNI subnet and Node IP address.
+			cr.Status.RegistrationStatus = hubv1alpha1.RegistrationStatusRegistered
 			toUpdate = true
 			return r.Status().Update(ctx, cr)
 		}
@@ -431,7 +465,7 @@ func (r *Reconciler) getCluster(ctx context.Context, req reconcile.Request) (*hu
 	err := r.Get(ctx, req.NamespacedName, hubCluster)
 	// Request object not found, could have been deleted after reconcile request.
 	if err != nil {
-		if errors.IsNotFound(err) {
+		if apierrors.IsNotFound(err) {
 			// Return and don't requeue
 			log.Info("cluster resource not found in hub. Ignoring since object must be deleted")
 			return nil, nil
@@ -444,4 +478,44 @@ func (r *Reconciler) getCluster(ctx context.Context, req reconcile.Request) (*hu
 func (r *Reconciler) InjectClient(c client.Client) error {
 	r.Client = c
 	return nil
+}
+
+func (r *Reconciler) handleClusterDeletion(cluster *hubv1alpha1.Cluster, ctx context.Context, req reconcile.Request) (bool, reconcile.Result, error) {
+	log := logger.FromContext(ctx)
+
+	if cluster.ObjectMeta.DeletionTimestamp.IsZero() {
+		// The object is not being deleted, so if it does not have our finalizer,
+		// then lets add the finalizer and update the object. This is equivalent
+		// registering our finalizer.
+		if !controllerutil.ContainsFinalizer(cluster, clusterDeregisterFinalizer) {
+			controllerutil.AddFinalizer(cluster, clusterDeregisterFinalizer)
+			if err := r.Update(ctx, cluster); err != nil {
+				return true, reconcile.Result{}, err
+			}
+		}
+	} else {
+		// The object is being deleted
+		if controllerutil.ContainsFinalizer(cluster, clusterDeregisterFinalizer) &&
+			cluster.Status.RegistrationStatus != hubv1alpha1.RegistrationStatusDeregisterInProgress &&
+			retryAttempts < MAX_CLUSTER_DEREGISTRATION_ATTEMPTS {
+			// our finalizer is present, so lets handle any external dependency
+			if err := r.createDeregisterJob(ctx, cluster); err != nil {
+				// unable to deregister the worker operator, return with an error and raise event
+				log.Error(err, "unable to deregister the worker operator")
+				// increment count for retryAttempts
+				retryAttempts++
+				statusUpdateErr := r.updateRegistrationStatus(ctx, cluster, hubv1alpha1.RegistrationStatusDeregisterFailed)
+				if statusUpdateErr != nil {
+					log.Error(statusUpdateErr, "unable to update registration status")
+				}
+				utils.RecordEvent(ctx, r.EventRecorder, cluster, nil, ossEvents.EventDeregistrationJobFailed, controllerName)
+				return true, reconcile.Result{}, err
+			}
+		}
+		// Stop reconciliation as the item is being deleted
+		return true, reconcile.Result{
+			RequeueAfter: 60 * time.Second,
+		}, nil
+	}
+	return false, reconcile.Result{}, nil
 }

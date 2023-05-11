@@ -646,6 +646,14 @@ var EventsMap = map[events.EventName]*events.EventSchema{
 		ReportingController: "worker",
 		Message:             "namespace info failed to be deleted from Controller.",
 	},
+	"DeregistrationJobFailed": {
+		Name:                "DeregistrationJobFailed",
+		Reason:              "DeregistrationJobFailed",
+		Action:              "None",
+		Type:                events.EventTypeWarning,
+		ReportingController: "worker",
+		Message:             "Failed to complete cluster deregistration job",
+	},
 }
 
 var (
@@ -727,4 +735,5 @@ var (
 	EventUpdateNamespaceInfoToHubFailed                   events.EventName = "UpdateNamespaceInfoToHubFailed"
 	EventDeleteNamespaceInfoToHub                         events.EventName = "DeleteNamespaceInfoToHub"
 	EventDeleteNamespaceInfoToHubFailed                   events.EventName = "DeleteNamespaceInfoToHubFailed"
+	EventDeregistrationJobFailed                          events.EventName = "DeregistrationJobFailed"
 )

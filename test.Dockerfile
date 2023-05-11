@@ -19,6 +19,9 @@ COPY hack/ hack/
 COPY config/ config
 COPY pkg/ pkg/
 COPY events/ events/
+# Copy script files
+ENV SCRIPT_PATH="/scripts"
+COPY scripts /scripts
 
 # Copy manifest files for istio gateways deployment
 COPY files /files

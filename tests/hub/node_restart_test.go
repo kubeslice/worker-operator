@@ -27,9 +27,11 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/util/retry"
 )
 
 var _ = Describe("NodeRestart Test Suite", func() {
@@ -189,7 +191,20 @@ Prefixes:
 			}
 
 			DeferCleanup(func() {
+				// Delete cluster object
 				Expect(k8sClient.Delete(ctx, cluster)).Should(Succeed())
+				err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+					err := k8sClient.Get(ctx, types.NamespacedName{
+						Name: cluster.Name, Namespace: cluster.Namespace,
+					}, cluster)
+					if err != nil {
+						return err
+					}
+					// remove finalizer from cluster CR
+					cluster.ObjectMeta.SetFinalizers([]string{})
+					return k8sClient.Update(ctx, cluster)
+				})
+				Expect(err).To(BeNil())
 				Eventually(func() bool {
 					err := k8sClient.Delete(ctx, node1)
 					return errors.IsNotFound(err)
@@ -234,7 +249,7 @@ Prefixes:
 			}, time.Second*240, time.Millisecond*250).Should(BeTrue())
 		})
 
-		XIt("should update cluster CR with new node IP", func() {
+		It("should update cluster CR with new node IP", func() {
 			Expect(k8sClient.Create(ctx, internalNode1)).Should(Succeed())
 			os.Setenv("CLUSTER_NAME", cluster.Name)
 			os.Setenv("HUB_PROJECT_NAMESPACE", PROJECT_NS)
@@ -270,3 +285,20 @@ Prefixes:
 		})
 	})
 })
+
+func configMap(name, namespace, data string) *v1.ConfigMap {
+	configMapData := make(map[string]string)
+	configMapData["excluded_prefixes_output.yaml"] = data
+	configMap := v1.ConfigMap{
+		// TypeMeta: metav1.TypeMeta{
+		// 	Kind:       "ConfigMap",
+		// 	APIVersion: "v1",
+		// },
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+		},
+		Data: configMapData,
+	}
+	return &configMap
+}
