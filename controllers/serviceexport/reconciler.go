@@ -51,6 +51,7 @@ type Reconciler struct {
 
 	// metrics
 	gaugeEndpoints *prometheus.GaugeVec
+	gaugeAliases   *prometheus.GaugeVec
 }
 
 type HubClientProvider interface {
@@ -175,6 +176,7 @@ func (r Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resul
 	}
 	if requeue {
 		log.Info("aliases reconciled")
+		r.gaugeAliases.WithLabelValues(serviceexport.Spec.Slice, serviceexport.Namespace, serviceexport.Name).Set(float64(len(serviceexport.Status.Aliases)))
 		debugLog.Info("requeuing after aliases reconcile", "res", res, "er", err)
 		return res, nil
 	}
@@ -215,8 +217,10 @@ func (r Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resul
 // Initializes metrics and sets up with manager
 func (r *Reconciler) Setup(mgr ctrl.Manager, mf metrics.MetricsFactory) error {
 	gaugeEndpoints := mf.NewGauge("serviceexport_endpoints", "Active endpoints in serviceexport", []string{"slice", "slice_namespace", "slice_service"})
+	gaugeAliases := mf.NewGauge("serviceexport_aliases", "Active aliases in serviceexport", []string{"slice", "slice_namespace", "slice_service"})
 
 	r.gaugeEndpoints = gaugeEndpoints
+	r.gaugeAliases = gaugeAliases
 
 	return r.SetupWithManager(mgr)
 }
