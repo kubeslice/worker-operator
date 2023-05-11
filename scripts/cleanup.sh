@@ -27,8 +27,7 @@ delete_kubeSlice_CRDs() {
 }
 
 delete_worker_namespace(){
-    echo "🗑 Removing kubeslice-system namespace"
-    kubectl delete namespace kubeslice-system
+    kubectl delete namespace kubeslice-system > /dev/null 2>&1
 }
 
 helm_uninstall_succeeded(){
@@ -37,8 +36,8 @@ helm_uninstall_succeeded(){
 }
 
 delete_dashboard_rbac(){
-    kubectl delete clusterrole kubeslice-kubernetes-dashboard
-    kubectl delete clusterrolebinding kubeslice-kubernetes-dashboard
+    kubectl delete clusterrole kubeslice-kubernetes-dashboard > /dev/null 2>&1
+    kubectl delete clusterrolebinding kubeslice-kubernetes-dashboard > /dev/null 2>&1
 }
 
 run_post_uninstall_cleanup() {
@@ -50,7 +49,7 @@ run_post_uninstall_cleanup() {
     sleep 5
     # remove worker finalizer from cluster object
     remove_cluster_finalizer
-    echo "🎉 Deregister successful."
+    echo "🎉 Cluster deregistered successfully"
     delete_dashboard_rbac
     # delete namespace
     delete_worker_namespace
