@@ -151,7 +151,7 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req reconcile.Request) 
 
 	log.Info("got slice from hub", "slice", slice.Name)
 	debuglog.Info("got slice from hub", "slice", slice)
-	*r.EventRecorder = (*r.EventRecorder).WithSlice(slice.Name)
+	*r.EventRecorder = (*r.EventRecorder).WithSlice(slice.Spec.SliceName)
 	requeue, result, err := r.handleSliceDeletion(slice, ctx, req)
 	if requeue {
 		return result, err
@@ -196,13 +196,13 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req reconcile.Request) 
 			utils.RecordEvent(ctx, r.EventRecorder, slice, nil, ossEvents.EventWorkerSliceConfigUpdated, sliceControllerName)
 			return reconcile.Result{RequeueAfter: r.ReconcileInterval}, nil
 		}
-		r.counterSliceUpdationFailed.WithLabelValues(slice.Name).Add(1)
+		r.counterSliceUpdationFailed.WithLabelValues(sliceName).Add(1)
 		return reconcile.Result{}, err
 	}
 
 	err = r.updateSliceConfig(ctx, meshSlice, slice)
 	if err != nil {
-		r.counterSliceUpdationFailed.WithLabelValues(slice.Name).Add(1)
+		r.counterSliceUpdationFailed.WithLabelValues(sliceName).Add(1)
 		log.Error(err, "unable to update slice status in spoke cluster", "slice", meshSlice)
 		return reconcile.Result{}, err
 	}
@@ -212,7 +212,7 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req reconcile.Request) 
 	err = r.updateSliceHealth(ctx, slice)
 	if err != nil {
 		log.Error(err, "unable to update slice health status in hub cluster", "workerSlice", slice)
-		r.counterSliceUpdationFailed.WithLabelValues(slice.Name).Add(1)
+		r.counterSliceUpdationFailed.WithLabelValues(sliceName).Add(1)
 		return reconcile.Result{}, err
 	}
 	r.UpdateSliceHealthMetrics(slice)
@@ -220,13 +220,13 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req reconcile.Request) 
 	if err := r.Status().Update(ctx, slice); err != nil {
 		log.Error(err, "unable to update slice CR")
 		utils.RecordEvent(ctx, r.EventRecorder, slice, nil, ossEvents.EventWorkerSliceHealthUpdateFailed, sliceControllerName)
-		r.counterSliceUpdationFailed.WithLabelValues(slice.Name).Add(1)
+		r.counterSliceUpdationFailed.WithLabelValues(sliceName).Add(1)
 		return reconcile.Result{}, err
 	} else {
 		utils.RecordEvent(ctx, r.EventRecorder, slice, nil, ossEvents.EventWorkerSliceHealthUpdated, sliceControllerName)
 		log.Info("succesfully updated the slice CR ", "slice CR ", slice)
 	}
-	r.counterSliceUpdated.WithLabelValues(slice.Name).Add(1)
+	r.counterSliceUpdated.WithLabelValues(sliceName).Add(1)
 	return reconcile.Result{RequeueAfter: r.ReconcileInterval}, nil
 }
 
@@ -334,7 +334,7 @@ func (r *SliceReconciler) handleSliceDeletion(slice *spokev1alpha1.WorkerSliceCo
 			if err := r.deleteSliceResourceOnSpoke(ctx, slice); err != nil {
 				// if fail to delete the external dependency here, return with error
 				// so that it can be retried
-				r.counterSliceDeletionFailed.WithLabelValues(slice.Name).Add(1)
+				r.counterSliceDeletionFailed.WithLabelValues(slice.Spec.SliceName).Add(1)
 				return true, reconcile.Result{}, err
 			}
 			// remove our finalizer from the spokeslice and update it.
@@ -342,16 +342,16 @@ func (r *SliceReconciler) handleSliceDeletion(slice *spokev1alpha1.WorkerSliceCo
 			err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 				//fetch the latest spokeslice from hub
 				if err := r.Get(ctx, req.NamespacedName, slice); err != nil {
-					r.counterSliceDeletionFailed.WithLabelValues(slice.Name).Add(1)
+					r.counterSliceDeletionFailed.WithLabelValues(slice.Spec.SliceName).Add(1)
 					return err
 				}
 				//remove the finalizer
 				controllerutil.RemoveFinalizer(slice, sliceFinalizer)
 				if err := r.Update(ctx, slice); err != nil {
-					r.counterSliceDeletionFailed.WithLabelValues(slice.Name).Add(1)
+					r.counterSliceDeletionFailed.WithLabelValues(slice.Spec.SliceName).Add(1)
 					return err
 				}
-				r.counterSliceDeleted.WithLabelValues(slice.Name).Add(1)
+				r.counterSliceDeleted.WithLabelValues(slice.Spec.SliceName).Add(1)
 				return nil
 			})
 			if err != nil {
