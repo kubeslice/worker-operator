@@ -20,10 +20,13 @@ package cluster
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path"
+	"time"
 
 	hubv1alpha1 "github.com/kubeslice/apis/pkg/controller/v1alpha1"
+	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
 	"github.com/kubeslice/worker-operator/pkg/logger"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -58,6 +61,16 @@ func (r *Reconciler) createDeregisterJob(ctx context.Context, cluster *hubv1alph
 	if err != nil {
 		log.Error(err, "error updating status of deregistration on the controller")
 		return err
+	}
+	// If there are slice and slice gateways present at the worker cluster, throw an error
+	maxRetries := 3
+	slices := r.retryListSlice(ctx, maxRetries)
+	if !slices {
+		return errors.New("slice present in cluster, should delete it before deregistering cluster")
+	}
+	notPresentSliceGWs := r.retryListSliceGW(ctx, maxRetries)
+	if !notPresentSliceGWs {
+		return errors.New("slice gateway present in cluster, should delete it before deregistering cluster")
 	}
 	// Create a service account.
 	if err := r.MeshClient.Create(ctx, constructServiceAccount(), &client.CreateOptions{}); err != nil {
@@ -345,4 +358,61 @@ func constructJobForClusterDeregister() *batchv1.Job {
 		},
 	}
 	return job
+}
+
+func (r *Reconciler) retryListSlice(ctx context.Context, maxRetries int) bool {
+	retries := 0
+	for {
+		listOpts := []client.ListOption{}
+		slice := kubeslicev1beta1.SliceList{}
+		err := r.MeshClient.List(ctx, &slice, listOpts...)
+		if err != nil {
+			// slice listing error
+			retries++
+			if retries > maxRetries {
+				return false
+			}
+			time.Sleep(5 * time.Second)
+			continue
+		}
+
+		if len(slice.Items) != 0 {
+			retries++
+			if retries > maxRetries {
+				return false
+			}
+			time.Sleep(5 * time.Second)
+			continue
+		}
+		// slice not present
+		return true
+	}
+}
+func (r *Reconciler) retryListSliceGW(ctx context.Context, maxRetries int) bool {
+	retries := 0
+	for {
+		listOpts := []client.ListOption{}
+		sliceGw := kubeslicev1beta1.SliceGatewayList{}
+		err := r.MeshClient.List(ctx, &sliceGw, listOpts...)
+		if err != nil {
+			// slice gateway listing error
+			retries++
+			if retries > maxRetries {
+				return false
+			}
+			time.Sleep(5 * time.Second)
+			continue
+		}
+
+		if len(sliceGw.Items) != 0 {
+			retries++
+			if retries > maxRetries {
+				return false
+			}
+			time.Sleep(5 * time.Second)
+			continue
+		}
+		// slicegw not present
+		return true
+	}
 }
