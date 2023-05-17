@@ -203,6 +203,11 @@ func TestReconcileToUpdateWorkerSlice(t *testing.T) {
 		mock.IsType(&corev1.PodList{}),
 		mock.IsType([]k8sclient.ListOption{}),
 	).Return(nil)
+	client.On("List",
+		mock.IsType(ctx),
+		mock.IsType(&appsv1.DeploymentList{}),
+		mock.IsType([]k8sclient.ListOption{}),
+	).Return(nil)
 	client.StatusMock.On("Update",
 		mock.IsType(ctx),
 		mock.IsType(&workerv1alpha1.WorkerSliceConfig{}),
