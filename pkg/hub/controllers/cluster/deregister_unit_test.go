@@ -9,6 +9,7 @@ import (
 
 	hubv1alpha1 "github.com/kubeslice/apis/pkg/controller/v1alpha1"
 	"github.com/kubeslice/kubeslice-monitoring/pkg/metrics"
+	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
 	utilmock "github.com/kubeslice/worker-operator/pkg/mocks"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/stretchr/testify/mock"
@@ -121,6 +122,16 @@ func TestCreateDeregisterJobPositiveScenarios(t *testing.T) {
 		mock.IsType(ctx),
 		mock.IsType(&hubv1alpha1.Cluster{}),
 		mock.IsType([]k8sclient.UpdateOption(nil)),
+	).Return(nil)
+	client.On("List",
+		mock.IsType(ctx),
+		mock.IsType(&kubeslicev1beta1.SliceList{}),
+		mock.IsType([]k8sclient.ListOption(nil)),
+	).Return(nil)
+	client.On("List",
+		mock.IsType(ctx),
+		mock.IsType(&kubeslicev1beta1.SliceGatewayList{}),
+		mock.IsType([]k8sclient.ListOption(nil)),
 	).Return(nil)
 	client.On("Create",
 		mock.IsType(ctx),
@@ -252,6 +263,16 @@ func TestReconcilerFailToCreateServiceAccount(t *testing.T) {
 		mock.IsType(&hubv1alpha1.Cluster{}),
 		mock.IsType([]k8sclient.UpdateOption(nil)),
 	).Return(nil)
+	client.On("List",
+		mock.IsType(ctx),
+		mock.IsType(&kubeslicev1beta1.SliceList{}),
+		mock.IsType([]k8sclient.ListOption(nil)),
+	).Return(nil)
+	client.On("List",
+		mock.IsType(ctx),
+		mock.IsType(&kubeslicev1beta1.SliceGatewayList{}),
+		mock.IsType([]k8sclient.ListOption(nil)),
+	).Return(nil)
 	client.On("Create",
 		mock.IsType(ctx),
 		mock.IsType(&corev1.ServiceAccount{}),
@@ -294,6 +315,16 @@ func TestReconcilerFailToFetchOperatorClusterRole(t *testing.T) {
 		mock.IsType(ctx),
 		mock.IsType(&hubv1alpha1.Cluster{}),
 		mock.IsType([]k8sclient.UpdateOption(nil)),
+	).Return(nil)
+	client.On("List",
+		mock.IsType(ctx),
+		mock.IsType(&kubeslicev1beta1.SliceList{}),
+		mock.IsType([]k8sclient.ListOption(nil)),
+	).Return(nil)
+	client.On("List",
+		mock.IsType(ctx),
+		mock.IsType(&kubeslicev1beta1.SliceGatewayList{}),
+		mock.IsType([]k8sclient.ListOption(nil)),
 	).Return(nil)
 	client.On("Create",
 		mock.IsType(ctx),
@@ -347,6 +378,16 @@ func TestReconcilerFailToCreateClusterRole(t *testing.T) {
 		mock.IsType(ctx),
 		mock.IsType(&hubv1alpha1.Cluster{}),
 		mock.IsType([]k8sclient.UpdateOption(nil)),
+	).Return(nil)
+	client.On("List",
+		mock.IsType(ctx),
+		mock.IsType(&kubeslicev1beta1.SliceList{}),
+		mock.IsType([]k8sclient.ListOption(nil)),
+	).Return(nil)
+	client.On("List",
+		mock.IsType(ctx),
+		mock.IsType(&kubeslicev1beta1.SliceGatewayList{}),
+		mock.IsType([]k8sclient.ListOption(nil)),
 	).Return(nil)
 	client.On("Create",
 		mock.IsType(ctx),
@@ -410,6 +451,16 @@ func TestReconcilerFailToCreateClusterRoleBinding(t *testing.T) {
 		mock.IsType(ctx),
 		mock.IsType(&hubv1alpha1.Cluster{}),
 		mock.IsType([]k8sclient.UpdateOption(nil)),
+	).Return(nil)
+	client.On("List",
+		mock.IsType(ctx),
+		mock.IsType(&kubeslicev1beta1.SliceList{}),
+		mock.IsType([]k8sclient.ListOption(nil)),
+	).Return(nil)
+	client.On("List",
+		mock.IsType(ctx),
+		mock.IsType(&kubeslicev1beta1.SliceGatewayList{}),
+		mock.IsType([]k8sclient.ListOption(nil)),
 	).Return(nil)
 	client.On("Create",
 		mock.IsType(ctx),
@@ -478,6 +529,16 @@ func TestReconcilerFailToCreateConfigmap(t *testing.T) {
 		mock.IsType(ctx),
 		mock.IsType(&hubv1alpha1.Cluster{}),
 		mock.IsType([]k8sclient.UpdateOption(nil)),
+	).Return(nil)
+	client.On("List",
+		mock.IsType(ctx),
+		mock.IsType(&kubeslicev1beta1.SliceList{}),
+		mock.IsType([]k8sclient.ListOption(nil)),
+	).Return(nil)
+	client.On("List",
+		mock.IsType(ctx),
+		mock.IsType(&kubeslicev1beta1.SliceGatewayList{}),
+		mock.IsType([]k8sclient.ListOption(nil)),
 	).Return(nil)
 	client.On("Create",
 		mock.IsType(ctx),
@@ -560,6 +621,16 @@ func TestReconcilerFailToDeleteJob(t *testing.T) {
 		mock.IsType(ctx),
 		mock.IsType(&hubv1alpha1.Cluster{}),
 		mock.IsType([]k8sclient.UpdateOption(nil)),
+	).Return(nil)
+	client.On("List",
+		mock.IsType(ctx),
+		mock.IsType(&kubeslicev1beta1.SliceList{}),
+		mock.IsType([]k8sclient.ListOption(nil)),
+	).Return(nil)
+	client.On("List",
+		mock.IsType(ctx),
+		mock.IsType(&kubeslicev1beta1.SliceGatewayList{}),
+		mock.IsType([]k8sclient.ListOption(nil)),
 	).Return(nil)
 	client.On("Create",
 		mock.IsType(ctx),
@@ -653,6 +724,16 @@ func TestReconcilerFailToCreateDeregisterJob(t *testing.T) {
 		mock.IsType(ctx),
 		mock.IsType(&hubv1alpha1.Cluster{}),
 		mock.IsType([]k8sclient.UpdateOption(nil)),
+	).Return(nil)
+	client.On("List",
+		mock.IsType(ctx),
+		mock.IsType(&kubeslicev1beta1.SliceList{}),
+		mock.IsType([]k8sclient.ListOption(nil)),
+	).Return(nil)
+	client.On("List",
+		mock.IsType(ctx),
+		mock.IsType(&kubeslicev1beta1.SliceGatewayList{}),
+		mock.IsType([]k8sclient.ListOption(nil)),
 	).Return(nil)
 	client.On("Create",
 		mock.IsType(ctx),
