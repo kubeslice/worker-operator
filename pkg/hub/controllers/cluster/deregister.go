@@ -316,7 +316,7 @@ func constructJobForClusterDeregister() *batchv1.Job {
 					ServiceAccountName: serviceAccountName,
 					Containers: []corev1.Container{{
 						Name:  cleanupContainer,
-						Image: "aveshadev/worker-installer:latest",
+						Image: "aveshasystems/worker-installer:1.1.8",
 						Command: []string{
 							"/bin/bash",
 							"/tmp/kubeslice-cleanup.sh",
