@@ -415,13 +415,27 @@ func (r *SliceReconciler) getComponentStatus(ctx context.Context, c *component, 
 		cs.ComponentHealthStatus = spokev1alpha1.ComponentHealthStatusError
 		return cs, nil
 	}
+	// TODO: verify "PodConditionType == ContainersReady" when
+	// readiness-probe for kubeslice components are implemented
 	for _, pod := range pods {
 		if pod.Status.Phase != corev1.PodRunning {
-			log.Info("pod is not healthy", "component", c.name)
+			log.Info("pod is not in running phase", "component", c.name)
 			cs.ComponentHealthStatus = spokev1alpha1.ComponentHealthStatusError
 			return cs, nil
+		} else {
+			for _, containerStatus := range pod.Status.ContainerStatuses {
+				terminatedState := containerStatus.State.Terminated
+				if terminatedState != nil && terminatedState.ExitCode != 0 {
+					log.Info("container terminated with non-zero exitcode",
+						"component", c.name,
+						"container", containerStatus.Name,
+						"exitcode", terminatedState.ExitCode)
+					cs.ComponentHealthStatus = spokev1alpha1.ComponentHealthStatusError
+				}
+			}
 		}
 	}
+	log.Info("health status normal", "component", c.name)
 	cs.ComponentHealthStatus = spokev1alpha1.ComponentHealthStatusNormal
 	return cs, nil
 }
@@ -437,52 +451,55 @@ func (r *SliceReconciler) fetchSliceGatewayHealth(ctx context.Context, c *compon
 		client.MatchingLabels(c.labels),
 		client.InNamespace(c.ns),
 	}
-	if err := r.MeshClient.List(ctx, sliceGwDeployments, listOpts...); err == nil {
-		//1. zero number of deployments -> ignore the slicegw health status
-		if len(sliceGwDeployments.Items) == 0 {
-			log.Info("SliceGW deployments are not present, skipping slicegw health status")
-			return nil, nil
-		} else {
-			//2. non zero number of deployments for slicegw -> fetch status of all pods
-			podList := &corev1.PodList{}
-			listOpts := []client.ListOption{
-				client.MatchingLabels(c.labels),
-				client.InNamespace(c.ns),
-			}
-			if err := r.MeshClient.List(ctx, podList, listOpts...); err != nil {
-				log.Error(err, "Failed to list pods", "pod", c.name)
-				return nil, err
-			}
-			pods := podList.Items
-			if len(pods) == 0 {
-				log.Error(fmt.Errorf("no pods running"), "unhealthy", "pod", c.name)
-				cs.ComponentHealthStatus = spokev1alpha1.ComponentHealthStatusError
-				return cs, nil
-			}
-			if len(pods) != len(sliceGwDeployments.Items) {
-				log.Error(fmt.Errorf("number of pods do not match slicegw deployments running"), "unhealthy", "pod", c.name)
-				cs.ComponentHealthStatus = spokev1alpha1.ComponentHealthStatusError
-				return cs, nil
-			}
-			for _, pod := range pods {
-				if pod.Status.Phase != corev1.PodRunning {
-					// checking individual container status
-					for _, containerStatus := range pod.Status.ContainerStatuses {
-						if !containerStatus.Ready {
-							log.Info("component unhealthy",
-								"component", c.name, "container", containerStatus.Name)
-							cs.ComponentHealthStatus = spokev1alpha1.ComponentHealthStatusError
-							return cs, nil
-						}
-					}
-				}
-			}
-			cs.ComponentHealthStatus = spokev1alpha1.ComponentHealthStatusNormal
-		}
-	} else {
+	err := r.MeshClient.List(ctx, sliceGwDeployments, listOpts...)
+	if err != nil {
 		log.Error(err, "Could not list the slicegw deployments")
 		return nil, err
 	}
+	//1. zero number of deployments -> ignore the slicegw health status
+	if len(sliceGwDeployments.Items) == 0 {
+		log.Info("SliceGW deployments are not present, skipping slicegw health status")
+		return nil, nil
+	}
+	//2. non zero number of deployments for slicegw -> fetch status of all pods
+	podList := &corev1.PodList{}
+	if err := r.MeshClient.List(ctx, podList, listOpts...); err != nil {
+		log.Error(err, "Failed to list pods", "pod", c.name)
+		return nil, err
+	}
+	pods := podList.Items
+	if len(pods) == 0 {
+		log.Error(fmt.Errorf("no pods running"), "unhealthy", "pod", c.name)
+		cs.ComponentHealthStatus = spokev1alpha1.ComponentHealthStatusError
+		return cs, nil
+	}
+	if len(pods) != len(sliceGwDeployments.Items) {
+		log.Error(fmt.Errorf("number of pods do not match slicegw deployments running"), "unhealthy", "pod", c.name)
+		cs.ComponentHealthStatus = spokev1alpha1.ComponentHealthStatusError
+		return cs, nil
+	}
+	// TODO: verify "PodConditionType == ContainersReady" when
+	// readiness-probe for kubeslice components are implemented
+	for _, pod := range pods {
+		if pod.Status.Phase != corev1.PodRunning {
+			log.Info("pod is not in running phase", "component", c.name)
+			cs.ComponentHealthStatus = spokev1alpha1.ComponentHealthStatusError
+			return cs, nil
+		} else {
+			for _, containerStatus := range pod.Status.ContainerStatuses {
+				terminatedState := containerStatus.State.Terminated
+				if terminatedState != nil && terminatedState.ExitCode != 0 {
+					log.Info("container terminated with non-zero exitcode",
+						"component", c.name,
+						"container", containerStatus.Name,
+						"exitcode", terminatedState.ExitCode)
+					cs.ComponentHealthStatus = spokev1alpha1.ComponentHealthStatusError
+				}
+			}
+		}
+	}
+	log.Info("health status normal", "component", c.name)
+	cs.ComponentHealthStatus = spokev1alpha1.ComponentHealthStatusNormal
 	return cs, nil
 }
 

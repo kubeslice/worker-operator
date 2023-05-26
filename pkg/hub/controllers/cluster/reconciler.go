@@ -243,15 +243,27 @@ func (r *Reconciler) getComponentStatus(ctx context.Context, c *component) (*hub
 		cs.ComponentHealthStatus = hubv1alpha1.ComponentHealthStatusError
 		return cs, nil
 	}
-
+	// TODO: verify "PodConditionType == ContainersReady" when
+	// readiness-probe for kubeslice components are implemented
 	for _, pod := range pods {
 		if pod.Status.Phase != corev1.PodRunning {
-			log.Info("pod is not healthy", "component", c.name)
+			log.Info("pod is not in running phase", "component", c.name)
 			cs.ComponentHealthStatus = hubv1alpha1.ComponentHealthStatusError
 			return cs, nil
+		} else {
+			for _, containerStatus := range pod.Status.ContainerStatuses {
+				terminatedState := containerStatus.State.Terminated
+				if terminatedState != nil && terminatedState.ExitCode != 0 {
+					log.Info("container terminated with non-zero exitcode",
+						"component", c.name,
+						"container", containerStatus.Name,
+						"exitcode", terminatedState.ExitCode)
+					cs.ComponentHealthStatus = hubv1alpha1.ComponentHealthStatusError
+				}
+			}
 		}
 	}
-
+	log.Info("health status normal", "component", c.name)
 	cs.ComponentHealthStatus = hubv1alpha1.ComponentHealthStatusNormal
 	return cs, nil
 }
