@@ -234,10 +234,11 @@ func (r *Reconciler) getComponentStatus(ctx context.Context, c *component) (*hub
 	cs := &hubv1alpha1.ComponentStatus{
 		Component: c.name,
 	}
-	if len(pods) == 0 && c.ignoreMissing {
-		return nil, nil
-	}
 	if len(pods) == 0 {
+		if c.ignoreMissing {
+			log.Info("ignore missing pod for ", "component", c.name)
+			return nil, nil
+		}
 		log.Error(fmt.Errorf("no pods running"), "unhealthy", "pod", c.name)
 		cs.ComponentHealthStatus = hubv1alpha1.ComponentHealthStatusError
 		return cs, nil

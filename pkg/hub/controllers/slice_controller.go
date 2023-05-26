@@ -386,10 +386,8 @@ func (r *SliceReconciler) updateSliceHealth(ctx context.Context, slice *spokev1a
 
 func (r *SliceReconciler) getComponentStatus(ctx context.Context, c *component, sliceName string) (*spokev1alpha1.ComponentStatus, error) {
 	log := logger.FromContext(ctx)
-	for i := range components {
-		if components[i].name != "dns" {
-			components[i].labels["kubeslice.io/slice"] = sliceName
-		}
+	if c.name != "dns" {
+		c.labels["kubeslice.io/slice"] = sliceName
 	}
 	if c.name == "slicegateway" {
 		cs, err := r.fetchSliceGatewayHealth(ctx, c)
@@ -408,10 +406,11 @@ func (r *SliceReconciler) getComponentStatus(ctx context.Context, c *component, 
 	cs := &spokev1alpha1.ComponentStatus{
 		Component: c.name,
 	}
-	if len(pods) == 0 && c.ignoreMissing {
-		return nil, nil
-	}
 	if len(pods) == 0 {
+		if c.ignoreMissing {
+			log.Info("ignore missing pod for ", "component", c.name)
+			return nil, nil
+		}
 		log.Error(fmt.Errorf("no pods running"), "unhealthy", "pod", c.name)
 		cs.ComponentHealthStatus = spokev1alpha1.ComponentHealthStatusError
 		return cs, nil
@@ -467,9 +466,15 @@ func (r *SliceReconciler) fetchSliceGatewayHealth(ctx context.Context, c *compon
 			}
 			for _, pod := range pods {
 				if pod.Status.Phase != corev1.PodRunning {
-					log.Info("pod is not healthy", "component", c.name)
-					cs.ComponentHealthStatus = spokev1alpha1.ComponentHealthStatusError
-					return cs, nil
+					// checking individual container status
+					for _, containerStatus := range pod.Status.ContainerStatuses {
+						if !containerStatus.Ready {
+							log.Info("component unhealthy",
+								"component", c.name, "container", containerStatus.Name)
+							cs.ComponentHealthStatus = spokev1alpha1.ComponentHealthStatusError
+							return cs, nil
+						}
+					}
 				}
 			}
 			cs.ComponentHealthStatus = spokev1alpha1.ComponentHealthStatusNormal
