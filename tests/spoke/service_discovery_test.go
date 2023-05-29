@@ -25,6 +25,7 @@ import (
 	"time"
 
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
+	"github.com/kubeslice/worker-operator/tests/utils"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
@@ -262,6 +263,14 @@ var _ = Describe("ServiceExportController", func() {
 				return true
 			}, time.Second*30, time.Millisecond*250).Should(BeTrue())
 
+			m, err := utils.GetGaugeMetricFromRegistry(MetricRegistry, "kubeslice_serviceexport_aliases", map[string]string{
+				"slice":           "test-slice-1",
+				"slice_service":   "iperf-server",
+				"slice_namespace": "default",
+			})
+			Expect(err).ToNot(HaveOccurred())
+			Expect(m).To(Equal(1.0))
+
 			// Test adding a new alias to the spec
 			err = retry.RetryOnConflict(retry.DefaultRetry, func() error {
 				err := k8sClient.Get(ctx, svcKey, createdSvcEx)
@@ -293,6 +302,14 @@ var _ = Describe("ServiceExportController", func() {
 				}
 				return true
 			}, time.Second*30, time.Millisecond*250).Should(BeTrue())
+
+			m, err = utils.GetGaugeMetricFromRegistry(MetricRegistry, "kubeslice_serviceexport_aliases", map[string]string{
+				"slice":           "test-slice-1",
+				"slice_service":   "iperf-server",
+				"slice_namespace": "default",
+			})
+			Expect(err).ToNot(HaveOccurred())
+			Expect(m).To(Equal(2.0))
 
 			// Test updating an existing alias in the spec
 			err = retry.RetryOnConflict(retry.DefaultRetry, func() error {
