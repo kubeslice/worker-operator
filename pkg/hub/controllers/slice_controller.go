@@ -30,6 +30,7 @@ import (
 	ossEvents "github.com/kubeslice/worker-operator/events"
 
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
+	"github.com/kubeslice/worker-operator/pkg/gwsidecar"
 	"github.com/kubeslice/worker-operator/pkg/logger"
 	"github.com/kubeslice/worker-operator/pkg/utils"
 	"github.com/prometheus/client_golang/prometheus"
@@ -108,6 +109,13 @@ var components = []component{
 		},
 		ns:            ControlPlaneNamespace,
 		ignoreMissing: true,
+	},
+	{
+		name: "gateWayTunnel",
+		labels: map[string]string{
+			"kubeslice.io/pod-type": "slicegateway",
+		},
+		ns: ControlPlaneNamespace,
 	},
 }
 
@@ -393,6 +401,53 @@ func (r *SliceReconciler) getComponentStatus(ctx context.Context, c *component, 
 		cs, err := r.fetchSliceGatewayHealth(ctx, c)
 		return cs, err
 	}
+	if c.name == "gateWayTunnel" {
+		log.Info("health check for gateway tunnel")
+		cs := &spokev1alpha1.ComponentStatus{
+			Component:             c.name,
+			ComponentHealthStatus: spokev1alpha1.ComponentHealthStatusNormal,
+		}
+		gwSideCarClient, err := gwsidecar.NewWorkerGWSidecarClientProvider()
+		if err != nil {
+			log.Error(err, "Failed to get GwSideCarClient")
+			return nil, err
+		}
+		podList := &corev1.PodList{}
+		listOpts := []client.ListOption{
+			client.InNamespace(c.ns),
+			client.MatchingLabels(c.labels),
+		}
+		if err := r.MeshClient.List(ctx, podList, listOpts...); err != nil {
+			log.Error(err, "Failed to list gateway pods")
+			return nil, err
+		}
+		sum_status := 0
+		product_stat := 1
+		for _, pod := range podList.Items {
+			log.Info("gateway pod found", "pod name", pod.Name)
+			if pod.Status.Phase == corev1.PodRunning && pod.ObjectMeta.DeletionTimestamp == nil {
+				sidecarGrpcAddress := pod.Status.PodIP + ":5000"
+				log.Info("side car", "grpc addr", sidecarGrpcAddress)
+				gs, err := gwSideCarClient.GetStatus(ctx, sidecarGrpcAddress)
+				if err != nil {
+					log.Error(err, "failed to get tunnel status")
+				}
+				log.Info("tunnel status", "values", gs.TunnelStatus)
+				// atleast one gw tunnel is up
+				sum_status += int(gs.TunnelStatus.Status)
+				product_stat *= int(gs.TunnelStatus.Status)
+			}
+		}
+		if sum_status == 0 {
+			cs.ComponentHealthStatus = spokev1alpha1.ComponentHealthStatusNormal
+		} else if product_stat == 0 {
+			cs.ComponentHealthStatus = spokev1alpha1.ComponentHealthStatusWarning
+		} else {
+			cs.ComponentHealthStatus = spokev1alpha1.ComponentHealthStatusError
+		}
+		return cs, nil
+	}
+
 	podList := &corev1.PodList{}
 	listOpts := []client.ListOption{
 		client.MatchingLabels(c.labels),
