@@ -172,7 +172,7 @@ func (r *Reconciler) updateClusterHealthStatus(ctx context.Context, cr *hubv1alp
 	var chs hubv1alpha1.ClusterHealthStatus = hubv1alpha1.ClusterHealthStatusNormal
 
 	for _, c := range components {
-		cs, err := r.getComponentStatus(ctx, &c)
+		cs, err := r.getComponentStatus(ctx, &c, cr)
 		if err != nil {
 			log.Error(err, "unable to fetch component status")
 		}
@@ -218,8 +218,22 @@ func (r *Reconciler) updateClusterMetrics(cr *hubv1alpha1.Cluster) {
 	}
 }
 
-func (r *Reconciler) getComponentStatus(ctx context.Context, c *component) (*hubv1alpha1.ComponentStatus, error) {
+func (r *Reconciler) getComponentStatus(ctx context.Context, c *component, cr *hubv1alpha1.Cluster) (*hubv1alpha1.ComponentStatus, error) {
 	log := logger.FromContext(ctx)
+	cs := &hubv1alpha1.ComponentStatus{
+		Component: c.name,
+	}
+	if c.name == "nodeIPs" {
+		if cr == nil {
+			return nil, nil
+		}
+		if cr.Status.NodeIPs != nil && len(cr.Status.NodeIPs) != 0 {
+			cs.ComponentHealthStatus = hubv1alpha1.ClusterHealthStatusNormal
+		} else {
+			cs.ComponentHealthStatus = hubv1alpha1.ClusterHealthStatusWarning
+		}
+		return cs, nil
+	}
 	podList := &corev1.PodList{}
 	listOpts := []client.ListOption{
 		client.MatchingLabels(c.labels),
@@ -231,15 +245,12 @@ func (r *Reconciler) getComponentStatus(ctx context.Context, c *component) (*hub
 	}
 
 	pods := podList.Items
-	cs := &hubv1alpha1.ComponentStatus{
-		Component: c.name,
-	}
 	if len(pods) == 0 {
 		if c.ignoreMissing {
 			log.Info("ignore missing pod for ", "component", c.name)
 			return nil, nil
 		}
-		log.Error(fmt.Errorf("no pods running"), "unhealthy", "pod", c.name)
+		log.Error(fmt.Errorf("no pods running"), "unhealthy", "component", c.name)
 		cs.ComponentHealthStatus = hubv1alpha1.ComponentHealthStatusError
 		return cs, nil
 	}
@@ -247,7 +258,7 @@ func (r *Reconciler) getComponentStatus(ctx context.Context, c *component) (*hub
 	// readiness-probe for kubeslice components are implemented
 	for _, pod := range pods {
 		if pod.Status.Phase != corev1.PodRunning {
-			log.Info("pod is not in running phase", "component", c.name)
+			log.Info("pod is not in running phase", "component", c.name, "pod", pod.Name)
 			cs.ComponentHealthStatus = hubv1alpha1.ComponentHealthStatusError
 			return cs, nil
 		} else {
@@ -256,6 +267,7 @@ func (r *Reconciler) getComponentStatus(ctx context.Context, c *component) (*hub
 				if terminatedState != nil && terminatedState.ExitCode != 0 {
 					log.Info("container terminated with non-zero exitcode",
 						"component", c.name,
+						"pod", pod.Name,
 						"container", containerStatus.Name,
 						"exitcode", terminatedState.ExitCode)
 					cs.ComponentHealthStatus = hubv1alpha1.ComponentHealthStatusError

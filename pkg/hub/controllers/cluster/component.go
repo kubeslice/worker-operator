@@ -62,4 +62,7 @@ var components = []component{
 		ns:            "istio-system",
 		ignoreMissing: true,
 	},
+	{
+		name: "nodeIPs",
+	},
 }
