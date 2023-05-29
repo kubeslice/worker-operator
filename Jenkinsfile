@@ -4,6 +4,5 @@ dockerbuildtestPipeline(
   service: 'worker-operator',
   buildArguments: [PLATFORM:"amd64"],
   run_unit_tests: 'false'
-
 )
 
