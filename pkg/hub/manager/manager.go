@@ -43,6 +43,8 @@ import (
 	sidecar "github.com/kubeslice/worker-operator/pkg/gwsidecar"
 	"github.com/kubeslice/worker-operator/pkg/hub/controllers"
 	hubCluster "github.com/kubeslice/worker-operator/pkg/hub/controllers/cluster"
+	"github.com/kubeslice/worker-operator/pkg/hub/controllers/vpnkeyrotation"
+
 	"github.com/kubeslice/worker-operator/pkg/hub/controllers/workerslicegwrecycler"
 	"github.com/kubeslice/worker-operator/pkg/logger"
 	"github.com/kubeslice/worker-operator/pkg/router"
@@ -60,8 +62,7 @@ func init() {
 	utilruntime.Must(hubv1alpha1.AddToScheme(scheme))
 }
 
-func Start(meshClient client.Client, ctx context.Context) {
-
+func Start(meshClient client.Client, hubClient client.Client, ctx context.Context) {
 	config := &rest.Config{
 		Host:            os.Getenv("HUB_HOST_ENDPOINT"),
 		BearerTokenFile: HubTokenFile,
@@ -192,6 +193,25 @@ func Start(meshClient client.Client, ctx context.Context) {
 		Complete(clusterReconciler)
 	if err != nil {
 		log.Error(err, "could not create cluster controller")
+		os.Exit(1)
+	}
+
+	vpnKeyRotationReconciler := vpnkeyrotation.NewReconciler(
+		meshClient,
+		hubClient,
+		nil,
+		mf,
+	)
+	err = builder.
+		ControllerManagedBy(mgr).
+		For(&hubv1alpha1.VpnKeyRotation{}).
+		WithEventFilter(predicate.NewPredicateFuncs(func(object client.Object) bool {
+			return object.GetName() == ClusterName
+		})).
+		WithEventFilter(predicate.GenerationChangedPredicate{}).
+		Complete(vpnKeyRotationReconciler)
+	if err != nil {
+		log.Error(err, "could not create vpn key rotation controller")
 		os.Exit(1)
 	}
 

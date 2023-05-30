@@ -27,6 +27,8 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/kubeslice/kubeslice-monitoring/pkg/events"
 	ossEvents "github.com/kubeslice/worker-operator/events"
+	hub "github.com/kubeslice/worker-operator/pkg/hub/hubclient"
+	"github.com/kubeslice/worker-operator/pkg/slicegwrecycler"
 	"github.com/kubeslice/worker-operator/pkg/utils"
 	webhook "github.com/kubeslice/worker-operator/pkg/webhook/pod"
 	appsv1 "k8s.io/api/apps/v1"
@@ -325,29 +327,7 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 			if err != nil {
 				return ctrl.Result{}, err
 			}
-
-			gwRemoteVpnIP := sliceGw.Status.Config.SliceGatewayRemoteVpnIP
-			clientID, err := r.getRemoteGwPodName(ctx, gwRemoteVpnIP, newestPod.Status.PodIP)
-			if err != nil {
-				log.Error(err, "Error while fetching remote gw podName")
-				// post event to slicegw
-				utils.RecordEvent(ctx, r.EventRecorder, sliceGw, slice, ossEvents.EventSliceGWRemotePodSyncFailed, controllerName)
-				return ctrl.Result{}, err
-			}
-			err = r.HubClient.CreateWorkerSliceGwRecycler(ctx, sliceGw.Name, clientID, newestPod.Name, sliceGwName, sliceGw.Status.Config.SliceGatewayRemoteGatewayID, sliceGw.Spec.SliceName)
-			if err != nil {
-				if errors.IsAlreadyExists(err) {
-					return ctrl.Result{}, nil
-				}
-				return ctrl.Result{}, err
-			}
-			utils.RecordEvent(ctx, r.EventRecorder, sliceGw, slice, ossEvents.EventSliceGWRebalancingSuccess, controllerName)
-			// spawn a new gw nodeport service
-			_, _, _, err = r.handleSliceGwSvcCreation(ctx, sliceGw, r.NumberOfGateways+1)
-			if err != nil {
-				//TODO:add an event and log
-				return ctrl.Result{}, err
-			}
+			slicegwrecycler.TriggerFSM(ctx, sliceGw, r.HubClient.(*hub.HubClientConfig), r.Client, newestPod)
 		}
 	}
 	return ctrl.Result{Requeue: true}, nil
