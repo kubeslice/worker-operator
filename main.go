@@ -273,7 +273,7 @@ func main() {
 	}
 	go func() {
 		setupLog.Info("starting hub manager")
-		manager.Start(clientForHubMgr, ctx)
+		manager.Start(clientForHubMgr, hubClient, ctx)
 	}()
 
 	setupLog.Info("starting manager")
