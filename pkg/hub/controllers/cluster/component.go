@@ -65,4 +65,7 @@ var components = []component{
 	{
 		name: "nodeIPs",
 	},
+	{
+		name: "cniSubnets",
+	},
 }

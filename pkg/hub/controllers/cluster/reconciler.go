@@ -228,9 +228,20 @@ func (r *Reconciler) getComponentStatus(ctx context.Context, c *component, cr *h
 			return nil, nil
 		}
 		if cr.Status.NodeIPs != nil && len(cr.Status.NodeIPs) != 0 {
-			cs.ComponentHealthStatus = hubv1alpha1.ClusterHealthStatusNormal
+			cs.ComponentHealthStatus = hubv1alpha1.ComponentHealthStatusNormal
 		} else {
-			cs.ComponentHealthStatus = hubv1alpha1.ClusterHealthStatusWarning
+			cs.ComponentHealthStatus = hubv1alpha1.ComponentHealthStatusError
+		}
+		return cs, nil
+	}
+	if c.name == "cniSubnets" {
+		if cr == nil {
+			return nil, nil
+		}
+		if cr.Status.CniSubnet != nil && len(cr.Status.CniSubnet) != 0 {
+			cs.ComponentHealthStatus = hubv1alpha1.ComponentHealthStatusNormal
+		} else {
+			cs.ComponentHealthStatus = hubv1alpha1.ComponentHealthStatusError
 		}
 		return cs, nil
 	}
