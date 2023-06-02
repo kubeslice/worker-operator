@@ -444,6 +444,7 @@ func (r *SliceReconciler) getComponentStatus(ctx context.Context, c *component, 
 						"container", containerStatus.Name,
 						"exitcode", terminatedState.ExitCode)
 					cs.ComponentHealthStatus = spokev1alpha1.ComponentHealthStatusError
+					break
 				}
 			}
 		}
@@ -457,8 +458,7 @@ func (r *SliceReconciler) fetchTunnelStatus(ctx context.Context, c *component) (
 	log := logger.FromContext(ctx)
 	log.Info("health check for gateway tunnel")
 	tunnel := &spokev1alpha1.ComponentStatus{
-		Component:             c.name,
-		ComponentHealthStatus: spokev1alpha1.ComponentHealthStatusNormal,
+		Component: c.name,
 	}
 	sliceGwDeployments := &appsv1.DeploymentList{}
 	listOpts := []client.ListOption{
@@ -479,7 +479,8 @@ func (r *SliceReconciler) fetchTunnelStatus(ctx context.Context, c *component) (
 	podList := &corev1.PodList{}
 	if err := r.MeshClient.List(ctx, podList, listOpts...); err != nil {
 		log.Error(err, "Failed to list pods", "component", c.name)
-		return nil, err
+		tunnel.ComponentHealthStatus = spokev1alpha1.ComponentHealthStatusError
+		return tunnel, nil
 	}
 	pods := podList.Items
 	if len(pods) == 0 {
@@ -487,8 +488,8 @@ func (r *SliceReconciler) fetchTunnelStatus(ctx context.Context, c *component) (
 		tunnel.ComponentHealthStatus = spokev1alpha1.ComponentHealthStatusError
 		return tunnel, nil
 	}
-	tunStatus_sum := 0
-	tunStatus_product := 1
+	tunStatus_sum := 0     // status sum zero implies all gateways are healthy
+	tunStatus_product := 1 // status product zero implies atleast one gw is healthy
 	if len(pods) != len(sliceGwDeployments.Items) {
 		log.Error(fmt.Errorf("atleast one slicegw is not running"), "warning state", "pod", c.name)
 		tunStatus_sum = 1
@@ -533,8 +534,7 @@ func (r *SliceReconciler) fetchSliceGatewayHealth(ctx context.Context, c *compon
 	log := logger.FromContext(ctx)
 	//fetch number of deployments
 	cs := &spokev1alpha1.ComponentStatus{
-		Component:             c.name,
-		ComponentHealthStatus: spokev1alpha1.ComponentHealthStatusNormal,
+		Component: c.name,
 	}
 	sliceGwDeployments := &appsv1.DeploymentList{}
 	listOpts := []client.ListOption{
@@ -570,13 +570,10 @@ func (r *SliceReconciler) fetchSliceGatewayHealth(ctx context.Context, c *compon
 	}
 	// TODO: verify "PodConditionType == ContainersReady" when
 	// readiness-probe for kubeslice components are implemented
-	unhealthyCount := 0
+	healthyCount := 0 // represents number of healthy gw pods
 	for _, pod := range pods {
-		if pod.Status.Phase != corev1.PodRunning {
-			log.Info("pod is not in running phase", "component", c.name, "pod", pod.Name)
-			cs.ComponentHealthStatus = spokev1alpha1.ComponentHealthStatusError
-			unhealthyCount += 1
-		} else {
+		if pod.Status.Phase == corev1.PodRunning && pod.ObjectMeta.DeletionTimestamp == nil {
+			log.Info("pod is in running phase", "component", c.name, "pod", pod.Name)
 			for _, containerStatus := range pod.Status.ContainerStatuses {
 				terminatedState := containerStatus.State.Terminated
 				if terminatedState != nil && terminatedState.ExitCode != 0 {
@@ -585,29 +582,22 @@ func (r *SliceReconciler) fetchSliceGatewayHealth(ctx context.Context, c *compon
 						"pod", pod.Name,
 						"container", containerStatus.Name,
 						"exitcode", terminatedState.ExitCode)
-					unhealthyCount += 1
-					break
+					continue
 				}
 			}
+			healthyCount += 1
 		}
 	}
-	log.Info("slice gw health check flag", "unhealthyCount", unhealthyCount, "status", cs.ComponentHealthStatus)
-	// all gw pod hasn't come up
-	if cs.ComponentHealthStatus == spokev1alpha1.ComponentHealthStatusWarning {
-		if unhealthyCount == 1 {
-			cs.ComponentHealthStatus = spokev1alpha1.ComponentHealthStatusError
-		}
-	} else if cs.ComponentHealthStatus == spokev1alpha1.ComponentHealthStatusNormal {
-		switch unhealthyCount {
-		case 2:
-			// both gw pods are unhealthy
-			cs.ComponentHealthStatus = spokev1alpha1.ComponentHealthStatusError
-		case 1:
-			// alteast one gw pod is un-healthy
-			cs.ComponentHealthStatus = spokev1alpha1.ComponentHealthStatusWarning
-		default:
-			log.Info("Health status normal", "component", c.name)
-		}
+	log.Info("slice gw health check flag", "unhealthyCount", healthyCount, "status")
+	if len(sliceGwDeployments.Items) == healthyCount {
+		// all gw pods are healthy
+		cs.ComponentHealthStatus = spokev1alpha1.ComponentHealthStatusNormal
+	} else if healthyCount > 0 {
+		// atleast one gw is healthy
+		cs.ComponentHealthStatus = spokev1alpha1.ComponentHealthStatusWarning
+	} else {
+		// no gw is healthy
+		cs.ComponentHealthStatus = spokev1alpha1.ComponentHealthStatusError
 	}
 	return cs, nil
 }

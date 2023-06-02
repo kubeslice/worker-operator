@@ -282,6 +282,7 @@ func (r *Reconciler) getComponentStatus(ctx context.Context, c *component, cr *h
 						"container", containerStatus.Name,
 						"exitcode", terminatedState.ExitCode)
 					cs.ComponentHealthStatus = hubv1alpha1.ComponentHealthStatusError
+					break
 				}
 			}
 		}
