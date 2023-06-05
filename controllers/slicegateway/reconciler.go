@@ -327,7 +327,12 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 			if err != nil {
 				return ctrl.Result{}, err
 			}
-			slicegwrecycler.TriggerFSM(ctx, sliceGw, r.HubClient.(*hub.HubClientConfig), r.Client, newestPod)
+			err = slicegwrecycler.TriggerFSM(ctx, sliceGw, slice, r.HubClient.(*hub.HubClientConfig), r.Client, newestPod,
+				r.EventRecorder, controllerName)
+			if err != nil {
+				log.Error(err, "Error while recycling gateway pods")
+				return ctrl.Result{}, err
+			}
 		}
 	}
 	return ctrl.Result{Requeue: true}, nil
