@@ -199,7 +199,7 @@ func Start(meshClient client.Client, hubClient client.Client, ctx context.Contex
 	vpnKeyRotationReconciler := vpnkeyrotation.NewReconciler(
 		meshClient,
 		hubClient,
-		nil,
+		&workerSliceEventRecorder,
 		mf,
 	)
 	err = builder.

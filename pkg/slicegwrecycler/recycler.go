@@ -5,12 +5,15 @@ import (
 	"fmt"
 	"os"
 
+	monitoringEvents "github.com/kubeslice/kubeslice-monitoring/pkg/events"
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
 	"github.com/kubeslice/worker-operator/controllers"
 
+	ossEvents "github.com/kubeslice/worker-operator/events"
 	sidecar "github.com/kubeslice/worker-operator/pkg/gwsidecar"
 	hub "github.com/kubeslice/worker-operator/pkg/hub/hubclient"
 	"github.com/kubeslice/worker-operator/pkg/logger"
+	"github.com/kubeslice/worker-operator/pkg/utils"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -26,7 +29,8 @@ const (
 	NumberOfGateways = 2
 )
 
-func TriggerFSM(ctx context.Context, sliceGw *kubeslicev1beta1.SliceGateway, hubClient *hub.HubClientConfig, meshClient client.Client, gatewayPod *corev1.Pod) error {
+func TriggerFSM(ctx context.Context, sliceGw *kubeslicev1beta1.SliceGateway, slice *kubeslicev1beta1.Slice, hubClient *hub.HubClientConfig, meshClient client.Client, gatewayPod *corev1.Pod,
+	eventrecorder *monitoringEvents.EventRecorder, controllerName string) error {
 	// start FSM for graceful termination of gateway pods
 	// create workerslicegwrecycler on controller
 	log := logger.FromContext(ctx)
@@ -36,7 +40,7 @@ func TriggerFSM(ctx context.Context, sliceGw *kubeslicev1beta1.SliceGateway, hub
 	if err != nil {
 		log.Error(err, "Error while fetching remote gw podName")
 		// post event to slicegw
-		// utils.RecordEvent(ctx, r.EventRecorder, sliceGw, slice, ossEvents.EventSliceGWRemotePodSyncFailed, controllerName)
+		utils.RecordEvent(ctx, eventrecorder, sliceGw, slice, ossEvents.EventSliceGWRemotePodSyncFailed, controllerName)
 		return err
 	}
 	err = hubClient.CreateWorkerSliceGwRecycler(ctx, sliceGw.Name, clientID, gatewayPod.Name, sliceGw.Name, sliceGw.Status.Config.SliceGatewayRemoteGatewayID, sliceGw.Spec.SliceName)
@@ -46,9 +50,9 @@ func TriggerFSM(ctx context.Context, sliceGw *kubeslicev1beta1.SliceGateway, hub
 		}
 		return err
 	}
-	// utils.RecordEvent(ctx, r.EventRecorder, sliceGw, slice, ossEvents.EventSliceGWRebalancingSuccess, controllerName)
+	utils.RecordEvent(ctx, eventrecorder, sliceGw, slice, ossEvents.EventSliceGWRebalancingSuccess, controllerName)
 	// spawn a new gw nodeport service
-	_, _, _, err = handleSliceGwSvcCreation(ctx, meshClient, hubClient, sliceGw, NumberOfGateways+1)
+	_, _, _, err = handleSliceGwSvcCreation(ctx, meshClient, hubClient, sliceGw, NumberOfGateways+1, eventrecorder, controllerName)
 	if err != nil {
 		//TODO:add an event and log
 		return err
@@ -56,7 +60,7 @@ func TriggerFSM(ctx context.Context, sliceGw *kubeslicev1beta1.SliceGateway, hub
 	return nil
 }
 
-func handleSliceGwSvcCreation(ctx context.Context, meshClient client.Client, hubClient *hub.HubClientConfig, sliceGw *kubeslicev1beta1.SliceGateway, n int) (bool, reconcile.Result, []int, error) {
+func handleSliceGwSvcCreation(ctx context.Context, meshClient client.Client, hubClient *hub.HubClientConfig, sliceGw *kubeslicev1beta1.SliceGateway, n int, eventRecorder *monitoringEvents.EventRecorder, controllerName string) (bool, reconcile.Result, []int, error) {
 	log := logger.FromContext(ctx).WithName("slicegw")
 	sliceGwName := sliceGw.Name
 	foundsvc := &corev1.Service{}
@@ -86,7 +90,7 @@ func handleSliceGwSvcCreation(ctx context.Context, meshClient client.Client, hub
 	err := hubClient.UpdateNodePortForSliceGwServer(ctx, sliceGwNodePorts, sliceGwName)
 	if err != nil {
 		log.Error(err, "Failed to update NodePort for sliceGw in the hub")
-		// utils.RecordEvent(ctx, r.EventRecorder, sliceGw, nil, ossEvents.EventSliceGWNodePortUpdateFailed, controllerName)
+		utils.RecordEvent(ctx, eventRecorder, sliceGw, nil, ossEvents.EventSliceGWNodePortUpdateFailed, controllerName)
 		return true, ctrl.Result{}, sliceGwNodePorts, err
 	}
 	return false, reconcile.Result{}, sliceGwNodePorts, nil
