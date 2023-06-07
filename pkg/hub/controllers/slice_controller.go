@@ -80,7 +80,7 @@ var components = []component{
 		ns: ControlPlaneNamespace,
 	},
 	{
-		name: "slicegateway",
+		name: "slice-gateway",
 		labels: map[string]string{
 			"kubeslice.io/pod-type": "slicegateway",
 		},
@@ -88,7 +88,7 @@ var components = []component{
 		ignoreMissing: true,
 	},
 	{
-		name: "slicerouter",
+		name: "slice-router",
 		labels: map[string]string{
 			"kubeslice.io/pod-type": "router",
 		},
@@ -111,7 +111,7 @@ var components = []component{
 		ignoreMissing: true,
 	},
 	{
-		name: "gwTunnel",
+		name: "gateway-tunnel",
 		labels: map[string]string{
 			"kubeslice.io/pod-type": "slicegateway",
 		},
@@ -398,11 +398,11 @@ func (r *SliceReconciler) getComponentStatus(ctx context.Context, c *component, 
 	if c.name != "dns" {
 		c.labels["kubeslice.io/slice"] = sliceName
 	}
-	if c.name == "slicegateway" {
+	if c.name == "slice-gateway" {
 		cs, err := r.fetchSliceGatewayHealth(ctx, c)
 		return cs, err
 	}
-	if c.name == "gwTunnel" {
+	if c.name == "gateway-tunnel" {
 		cs, err := r.fetchTunnelStatus(ctx, c)
 		return cs, err
 	}

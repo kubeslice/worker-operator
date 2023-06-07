@@ -63,9 +63,9 @@ var components = []component{
 		ignoreMissing: true,
 	},
 	{
-		name: "nodeIPs",
+		name: "node-ips",
 	},
 	{
-		name: "cniSubnets",
+		name: "cni-subnets",
 	},
 }
