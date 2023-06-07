@@ -223,18 +223,18 @@ func (r *Reconciler) getComponentStatus(ctx context.Context, c *component, cr *h
 	cs := &hubv1alpha1.ComponentStatus{
 		Component: c.name,
 	}
-	if c.name == "nodeIPs" {
+	if c.name == "node-ips" {
 		if cr == nil {
 			return nil, nil
 		}
-		if cr.Status.NodeIPs != nil && len(cr.Status.NodeIPs) != 0 {
+		if (cr.Spec.NodeIPs != nil && len(cr.Spec.NodeIPs) != 0) || (cr.Status.NodeIPs != nil && len(cr.Status.NodeIPs) != 0) {
 			cs.ComponentHealthStatus = hubv1alpha1.ComponentHealthStatusNormal
 		} else {
 			cs.ComponentHealthStatus = hubv1alpha1.ComponentHealthStatusError
 		}
 		return cs, nil
 	}
-	if c.name == "cniSubnets" {
+	if c.name == "cni-subnets" {
 		if cr == nil {
 			return nil, nil
 		}
