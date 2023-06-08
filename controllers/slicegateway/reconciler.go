@@ -28,7 +28,7 @@ import (
 	"github.com/kubeslice/kubeslice-monitoring/pkg/events"
 	ossEvents "github.com/kubeslice/worker-operator/events"
 	hub "github.com/kubeslice/worker-operator/pkg/hub/hubclient"
-	"github.com/kubeslice/worker-operator/pkg/slicegwrecycler"
+	slicegwhandler "github.com/kubeslice/worker-operator/pkg/slicegwrecycler"
 	"github.com/kubeslice/worker-operator/pkg/utils"
 	webhook "github.com/kubeslice/worker-operator/pkg/webhook/pod"
 	appsv1 "k8s.io/api/apps/v1"
@@ -166,13 +166,15 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		}
 		// This condition will be true during rebalancing
 		if noOfGwServices > r.NumberOfGateways {
-			reconcile, result, sliceGwNodePorts, err = r.handleSliceGwSvcCreation(ctx, sliceGw, noOfGwServices)
+			reconcile, result, sliceGwNodePorts, err = slicegwhandler.HandleSliceGwSvcCreation(ctx, r.Client, r.HubClient.(*hub.HubClientConfig), sliceGw,
+				noOfGwServices, r.EventRecorder, controllerName)
 			if reconcile {
 				utils.RecordEvent(ctx, r.EventRecorder, sliceGw, slice, ossEvents.EventSliceGWServiceCreationFailed, controllerName)
 				return result, err
 			}
 		} else {
-			reconcile, result, sliceGwNodePorts, err = r.handleSliceGwSvcCreation(ctx, sliceGw, r.NumberOfGateways)
+			reconcile, result, sliceGwNodePorts, err = slicegwhandler.HandleSliceGwSvcCreation(ctx, r.Client, r.HubClient.(*hub.HubClientConfig), sliceGw,
+				r.NumberOfGateways, r.EventRecorder, controllerName)
 			if reconcile {
 				utils.RecordEvent(ctx, r.EventRecorder, sliceGw, slice, ossEvents.EventSliceGWServiceCreationFailed, controllerName)
 				return result, err
@@ -313,21 +315,21 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		return ctrl.Result{}, err
 	}
 	if isServer(sliceGw) {
-		toRebalace, err := r.isRebalancingRequired(ctx, sliceGw)
+		toRebanlace, err := r.isRebalancingRequired(ctx, sliceGw)
 		if err != nil {
 			log.Error(err, "Unable to rebalace gw pods")
 			utils.RecordEvent(ctx, r.EventRecorder, sliceGw, slice, ossEvents.EventSliceGWRebalancingFailed, controllerName)
 			return ctrl.Result{}, err
 		}
-		log.Info("Rebalancing required?", "toRebalance", toRebalace)
-		if toRebalace {
+		log.Info("Rebalancing required?", "toRebalance", toRebanlace)
+		if toRebanlace {
 			// start FSM for graceful termination of gateway pods
 			// create workerslicegwrecycler on controller
 			newestPod, err := r.getNewestPod(sliceGw)
 			if err != nil {
 				return ctrl.Result{}, err
 			}
-			err = slicegwrecycler.TriggerFSM(ctx, sliceGw, slice, r.HubClient.(*hub.HubClientConfig), r.Client, newestPod,
+			err = slicegwhandler.TriggerFSM(ctx, sliceGw, slice, r.HubClient.(*hub.HubClientConfig), r.Client, newestPod,
 				r.EventRecorder, controllerName)
 			if err != nil {
 				log.Error(err, "Error while recycling gateway pods")
@@ -418,42 +420,6 @@ func (r *SliceGwReconciler) getNodePorts(ctx context.Context, sliceGw *kubeslice
 		nodePorts = append(nodePorts, int(service.Spec.Ports[0].NodePort))
 	}
 	return nodePorts, nil
-}
-
-func (r *SliceGwReconciler) handleSliceGwSvcCreation(ctx context.Context, sliceGw *kubeslicev1beta1.SliceGateway, n int) (bool, reconcile.Result, []int, error) {
-	log := logger.FromContext(ctx).WithName("slicegw")
-	sliceGwName := sliceGw.Name
-	foundsvc := &corev1.Service{}
-	var sliceGwNodePorts []int
-	no, _ := r.getNumberOfGatewayNodePortServices(ctx, sliceGw)
-	if no != n {
-		// capping the number of services to be 2 for now,later i will be equal to number of gateway nodes,eg: i = len(node.GetExternalIpList())
-		for i := 0; i < n; i++ {
-			err := r.Get(ctx, types.NamespacedName{Name: "svc-" + sliceGwName + "-" + fmt.Sprint(i), Namespace: controllers.ControlPlaneNamespace}, foundsvc)
-			if err != nil {
-				if errors.IsNotFound(err) {
-					svc := r.serviceForGateway(sliceGw, i)
-					log.Info("Creating a new Service", "Namespace", svc.Namespace, "Name", svc.Name)
-					err = r.Create(ctx, svc)
-					if err != nil {
-						log.Error(err, "Failed to create new Service", "Namespace", svc.Namespace, "Name", svc.Name)
-						return true, ctrl.Result{}, nil, err
-					}
-					return true, ctrl.Result{Requeue: true}, nil, nil
-				}
-				log.Error(err, "Failed to get Service")
-				return true, ctrl.Result{}, nil, err
-			}
-		}
-	}
-	sliceGwNodePorts, _ = r.getNodePorts(ctx, sliceGw)
-	err := r.HubClient.UpdateNodePortForSliceGwServer(ctx, sliceGwNodePorts, sliceGwName)
-	if err != nil {
-		log.Error(err, "Failed to update NodePort for sliceGw in the hub")
-		utils.RecordEvent(ctx, r.EventRecorder, sliceGw, nil, ossEvents.EventSliceGWNodePortUpdateFailed, controllerName)
-		return true, ctrl.Result{}, sliceGwNodePorts, err
-	}
-	return false, reconcile.Result{}, sliceGwNodePorts, nil
 }
 
 func (r *SliceGwReconciler) handleSliceGwDeletion(sliceGw *kubeslicev1beta1.SliceGateway, ctx context.Context) (bool, reconcile.Result, error) {
