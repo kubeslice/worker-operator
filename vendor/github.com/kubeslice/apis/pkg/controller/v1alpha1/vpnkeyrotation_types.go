@@ -25,8 +25,6 @@ import (
 
 // VpnKeyRotationSpec defines the desired state of VpnKeyRotation
 type VpnKeyRotationSpec struct {
-	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
 	SliceName string `json:"sliceName,omitempty"`
 	// ClusterGatewayMapping represents a map where key is cluster name and value is array of gateways present on that cluster.
 	// This is used to avoid unnecessary reconciliation in worker-operator.
@@ -35,19 +33,16 @@ type VpnKeyRotationSpec struct {
 	CertificateCreationTime metav1.Time `json:"certificateCreationTime,omitempty"`
 	// CertificateExpiryTime is a time when certificate for all the gateway pairs will expire
 	CertificateExpiryTime metav1.Time `json:"certificateExpiryTime,omitempty"`
-	// add threshold
-	RotationInterval int
+	RotationInterval      int         `json:"rotationInterval,omitempty"`
 }
 
 // VpnKeyRotationStatus defines the observed state of VpnKeyRotation
 type VpnKeyRotationStatus struct {
-	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
 	// This is map of gateway name to the current rotation state
 	CurrentRotationState map[string]StatusOfKeyRotation `json:"currentRotationState,omitempty"`
 	// This is circular array of last n number of rotation status.
 	StatusHistory []map[string]StatusOfKeyRotation `json:"statusHistory,omitempty"`
-	RotationCount int
+	RotationCount int                              `json:"rotationCount,omitempty"`
 }
 
 type StatusOfKeyRotation struct {
@@ -83,7 +78,7 @@ func init() {
 const (
 	SecretReadInProgress string = "READ_IN_PROGRESS"
 	SecretUpdated        string = "SECRET_UPDATED"
-	InProgress           string = "IN_PROGRESS" // fsm triggered and in progress
+	InProgress           string = "IN_PROGRESS"
 	Complete             string = "COMPLETE"
 	Error                string = "ERROR"
 )
