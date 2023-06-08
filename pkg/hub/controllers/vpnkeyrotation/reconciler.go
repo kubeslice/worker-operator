@@ -101,28 +101,36 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (ctrl
 		}
 		rotationTimeDiff := vpnKeyRotation.Spec.CertificateCreationTime.Time.Sub(rotationStatus.LastUpdatedTimestamp.Time)
 		rotationTimeDiffInDays := int(rotationTimeDiff.Hours() / 24)
-		if rotationTimeDiffInDays >= 30 {
+		if rotationTimeDiffInDays >= vpnKeyRotation.Spec.RotationInterval {
 			log.Info("Rotation interval has elapsed")
 			// Unsure why we need to update this status; doesn't seem to serve any purpose
 			if err := r.updateRotationStatus(ctx, selectedGw, hubv1alpha1.SecretReadInProgress, vpnKeyRotation); err != nil {
 				return ctrl.Result{}, err
 			}
+
+			result, _, err := r.updateCertificates(ctx, vpnKeyRotation.Status.RotationCount, selectedGw, req)
+			if err != nil {
+				log.Error(err, "Failed to update certificates")
+				return result, err
+			}
+			// If certificates are updated, proceed to update the status
+			log.Info("Certificates are updated for gw", "gateway", selectedGw)
+			if err := r.updateRotationStatus(ctx, selectedGw, hubv1alpha1.SecretUpdated, vpnKeyRotation); err != nil {
+				return ctrl.Result{}, err
+			}
+
 			sliceGw := &kubeslicev1beta1.SliceGateway{}
 			err = r.MeshClient.Get(ctx, types.NamespacedName{
 				Name:      selectedGw,
 				Namespace: ControlPlaneNamespace,
 			}, sliceGw)
-
-			result, updated, err := r.updateCertificates(ctx, vpnKeyRotation.Status.RotationCount, selectedGw, req)
 			if err != nil {
-				log.Error(err, "Failed to update certificates")
-				return result, err
-			}
-			if updated {
-				// If certificates are updated, proceed to update the status
-				if err := r.updateRotationStatus(ctx, selectedGw, hubv1alpha1.SecretUpdated, vpnKeyRotation); err != nil {
-					return ctrl.Result{}, err
+				if apierrors.IsNotFound(err) {
+					log.Error(err, "slice gateway doesn't exist")
+					return ctrl.Result{}, nil
 				}
+				log.Error(err, "error fetching slice gateway")
+				return ctrl.Result{}, err
 			}
 			// Upon certificate update, if the selected gateway is a server, await the client pod to transition into the SECRET_UPDATED state
 			// then trigger gateway recycle FSM at server side
@@ -168,7 +176,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (ctrl
 				}
 			}
 
-			// Update the rotation status to Complete
+			// Update the rotation status to Complete with TimeStamp
 			if err := r.updateRotationStatusWithTimeStamp(ctx, selectedGw, hubv1alpha1.Complete, vpnKeyRotation, metav1.Time{Time: time.Now()}); err != nil {
 				return ctrl.Result{}, err
 			}
@@ -185,7 +193,8 @@ func (r *Reconciler) updateRotationStatus(ctx context.Context, gatewayName, rota
 			return getErr
 		}
 		vpnKeyRotation.Status.CurrentRotationState[gatewayName] = hubv1alpha1.StatusOfKeyRotation{
-			Status: rotationStatus,
+			Status:               rotationStatus,
+			LastUpdatedTimestamp: vpnKeyRotation.Status.CurrentRotationState[gatewayName].LastUpdatedTimestamp,
 		}
 		return r.Status().Update(ctx, vpnKeyRotation)
 	})
@@ -274,14 +283,14 @@ func (r *Reconciler) updateCertificates(ctx context.Context, rotationVersion int
 			err = r.MeshClient.Create(ctx, meshSliceGwCerts)
 			if err != nil {
 				log.Error(err, "unable to create secret to store slicegw certs in worker cluster", "sliceGw", sliceGw)
-				return ctrl.Result{}, true, err
+				return ctrl.Result{}, false, err
 			}
 			log.Info("sliceGw secret created in worker cluster")
 			// this required requeueing
 			return ctrl.Result{}, true, nil
 		} else {
 			log.Error(err, "unable to fetch slicegw certs from the worker", "sliceGw", sliceGw)
-			return ctrl.Result{}, true, err
+			return ctrl.Result{}, false, err
 		}
 	}
 	// secret with current rotation version already exists, no requeue
