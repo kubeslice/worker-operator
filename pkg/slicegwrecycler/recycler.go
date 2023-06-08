@@ -52,7 +52,7 @@ func TriggerFSM(ctx context.Context, sliceGw *kubeslicev1beta1.SliceGateway, sli
 	}
 	utils.RecordEvent(ctx, eventrecorder, sliceGw, slice, ossEvents.EventSliceGWRebalancingSuccess, controllerName)
 	// spawn a new gw nodeport service
-	_, _, _, err = handleSliceGwSvcCreation(ctx, meshClient, hubClient, sliceGw, NumberOfGateways+1, eventrecorder, controllerName)
+	_, _, _, err = HandleSliceGwSvcCreation(ctx, meshClient, hubClient, sliceGw, NumberOfGateways+1, eventrecorder, controllerName)
 	if err != nil {
 		//TODO:add an event and log
 		return err
@@ -60,14 +60,16 @@ func TriggerFSM(ctx context.Context, sliceGw *kubeslicev1beta1.SliceGateway, sli
 	return nil
 }
 
-func handleSliceGwSvcCreation(ctx context.Context, meshClient client.Client, hubClient *hub.HubClientConfig, sliceGw *kubeslicev1beta1.SliceGateway, n int, eventRecorder *monitoringEvents.EventRecorder, controllerName string) (bool, reconcile.Result, []int, error) {
+// The function was relocated to this location in order to consolidate it into a central location
+// and facilitate its use as a utility function.
+func HandleSliceGwSvcCreation(ctx context.Context, meshClient client.Client, hubClient *hub.HubClientConfig, sliceGw *kubeslicev1beta1.SliceGateway, n int, eventRecorder *monitoringEvents.EventRecorder, controllerName string) (bool, reconcile.Result, []int, error) {
 	log := logger.FromContext(ctx).WithName("slicegw")
 	sliceGwName := sliceGw.Name
 	foundsvc := &corev1.Service{}
 	var sliceGwNodePorts []int
 	no, _ := getNumberOfGatewayNodePortServices(ctx, meshClient, sliceGw)
 	if no != n {
-		// capping the number of services to be 2 for now,later i will be equal to number of gateway nodes,eg: i = len(node.GetExternalIpList())
+		// capping the number of services to be 2 for now, later i will be equal to number of gateway nodes,eg: i = len(node.GetExternalIpList())
 		for i := 0; i < n; i++ {
 			err := meshClient.Get(ctx, types.NamespacedName{Name: "svc-" + sliceGwName + "-" + fmt.Sprint(i), Namespace: controllers.ControlPlaneNamespace}, foundsvc)
 			if err != nil {
@@ -95,6 +97,7 @@ func handleSliceGwSvcCreation(ctx context.Context, meshClient client.Client, hub
 	}
 	return false, reconcile.Result{}, sliceGwNodePorts, nil
 }
+
 func createHeadlessServiceForGwServer(slicegateway *kubeslicev1beta1.SliceGateway) *corev1.Service {
 	svc := &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
