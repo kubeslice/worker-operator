@@ -20,7 +20,6 @@ package hub
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"reflect"
 
@@ -37,9 +36,11 @@ import (
 
 	hubv1alpha1 "github.com/kubeslice/apis/pkg/controller/v1alpha1"
 	spokev1alpha1 "github.com/kubeslice/apis/pkg/worker/v1alpha1"
+	"github.com/kubeslice/kubeslice-monitoring/pkg/events"
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
+	ossEvents "github.com/kubeslice/worker-operator/events"
 	"github.com/kubeslice/worker-operator/pkg/logger"
-	"github.com/kubeslice/worker-operator/pkg/monitoring"
+	"github.com/kubeslice/worker-operator/pkg/utils"
 )
 
 const (
@@ -60,7 +61,7 @@ func init() {
 
 type HubClientConfig struct {
 	client.Client
-	eventRecorder *monitoring.EventRecorder
+	eventRecorder *events.EventRecorder
 }
 
 type HubClientRpc interface {
@@ -72,7 +73,7 @@ type HubClientRpc interface {
 	CreateWorkerSliceGwRecycler(ctx context.Context, gwRecyclerName, clientID, serverID, sliceGwServer, sliceGwClient, slice string) error
 }
 
-func NewHubClientConfig(er *monitoring.EventRecorder) (*HubClientConfig, error) {
+func NewHubClientConfig(er *events.EventRecorder) (*HubClientConfig, error) {
 	hubClient, err := client.New(&rest.Config{
 		Host:            os.Getenv("HUB_HOST_ENDPOINT"),
 		BearerTokenFile: HubTokenFile,
@@ -132,15 +133,8 @@ func (hubClient *HubClientConfig) UpdateNodePortForSliceGwServer(ctx context.Con
 	sliceGw.Spec.LocalGatewayConfig.NodePorts = sliceGwNodePorts
 
 	err = hubClient.Update(ctx, sliceGw)
-	hubClient.eventRecorder.RecordEvent(ctx, &monitoring.Event{
-		EventType:         monitoring.EventTypeNormal,
-		Reason:            monitoring.EventReasonNodePortUpdate,
-		Message:           fmt.Sprintf("NodePorts Updated to: %d", sliceGwNodePorts),
-		ReportingInstance: "Controller Reconciler",
-		Object:            sliceGw,
-		Action:            "NodePortUpdated",
-	})
-
+	// TODO: figure out injecting custom 'Message' to event
+	utils.RecordEvent(ctx, hubClient.eventRecorder, sliceGw, nil, ossEvents.EventSliceGWNodePortUpdated, "controllerReconciler")
 	return err
 }
 

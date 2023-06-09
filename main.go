@@ -25,7 +25,6 @@ import (
 
 	"github.com/kubeslice/kubeslice-monitoring/pkg/metrics"
 	"github.com/kubeslice/worker-operator/controllers"
-	"github.com/kubeslice/worker-operator/pkg/monitoring"
 	namespacecontroller "github.com/kubeslice/worker-operator/pkg/namespace/controllers"
 	"github.com/prometheus/client_golang/prometheus"
 	"go.opencensus.io/stats/view"
@@ -54,6 +53,7 @@ import (
 	ocprom "contrib.go.opencensus.io/exporter/prometheus"
 	ctrlmetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
 
+	spokev1alpha1 "github.com/kubeslice/apis/pkg/worker/v1alpha1"
 	monitoringEvents "github.com/kubeslice/kubeslice-monitoring/pkg/events"
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
 	"github.com/kubeslice/worker-operator/controllers/serviceexport"
@@ -80,6 +80,7 @@ func init() {
 	utilruntime.Must(nsmv1.AddToScheme(scheme))
 	utilruntime.Must(istiov1beta1.AddToScheme(scheme))
 	utilruntime.Must(kubeslicev1beta1.AddToScheme(scheme))
+	utilruntime.Must(spokev1alpha1.AddToScheme(scheme))
 	utilruntime.Must(istiov1beta1.AddToScheme(scheme))
 	//+kubebuilder:scaffold:scheme
 }
@@ -110,13 +111,14 @@ func main() {
 		CertDir:                utils.GetEnvOrDefault("WEBHOOK_CERTS_DIR", "/etc/webhook/certs"),
 	})
 
-	er := &monitoring.EventRecorder{
-		Client:    mgr.GetClient(),
-		Scheme:    mgr.GetScheme(),
-		Logger:    logger.NewLogger(),
-		Cluster:   os.Getenv("CLUSTER_NAME"),
+	controllerEventRecorder := monitoringEvents.NewEventRecorder(mgr.GetClient(), scheme, ossEvents.EventsMap, monitoringEvents.EventRecorderOptions{
+		Version:   utils.EventsVersion,
+		Slice:     utils.NotApplicable,
+		Cluster:   controllers.ClusterName,
+		Project:   hub.ProjectNamespace,
 		Component: "workerOperator",
-	}
+		Namespace: controllers.ControlPlaneNamespace,
+	})
 
 	// Use an environment variable to be able to disable webhooks, so that we can run the operator locally
 	if utils.GetEnvOrDefault("ENABLE_WEBHOOKS", "true") == "true" {
@@ -143,7 +145,7 @@ func main() {
 		// It helps you to setup customize reporting period to push gateway
 		//view.SetReportingPeriod(10 * time.Millisecond)
 	}
-	hubClient, err := hub.NewHubClientConfig(er)
+	hubClient, err := hub.NewHubClientConfig(&controllerEventRecorder)
 	if err != nil {
 		setupLog.With("error", err).Error("could not create hub client for slice gateway reconciler")
 		os.Exit(1)

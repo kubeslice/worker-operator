@@ -302,6 +302,14 @@ var EventsMap = map[events.EventName]*events.EventSchema{
 		ReportingController: "worker",
 		Message:             "Slice GateWay NodePort update failed.",
 	},
+	"SliceGWNodePortUpdated": {
+		Name:                "SliceGWNodePortUpdated",
+		Reason:              "SliceGWNodePortUpdated",
+		Action:              "NodePortUpdated",
+		Type:                events.EventTypeNormal,
+		ReportingController: "worker",
+		Message:             "Slice GateWay NodePort updated.",
+	},
 	"SliceServiceImportUpdateAvailableEndpointsFailed": {
 		Name:                "SliceServiceImportUpdateAvailableEndpointsFailed",
 		Reason:              "SliceServiceImportUpdateAvailableEndpointsFailed",
@@ -692,6 +700,7 @@ var (
 	EventSliceGWRebalancingSuccess                        events.EventName = "SliceGWRebalancingSuccess"
 	EventSliceGWServiceCreationFailed                     events.EventName = "SliceGWServiceCreationFailed"
 	EventSliceGWNodePortUpdateFailed                      events.EventName = "SliceGWNodePortUpdateFailed"
+	EventSliceGWNodePortUpdated                           events.EventName = "SliceGWNodePortUpdated"
 	EventSliceServiceImportUpdateAvailableEndpointsFailed events.EventName = "SliceServiceImportUpdateAvailableEndpointsFailed"
 	EventSliceServiceImportDeleted                        events.EventName = "SliceServiceImportDeleted"
 	EventSliceServiceImportDeleteFailed                   events.EventName = "SliceServiceImportDeleteFailed"

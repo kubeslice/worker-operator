@@ -82,11 +82,15 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			log.Info("Namespace deleted on worker cluster, updating the cluster CR on conrtoller cluster")
 			err := hub.DeleteNamespaceInfoFromHub(ctx, r.Hubclient, req.Name)
 			if err != nil {
-				utils.RecordEvent(ctx, r.EventRecorder, &namespace, nil, ossEvents.EventDeleteNamespaceInfoToHubFailed, controllerName)
+				eventNs := namespace
+				eventNs.Namespace = namespace.Name
+				utils.RecordEvent(ctx, r.EventRecorder, &eventNs, nil, ossEvents.EventDeleteNamespaceInfoToHubFailed, controllerName)
 				log.Error(err, "Failed to delete namespace on controller cluster")
 				return ctrl.Result{}, err
 			}
-			utils.RecordEvent(ctx, r.EventRecorder, &namespace, nil, ossEvents.EventDeleteNamespaceInfoToHub, controllerName)
+			eventNs := namespace
+			eventNs.Namespace = namespace.Name
+			utils.RecordEvent(ctx, r.EventRecorder, &eventNs, nil, ossEvents.EventDeleteNamespaceInfoToHub, controllerName)
 			// Return and don't requeue
 			return ctrl.Result{}, nil
 		}

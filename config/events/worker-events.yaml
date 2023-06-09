@@ -209,6 +209,12 @@ events:
     type: Warning
     reportingController: worker
     message: Slice GateWay NodePort update failed.
+  - name: SliceGWNodePortUpdated
+    reason: SliceGWNodePortUpdated
+    action: NodePortUpdated
+    type: Normal
+    reportingController: worker
+    message: Slice GateWay NodePort updated.
   - name: SliceServiceImportUpdateAvailableEndpointsFailed
     reason: SliceServiceImportUpdateAvailableEndpointsFailed
     action: ReconcileServiceImport
