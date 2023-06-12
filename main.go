@@ -231,7 +231,7 @@ func main() {
 		Log:           ctrl.Log.WithName("controllers").WithName("ServiceImport"),
 		Scheme:        mgr.GetScheme(),
 		EventRecorder: &sliceEventRecorder,
-	}).SetupWithManager(mgr); err != nil {
+	}).Setup(mgr, mf); err != nil {
 		setupLog.With("error", err, "controller", "ServiceImport").Error("unable to create controller")
 		os.Exit(1)
 	}
