@@ -34,7 +34,6 @@ import (
 	"github.com/kubeslice/worker-operator/pkg/logger"
 	"github.com/kubeslice/worker-operator/pkg/utils"
 	"github.com/prometheus/client_golang/prometheus"
-	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -84,8 +83,8 @@ var components = []component{
 		labels: map[string]string{
 			"kubeslice.io/pod-type": "slicegateway",
 		},
-		ns:            ControlPlaneNamespace,
-		ignoreMissing: true,
+		ns: ControlPlaneNamespace,
+		// ignoreMissing: true,
 	},
 	{
 		name: "slice-router",
@@ -224,16 +223,19 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req reconcile.Request) 
 		r.counterSliceUpdationFailed.WithLabelValues(sliceName).Add(1)
 		return reconcile.Result{}, err
 	}
-	r.UpdateSliceHealthMetrics(slice)
-	slice.Status.SliceHealth.LastUpdated = metav1.Now()
-	if err := r.Status().Update(ctx, slice); err != nil {
-		log.Error(err, "unable to update slice CR")
-		utils.RecordEvent(ctx, r.EventRecorder, slice, nil, ossEvents.EventWorkerSliceHealthUpdateFailed, sliceControllerName)
-		r.counterSliceUpdationFailed.WithLabelValues(sliceName).Add(1)
-		return reconcile.Result{}, err
-	} else {
-		utils.RecordEvent(ctx, r.EventRecorder, slice, nil, ossEvents.EventWorkerSliceHealthUpdated, sliceControllerName)
-		log.Info("succesfully updated the slice CR ", "slice CR ", slice)
+
+	if time.Since(slice.Status.SliceHealth.LastUpdated.Time) > r.ReconcileInterval {
+		r.UpdateSliceHealthMetrics(slice)
+		slice.Status.SliceHealth.LastUpdated = metav1.Now()
+		if err := r.Status().Update(ctx, slice); err != nil {
+			log.Error(err, "unable to update slice CR")
+			utils.RecordEvent(ctx, r.EventRecorder, slice, nil, ossEvents.EventWorkerSliceHealthUpdateFailed, sliceControllerName)
+			r.counterSliceUpdationFailed.WithLabelValues(sliceName).Add(1)
+			return reconcile.Result{}, err
+		} else {
+			utils.RecordEvent(ctx, r.EventRecorder, slice, nil, ossEvents.EventWorkerSliceHealthUpdated, sliceControllerName)
+			log.Info("succesfully updated the slice CR ", "slice CR ", slice)
+		}
 	}
 	r.counterSliceUpdated.WithLabelValues(sliceName).Add(1)
 	return reconcile.Result{RequeueAfter: r.ReconcileInterval}, nil
@@ -395,16 +397,33 @@ func (r *SliceReconciler) updateSliceHealth(ctx context.Context, slice *spokev1a
 
 func (r *SliceReconciler) getComponentStatus(ctx context.Context, c *component, sliceName string) (*spokev1alpha1.ComponentStatus, error) {
 	log := logger.FromContext(ctx)
+	debuglog := log.V(1)
 	if c.name != "dns" {
 		c.labels["kubeslice.io/slice"] = sliceName
 	}
-	if c.name == "slice-gateway" {
-		cs, err := r.fetchSliceGatewayHealth(ctx, c)
-		return cs, err
-	}
-	if c.name == "gateway-tunnel" {
-		cs, err := r.fetchTunnelStatus(ctx, c)
-		return cs, err
+	if c.name == "slice-gateway" || c.name == "gateway-tunnel" {
+		sliceGwList := &kubeslicev1beta1.SliceGatewayList{}
+		listOpts := []client.ListOption{
+			client.MatchingLabels(c.labels),
+			client.InNamespace(c.ns),
+		}
+		if err := r.MeshClient.List(ctx, sliceGwList, listOpts...); err != nil {
+			if errors.IsNotFound(err) {
+				log.Info("No GateWay objects found. Skipping health check")
+				return nil, nil
+			} else {
+				log.Error(err, "Failed to list slice gateway objects")
+				return nil, err
+			}
+		}
+		switch c.name {
+		case "slice-gateway":
+			cs, err := r.fetchSliceGatewayHealth(ctx, c, sliceGwList)
+			return cs, err
+		case "gateway-tunnel":
+			cs, err := r.fetchTunnelStatus(ctx, c, sliceGwList)
+			return cs, err
+		}
 	}
 	podList := &corev1.PodList{}
 	listOpts := []client.ListOption{
@@ -421,7 +440,7 @@ func (r *SliceReconciler) getComponentStatus(ctx context.Context, c *component, 
 	}
 	if len(pods) == 0 {
 		if c.ignoreMissing {
-			log.Info("ignore missing pod for ", "component", c.name)
+			debuglog.Info("ignore missing pod for ", "component", c.name)
 			return nil, nil
 		}
 		log.Error(fmt.Errorf("no pods running"), "unhealthy", "pod", c.name)
@@ -432,50 +451,40 @@ func (r *SliceReconciler) getComponentStatus(ctx context.Context, c *component, 
 	// readiness-probe for kubeslice components are implemented
 	for _, pod := range pods {
 		if pod.Status.Phase != corev1.PodRunning {
-			log.Info("pod is not in running phase", "component", c.name)
+			debuglog.Info("pod is not in running phase", "component", c.name)
 			cs.ComponentHealthStatus = spokev1alpha1.ComponentHealthStatusError
 			return cs, nil
 		} else {
 			for _, containerStatus := range pod.Status.ContainerStatuses {
 				terminatedState := containerStatus.State.Terminated
 				if terminatedState != nil && terminatedState.ExitCode != 0 {
-					log.Info("container terminated with non-zero exitcode",
+					log.Error(fmt.Errorf("container terminated with non-zero exitcode"), "component unhealthy",
 						"component", c.name,
 						"container", containerStatus.Name,
 						"exitcode", terminatedState.ExitCode)
 					cs.ComponentHealthStatus = spokev1alpha1.ComponentHealthStatusError
-					break
+					return cs, nil
 				}
 			}
 		}
 	}
-	log.Info("health status normal", "component", c.name)
+	debuglog.Info("health status normal", "component", c.name)
 	cs.ComponentHealthStatus = spokev1alpha1.ComponentHealthStatusNormal
 	return cs, nil
 }
 
-func (r *SliceReconciler) fetchTunnelStatus(ctx context.Context, c *component) (*spokev1alpha1.ComponentStatus, error) {
+func (r *SliceReconciler) fetchTunnelStatus(ctx context.Context, c *component, sliceGwList *kubeslicev1beta1.SliceGatewayList) (*spokev1alpha1.ComponentStatus, error) {
 	log := logger.FromContext(ctx)
-	log.Info("health check for gateway tunnel")
+	debuglog := log.V(1)
+	debuglog.Info("health check for gateway tunnel")
 	tunnel := &spokev1alpha1.ComponentStatus{
 		Component: c.name,
 	}
-	sliceGwDeployments := &appsv1.DeploymentList{}
 	listOpts := []client.ListOption{
 		client.MatchingLabels(c.labels),
 		client.InNamespace(c.ns),
 	}
-	err := r.MeshClient.List(ctx, sliceGwDeployments, listOpts...)
-	if err != nil {
-		log.Error(err, "Could not list the slicegw deployments", "component", c.name)
-		return nil, err
-	}
-	//1. zero number of deployments -> ignore the slicegw tunnel status
-	if len(sliceGwDeployments.Items) == 0 {
-		log.Info("SliceGW deployments are not present, skipping health check", "component", c.name)
-		return nil, nil
-	}
-	//2. non zero number of deployments for slicegw -> fetch status of all pods
+
 	podList := &corev1.PodList{}
 	if err := r.MeshClient.List(ctx, podList, listOpts...); err != nil {
 		log.Error(err, "Failed to list pods", "component", c.name)
@@ -488,12 +497,9 @@ func (r *SliceReconciler) fetchTunnelStatus(ctx context.Context, c *component) (
 		tunnel.ComponentHealthStatus = spokev1alpha1.ComponentHealthStatusError
 		return tunnel, nil
 	}
-	tunStatus_sum := 0     // status sum zero implies all gateways are healthy
-	tunStatus_product := 1 // status product zero implies atleast one gw is healthy
-	if len(pods) != len(sliceGwDeployments.Items) {
-		log.Error(fmt.Errorf("atleast one slicegw is not running"), "warning state", "pod", c.name)
-		tunStatus_sum = 1
-	}
+	expectedTunnelCount := len(sliceGwList.Items) * 2
+	tunnelHealthy := 0
+
 	gwSideCarClient, err := gwsidecar.NewWorkerGWSidecarClientProvider()
 	if err != nil {
 		log.Error(err, "Failed to get GwSideCarClient", "component", c.name)
@@ -508,50 +514,39 @@ func (r *SliceReconciler) fetchTunnelStatus(ctx context.Context, c *component) (
 			if err != nil {
 				log.Error(err, "failed to get tunnel status")
 			}
-			log.Info("tunnel status", "values", gs.TunnelStatus)
+			debuglog.Info("tunnel status", "values", gs.TunnelStatus)
 			// atleast one gw tunnel is up
-			tunStatus_sum += int(gs.TunnelStatus.Status)
-			tunStatus_product *= int(gs.TunnelStatus.Status)
-		} else {
-			tunStatus_sum += 1
-			tunStatus_product *= 1
+			if gs.TunnelStatus.Status == 0 {
+				tunnelHealthy += 1
+			}
 		}
 	}
-	if tunStatus_sum == 0 {
-		// all gw tunnels are up
+	if expectedTunnelCount == tunnelHealthy {
+		// all gw tunnels are healthy
 		tunnel.ComponentHealthStatus = spokev1alpha1.ComponentHealthStatusNormal
-	} else if tunStatus_product == 0 {
-		// at least one gw tunnel is up
+	} else if tunnelHealthy > 0 {
+		// atleast one gw tunnel is healthy
 		tunnel.ComponentHealthStatus = spokev1alpha1.ComponentHealthStatusWarning
 	} else {
-		// no gw tunnels are up
+		// no gw tunnel is healthy
 		tunnel.ComponentHealthStatus = spokev1alpha1.ComponentHealthStatusError
 	}
 	return tunnel, nil
 }
 
-func (r *SliceReconciler) fetchSliceGatewayHealth(ctx context.Context, c *component) (*spokev1alpha1.ComponentStatus, error) {
+func (r *SliceReconciler) fetchSliceGatewayHealth(ctx context.Context, c *component, sliceGwList *kubeslicev1beta1.SliceGatewayList) (*spokev1alpha1.ComponentStatus, error) {
 	log := logger.FromContext(ctx)
+	debuglog := log.V(1)
 	//fetch number of deployments
 	cs := &spokev1alpha1.ComponentStatus{
 		Component: c.name,
 	}
-	sliceGwDeployments := &appsv1.DeploymentList{}
+	expectedGwPodCount := len(sliceGwList.Items) * 2
 	listOpts := []client.ListOption{
 		client.MatchingLabels(c.labels),
 		client.InNamespace(c.ns),
 	}
-	err := r.MeshClient.List(ctx, sliceGwDeployments, listOpts...)
-	if err != nil {
-		log.Error(err, "Could not list the slicegw deployments")
-		return nil, err
-	}
-	//1. zero number of deployments -> ignore the slicegw health status
-	if len(sliceGwDeployments.Items) == 0 {
-		log.Info("SliceGW deployments are not present, skipping slicegw health status")
-		return nil, nil
-	}
-	//2. non zero number of deployments for slicegw -> fetch status of all pods
+
 	podList := &corev1.PodList{}
 	if err := r.MeshClient.List(ctx, podList, listOpts...); err != nil {
 		log.Error(err, "Failed to list pods", "pod", c.name)
@@ -564,16 +559,13 @@ func (r *SliceReconciler) fetchSliceGatewayHealth(ctx context.Context, c *compon
 		cs.ComponentHealthStatus = spokev1alpha1.ComponentHealthStatusError
 		return cs, nil
 	}
-	if len(pods) != len(sliceGwDeployments.Items) {
-		log.Error(fmt.Errorf("number of pods do not match slicegw deployments running"), "unhealthy", "pod", c.name)
-		cs.ComponentHealthStatus = spokev1alpha1.ComponentHealthStatusWarning
-	}
+
 	// TODO: verify "PodConditionType == ContainersReady" when
 	// readiness-probe for kubeslice components are implemented
 	healthyCount := 0 // represents number of healthy gw pods
 	for _, pod := range pods {
 		if pod.Status.Phase == corev1.PodRunning && pod.ObjectMeta.DeletionTimestamp == nil {
-			log.Info("pod is in running phase", "component", c.name, "pod", pod.Name)
+			debuglog.Info("pod is in running phase", "component", c.name, "pod", pod.Name)
 			for _, containerStatus := range pod.Status.ContainerStatuses {
 				terminatedState := containerStatus.State.Terminated
 				if terminatedState != nil && terminatedState.ExitCode != 0 {
@@ -588,8 +580,8 @@ func (r *SliceReconciler) fetchSliceGatewayHealth(ctx context.Context, c *compon
 			healthyCount += 1
 		}
 	}
-	log.Info("slice gw health check flag", "unhealthyCount", healthyCount, "status")
-	if len(sliceGwDeployments.Items) == healthyCount {
+	debuglog.Info("slice gw health check flag", "unhealthyCount", healthyCount, "status")
+	if expectedGwPodCount == healthyCount {
 		// all gw pods are healthy
 		cs.ComponentHealthStatus = spokev1alpha1.ComponentHealthStatusNormal
 	} else if healthyCount > 0 {

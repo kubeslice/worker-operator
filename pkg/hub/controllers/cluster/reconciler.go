@@ -269,7 +269,7 @@ func (r *Reconciler) getComponentStatus(ctx context.Context, c *component, cr *h
 	// readiness-probe for kubeslice components are implemented
 	for _, pod := range pods {
 		if pod.Status.Phase != corev1.PodRunning {
-			log.Info("pod is not in running phase", "component", c.name, "pod", pod.Name)
+			log.Error(fmt.Errorf("pod is not in running state"), "component is unhealthy", "component", c.name, "pod", pod.Name)
 			cs.ComponentHealthStatus = hubv1alpha1.ComponentHealthStatusError
 			return cs, nil
 		} else {
@@ -282,7 +282,7 @@ func (r *Reconciler) getComponentStatus(ctx context.Context, c *component, cr *h
 						"container", containerStatus.Name,
 						"exitcode", terminatedState.ExitCode)
 					cs.ComponentHealthStatus = hubv1alpha1.ComponentHealthStatusError
-					break
+					return cs, nil
 				}
 			}
 		}
