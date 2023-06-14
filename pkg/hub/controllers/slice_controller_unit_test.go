@@ -27,6 +27,7 @@ import (
 	workerv1alpha1 "github.com/kubeslice/apis/pkg/worker/v1alpha1"
 	mevents "github.com/kubeslice/kubeslice-monitoring/pkg/events"
 	"github.com/kubeslice/kubeslice-monitoring/pkg/metrics"
+	"github.com/kubeslice/worker-operator/api/v1beta1"
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
 	ossEvents "github.com/kubeslice/worker-operator/events"
 	"github.com/prometheus/client_golang/prometheus"
@@ -208,6 +209,11 @@ func TestReconcileToUpdateWorkerSlice(t *testing.T) {
 		mock.IsType(&appsv1.DeploymentList{}),
 		mock.IsType([]k8sclient.ListOption{}),
 	).Return(nil)
+	client.On("List",
+		mock.IsType(ctx),
+		mock.IsType(&v1beta1.SliceGatewayList{}),
+		mock.IsType([]k8sclient.ListOption{}),
+	).Return(nil)
 	client.StatusMock.On("Update",
 		mock.IsType(ctx),
 		mock.IsType(&workerv1alpha1.WorkerSliceConfig{}),
@@ -295,6 +301,11 @@ func TestUpdateSliceHealth(t *testing.T) {
 	client.StatusMock.On("Update",
 		mock.IsType(ctx),
 		mock.IsType(&workerv1alpha1.WorkerSliceConfig{}),
+	).Return(nil)
+	client.On("List",
+		mock.IsType(ctx),
+		mock.IsType(&v1beta1.SliceGatewayList{}),
+		mock.IsType([]k8sclient.ListOption{}),
 	).Return(nil)
 	client.On("List",
 		mock.IsType(expected.ctx),

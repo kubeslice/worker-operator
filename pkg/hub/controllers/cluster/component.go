@@ -62,4 +62,10 @@ var components = []component{
 		ns:            "istio-system",
 		ignoreMissing: true,
 	},
+	{
+		name: "node-ips",
+	},
+	{
+		name: "cni-subnets",
+	},
 }

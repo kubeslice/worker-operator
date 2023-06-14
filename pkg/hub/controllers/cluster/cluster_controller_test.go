@@ -234,6 +234,7 @@ var _ = Describe("Hub ClusterController", func() {
 		var operatorSecret *corev1.Secret
 		var sa *corev1.ServiceAccount
 		var pods []*corev1.Pod
+		// var podBasedComponents []string
 
 		BeforeEach(func() {
 			ns = &corev1.Namespace{
@@ -259,6 +260,19 @@ var _ = Describe("Hub ClusterController", func() {
 				Spec:   hubv1alpha1.ClusterSpec{},
 				Status: hubv1alpha1.ClusterStatus{},
 			}
+			// podBasedComponents = []string{
+			// 	"nsmgr",
+			// 	"forwarder",
+			// 	"admission-webhook",
+			// 	"netop",
+			// 	"spire-agent",
+			// 	"spire-server",
+			// 	"istiod",
+			// }
+			// otherComponents = []string{
+			// 	"node-ips",
+			// 	"cni-subnets",
+			// }
 			os.Setenv("HUB_PROJECT_NAMESPACE", PROJECT_NS)
 			os.Setenv("CLUSTER_NAME", CLUSTER_NAME)
 			operatorSecret = getSecret("kubeslice-kubernetes-dashboard", CONTROL_PLANE_NS)
@@ -324,12 +338,21 @@ var _ = Describe("Hub ClusterController", func() {
 			}, time.Second*10, time.Second*1).Should(BeTrue())
 			cs := cluster.Status.ClusterHealth.ComponentStatuses
 
-			Expect(cs).Should(HaveLen(6))
+			Expect(cs).Should(HaveLen(8))
 
 			Expect(string(cluster.Status.ClusterHealth.ClusterHealthStatus)).Should(Equal("Warning"))
 
-			for _, c := range cs {
-				Expect(string(c.ComponentHealthStatus)).Should(Equal("Error"))
+			podBasedComponentLists := []string{
+				"nsmgr",
+				"forwarder",
+				"admission-webhook",
+				"netop",
+				"spire-agent",
+				"spire-server",
+			}
+			for _, c := range podBasedComponentLists {
+				Expect(componentExists(cs, c)).Should(BeTrue())
+				Expect(matchHealthStatus(cs, c, hubv1alpha1.ComponentHealthStatusError)).Should(BeTrue())
 			}
 
 			events := &corev1.EventList{}
@@ -448,13 +471,19 @@ var _ = Describe("Hub ClusterController", func() {
 			}, time.Second*10, time.Second*1).Should(BeTrue())
 
 			cs := cluster.Status.ClusterHealth.ComponentStatuses
-			Expect(cs).Should(HaveLen(6))
+			Expect(cs).Should(HaveLen(8))
 
 			Expect(string(cluster.Status.ClusterHealth.ClusterHealthStatus)).Should(Equal("Normal"))
 
-			for i, c := range cs {
-				Expect(c.Component).Should(Equal(pods[i].ObjectMeta.Name))
-				Expect(string(c.ComponentHealthStatus)).Should(Equal("Normal"))
+			for i, pod := range pods {
+				Expect((pod.ObjectMeta.Name)).Should(Equal(cs[i].Component))
+				Expect(string(cs[i].ComponentHealthStatus)).Should(Equal("Normal"))
+			}
+
+			additionalComponentLists := []string{"node-ips", "cni-subnets"}
+			for _, c := range additionalComponentLists {
+				Expect(componentExists(cs, c)).Should(BeTrue())
+				Expect(matchHealthStatus(cs, c, hubv1alpha1.ComponentHealthStatusNormal)).Should(BeTrue())
 			}
 
 			events := &corev1.EventList{}
@@ -498,7 +527,7 @@ var _ = Describe("Hub ClusterController", func() {
 			}, time.Second*10, time.Second*1).Should(BeTrue())
 
 			cs := cluster.Status.ClusterHealth.ComponentStatuses
-			Expect(cs).Should(HaveLen(7))
+			Expect(cs).Should(HaveLen(9))
 
 			Expect(cs[6].Component).Should(Equal(("istiod")))
 			Expect(string(cs[6].ComponentHealthStatus)).Should(Equal("Normal"))
@@ -563,6 +592,24 @@ func getSecret(name, namespace string) *corev1.Secret {
 func eventFound(events *corev1.EventList, eventTitle string) bool {
 	for _, event := range events.Items {
 		if event.Labels["eventTitle"] == eventTitle {
+			return true
+		}
+	}
+	return false
+}
+
+func componentExists(cs []hubv1alpha1.ComponentStatus, componentName string) bool {
+	for _, c := range cs {
+		if c.Component == componentName {
+			return true
+		}
+	}
+	return false
+}
+
+func matchHealthStatus(cs []hubv1alpha1.ComponentStatus, componentName string, expectedStatus hubv1alpha1.ComponentHealthStatus) bool {
+	for _, c := range cs {
+		if c.Component == componentName && c.ComponentHealthStatus == expectedStatus {
 			return true
 		}
 	}
