@@ -567,7 +567,6 @@ func (r *SliceReconciler) fetchSliceGatewayHealth(ctx context.Context, c *compon
 
 	// TODO: verify "PodConditionType == ContainersReady" when
 	// readiness-probe for kubeslice components are implemented
-	healthyCount := 0 // represents number of healthy gw pods
 	unhealthyCount := 0
 	for _, pod := range pods {
 		if pod.Status.Phase == corev1.PodRunning && pod.ObjectMeta.DeletionTimestamp == nil {
@@ -584,21 +583,9 @@ func (r *SliceReconciler) fetchSliceGatewayHealth(ctx context.Context, c *compon
 					break
 				}
 			}
-			healthyCount += 1
 		}
 	}
 	debuglog.Info("slice gw health check flag", "expected pod count", expectedGwPodCount)
-	debuglog.Info("slice gw health check flag", "healthyCount", healthyCount)
-	// if expectedGwPodCount == healthyCount {
-	// 	// all gw pods are healthy
-	// 	cs.ComponentHealthStatus = spokev1alpha1.ComponentHealthStatusNormal
-	// } else if healthyCount > 0 {
-	// 	// atleast one gw is healthy
-	// 	cs.ComponentHealthStatus = spokev1alpha1.ComponentHealthStatusWarning
-	// } else {
-	// 	// no gw is healthy
-	// 	cs.ComponentHealthStatus = spokev1alpha1.ComponentHealthStatusError
-	// }
 	debuglog.Info("slice gw health check flag", "unhealthyCount", unhealthyCount)
 	if expectedGwPodCount == unhealthyCount {
 		// all gw pods are unhealthy
