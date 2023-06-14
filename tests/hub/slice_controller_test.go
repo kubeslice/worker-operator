@@ -419,23 +419,7 @@ var _ = Describe("Hub SliceController", func() {
 				},
 				{
 					ObjectMeta: metav1.ObjectMeta{
-						Name: "slicegateway",
-						Labels: map[string]string{
-							"kubeslice.io/pod-type": "slicegateway",
-							"kubeslice.io/slice":    "test-slice-4",
-						},
-						Namespace: "kubeslice-system",
-					},
-					Spec: corev1.PodSpec{
-						Containers: []corev1.Container{{
-							Name:  "test",
-							Image: "test",
-						}},
-					},
-				},
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "slicerouter",
+						Name: "slice-router",
 						Labels: map[string]string{
 							"kubeslice.io/pod-type": "router",
 							"kubeslice.io/slice":    "test-slice-4",
@@ -501,7 +485,8 @@ var _ = Describe("Hub SliceController", func() {
 			}, time.Second*30, time.Second*1).Should(BeTrue())
 
 			cs := hubSlice.Status.SliceHealth.ComponentStatuses
-			Expect(cs).Should(HaveLen(5))
+			Expect(cs).Should(HaveLen(4))
+			GinkgoWriter.Println(cs)
 			Expect(string(hubSlice.Status.SliceHealth.SliceHealthStatus)).Should(Equal("Normal"))
 			for i, c := range cs {
 				Expect(c.Component).Should(Equal(pods[i].ObjectMeta.Name))
