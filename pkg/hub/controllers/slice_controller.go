@@ -409,10 +409,10 @@ func (r *SliceReconciler) getComponentStatus(ctx context.Context, c *component, 
 		}
 		if err := r.MeshClient.List(ctx, sliceGwList, listOpts...); err != nil {
 			if errors.IsNotFound(err) {
-				log.Info("No GateWay objects found. Skipping health check")
+				debuglog.Info("No GateWay objects found. Skipping health check", "component", c.name)
 				return nil, nil
 			} else {
-				log.Error(err, "Failed to list slice gateway objects")
+				log.Error(err, "Failed to list slice gateway objects", "component", c.name)
 				return nil, err
 			}
 		}
@@ -497,7 +497,7 @@ func (r *SliceReconciler) fetchTunnelStatus(ctx context.Context, c *component, s
 		tunnel.ComponentHealthStatus = spokev1alpha1.ComponentHealthStatusError
 		return tunnel, nil
 	}
-	expectedTunnelCount := len(sliceGwList.Items) * 2
+	expectedTunnelCount := len(sliceGwList.Items) * 2 // gw redundancy
 	tunnelHealthy := 0
 
 	gwSideCarClient, err := gwsidecar.NewWorkerGWSidecarClientProvider()
@@ -506,13 +506,14 @@ func (r *SliceReconciler) fetchTunnelStatus(ctx context.Context, c *component, s
 		return nil, err
 	}
 	for _, pod := range podList.Items {
-		log.Info("gateway pod found", "pod name", pod.Name)
+		debuglog.Info("gateway pod found", "pod name", pod.Name)
 		if pod.Status.Phase == corev1.PodRunning && pod.ObjectMeta.DeletionTimestamp == nil {
 			sidecarGrpcAddress := pod.Status.PodIP + ":5000"
-			log.Info("side car", "grpc addr", sidecarGrpcAddress)
+			debuglog.Info("side car", "grpc addr", sidecarGrpcAddress)
 			gs, err := gwSideCarClient.GetStatus(ctx, sidecarGrpcAddress)
 			if err != nil {
 				log.Error(err, "failed to get tunnel status")
+				continue
 			}
 			debuglog.Info("tunnel status", "values", gs.TunnelStatus)
 			// atleast one gw tunnel is up
@@ -541,7 +542,7 @@ func (r *SliceReconciler) fetchSliceGatewayHealth(ctx context.Context, c *compon
 	cs := &spokev1alpha1.ComponentStatus{
 		Component: c.name,
 	}
-	expectedGwPodCount := len(sliceGwList.Items) * 2
+	expectedGwPodCount := len(sliceGwList.Items) * 2 // gw redundancy
 	listOpts := []client.ListOption{
 		client.MatchingLabels(c.labels),
 		client.InNamespace(c.ns),
