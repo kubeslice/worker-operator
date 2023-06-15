@@ -81,7 +81,7 @@ var components = []component{
 	{
 		name: "slice-gateway",
 		labels: map[string]string{
-			"kubeslice.io/slice": "sliceName",
+			"kubeslice.io/pod-type": "slicegateway",
 		},
 		ns: ControlPlaneNamespace,
 	},
@@ -111,7 +111,7 @@ var components = []component{
 	{
 		name: "gateway-tunnel",
 		labels: map[string]string{
-			"kubeslice.io/slice": "sliceName",
+			"kubeslice.io/pod-type": "slicegateway",
 		},
 		ns: ControlPlaneNamespace,
 	},
@@ -408,7 +408,9 @@ func (r *SliceReconciler) getComponentStatus(ctx context.Context, c *component, 
 	if c.name == "slice-gateway" || c.name == "gateway-tunnel" {
 		sliceGwList := &kubeslicev1beta1.SliceGatewayList{}
 		listOpts := []client.ListOption{
-			client.MatchingLabels(c.labels),
+			client.MatchingLabels(map[string]string{
+				"kubeslice.io/slice": sliceName,
+			}),
 			client.InNamespace(c.ns),
 		}
 		debuglog.Info("gw obj label for health check", "kubeslice.io/slice", c.labels["kubeslice.io/slice"])
@@ -425,8 +427,6 @@ func (r *SliceReconciler) getComponentStatus(ctx context.Context, c *component, 
 			debuglog.Info("No GateWay objects found. Skipping health check", "component", c.name)
 			return nil, nil
 		}
-		// add labels to search gw pods
-		c.labels["kubeslice.io/pod-type"] = "slicegateway"
 		switch c.name {
 		case "slice-gateway":
 			cs, err := r.fetchSliceGatewayHealth(ctx, c, sliceGwList)
