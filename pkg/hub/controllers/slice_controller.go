@@ -81,7 +81,7 @@ var components = []component{
 	{
 		name: "slice-gateway",
 		labels: map[string]string{
-			"kubeslice.io/pod-type": "slicegateway",
+			"kubeslice.io/slice": "sliceName",
 		},
 		ns: ControlPlaneNamespace,
 	},
@@ -111,10 +111,9 @@ var components = []component{
 	{
 		name: "gateway-tunnel",
 		labels: map[string]string{
-			"kubeslice.io/pod-type": "slicegateway",
+			"kubeslice.io/slice": "sliceName",
 		},
-		ns:            ControlPlaneNamespace,
-		ignoreMissing: true,
+		ns: ControlPlaneNamespace,
 	},
 }
 
@@ -223,8 +222,9 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req reconcile.Request) 
 		return reconcile.Result{}, err
 	}
 
+	r.UpdateSliceHealthMetrics(slice)
+
 	if time.Since(slice.Status.SliceHealth.LastUpdated.Time) > r.ReconcileInterval {
-		r.UpdateSliceHealthMetrics(slice)
 		slice.Status.SliceHealth.LastUpdated = metav1.Now()
 		if err := r.Status().Update(ctx, slice); err != nil {
 			log.Error(err, "unable to update slice CR")
@@ -377,6 +377,7 @@ func (r *SliceReconciler) handleSliceDeletion(slice *spokev1alpha1.WorkerSliceCo
 
 func (r *SliceReconciler) updateSliceHealth(ctx context.Context, slice *spokev1alpha1.WorkerSliceConfig) error {
 	log := logger.FromContext(ctx)
+	debuglog := log.V(1)
 	slice.Status.SliceHealth.ComponentStatuses = []spokev1alpha1.ComponentStatus{}
 	slice.Status.SliceHealth.SliceHealthStatus = spokev1alpha1.SliceHealthStatusNormal
 	for _, c := range components {
@@ -385,10 +386,13 @@ func (r *SliceReconciler) updateSliceHealth(ctx context.Context, slice *spokev1a
 			log.Error(err, "unable to fetch component status")
 		}
 		if cs != nil {
+			debuglog.Info("adding component status in workerslice obj", "component", cs)
+			debuglog.Info("before updating slice health", "SliceHealth", slice.Status.SliceHealth)
 			slice.Status.SliceHealth.ComponentStatuses = append(slice.Status.SliceHealth.ComponentStatuses, *cs)
 			if cs.ComponentHealthStatus != spokev1alpha1.ComponentHealthStatusNormal {
 				slice.Status.SliceHealth.SliceHealthStatus = spokev1alpha1.SliceHealthStatusWarning
 			}
+			debuglog.Info("updated slice health", "SliceHealth", slice.Status.SliceHealth)
 		}
 	}
 	return nil
@@ -397,6 +401,7 @@ func (r *SliceReconciler) updateSliceHealth(ctx context.Context, slice *spokev1a
 func (r *SliceReconciler) getComponentStatus(ctx context.Context, c *component, sliceName string) (*spokev1alpha1.ComponentStatus, error) {
 	log := logger.FromContext(ctx)
 	debuglog := log.V(1)
+	debuglog.Info("component health check started", "component", c.name)
 	if c.name != "dns" {
 		c.labels["kubeslice.io/slice"] = sliceName
 	}
@@ -406,9 +411,10 @@ func (r *SliceReconciler) getComponentStatus(ctx context.Context, c *component, 
 			client.MatchingLabels(c.labels),
 			client.InNamespace(c.ns),
 		}
+		debuglog.Info("gw obj label for health check", "kubeslice.io/slice", c.labels["kubeslice.io/slice"])
 		if err := r.MeshClient.List(ctx, sliceGwList, listOpts...); err != nil {
 			if errors.IsNotFound(err) {
-				debuglog.Info("No GateWay objects found. Skipping health check", "component", c.name)
+				debuglog.Info("Object Not found. Skipping health check", "component", c.name)
 				return nil, nil
 			} else {
 				log.Error(err, "Failed to list slice gateway objects", "component", c.name)
@@ -419,6 +425,8 @@ func (r *SliceReconciler) getComponentStatus(ctx context.Context, c *component, 
 			debuglog.Info("No GateWay objects found. Skipping health check", "component", c.name)
 			return nil, nil
 		}
+		// add labels to search gw pods
+		c.labels["kubeslice.io/pod-type"] = "slicegateway"
 		switch c.name {
 		case "slice-gateway":
 			cs, err := r.fetchSliceGatewayHealth(ctx, c, sliceGwList)
