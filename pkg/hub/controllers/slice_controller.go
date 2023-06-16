@@ -577,24 +577,27 @@ func (r *SliceReconciler) fetchSliceGatewayHealth(ctx context.Context, c *compon
 	healthyCount := 0
 	for _, pod := range pods {
 		if pod.Status.Phase == corev1.PodRunning && pod.ObjectMeta.DeletionTimestamp == nil {
-			debuglog.Info("pod is in running phase", "component", c.name, "pod", pod.Name)
+			debuglog.Info("pod is in running phase, check container status", "component", c.name, "pod", pod.Name)
+			healthy := true
 			for _, containerStatus := range pod.Status.ContainerStatuses {
 				terminatedState := containerStatus.State.Terminated
 				if terminatedState != nil && terminatedState.ExitCode != 0 {
+					healthy = false
 					debuglog.Info("container terminated with non-zero exitcode",
 						"component", c.name,
 						"pod", pod.Name,
 						"container", containerStatus.Name,
 						"exitcode", terminatedState.ExitCode)
 					break
-				} else {
-					healthyCount += 1
 				}
+			}
+			if healthy {
+				healthyCount += 1
 			}
 		}
 	}
 	debuglog.Info("slice gw health check flag", "expected pod count", expectedGwPodCount)
-	debuglog.Info("slice gw health check flag", "unhealthyCount", healthyCount)
+	debuglog.Info("slice gw health check flag", "healthyCount", healthyCount)
 	if expectedGwPodCount == healthyCount {
 		// all gw pods are healthy
 		cs.ComponentHealthStatus = spokev1alpha1.ComponentHealthStatusNormal
