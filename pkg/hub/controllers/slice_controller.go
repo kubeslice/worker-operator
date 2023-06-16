@@ -113,8 +113,7 @@ var components = []component{
 		labels: map[string]string{
 			"kubeslice.io/pod-type": "slicegateway",
 		},
-		ns:            ControlPlaneNamespace,
-		ignoreMissing: true,
+		ns: ControlPlaneNamespace,
 	},
 }
 
@@ -223,8 +222,9 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req reconcile.Request) 
 		return reconcile.Result{}, err
 	}
 
+	r.UpdateSliceHealthMetrics(slice)
+
 	if time.Since(slice.Status.SliceHealth.LastUpdated.Time) > r.ReconcileInterval {
-		r.UpdateSliceHealthMetrics(slice)
 		slice.Status.SliceHealth.LastUpdated = metav1.Now()
 		if err := r.Status().Update(ctx, slice); err != nil {
 			log.Error(err, "unable to update slice CR")
@@ -377,6 +377,7 @@ func (r *SliceReconciler) handleSliceDeletion(slice *spokev1alpha1.WorkerSliceCo
 
 func (r *SliceReconciler) updateSliceHealth(ctx context.Context, slice *spokev1alpha1.WorkerSliceConfig) error {
 	log := logger.FromContext(ctx)
+	debuglog := log.V(1)
 	slice.Status.SliceHealth.ComponentStatuses = []spokev1alpha1.ComponentStatus{}
 	slice.Status.SliceHealth.SliceHealthStatus = spokev1alpha1.SliceHealthStatusNormal
 	for _, c := range components {
@@ -385,10 +386,12 @@ func (r *SliceReconciler) updateSliceHealth(ctx context.Context, slice *spokev1a
 			log.Error(err, "unable to fetch component status")
 		}
 		if cs != nil {
+			debuglog.Info("adding component status in workerslice obj", "component", cs)
 			slice.Status.SliceHealth.ComponentStatuses = append(slice.Status.SliceHealth.ComponentStatuses, *cs)
 			if cs.ComponentHealthStatus != spokev1alpha1.ComponentHealthStatusNormal {
 				slice.Status.SliceHealth.SliceHealthStatus = spokev1alpha1.SliceHealthStatusWarning
 			}
+			debuglog.Info("updated slice health", "SliceHealth", slice.Status.SliceHealth)
 		}
 	}
 	return nil
@@ -397,18 +400,22 @@ func (r *SliceReconciler) updateSliceHealth(ctx context.Context, slice *spokev1a
 func (r *SliceReconciler) getComponentStatus(ctx context.Context, c *component, sliceName string) (*spokev1alpha1.ComponentStatus, error) {
 	log := logger.FromContext(ctx)
 	debuglog := log.V(1)
+	debuglog.Info("component health check started", "component", c.name)
 	if c.name != "dns" {
 		c.labels["kubeslice.io/slice"] = sliceName
 	}
 	if c.name == "slice-gateway" || c.name == "gateway-tunnel" {
 		sliceGwList := &kubeslicev1beta1.SliceGatewayList{}
 		listOpts := []client.ListOption{
-			client.MatchingLabels(c.labels),
+			client.MatchingLabels(map[string]string{
+				"kubeslice.io/slice": sliceName,
+			}),
 			client.InNamespace(c.ns),
 		}
+		debuglog.Info("gw obj label for health check", "kubeslice.io/slice", c.labels["kubeslice.io/slice"])
 		if err := r.MeshClient.List(ctx, sliceGwList, listOpts...); err != nil {
 			if errors.IsNotFound(err) {
-				debuglog.Info("No GateWay objects found. Skipping health check", "component", c.name)
+				debuglog.Info("Object Not found. Skipping health check", "component", c.name)
 				return nil, nil
 			} else {
 				log.Error(err, "Failed to list slice gateway objects", "component", c.name)
@@ -567,35 +574,39 @@ func (r *SliceReconciler) fetchSliceGatewayHealth(ctx context.Context, c *compon
 
 	// TODO: verify "PodConditionType == ContainersReady" when
 	// readiness-probe for kubeslice components are implemented
-	unhealthyCount := 0
+	healthyCount := 0
 	for _, pod := range pods {
 		if pod.Status.Phase == corev1.PodRunning && pod.ObjectMeta.DeletionTimestamp == nil {
-			debuglog.Info("pod is in running phase", "component", c.name, "pod", pod.Name)
+			debuglog.Info("pod is in running phase, check container status", "component", c.name, "pod", pod.Name)
+			healthy := true
 			for _, containerStatus := range pod.Status.ContainerStatuses {
 				terminatedState := containerStatus.State.Terminated
 				if terminatedState != nil && terminatedState.ExitCode != 0 {
+					healthy = false
 					debuglog.Info("container terminated with non-zero exitcode",
 						"component", c.name,
 						"pod", pod.Name,
 						"container", containerStatus.Name,
 						"exitcode", terminatedState.ExitCode)
-					unhealthyCount += 1
 					break
 				}
+			}
+			if healthy {
+				healthyCount += 1
 			}
 		}
 	}
 	debuglog.Info("slice gw health check flag", "expected pod count", expectedGwPodCount)
-	debuglog.Info("slice gw health check flag", "unhealthyCount", unhealthyCount)
-	if expectedGwPodCount == unhealthyCount {
-		// all gw pods are unhealthy
-		cs.ComponentHealthStatus = spokev1alpha1.ComponentHealthStatusError
-	} else if unhealthyCount > 0 {
-		// atleast one gw is unhealthy
+	debuglog.Info("slice gw health check flag", "healthyCount", healthyCount)
+	if expectedGwPodCount == healthyCount {
+		// all gw pods are healthy
+		cs.ComponentHealthStatus = spokev1alpha1.ComponentHealthStatusNormal
+	} else if healthyCount > 0 {
+		// atleast one gw is healthy
 		cs.ComponentHealthStatus = spokev1alpha1.ComponentHealthStatusWarning
 	} else {
 		// no gw is unhealthy
-		cs.ComponentHealthStatus = spokev1alpha1.ComponentHealthStatusNormal
+		cs.ComponentHealthStatus = spokev1alpha1.ComponentHealthStatusError
 	}
 	debuglog.Info("report gw health", "status", cs.ComponentHealthStatus)
 	return cs, nil
