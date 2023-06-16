@@ -387,7 +387,6 @@ func (r *SliceReconciler) updateSliceHealth(ctx context.Context, slice *spokev1a
 		}
 		if cs != nil {
 			debuglog.Info("adding component status in workerslice obj", "component", cs)
-			debuglog.Info("before updating slice health", "SliceHealth", slice.Status.SliceHealth)
 			slice.Status.SliceHealth.ComponentStatuses = append(slice.Status.SliceHealth.ComponentStatuses, *cs)
 			if cs.ComponentHealthStatus != spokev1alpha1.ComponentHealthStatusNormal {
 				slice.Status.SliceHealth.SliceHealthStatus = spokev1alpha1.SliceHealthStatusWarning
