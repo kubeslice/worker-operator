@@ -28,6 +28,7 @@ import (
 	"github.com/kubeslice/worker-operator/controllers/slicegateway"
 	ossEvents "github.com/kubeslice/worker-operator/events"
 	"github.com/kubeslice/worker-operator/pkg/hub/controllers"
+	hub "github.com/kubeslice/worker-operator/pkg/hub/hubclient"
 	hce "github.com/kubeslice/worker-operator/tests/emulator/hubclient"
 	workernetop "github.com/kubeslice/worker-operator/tests/emulator/workerclient/netop"
 	workerrouter "github.com/kubeslice/worker-operator/tests/emulator/workerclient/router"
@@ -125,6 +126,8 @@ var _ = BeforeSuite(func() {
 			Namespace:           controllers.ControlPlaneNamespace,
 		},
 	)
+	hubClientEmulator, err := hce.NewHubClientEmulator(k8sClient)
+	Expect(err).ToNot(HaveOccurred())
 	spokeClusterEventRecorder := mevents.NewEventRecorder(k8sClient, k8sManager.GetScheme(), ossEvents.EventsMap, mevents.EventRecorderOptions{
 		Cluster:   CLUSTER_NAME,
 		Project:   PROJECT_NS,
@@ -133,7 +136,9 @@ var _ = BeforeSuite(func() {
 	})
 	rotationReconciler := NewReconciler(
 		k8sClient,
-		k8sClient,
+		&hub.HubClientConfig{
+			Client: k8sClient,
+		},
 		&spokeClusterEventRecorder,
 		mf,
 	)
@@ -144,9 +149,6 @@ var _ = BeforeSuite(func() {
 	if err != nil {
 		os.Exit(1)
 	}
-
-	hubClientEmulator, err := hce.NewHubClientEmulator(k8sClient)
-	Expect(err).ToNot(HaveOccurred())
 
 	workerClientSidecarGwEmulator, err = workergw.NewClientEmulator()
 	Expect(err).ToNot(HaveOccurred())
