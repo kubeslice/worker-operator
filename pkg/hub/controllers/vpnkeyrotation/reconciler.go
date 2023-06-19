@@ -3,6 +3,7 @@ package vpnkeyrotation
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"strconv"
 	"time"
@@ -75,7 +76,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (ctrl
 	allGwsUnderCluster := vpnKeyRotation.Spec.ClusterGatewayMapping[os.Getenv("CLUSTER_NAME")]
 	// for eg allGwsUnderCluster = []string{"fire-worker-2-worker-1", "fire-worker-2-worker-3", "fire-worker-2-worker-4"}
 
-	if len(vpnKeyRotation.Status.CurrentRotationState) == 0 {
+	if len(vpnKeyRotation.Status.CurrentRotationState) == 0 && len(allGwsUnderCluster) > 0 {
 		// When vpnkeyrotation is initially created, update the LastUpdatedTimestamp for all gateways
 		// as same as CertificateCreationTime for vpnKeyRotation cr. Then stop the rquest and return.
 		err = r.updateInitialRotationStatusForAllGws(ctx, vpnKeyRotation, allGwsUnderCluster)
@@ -86,6 +87,41 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (ctrl
 		return ctrl.Result{}, nil
 	}
 
+	currentDate := time.Now()
+	certificationCreationDate := vpnKeyRotation.Spec.CertificateCreationTime
+	if certificationCreationDate.Year() == currentDate.Year() &&
+		certificationCreationDate.Month() == currentDate.Month() &&
+		certificationCreationDate.Day() == currentDate.Day() {
+		for _, selectedGw := range allGwsUnderCluster {
+			// check for status read in progress
+			if vpnKeyRotation.Status.CurrentRotationState[selectedGw].Status == hubv1alpha1.InProgress {
+				recyclers, err := r.HubClient.(*hub.HubClientConfig).ListWorkerSliceGwRecycler(ctx, selectedGw)
+				if err != nil {
+					return ctrl.Result{}, err
+				}
+				if len(recyclers) > 0 {
+					for _, v := range recyclers {
+						if v.Spec.State == "Error" {
+							if err := r.updateRotationStatusWithTimeStamp(ctx, selectedGw, hubv1alpha1.Error, vpnKeyRotation, metav1.Time{Time: time.Now()}); err != nil {
+								return ctrl.Result{}, err
+							}
+							return ctrl.Result{}, nil
+						} else {
+							// This means that recycling is in progress.
+							// We will queue the task again and recheck after a five-minute interval.
+							return ctrl.Result{RequeueAfter: time.Minute * 5}, nil
+						}
+					}
+				}
+				// Update the rotation status to Complete with TimeStamp
+				if err := r.updateRotationStatusWithTimeStamp(ctx, selectedGw, hubv1alpha1.Complete, vpnKeyRotation, metav1.Time{Time: time.Now()}); err != nil {
+					return ctrl.Result{}, nil
+				}
+			}
+		}
+	}
+
+	isUpdated := false
 	for _, selectedGw := range allGwsUnderCluster {
 		// We choose a gateway from the array and compare its LastUpdatedTimestamp with the CertificateCreationTime.
 		// If the time difference matches, we process the request; otherwise, we move on to the next gateway in the array.
@@ -166,21 +202,30 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (ctrl
 					log.Error(err, "Failed to get Slice", "slice", sliceName)
 					return ctrl.Result{}, err
 				}
-				for _, v := range podsUnderGw.Items {
+				for i, v := range podsUnderGw.Items {
 					// trigger FSM to recylce both gateway pod pairs
-					err = slicegwrecycler.TriggerFSM(ctx, sliceGw, slice, r.HubClient.(*hub.HubClientConfig), r.Client,
-						&v, r.EventRecorder, controllerName)
+					if err := r.updateRotationStatus(ctx, selectedGw, hubv1alpha1.InProgress, vpnKeyRotation); err != nil {
+						return ctrl.Result{}, err
+					}
+					created, err := slicegwrecycler.TriggerFSM(ctx, sliceGw, slice, r.HubClient.(*hub.HubClientConfig), r.Client,
+						&v, r.EventRecorder, controllerName, slice.Name+"-"+fmt.Sprint(i))
 					if err != nil {
 						return ctrl.Result{}, err
 					}
+					if created {
+						// if WorkerSliceGwRecycler is created even for one pod, we mark isUpdated to true so we can requeue
+						isUpdated = created
+					}
 				}
 			}
-
-			// Update the rotation status to Complete with TimeStamp
-			if err := r.updateRotationStatusWithTimeStamp(ctx, selectedGw, hubv1alpha1.Complete, vpnKeyRotation, metav1.Time{Time: time.Now()}); err != nil {
-				return ctrl.Result{}, err
-			}
 		}
+	}
+	if isUpdated {
+		// We are requeuing the task after 5 minutes because gateway recycling usually takes approximately 5 minutes.
+		// After the recycling process, we will check the status of the recycling and update vpnkeyrotation.
+		return ctrl.Result{
+			RequeueAfter: 5 * time.Minute,
+		}, nil
 	}
 	return ctrl.Result{}, nil
 }
@@ -191,6 +236,9 @@ func (r *Reconciler) updateRotationStatus(ctx context.Context, gatewayName, rota
 			types.NamespacedName{Name: vpnKeyRotation.Name, Namespace: vpnKeyRotation.Namespace},
 			vpnKeyRotation); getErr != nil {
 			return getErr
+		}
+		if len(vpnKeyRotation.Status.CurrentRotationState) == 0 {
+			return errors.New("current state is empty")
 		}
 		vpnKeyRotation.Status.CurrentRotationState[gatewayName] = hubv1alpha1.StatusOfKeyRotation{
 			Status:               rotationStatus,
@@ -216,6 +264,7 @@ func (r *Reconciler) updateRotationStatusWithTimeStamp(ctx context.Context, gate
 			Status:               rotationStatus,
 			LastUpdatedTimestamp: timestamp,
 		}
+		vpnKeyRotation.Status.StatusHistory = append(vpnKeyRotation.Status.StatusHistory, vpnKeyRotation.Status.CurrentRotationState)
 		return r.Status().Update(ctx, vpnKeyRotation)
 	})
 	if err != nil {

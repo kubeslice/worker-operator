@@ -96,7 +96,8 @@ func (hubClient *HubClientConfig) CreateWorkerSliceGwRecycler(ctx context.Contex
 			Name:      gwRecyclerName,
 			Namespace: ProjectNamespace,
 			Labels: map[string]string{
-				"slice_name": slice,
+				"slice_name":   slice,
+				"slicegw_name": sliceGwServer,
 			},
 		},
 		Spec: spokev1alpha1.WorkerSliceGwRecyclerSpec{
@@ -112,6 +113,19 @@ func (hubClient *HubClientConfig) CreateWorkerSliceGwRecycler(ctx context.Contex
 		},
 	}
 	return hubClient.Create(ctx, &workerslicegwrecycler)
+}
+
+func (hubClient *HubClientConfig) ListWorkerSliceGwRecycler(ctx context.Context, sliceGWName string) ([]spokev1alpha1.WorkerSliceGwRecycler, error) {
+	workerslicegwrecycler := spokev1alpha1.WorkerSliceGwRecyclerList{}
+	labels := map[string]string{"slicegw_name": sliceGWName}
+	listOpts := []client.ListOption{
+		client.MatchingLabels(labels),
+	}
+	err := hubClient.List(ctx, &workerslicegwrecycler, listOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return workerslicegwrecycler.Items, nil
 }
 
 func (hubClient *HubClientConfig) UpdateNodePortForSliceGwServer(ctx context.Context, sliceGwNodePorts []int, sliceGwName string) error {

@@ -21,7 +21,9 @@ package hubclient
 import (
 	"context"
 
+	spokev1alpha1 "github.com/kubeslice/apis/pkg/worker/v1alpha1"
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
+
 	_ "github.com/stretchr/testify/mock"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -77,4 +79,8 @@ func (hubClientEmulator *HubClientEmulator) GetClusterNodeIP(ctx context.Context
 
 func (hubClientEmulator *HubClientEmulator) CreateWorkerSliceGwRecycler(ctx context.Context, gwRecyclerName, clientID, serverID, sliceGwServer, sliceGwClient, slice string) error {
 	return nil
+}
+
+func (hubClientEmulator *HubClientEmulator) ListWorkerSliceGwRecycler(ctx context.Context, sliceGWName string) ([]spokev1alpha1.WorkerSliceGwRecycler, error) {
+	return nil, nil
 }
