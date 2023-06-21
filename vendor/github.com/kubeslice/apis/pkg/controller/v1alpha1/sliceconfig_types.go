@@ -42,6 +42,8 @@ type SliceConfigSpec struct {
 	//+kubebuilder:validation:Minimum=2
 	//+kubebuilder:validation:Maximum=32
 	MaxClusters int `json:"maxClusters"`
+	// RenewBefore is used for renew now!
+	RenewBefore metav1.Time `json:"renewBefore,omitempty"`
 }
 
 // ExternalGatewayConfig is the configuration for external gateways like 'istio', etc/

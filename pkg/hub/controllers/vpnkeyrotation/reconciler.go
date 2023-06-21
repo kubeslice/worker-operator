@@ -260,11 +260,25 @@ func (r *Reconciler) updateRotationStatusWithTimeStamp(ctx context.Context, gate
 			vpnKeyRotation); getErr != nil {
 			return getErr
 		}
-		vpnKeyRotation.Status.CurrentRotationState[gatewayName] = hubv1alpha1.StatusOfKeyRotation{
+		rotation := hubv1alpha1.StatusOfKeyRotation{
 			Status:               rotationStatus,
 			LastUpdatedTimestamp: timestamp,
 		}
-		vpnKeyRotation.Status.StatusHistory = append(vpnKeyRotation.Status.StatusHistory, vpnKeyRotation.Status.CurrentRotationState)
+		vpnKeyRotation.Status.CurrentRotationState[gatewayName] = rotation
+
+		if vpnKeyRotation.Status.StatusHistory == nil {
+			vpnKeyRotation.Status.StatusHistory = make(map[string][]hubv1alpha1.StatusOfKeyRotation)
+		}
+		history := vpnKeyRotation.Status.StatusHistory[gatewayName]
+
+		// Prepend current rotation to history, maintaining a maximum of 5 rotations
+		// StatusHistory is a stack n number of gateways rotation status
+		history = append([]hubv1alpha1.StatusOfKeyRotation{rotation}, history...)
+		if len(history) >= 5 {
+			// Remove the oldest rotation from the history
+			history = history[:5]
+		}
+		vpnKeyRotation.Status.StatusHistory[gatewayName] = history
 		return r.Status().Update(ctx, vpnKeyRotation)
 	})
 	if err != nil {
