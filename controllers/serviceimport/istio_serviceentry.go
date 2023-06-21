@@ -46,7 +46,8 @@ func (r *Reconciler) ReconcileServiceEntries(ctx context.Context, serviceimport 
 	}
 
 	for _, endpoint := range serviceimport.Status.Endpoints {
-		if !serviceEntryExists(entries, endpoint) {
+		se := serviceEntryExists(entries, endpoint)
+		if se == nil {
 			log.Info("serviceentry resource not found; creating", "serviceimport", serviceimport)
 			se := r.serviceEntryForEndpoint(serviceimport, &endpoint, ns)
 			err := r.Create(ctx, se)
@@ -58,6 +59,16 @@ func (r *Reconciler) ReconcileServiceEntries(ctx context.Context, serviceimport 
 			return ctrl.Result{Requeue: true}, nil, true
 		}
 
+		if serviceEntryUpdateNeeded(se, endpoint) {
+			updatedSe := r.updateServiceEntryForEndpoint(se, &endpoint)
+			err := r.Update(ctx, updatedSe)
+			if err != nil {
+				log.Error(err, "Failed to update serviceentry for", "endpoint", endpoint)
+				return ctrl.Result{}, err, true
+			}
+			log.Info("serviceentry resource updated for endpoint", "endpoint", endpoint)
+			return ctrl.Result{Requeue: true}, nil, true
+		}
 	}
 
 	// There are no additional serviceentries to be deleted
@@ -79,6 +90,16 @@ func (r *Reconciler) ReconcileServiceEntries(ctx context.Context, serviceimport 
 
 	return ctrl.Result{}, nil, false
 
+}
+
+func (r *Reconciler) updateServiceEntryForEndpoint(se *istiov1beta1.ServiceEntry, endpoint *kubeslicev1beta1.ServiceEndpoint) *istiov1beta1.ServiceEntry {
+	se.Spec.Resolution = networkingv1beta1.ServiceEntry_STATIC
+	se.Spec.Endpoints = []*networkingv1beta1.WorkloadEntry{
+		{
+			Address: endpoint.IP,
+		},
+	}
+	return se
 }
 
 // Create serviceEntryFor based on serviceImport endpoint spec in the specified namespace
@@ -105,7 +126,10 @@ func (r *Reconciler) serviceEntryForEndpoint(serviceImport *kubeslicev1beta1.Ser
 			},
 			Location:   networkingv1beta1.ServiceEntry_MESH_EXTERNAL,
 			Ports:      ports,
-			Resolution: networkingv1beta1.ServiceEntry_DNS,
+			Resolution: networkingv1beta1.ServiceEntry_STATIC,
+			Endpoints: []*networkingv1beta1.WorkloadEntry{{
+				Address: endpoint.IP,
+			}},
 		},
 	}
 
@@ -150,11 +174,24 @@ func getServiceEntriesForSI(ctx context.Context, c client.Client, serviceimport 
 	return ses, nil
 }
 
-func serviceEntryExists(seList []istiov1beta1.ServiceEntry, e kubeslicev1beta1.ServiceEndpoint) bool {
+func serviceEntryExists(seList []istiov1beta1.ServiceEntry, e kubeslicev1beta1.ServiceEndpoint) *istiov1beta1.ServiceEntry {
 	for _, se := range seList {
 		if len(se.Spec.Hosts) > 0 && se.Spec.Hosts[0] == e.DNSName {
-			return true
+			return &se
 		}
+	}
+
+	return nil
+}
+
+func serviceEntryUpdateNeeded(se *istiov1beta1.ServiceEntry, endpoint kubeslicev1beta1.ServiceEndpoint) bool {
+	// Mainly for backward compatibility when updating the operator from older to newer verions
+	if se.Spec.Resolution != networkingv1beta1.ServiceEntry_STATIC {
+		return true
+	}
+
+	if len(se.Spec.Endpoints) > 0 && se.Spec.Endpoints[0].Address != endpoint.IP {
+		return true
 	}
 
 	return false
