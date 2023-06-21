@@ -79,9 +79,8 @@ spec:
               rotationCount:
                 type: integer
               statusHistory:
-                description: This is circular array of last n number of rotation status.
-                items:
-                  additionalProperties:
+                additionalProperties:
+                  items:
                     properties:
                       lastUpdatedTimestamp:
                         format: date-time
@@ -91,8 +90,9 @@ spec:
                     required:
                     - status
                     type: object
-                  type: object
-                type: array
+                  type: array
+                description: This is circular array of last n number of rotation status.
+                type: object
             type: object
         type: object
     served: true

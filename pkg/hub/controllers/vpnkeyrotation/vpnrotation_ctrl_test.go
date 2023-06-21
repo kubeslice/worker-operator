@@ -449,8 +449,6 @@ var _ = Describe("Hub VPN Key Rotation", func() {
 				}
 				for _, gw := range gws {
 					value, ok := createdvpnKeyRotation.Status.CurrentRotationState[gw]
-					// a, _ := yaml.Marshal(createdvpnKeyRotation.Status.CurrentRotationState)
-					// fmt.Println("createdvpnKeyRotation", string(a))
 					if !ok {
 						return false
 					}
