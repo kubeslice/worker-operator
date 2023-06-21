@@ -190,6 +190,10 @@ func serviceEntryUpdateNeeded(se *istiov1beta1.ServiceEntry, endpoint kubeslicev
 		return true
 	}
 
+	if len(se.Spec.Endpoints) == 0 {
+                return true
+        }
+
 	if len(se.Spec.Endpoints) > 0 && se.Spec.Endpoints[0].Address != endpoint.IP {
 		return true
 	}
