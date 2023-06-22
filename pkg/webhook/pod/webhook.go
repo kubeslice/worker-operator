@@ -171,8 +171,9 @@ func MutatePod(pod *corev1.Pod, sliceName string) *corev1.Pod {
 	}
 	pod.ObjectMeta.Annotations[AdmissionWebhookAnnotationStatusKey] = "injected"
 
-	if pod.ObjectMeta.Annotations == nil {
-		pod.ObjectMeta.Annotations = map[string]string{}
+	// Initialize the Labels field as an empty map
+	if pod.ObjectMeta.Labels == nil {
+		pod.ObjectMeta.Labels = map[string]string{}
 	}
 
 	// Add vl3 annotation to pod template
