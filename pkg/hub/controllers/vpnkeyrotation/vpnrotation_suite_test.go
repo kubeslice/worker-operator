@@ -134,6 +134,10 @@ var _ = BeforeSuite(func() {
 		Component: "worker-operator",
 		Namespace: CONTROL_PLANE_NS,
 	})
+	workerRecyclerClient, err := NewVPNClientEmulator(k8sClient)
+	if err != nil {
+		os.Exit(1)
+	}
 	rotationReconciler := NewReconciler(
 		k8sClient,
 		&hub.HubClientConfig{
@@ -141,6 +145,7 @@ var _ = BeforeSuite(func() {
 		},
 		&spokeClusterEventRecorder,
 		mf,
+		workerRecyclerClient,
 	)
 	err = builder.
 		ControllerManagedBy(k8sManager).
