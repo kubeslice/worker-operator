@@ -48,6 +48,7 @@ import (
 	"github.com/kubeslice/worker-operator/pkg/hub/controllers/workerslicegwrecycler"
 	"github.com/kubeslice/worker-operator/pkg/logger"
 	"github.com/kubeslice/worker-operator/pkg/router"
+	"github.com/kubeslice/worker-operator/pkg/slicegwrecycler"
 	"github.com/kubeslice/worker-operator/pkg/utils"
 	ctrl "sigs.k8s.io/controller-runtime"
 )
@@ -196,11 +197,16 @@ func Start(meshClient client.Client, hubClient client.Client, ctx context.Contex
 		os.Exit(1)
 	}
 
+	workerRecyclerClient, err := slicegwrecycler.NewRecyclerClient()
+	if err != nil {
+		os.Exit(1)
+	}
 	vpnKeyRotationReconciler := vpnkeyrotation.NewReconciler(
 		meshClient,
 		hubClient,
 		&workerSliceEventRecorder,
 		mf,
+		workerRecyclerClient,
 	)
 	err = builder.
 		ControllerManagedBy(mgr).

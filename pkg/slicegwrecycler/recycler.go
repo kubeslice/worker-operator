@@ -29,7 +29,14 @@ const (
 	NumberOfGateways = 2
 )
 
-func TriggerFSM(ctx context.Context, sliceGw *kubeslicev1beta1.SliceGateway, slice *kubeslicev1beta1.Slice, hubClient *hub.HubClientConfig, meshClient client.Client, gatewayPod *corev1.Pod,
+type recyclerClient struct {
+}
+
+func NewRecyclerClient() (*recyclerClient, error) {
+	return &recyclerClient{}, nil
+}
+
+func (r recyclerClient) TriggerFSM(ctx context.Context, sliceGw *kubeslicev1beta1.SliceGateway, slice *kubeslicev1beta1.Slice, hubClient *hub.HubClientConfig, meshClient client.Client, gatewayPod *corev1.Pod,
 	eventrecorder *monitoringEvents.EventRecorder, controllerName, gwRecyclerName string) (bool, error) {
 	// start FSM for graceful termination of gateway pods
 	// create workerslicegwrecycler on controller
