@@ -18,8 +18,6 @@ import (
 
 	hub "github.com/kubeslice/worker-operator/pkg/hub/hubclient"
 	"github.com/kubeslice/worker-operator/pkg/logger"
-	"github.com/kubeslice/worker-operator/pkg/slicegwrecycler"
-	"github.com/prometheus/client_golang/prometheus"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -30,30 +28,17 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
-var controllerName = "vpnKeyRotationController"
-
-type Reconciler struct {
-	client.Client
-	MeshClient    client.Client
-	HubClient     client.Client
-	EventRecorder *events.EventRecorder
-
-	// metrics
-	gaugeClusterUp   *prometheus.GaugeVec
-	gaugeComponentUp *prometheus.GaugeVec
-}
-
-func NewReconciler(mc client.Client, hc client.Client, er *events.EventRecorder, mf metrics.MetricsFactory) *Reconciler {
+func NewReconciler(mc client.Client, hc client.Client, er *events.EventRecorder, mf metrics.MetricsFactory, workerRecyclerClient WorkerRecyclerClientProvider) *Reconciler {
 	gaugeClusterUp := mf.NewGauge("cluster_up", "Kubeslice cluster health status", []string{})
 	gaugeComponentUp := mf.NewGauge("cluster_component_up", "Kubeslice cluster component health status", []string{"slice_cluster_component"})
 
 	return &Reconciler{
-		MeshClient:    mc,
-		HubClient:     hc,
-		EventRecorder: er,
-
-		gaugeClusterUp:   gaugeClusterUp,
-		gaugeComponentUp: gaugeComponentUp,
+		MeshClient:           mc,
+		HubClient:            hc,
+		EventRecorder:        er,
+		gaugeClusterUp:       gaugeClusterUp,
+		gaugeComponentUp:     gaugeComponentUp,
+		WorkerRecyclerClient: workerRecyclerClient,
 	}
 }
 
@@ -137,7 +122,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (ctrl
 		}
 		rotationTimeDiff := vpnKeyRotation.Spec.CertificateCreationTime.Time.Sub(rotationStatus.LastUpdatedTimestamp.Time)
 		rotationTimeDiffInDays := int(rotationTimeDiff.Hours() / 24)
-		if rotationTimeDiffInDays >= vpnKeyRotation.Spec.RotationInterval {
+		if rotationTimeDiffInDays > 0 {
 			log.Info("Rotation interval has elapsed")
 			// Unsure why we need to update this status; doesn't seem to serve any purpose
 			if err := r.updateRotationStatus(ctx, selectedGw, hubv1alpha1.SecretReadInProgress, vpnKeyRotation); err != nil {
@@ -168,18 +153,22 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (ctrl
 				log.Error(err, "error fetching slice gateway")
 				return ctrl.Result{}, err
 			}
+
 			// Upon certificate update, if the selected gateway is a server, await the client pod to transition into the SECRET_UPDATED state
 			// then trigger gateway recycle FSM at server side
 			if isServer(sliceGw) {
 				clientGWName := sliceGw.Status.Config.SliceGatewayRemoteGatewayID
+				fmt.Println("clientGWName", clientGWName)
 				clientGWRotation, ok := vpnKeyRotation.Status.CurrentRotationState[clientGWName]
+				fmt.Println("clientGWRotation", clientGWRotation)
+
 				if !ok {
 					// Waiting for the inclusion of the client status in the rotation status.
 					return ctrl.Result{
 						RequeueAfter: 5 * time.Second,
 					}, nil
 				}
-				if clientGWRotation.Status != hubv1alpha1.SecretUpdated {
+				if clientGWRotation.Status == hubv1alpha1.SecretReadInProgress {
 					log.Info("secret has not been updated in the gateway client yet; requeuing..")
 					return ctrl.Result{}, errors.New("client gateway is not is secretupdated state")
 				}
@@ -197,17 +186,17 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (ctrl
 				if err != nil {
 					return ctrl.Result{}, err
 				}
-				slice, err := controllers.GetSlice(ctx, r.Client, sliceName)
-				if err != nil {
-					log.Error(err, "Failed to get Slice", "slice", sliceName)
-					return ctrl.Result{}, err
-				}
 				for i, v := range podsUnderGw.Items {
 					// trigger FSM to recylce both gateway pod pairs
 					if err := r.updateRotationStatus(ctx, selectedGw, hubv1alpha1.InProgress, vpnKeyRotation); err != nil {
 						return ctrl.Result{}, err
 					}
-					created, err := slicegwrecycler.TriggerFSM(ctx, sliceGw, slice, r.HubClient.(*hub.HubClientConfig), r.Client,
+					slice, err := controllers.GetSlice(ctx, r.Client, sliceName)
+					if err != nil {
+						log.Error(err, "Failed to get Slice", "slice", sliceName)
+						return ctrl.Result{}, err
+					}
+					created, err := r.WorkerRecyclerClient.TriggerFSM(ctx, sliceGw, slice, r.HubClient.(*hub.HubClientConfig), r.Client,
 						&v, r.EventRecorder, controllerName, slice.Name+"-"+fmt.Sprint(i))
 					if err != nil {
 						return ctrl.Result{}, err

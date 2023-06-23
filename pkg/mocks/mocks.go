@@ -20,8 +20,13 @@ package mocks
 
 import (
 	"context"
+	"fmt"
 
+	monitoringEvents "github.com/kubeslice/kubeslice-monitoring/pkg/events"
+	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
+	hub "github.com/kubeslice/worker-operator/pkg/hub/hubclient"
 	"github.com/stretchr/testify/mock"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -49,7 +54,6 @@ func (c *MockClient) Status() client.StatusWriter {
 
 // Reader interface
 func (c *MockClient) Get(ctx context.Context, key types.NamespacedName, obj client.Object) error {
-	// obj = obj.(*spokev1alpha1.SpokeSliceConfig)
 	args := c.Called(ctx, key, obj)
 	return args.Error(0)
 }
@@ -82,6 +86,16 @@ func (c *MockClient) Patch(ctx context.Context, obj client.Object, patch client.
 func (c *MockClient) DeleteAllOf(ctx context.Context, obj client.Object, opts ...client.DeleteAllOfOption) error {
 	args := c.Called(ctx, obj, opts)
 	return args.Error(0)
+}
+
+func (c *MockClient) TriggerFSM(ctx context.Context, sliceGw *kubeslicev1beta1.SliceGateway,
+	slice *kubeslicev1beta1.Slice, hubClient *hub.HubClientConfig, meshClient client.Client, gatewayPod *corev1.Pod,
+	eventrecorder *monitoringEvents.EventRecorder, controllerName, gwRecyclerName string) (bool, error) {
+	// Define the arguments you expect in the method call
+	args := c.Called(ctx, sliceGw, slice, hubClient, meshClient, gatewayPod, eventrecorder, controllerName, gwRecyclerName)
+	fmt.Println("yeeeeeeeeeeeee")
+	// Extract the return values from the arguments
+	return args.Bool(0), args.Error(1)
 }
 
 func (c *MockClient) Scheme() *runtime.Scheme {

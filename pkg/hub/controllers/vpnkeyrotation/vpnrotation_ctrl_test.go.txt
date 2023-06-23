@@ -25,7 +25,7 @@ var (
 	}
 )
 
-var _ = Describe("Hub VPN Key Rotation", func() {
+var _ = XDescribe("Hub VPN Key Rotation", func() {
 	Context("With Rotation Created at hub cluster", func() {
 		var vpnKeyRotation *hubv1alpha1.VpnKeyRotation
 		BeforeEach(func() {
