@@ -2,6 +2,7 @@ package vpnkeyrotation
 
 import (
 	"context"
+	"strconv"
 	"time"
 
 	hubv1alpha1 "github.com/kubeslice/apis/pkg/controller/v1alpha1"
@@ -85,7 +86,7 @@ var _ = Describe("Hub VPN Key Rotation", func() {
 		})
 	})
 
-	Context("When VPN Key Rotation Interval Reached", func() {
+	Context("When VPN Key Rotation Interval Reached, should update secrets", func() {
 		var vpnKeyRotation *hubv1alpha1.VpnKeyRotation
 		var hubSecretGw1 *corev1.Secret
 		var hubSecretGw2 *corev1.Secret
@@ -96,6 +97,7 @@ var _ = Describe("Hub VPN Key Rotation", func() {
 		var sliceGw *kubeslicev1beta1.SliceGateway
 		var createdSlice *kubeslicev1beta1.Slice
 		var createdSliceGw *kubeslicev1beta1.SliceGateway
+		var createSecretGw1 *corev1.Secret
 
 		BeforeEach(func() {
 			svc = &corev1.Service{
@@ -141,6 +143,7 @@ var _ = Describe("Hub VPN Key Rotation", func() {
 					CertificateCreationTime: metav1.Time{Time: time.Now()},
 					CertificateExpiryTime:   metav1.Time{Time: time.Now().AddDate(0, 0, 30)},
 					RotationInterval:        30,
+					RotationCount:           2,
 				},
 			}
 
@@ -162,22 +165,23 @@ var _ = Describe("Hub VPN Key Rotation", func() {
 			}
 
 			hubSecretGw1 = &corev1.Secret{
-				ObjectMeta: metav1.ObjectMeta{Name: gws[0] + "-0", Namespace: PROJECT_NS},
+				ObjectMeta: metav1.ObjectMeta{Name: gws[0], Namespace: PROJECT_NS},
 				Data:       make(map[string][]byte),
 			}
 
 			hubSecretGw2 = &corev1.Secret{
-				ObjectMeta: metav1.ObjectMeta{Name: gws[1] + "-0", Namespace: PROJECT_NS},
+				ObjectMeta: metav1.ObjectMeta{Name: gws[1], Namespace: PROJECT_NS},
 				Data:       make(map[string][]byte),
 			}
 
 			hubSecretGw3 = &corev1.Secret{
-				ObjectMeta: metav1.ObjectMeta{Name: gws[2] + "-0", Namespace: PROJECT_NS},
+				ObjectMeta: metav1.ObjectMeta{Name: gws[2], Namespace: PROJECT_NS},
 				Data:       make(map[string][]byte),
 			}
 
 			createdSlice = &kubeslicev1beta1.Slice{}
 			createdSliceGw = &kubeslicev1beta1.SliceGateway{}
+			createSecretGw1 = &corev1.Secret{}
 
 			// Cleanup after each test
 			DeferCleanup(func() {
@@ -304,7 +308,7 @@ var _ = Describe("Hub VPN Key Rotation", func() {
 			}, time.Second*60, time.Millisecond*500).Should(BeTrue())
 
 			vpnKeyRotation.Spec.CertificateCreationTime = metav1.Time{Time: time.Now().AddDate(0, 0, 30)}
-			vpnKeyRotation.Spec.CertificateExpiryTime = metav1.Time{Time: time.Now().AddDate(0, 0, 30)}
+			vpnKeyRotation.Spec.CertificateExpiryTime = metav1.Time{Time: time.Now().AddDate(0, 0, 60)}
 			Eventually(func() bool {
 				err := k8sClient.Update(ctx, vpnKeyRotation)
 				return err == nil
@@ -326,6 +330,74 @@ var _ = Describe("Hub VPN Key Rotation", func() {
 				return value.Status == hubv1alpha1.SecretUpdated
 			}, time.Second*60, time.Millisecond*500).Should(BeTrue())
 		})
+
+		It("secret should be created with rotation count as suffix", func() {
+			Expect(k8sClient.Create(ctx, hubSecretGw1)).Should(Succeed())
+			Expect(k8sClient.Create(ctx, hubSecretGw2)).Should(Succeed())
+			Expect(k8sClient.Create(ctx, hubSecretGw3)).Should(Succeed())
+			Expect(k8sClient.Create(ctx, slice)).Should(Succeed())
+			Expect(k8sClient.Create(ctx, sliceGw)).Should(Succeed())
+
+			sliceKey := types.NamespacedName{Name: slice.Name, Namespace: CONTROL_PLANE_NS}
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, sliceKey, createdSlice)
+				return err == nil
+			}, time.Second*10, time.Millisecond*250).Should(BeTrue())
+
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, types.NamespacedName{Name: sliceGw.Name, Namespace: sliceGw.Namespace}, createdSliceGw)
+				return err == nil
+			}, time.Second*60, time.Millisecond*250).Should(BeTrue())
+
+			createdSliceGw.Status.Config.SliceGatewayHostType = "Server"
+			sliceGw.Status.Config.SliceGatewayRemoteGatewayID = "fire-worker-1-worker-3"
+
+			Eventually(func() bool {
+				err := k8sClient.Status().Update(ctx, createdSliceGw)
+				return err == nil
+			}, time.Second*30, time.Millisecond*250).Should(BeTrue())
+
+			Expect(k8sClient.Create(ctx, vpnKeyRotation)).Should(Succeed())
+
+			Eventually(func() error {
+				err := k8sClient.Get(ctx, types.NamespacedName{
+					Name:      vpnKeyRotation.Name,
+					Namespace: PROJECT_NS},
+					vpnKeyRotation)
+
+				if err != nil {
+					return err
+				}
+				return nil
+			}, time.Second*60, time.Millisecond*500).Should(BeNil())
+
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, types.NamespacedName{
+					Name:      vpnKeyRotation.Name,
+					Namespace: PROJECT_NS},
+					vpnKeyRotation)
+				if err != nil {
+					return false
+				}
+				return len(vpnKeyRotation.Status.CurrentRotationState) != 0
+			}, time.Second*60, time.Millisecond*500).Should(BeTrue())
+
+			vpnKeyRotation.Spec.CertificateCreationTime = metav1.Time{Time: time.Now().AddDate(0, 0, 30)}
+			vpnKeyRotation.Spec.CertificateExpiryTime = metav1.Time{Time: time.Now().AddDate(0, 0, 60)}
+			Eventually(func() bool {
+				err := k8sClient.Update(ctx, vpnKeyRotation)
+				return err == nil
+			}, time.Second*30, time.Millisecond*250).Should(BeTrue())
+
+			Eventually(func() error {
+				return k8sClient.Get(ctx, types.NamespacedName{
+					Name:      hubSecretGw1.Name + "-" + strconv.Itoa(vpnKeyRotation.Spec.RotationCount),
+					Namespace: CONTROL_PLANE_NS},
+					createSecretGw1)
+
+			}, time.Second*60, time.Millisecond*500).Should(BeNil())
+		})
+
 	})
 
 	Context("VPN Key Rotation Completion", func() {
