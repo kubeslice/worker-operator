@@ -34,6 +34,7 @@ type VpnKeyRotationSpec struct {
 	// CertificateExpiryTime is a time when certificate for all the gateway pairs will expire
 	CertificateExpiryTime metav1.Time `json:"certificateExpiryTime,omitempty"`
 	RotationInterval      int         `json:"rotationInterval,omitempty"`
+	RotationCount         int         `json:"rotationCount,omitempty"`
 }
 
 // VpnKeyRotationStatus defines the observed state of VpnKeyRotation
@@ -42,7 +43,6 @@ type VpnKeyRotationStatus struct {
 	CurrentRotationState map[string]StatusOfKeyRotation `json:"currentRotationState,omitempty"`
 	// This is circular array of last n number of rotation status.
 	StatusHistory map[string][]StatusOfKeyRotation `json:"statusHistory,omitempty"`
-	RotationCount int                              `json:"rotationCount,omitempty"`
 }
 
 type StatusOfKeyRotation struct {
