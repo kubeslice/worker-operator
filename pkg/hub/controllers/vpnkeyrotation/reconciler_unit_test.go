@@ -1016,7 +1016,6 @@ func TestReconcileRotationSyncingClusterAttach(t *testing.T) {
 		},
 	}
 	assert.Equal(t, expectedSyncedRotationState, updatedVpnKeyRotation.Status.CurrentRotationState)
-
 }
 
 func TestReconcileRotationSyncingClusterDetach(t *testing.T) {
