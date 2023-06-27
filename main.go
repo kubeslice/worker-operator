@@ -27,6 +27,7 @@ import (
 	"github.com/kubeslice/worker-operator/controllers"
 	"github.com/kubeslice/worker-operator/pkg/monitoring"
 	namespacecontroller "github.com/kubeslice/worker-operator/pkg/namespace/controllers"
+	"github.com/kubeslice/worker-operator/pkg/slicegwrecycler"
 	"github.com/prometheus/client_golang/prometheus"
 	"go.opencensus.io/stats/view"
 
@@ -159,6 +160,10 @@ func main() {
 		setupLog.With("error", err).Error("could not create spoke netop client for slice gateway reconciler")
 		os.Exit(1)
 	}
+	workerRecyclerClient, err := slicegwrecycler.NewRecyclerClient()
+	if err != nil {
+		os.Exit(1)
+	}
 
 	clientForHubMgr, err := client.New(ctrl.GetConfigOrDie(), client.Options{
 		Scheme: scheme,
@@ -208,6 +213,7 @@ func main() {
 		WorkerGWSidecarClient: workerGWClient,
 		WorkerRouterClient:    workerRouterClient,
 		WorkerNetOpClient:     workerNetOPClient,
+		WorkerRecyclerClient:  workerRecyclerClient,
 		EventRecorder:         &sliceEventRecorder,
 		NumberOfGateways:      2,
 	}).SetupWithManager(mgr); err != nil {
