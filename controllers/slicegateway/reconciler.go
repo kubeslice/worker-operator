@@ -64,10 +64,12 @@ type SliceGwReconciler struct {
 	WorkerRouterClient    WorkerRouterClientProvider
 	WorkerNetOpClient     WorkerNetOpClientProvider
 	WorkerGWSidecarClient WorkerGWSidecarClientProvider
-	NetOpPods             []NetOpPod
-	EventRecorder         *events.EventRecorder
-	NodeIPs               []string
-	NumberOfGateways      int
+	WorkerRecyclerClient  WorkerRecyclerClientProvider
+
+	NetOpPods        []NetOpPod
+	EventRecorder    *events.EventRecorder
+	NodeIPs          []string
+	NumberOfGateways int
 }
 
 // gwMap holds the mapping between gwPodName and NodePort number
@@ -325,17 +327,17 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		if toRebalance {
 			// start FSM for graceful termination of gateway pods
 			// create workerslicegwrecycler on controller
-			// newestPod, err := r.getNewestPod(sliceGw)
-			// if err != nil {
-			// 	return ctrl.Result{}, err
-			// }
-			// _, err = slicegwhandler.TriggerFSM(ctx, sliceGw, slice, r.HubClient.(*hub.HubClientConfig), r.Client, newestPod,
-			// 	r.EventRecorder, controllerName, sliceGwName+"-"+fmt.Sprint(0))
-			// // to maintain consistency with recycling we are creating this CR with zero as suffix in the name
-			// if err != nil {
-			// 	log.Error(err, "Error while recycling gateway pods")
-			// 	return ctrl.Result{}, err
-			// }
+			newestPod, err := r.getNewestPod(sliceGw)
+			if err != nil {
+				return ctrl.Result{}, err
+			}
+			_, err = r.WorkerRecyclerClient.TriggerFSM(ctx, sliceGw, slice, r.HubClient.(*hub.HubClientConfig), r.Client, newestPod,
+				r.EventRecorder, controllerName, sliceGwName+"-"+fmt.Sprint(0))
+			// to maintain consistency with recycling we are creating this CR with zero as suffix in the name
+			if err != nil {
+				log.Error(err, "Error while recycling gateway pods")
+				return ctrl.Result{}, err
+			}
 		}
 	}
 	return ctrl.Result{Requeue: true}, nil

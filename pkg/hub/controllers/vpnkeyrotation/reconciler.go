@@ -72,6 +72,12 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (ctrl
 		}
 		return ctrl.Result{}, nil
 	}
+	err = r.syncCurrentRotationState(ctx, vpnKeyRotation, allGwsUnderCluster)
+	// Todo - check if need requeue here
+	if err != nil {
+		log.Error(err, "error while updating vpnKeyRotation status while rotation status is out of sync")
+		return ctrl.Result{}, err
+	}
 
 	currentDate := time.Now()
 	certificationCreationDate := vpnKeyRotation.Spec.CertificateCreationTime
@@ -123,8 +129,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (ctrl
 			return ctrl.Result{}, nil
 		}
 		rotationTimeDiff := vpnKeyRotation.Spec.CertificateCreationTime.Time.Sub(rotationStatus.LastUpdatedTimestamp.Time)
-		rotationTimeDiffInDays := int(rotationTimeDiff.Hours() / 24)
-		if rotationTimeDiffInDays > 0 {
+		if rotationTimeDiff.Hours() > 0 {
 			log.Info("Rotation interval has elapsed")
 			// Unsure why we need to update this status; doesn't seem to serve any purpose
 			if err := r.updateRotationStatus(ctx, selectedGw, hubv1alpha1.SecretReadInProgress, vpnKeyRotation); err != nil {
@@ -205,7 +210,8 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (ctrl
 						return ctrl.Result{}, err
 					}
 					if created {
-						// if WorkerSliceGwRecycler is created even for one pod, we mark isUpdated to true so we can requeue
+						// if WorkerSliceGwRecycler is created even for one pod,
+						// we mark isUpdated to true so we can requeue
 						isUpdated = created
 					}
 				}
@@ -279,7 +285,37 @@ func (r *Reconciler) updateRotationStatusWithTimeStamp(ctx context.Context, gate
 	return nil
 }
 
-func (r *Reconciler) updateInitialRotationStatusForAllGws(ctx context.Context, vpnKeyRotation *hubv1alpha1.VpnKeyRotation, allGwsUnderCluster []string) error {
+func (r *Reconciler) syncCurrentRotationState(ctx context.Context,
+	vpnKeyRotation *hubv1alpha1.VpnKeyRotation, allGwsUnderCluster []string) error {
+	log := logger.FromContext(ctx)
+	// cluster deregister handling
+	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		if getErr := r.Get(ctx,
+			types.NamespacedName{Name: vpnKeyRotation.Name, Namespace: vpnKeyRotation.Namespace},
+			vpnKeyRotation); getErr != nil {
+			return getErr
+		}
+		syncedRotationState := make(map[string]hubv1alpha1.StatusOfKeyRotation)
+		for _, elem := range allGwsUnderCluster {
+			if obj, ok := vpnKeyRotation.Status.CurrentRotationState[elem]; ok {
+				syncedRotationState[elem] = obj
+			}
+		}
+		if len(syncedRotationState) != len(vpnKeyRotation.Status.CurrentRotationState) {
+			log.V(3).Info("syncing current rotation state for the gateways")
+			vpnKeyRotation.Status.CurrentRotationState = syncedRotationState
+			return r.Status().Update(ctx, vpnKeyRotation)
+		}
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (r *Reconciler) updateInitialRotationStatusForAllGws(ctx context.Context, vpnKeyRotation *hubv1alpha1.VpnKeyRotation,
+	allGwsUnderCluster []string) error {
 	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		if getErr := r.Get(ctx,
 			types.NamespacedName{Name: vpnKeyRotation.Name, Namespace: vpnKeyRotation.Namespace},
