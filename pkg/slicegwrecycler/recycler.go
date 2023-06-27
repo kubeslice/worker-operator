@@ -59,7 +59,7 @@ func (r recyclerClient) TriggerFSM(ctx context.Context, sliceGw *kubeslicev1beta
 	}
 	utils.RecordEvent(ctx, eventrecorder, sliceGw, slice, ossEvents.EventSliceGWRebalancingSuccess, controllerName)
 	// spawn a new gw nodeport service
-	_, _, _, err = HandleSliceGwSvcCreation(ctx, meshClient, hubClient, sliceGw, NumberOfGateways+1, eventrecorder, controllerName)
+	_, _, _, err = handleSliceGwSvcCreation(ctx, meshClient, hubClient, sliceGw, NumberOfGateways+1, eventrecorder, controllerName)
 	if err != nil {
 		//TODO:add an event and log
 		return false, err
@@ -69,7 +69,7 @@ func (r recyclerClient) TriggerFSM(ctx context.Context, sliceGw *kubeslicev1beta
 
 // The function was relocated to this location in order to consolidate it into a central location
 // and facilitate its use as a utility function.
-func HandleSliceGwSvcCreation(ctx context.Context, meshClient client.Client, hubClient *hub.HubClientConfig, sliceGw *kubeslicev1beta1.SliceGateway, n int, eventRecorder *monitoringEvents.EventRecorder, controllerName string) (bool, reconcile.Result, []int, error) {
+func handleSliceGwSvcCreation(ctx context.Context, meshClient client.Client, hubClient *hub.HubClientConfig, sliceGw *kubeslicev1beta1.SliceGateway, n int, eventRecorder *monitoringEvents.EventRecorder, controllerName string) (bool, reconcile.Result, []int, error) {
 	log := logger.FromContext(ctx).WithName("slicegw")
 	sliceGwName := sliceGw.Name
 	foundsvc := &corev1.Service{}

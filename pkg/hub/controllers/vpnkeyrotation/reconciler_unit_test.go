@@ -8,6 +8,7 @@ import (
 
 	"errors"
 
+	"github.com/kubeslice/worker-operator/pkg/slicegwrecycler"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 
 	hubv1alpha1 "github.com/kubeslice/apis/pkg/controller/v1alpha1"
@@ -450,7 +451,7 @@ func TestReconcilerVPNRotationReconcilerTriggerFSM(t *testing.T) {
 	client := utilmock.NewClient()
 	mf, _ := metrics.NewMetricsFactory(prometheus.NewRegistry(), metrics.MetricsFactoryOptions{})
 
-	workerRecyclerClient, err := NewVPNClientEmulator(k8sClient)
+	workerRecyclerClient, err := slicegwrecycler.NewVPNClientEmulator(k8sClient)
 	if err != nil {
 		os.Exit(1)
 	}
