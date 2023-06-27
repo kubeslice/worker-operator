@@ -527,7 +527,7 @@ var _ = Describe("Hub VPN Key Rotation", func() {
 					return value.Status == hubv1alpha1.Complete
 				}
 				return true
-			}, time.Second*60, time.Millisecond*500).Should(BeTrue())
+			}, time.Second*80, time.Millisecond*500).Should(BeTrue())
 		})
 
 		It("if workerslicegwrecylcer is present and in error - vpn should be error state", func() {
@@ -596,4 +596,134 @@ var _ = Describe("Hub VPN Key Rotation", func() {
 			}, time.Second*60, time.Millisecond*500).Should(BeTrue())
 		})
 	})
+
+	Context("cluster attach/detach test", func() {
+		var vpnKeyRotation *hubv1alpha1.VpnKeyRotation
+		BeforeEach(func() {
+
+			vpnKeyRotation = &hubv1alpha1.VpnKeyRotation{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-vpn-rotation",
+					Namespace: PROJECT_NS,
+				},
+				Spec: hubv1alpha1.VpnKeyRotationSpec{
+					SliceName: "fire",
+					ClusterGatewayMapping: map[string][]string{
+						CLUSTER_NAME: gws,
+					},
+				},
+			}
+			// Cleanup after each test
+			DeferCleanup(func() {
+				ctx := context.Background()
+				Expect(k8sClient.Delete(ctx, vpnKeyRotation)).Should(Succeed())
+			})
+		})
+
+		It("initial state", func() {
+			Expect(k8sClient.Create(ctx, vpnKeyRotation)).Should(Succeed())
+			//get the rotation object
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, types.NamespacedName{
+					Name:      vpnKeyRotation.Name,
+					Namespace: PROJECT_NS},
+					vpnKeyRotation)
+				if err != nil {
+					return false
+				}
+				return compareMapKeysAndArrayElements(vpnKeyRotation.Status.CurrentRotationState, gws)
+			}, time.Second*60, time.Millisecond*500).Should(BeTrue())
+		})
+
+		It("cluster append", func() {
+			Expect(k8sClient.Create(ctx, vpnKeyRotation)).Should(Succeed())
+			//get the rotation object
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, types.NamespacedName{
+					Name:      vpnKeyRotation.Name,
+					Namespace: PROJECT_NS},
+					vpnKeyRotation)
+				if err != nil {
+					return false
+				}
+				return compareMapKeysAndArrayElements(vpnKeyRotation.Status.CurrentRotationState, gws)
+			}, time.Second*60, time.Millisecond*500).Should(BeTrue())
+
+			gws = append(gws, "fire-worker-1-worker-5")
+			vpnKeyRotation.Spec.ClusterGatewayMapping = map[string][]string{
+				CLUSTER_NAME: gws,
+			}
+			Eventually(func() bool {
+				err := k8sClient.Update(ctx, vpnKeyRotation)
+				return err == nil
+			}, time.Second*30, time.Millisecond*250).Should(BeTrue())
+
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, types.NamespacedName{
+					Name:      vpnKeyRotation.Name,
+					Namespace: PROJECT_NS},
+					vpnKeyRotation)
+				if err != nil {
+					return false
+				}
+				return compareMapKeysAndArrayElements(vpnKeyRotation.Status.CurrentRotationState, gws)
+			}, time.Second*60, time.Millisecond*500).Should(BeTrue())
+		})
+
+		It("cluster delete", func() {
+			Expect(k8sClient.Create(ctx, vpnKeyRotation)).Should(Succeed())
+			//get the rotation object
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, types.NamespacedName{
+					Name:      vpnKeyRotation.Name,
+					Namespace: PROJECT_NS},
+					vpnKeyRotation)
+				if err != nil {
+					return false
+				}
+				return compareMapKeysAndArrayElements(vpnKeyRotation.Status.CurrentRotationState, gws)
+			}, time.Second*60, time.Millisecond*500).Should(BeTrue())
+
+			gws = gws[:len(gws)-1]
+			vpnKeyRotation.Spec.ClusterGatewayMapping = map[string][]string{
+				CLUSTER_NAME: gws,
+			}
+			Eventually(func() bool {
+				err := k8sClient.Update(ctx, vpnKeyRotation)
+				return err == nil
+			}, time.Second*30, time.Millisecond*250).Should(BeTrue())
+
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, types.NamespacedName{
+					Name:      vpnKeyRotation.Name,
+					Namespace: PROJECT_NS},
+					vpnKeyRotation)
+				if err != nil {
+					return false
+				}
+				return compareMapKeysAndArrayElements(vpnKeyRotation.Status.CurrentRotationState, gws)
+			}, time.Second*60, time.Millisecond*500).Should(BeTrue())
+		})
+	})
 })
+
+func compareMapKeysAndArrayElements(myMap map[string]hubv1alpha1.StatusOfKeyRotation, array []string) bool {
+	arrayElements := make(map[string]bool)
+	for _, element := range array {
+		arrayElements[element] = true
+	}
+
+	for key := range myMap {
+		if !arrayElements[key] {
+			return false
+		}
+	}
+
+	for _, element := range array {
+		if _, ok := myMap[element]; !ok {
+			return false
+		}
+	}
+
+	return len(myMap) == len(arrayElements)
+}

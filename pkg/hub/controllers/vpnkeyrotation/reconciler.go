@@ -72,8 +72,10 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (ctrl
 		}
 		return ctrl.Result{}, nil
 	}
-	err = r.syncCurrentRotationState(ctx, vpnKeyRotation, allGwsUnderCluster)
-	// Todo - check if need requeue here
+	requeue, err := r.syncCurrentRotationState(ctx, vpnKeyRotation, allGwsUnderCluster)
+	if requeue {
+		return ctrl.Result{Requeue: true}, nil
+	}
 	if err != nil {
 		log.Error(err, "error while updating vpnKeyRotation status while rotation status is out of sync")
 		return ctrl.Result{}, err
@@ -286,9 +288,10 @@ func (r *Reconciler) updateRotationStatusWithTimeStamp(ctx context.Context, gate
 }
 
 func (r *Reconciler) syncCurrentRotationState(ctx context.Context,
-	vpnKeyRotation *hubv1alpha1.VpnKeyRotation, allGwsUnderCluster []string) error {
+	vpnKeyRotation *hubv1alpha1.VpnKeyRotation, allGwsUnderCluster []string) (bool, error) {
 	log := logger.FromContext(ctx)
 	// cluster deregister handling
+	requeue := false
 	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		if getErr := r.Get(ctx,
 			types.NamespacedName{Name: vpnKeyRotation.Name, Namespace: vpnKeyRotation.Namespace},
@@ -302,16 +305,19 @@ func (r *Reconciler) syncCurrentRotationState(ctx context.Context,
 			}
 		}
 		if len(syncedRotationState) != len(vpnKeyRotation.Status.CurrentRotationState) {
-			log.V(3).Info("syncing current rotation state for the gateways")
+			log.V(3).Info("syncing current rotation state for the gateways",
+				"from", vpnKeyRotation.Status.CurrentRotationState,
+				"to", syncedRotationState)
 			vpnKeyRotation.Status.CurrentRotationState = syncedRotationState
+			requeue = true
 			return r.Status().Update(ctx, vpnKeyRotation)
 		}
 		return nil
 	})
 	if err != nil {
-		return err
+		return requeue, err
 	}
-	return nil
+	return requeue, nil
 }
 
 func (r *Reconciler) updateInitialRotationStatusForAllGws(ctx context.Context, vpnKeyRotation *hubv1alpha1.VpnKeyRotation,
