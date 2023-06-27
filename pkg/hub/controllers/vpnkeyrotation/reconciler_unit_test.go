@@ -2,13 +2,11 @@ package vpnkeyrotation
 
 import (
 	"context"
+	"errors"
 	"os"
 	"testing"
 	"time"
 
-	"errors"
-
-	"github.com/kubeslice/worker-operator/pkg/slicegwrecycler"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 
 	hubv1alpha1 "github.com/kubeslice/apis/pkg/controller/v1alpha1"
@@ -18,7 +16,9 @@ import (
 	"github.com/kubeslice/kubeslice-monitoring/pkg/metrics"
 	hub "github.com/kubeslice/worker-operator/pkg/hub/hubclient"
 	utilmock "github.com/kubeslice/worker-operator/pkg/mocks"
+	"github.com/kubeslice/worker-operator/pkg/slicegwrecycler"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -222,6 +222,26 @@ func TestReconcilerVPNRotationReconcilerForInitialStage(t *testing.T) {
 }
 
 func TestReconcilerVPNRotationReconcilerCompletionAsSuccess(t *testing.T) {
+	vpnRotationObject := &hubv1alpha1.VpnKeyRotation{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      testVPNKeyRotationName,
+			Namespace: testProjectNamespace,
+		},
+		Spec: hubv1alpha1.VpnKeyRotationSpec{
+			ClusterGatewayMapping: map[string][]string{
+				"cluster1": {"fire-worker-2-worker-1"},
+			},
+			CertificateCreationTime: metav1.Time{Time: time.Now()},
+		},
+		Status: hubv1alpha1.VpnKeyRotationStatus{
+			CurrentRotationState: map[string]hubv1alpha1.StatusOfKeyRotation{
+				"fire-worker-2-worker-1": {
+					Status:               hubv1alpha1.InProgress,
+					LastUpdatedTimestamp: metav1.Time{Time: time.Now()},
+				},
+			},
+		},
+	}
 	os.Setenv("CLUSTER_NAME", "cluster1")
 	expected := struct {
 		ctx context.Context
@@ -229,7 +249,7 @@ func TestReconcilerVPNRotationReconcilerCompletionAsSuccess(t *testing.T) {
 		res reconcile.Result
 		err error
 	}{
-		context.WithValue(context.Background(), types.NamespacedName{Namespace: testProjectNamespace, Name: testVPNKeyRotationName}, testVPNKeyRotationObjectWithInProgressStatus),
+		context.WithValue(context.Background(), types.NamespacedName{Namespace: testProjectNamespace, Name: testVPNKeyRotationName}, vpnRotationObject),
 		reconcile.Request{NamespacedName: types.NamespacedName{Name: testVPNKeyRotationName, Namespace: testProjectNamespace}},
 		reconcile.Result{},
 		nil,
@@ -240,7 +260,7 @@ func TestReconcilerVPNRotationReconcilerCompletionAsSuccess(t *testing.T) {
 		Client: client,
 	}, nil, mf, nil)
 	reconciler.InjectClient(client)
-	ctx := context.WithValue(context.Background(), types.NamespacedName{Name: testVPNKeyRotationName, Namespace: testProjectNamespace}, testVPNKeyRotationObjectWithInProgressStatus)
+	ctx := context.WithValue(context.Background(), types.NamespacedName{Name: testVPNKeyRotationName, Namespace: testProjectNamespace}, vpnRotationObject)
 	vpmRotationKey := types.NamespacedName{Namespace: testProjectNamespace, Name: testVPNKeyRotationName}
 
 	client.On("Get",
@@ -249,7 +269,7 @@ func TestReconcilerVPNRotationReconcilerCompletionAsSuccess(t *testing.T) {
 		mock.IsType(&hubv1alpha1.VpnKeyRotation{}),
 	).Return(nil).Run(func(args mock.Arguments) {
 		vpnKeyRotation := args.Get(2).(*hubv1alpha1.VpnKeyRotation)
-		*vpnKeyRotation = *testVPNKeyRotationObjectWithInProgressStatus
+		*vpnKeyRotation = *vpnRotationObject
 	})
 	client.On("List",
 		mock.IsType(ctx),
@@ -919,5 +939,157 @@ func TestReconcilerClusterSync(t *testing.T) {
 	result, err := reconciler.Reconcile(expected.ctx, expected.req)
 	if err != nil && expected.res != result {
 		t.Error("Expected response :", expected.res, " but got ", result)
+	}
+}
+
+func TestReconcileRotationSyncingClusterAttach(t *testing.T) {
+	allGws := []string{"fire-worker-2-worker-1", "fire-worker-2-worker-3", "fire-worker-2-worker-4"}
+	vpnRotationObject := &hubv1alpha1.VpnKeyRotation{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      testVPNKeyRotationName,
+			Namespace: testProjectNamespace,
+		},
+		Spec: hubv1alpha1.VpnKeyRotationSpec{
+			ClusterGatewayMapping: map[string][]string{
+				"cluster1": allGws,
+			},
+			CertificateCreationTime: metav1.Time{Time: time.Now()},
+		},
+		Status: hubv1alpha1.VpnKeyRotationStatus{
+			CurrentRotationState: map[string]hubv1alpha1.StatusOfKeyRotation{
+				"fire-worker-2-worker-1": {
+					Status: hubv1alpha1.Complete,
+				},
+			},
+		},
+	}
+	os.Setenv("CLUSTER_NAME", "cluster1")
+	expected := struct {
+		ctx context.Context
+		req reconcile.Request
+		res reconcile.Result
+		err error
+	}{
+		context.WithValue(context.Background(), types.NamespacedName{Namespace: testProjectNamespace, Name: testVPNKeyRotationName}, vpnRotationObject),
+		reconcile.Request{NamespacedName: types.NamespacedName{Name: testVPNKeyRotationName, Namespace: testProjectNamespace}},
+		reconcile.Result{},
+		nil,
+	}
+	client := utilmock.NewClient()
+	mf, _ := metrics.NewMetricsFactory(prometheus.NewRegistry(), metrics.MetricsFactoryOptions{})
+	reconciler := NewReconciler(client, &hub.HubClientConfig{
+		Client: client,
+	}, nil, mf, nil)
+	reconciler.InjectClient(client)
+	ctx := context.WithValue(context.Background(), types.NamespacedName{Name: testVPNKeyRotationName, Namespace: testProjectNamespace}, vpnRotationObject)
+	vpmRotationKey := types.NamespacedName{Namespace: testProjectNamespace, Name: testVPNKeyRotationName}
+
+	client.On("Get",
+		mock.IsType(ctx),
+		mock.IsType(vpmRotationKey),
+		mock.IsType(&hubv1alpha1.VpnKeyRotation{}),
+	).Return(nil).Run(func(args mock.Arguments) {
+		vpnKeyRotation := args.Get(2).(*hubv1alpha1.VpnKeyRotation)
+		*vpnKeyRotation = *vpnRotationObject
+	})
+	client.StatusMock.On("Update",
+		mock.IsType(ctx),
+		mock.IsType(&hubv1alpha1.VpnKeyRotation{}),
+		mock.IsType([]k8sclient.UpdateOption(nil)),
+	).Return(nil)
+
+	_, err := reconciler.syncCurrentRotationState(expected.ctx, vpnRotationObject, allGws)
+	if err != nil {
+		t.Error("Expected response :", expected.res)
+	}
+	updatedVpnKeyRotation := &hubv1alpha1.VpnKeyRotation{}
+	err = client.Get(ctx, types.NamespacedName{Name: testVPNKeyRotationName, Namespace: testProjectNamespace}, updatedVpnKeyRotation)
+	expectedSyncedRotationState := map[string]hubv1alpha1.StatusOfKeyRotation{
+		"fire-worker-2-worker-1": {
+			Status: hubv1alpha1.Complete,
+		},
+		"fire-worker-2-worker-3": {
+			Status: hubv1alpha1.Complete,
+		},
+		"fire-worker-2-worker-4": {
+			Status: hubv1alpha1.Complete,
+		},
+	}
+	assert.Equal(t, expectedSyncedRotationState, updatedVpnKeyRotation.Status.CurrentRotationState)
+
+}
+
+func TestReconcileRotationSyncingClusterDetach(t *testing.T) {
+	allGws := []string{"fire-worker-2-worker-1", "fire-worker-2-worker-3"}
+	vpnRotationObject := &hubv1alpha1.VpnKeyRotation{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      testVPNKeyRotationName,
+			Namespace: testProjectNamespace,
+		},
+		Spec: hubv1alpha1.VpnKeyRotationSpec{
+			ClusterGatewayMapping: map[string][]string{
+				"cluster1": allGws,
+			},
+			CertificateCreationTime: metav1.Time{Time: time.Now()},
+		},
+		Status: hubv1alpha1.VpnKeyRotationStatus{
+			CurrentRotationState: map[string]hubv1alpha1.StatusOfKeyRotation{
+				"fire-worker-2-worker-1": {
+					Status:               hubv1alpha1.InProgress,
+					LastUpdatedTimestamp: metav1.Time{Time: time.Now()},
+				},
+				"fire-worker-2-worker-3": {
+					Status:               hubv1alpha1.InProgress,
+					LastUpdatedTimestamp: metav1.Time{Time: time.Now()},
+				},
+				"fire-worker-2-worker-4": {
+					Status:               hubv1alpha1.Complete,
+					LastUpdatedTimestamp: metav1.Time{Time: time.Now()}, // reconciler should remove this
+				},
+				"fire-worker-2-worker-5": {
+					Status:               hubv1alpha1.Complete,
+					LastUpdatedTimestamp: metav1.Time{Time: time.Now()}, // reconciler should remove this
+				},
+			},
+		},
+	}
+	os.Setenv("CLUSTER_NAME", "cluster1")
+	expected := struct {
+		ctx context.Context
+		req reconcile.Request
+		res reconcile.Result
+		err error
+	}{
+		context.WithValue(context.Background(), types.NamespacedName{Namespace: testProjectNamespace, Name: testVPNKeyRotationName}, vpnRotationObject),
+		reconcile.Request{NamespacedName: types.NamespacedName{Name: testVPNKeyRotationName, Namespace: testProjectNamespace}},
+		reconcile.Result{},
+		nil,
+	}
+	client := utilmock.NewClient()
+	mf, _ := metrics.NewMetricsFactory(prometheus.NewRegistry(), metrics.MetricsFactoryOptions{})
+	reconciler := NewReconciler(client, &hub.HubClientConfig{
+		Client: client,
+	}, nil, mf, nil)
+	reconciler.InjectClient(client)
+	ctx := context.WithValue(context.Background(), types.NamespacedName{Name: testVPNKeyRotationName, Namespace: testProjectNamespace}, vpnRotationObject)
+	vpmRotationKey := types.NamespacedName{Namespace: testProjectNamespace, Name: testVPNKeyRotationName}
+
+	client.On("Get",
+		mock.IsType(ctx),
+		mock.IsType(vpmRotationKey),
+		mock.IsType(&hubv1alpha1.VpnKeyRotation{}),
+	).Return(nil).Run(func(args mock.Arguments) {
+		vpnKeyRotation := args.Get(2).(*hubv1alpha1.VpnKeyRotation)
+		*vpnKeyRotation = *vpnRotationObject
+	})
+	client.StatusMock.On("Update",
+		mock.IsType(ctx),
+		mock.IsType(&hubv1alpha1.VpnKeyRotation{}),
+		mock.IsType([]k8sclient.UpdateOption(nil)),
+	).Return(nil)
+
+	_, err := reconciler.syncCurrentRotationState(expected.ctx, vpnRotationObject, allGws)
+	if err != nil {
+		t.Error("Expected response :", expected.res)
 	}
 }
