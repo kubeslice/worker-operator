@@ -20,7 +20,6 @@ package mocks
 
 import (
 	"context"
-	"fmt"
 
 	monitoringEvents "github.com/kubeslice/kubeslice-monitoring/pkg/events"
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
@@ -90,10 +89,9 @@ func (c *MockClient) DeleteAllOf(ctx context.Context, obj client.Object, opts ..
 
 func (c *MockClient) TriggerFSM(ctx context.Context, sliceGw *kubeslicev1beta1.SliceGateway,
 	slice *kubeslicev1beta1.Slice, hubClient *hub.HubClientConfig, meshClient client.Client, gatewayPod *corev1.Pod,
-	eventrecorder *monitoringEvents.EventRecorder, controllerName, gwRecyclerName string) (bool, error) {
+	eventRecorder *monitoringEvents.EventRecorder, controllerName, gwRecyclerName string) (bool, error) {
 	// Define the arguments you expect in the method call
-	args := c.Called(ctx, sliceGw, slice, hubClient, meshClient, gatewayPod, eventrecorder, controllerName, gwRecyclerName)
-	fmt.Println("yeeeeeeeeeeeee")
+	args := c.Called(ctx, sliceGw, slice, hubClient, meshClient, gatewayPod, eventRecorder, controllerName, gwRecyclerName)
 	// Extract the return values from the arguments
 	return args.Bool(0), args.Error(1)
 }
