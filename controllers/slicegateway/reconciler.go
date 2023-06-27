@@ -28,7 +28,6 @@ import (
 	"github.com/kubeslice/kubeslice-monitoring/pkg/events"
 	ossEvents "github.com/kubeslice/worker-operator/events"
 	hub "github.com/kubeslice/worker-operator/pkg/hub/hubclient"
-	slicegwhandler "github.com/kubeslice/worker-operator/pkg/slicegwrecycler"
 	"github.com/kubeslice/worker-operator/pkg/utils"
 	webhook "github.com/kubeslice/worker-operator/pkg/webhook/pod"
 	appsv1 "k8s.io/api/apps/v1"
@@ -168,15 +167,13 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		}
 		// This condition will be true during rebalancing
 		if noOfGwServices > r.NumberOfGateways {
-			reconcile, result, sliceGwNodePorts, err = slicegwhandler.HandleSliceGwSvcCreation(ctx, r.Client, r.HubClient.(*hub.HubClientConfig), sliceGw,
-				noOfGwServices, r.EventRecorder, controllerName)
+			reconcile, result, sliceGwNodePorts, err = r.handleSliceGwSvcCreation(ctx, sliceGw, noOfGwServices)
 			if reconcile {
 				utils.RecordEvent(ctx, r.EventRecorder, sliceGw, slice, ossEvents.EventSliceGWServiceCreationFailed, controllerName)
 				return result, err
 			}
 		} else {
-			reconcile, result, sliceGwNodePorts, err = slicegwhandler.HandleSliceGwSvcCreation(ctx, r.Client, r.HubClient.(*hub.HubClientConfig), sliceGw,
-				r.NumberOfGateways, r.EventRecorder, controllerName)
+			reconcile, result, sliceGwNodePorts, err = r.handleSliceGwSvcCreation(ctx, sliceGw, r.NumberOfGateways)
 			if reconcile {
 				utils.RecordEvent(ctx, r.EventRecorder, sliceGw, slice, ossEvents.EventSliceGWServiceCreationFailed, controllerName)
 				return result, err
@@ -335,6 +332,7 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 				r.EventRecorder, controllerName, sliceGwName+"-"+fmt.Sprint(0))
 			// to maintain consistency with recycling we are creating this CR with zero as suffix in the name
 			if err != nil {
+				// TODO:add an event and log
 				log.Error(err, "Error while recycling gateway pods")
 				return ctrl.Result{}, err
 			}
@@ -425,6 +423,41 @@ func (r *SliceGwReconciler) getNodePorts(ctx context.Context, sliceGw *kubeslice
 	return nodePorts, nil
 }
 
+func (r *SliceGwReconciler) handleSliceGwSvcCreation(ctx context.Context, sliceGw *kubeslicev1beta1.SliceGateway, n int) (bool, reconcile.Result, []int, error) {
+	log := logger.FromContext(ctx).WithName("slicegw")
+	sliceGwName := sliceGw.Name
+	foundsvc := &corev1.Service{}
+	var sliceGwNodePorts []int
+	no, _ := r.getNumberOfGatewayNodePortServices(ctx, sliceGw)
+	if no != n {
+		// capping the number of services to be 2 for now,later i will be equal to number of gateway nodes,eg: i = len(node.GetExternalIpList())
+		for i := 0; i < n; i++ {
+			err := r.Get(ctx, types.NamespacedName{Name: "svc-" + sliceGwName + "-" + fmt.Sprint(i), Namespace: controllers.ControlPlaneNamespace}, foundsvc)
+			if err != nil {
+				if errors.IsNotFound(err) {
+					svc := r.serviceForGateway(sliceGw, i)
+					log.Info("Creating a new Service", "Namespace", svc.Namespace, "Name", svc.Name)
+					err = r.Create(ctx, svc)
+					if err != nil {
+						log.Error(err, "Failed to create new Service", "Namespace", svc.Namespace, "Name", svc.Name)
+						return true, ctrl.Result{}, nil, err
+					}
+					return true, ctrl.Result{Requeue: true}, nil, nil
+				}
+				log.Error(err, "Failed to get Service")
+				return true, ctrl.Result{}, nil, err
+			}
+		}
+	}
+	sliceGwNodePorts, _ = r.getNodePorts(ctx, sliceGw)
+	err := r.HubClient.UpdateNodePortForSliceGwServer(ctx, sliceGwNodePorts, sliceGwName)
+	if err != nil {
+		log.Error(err, "Failed to update NodePort for sliceGw in the hub")
+		utils.RecordEvent(ctx, r.EventRecorder, sliceGw, nil, ossEvents.EventSliceGWNodePortUpdateFailed, controllerName)
+		return true, ctrl.Result{}, sliceGwNodePorts, err
+	}
+	return false, reconcile.Result{}, sliceGwNodePorts, nil
+}
 func (r *SliceGwReconciler) handleSliceGwDeletion(sliceGw *kubeslicev1beta1.SliceGateway, ctx context.Context) (bool, reconcile.Result, error) {
 	// Examine DeletionTimestamp to determine if object is under deletion
 	log := logger.FromContext(ctx).WithName("slicegw-deletion")

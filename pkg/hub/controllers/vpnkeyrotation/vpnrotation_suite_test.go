@@ -22,6 +22,8 @@ import (
 	hubv1alpha1 "github.com/kubeslice/apis/pkg/controller/v1alpha1"
 	spokev1alpha1 "github.com/kubeslice/apis/pkg/worker/v1alpha1"
 	mevents "github.com/kubeslice/kubeslice-monitoring/pkg/events"
+	"github.com/kubeslice/worker-operator/pkg/slicegwrecycler"
+
 	"github.com/kubeslice/kubeslice-monitoring/pkg/metrics"
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
 	"github.com/kubeslice/worker-operator/controllers/slice"
@@ -134,7 +136,7 @@ var _ = BeforeSuite(func() {
 		Component: "worker-operator",
 		Namespace: CONTROL_PLANE_NS,
 	})
-	workerRecyclerClient, err := NewVPNClientEmulator(k8sClient)
+	workerRecyclerClient, err := slicegwrecycler.NewVPNClientEmulator(k8sClient)
 	if err != nil {
 		os.Exit(1)
 	}
@@ -173,6 +175,7 @@ var _ = BeforeSuite(func() {
 		WorkerGWSidecarClient: workerClientSidecarGwEmulator,
 		WorkerRouterClient:    workerClientRouterEmulator,
 		WorkerNetOpClient:     workerClientNetopEmulator,
+		WorkerRecyclerClient:  workerRecyclerClient,
 		NumberOfGateways:      2,
 	}).SetupWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())
