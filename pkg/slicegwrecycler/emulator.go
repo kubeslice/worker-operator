@@ -1,4 +1,4 @@
-package vpnkeyrotation
+package slicegwrecycler
 
 import (
 	"context"

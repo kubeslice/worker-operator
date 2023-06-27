@@ -51,6 +51,7 @@ import (
 	hub "github.com/kubeslice/worker-operator/pkg/hub/hubclient"
 	namespace "github.com/kubeslice/worker-operator/pkg/namespace/controllers"
 	"github.com/kubeslice/worker-operator/pkg/networkpolicy"
+	"github.com/kubeslice/worker-operator/pkg/slicegwrecycler"
 	hce "github.com/kubeslice/worker-operator/tests/emulator/hubclient"
 	workernetop "github.com/kubeslice/worker-operator/tests/emulator/workerclient/netop"
 	workerrouter "github.com/kubeslice/worker-operator/tests/emulator/workerclient/router"
@@ -139,6 +140,9 @@ var _ = BeforeSuite(func() {
 	workerClientNetopEmulator, err = workernetop.NewClientEmulator()
 	Expect(err).ToNot(HaveOccurred())
 
+	workerRecyclerClientEmulator, err := slicegwrecycler.NewVPNClientEmulator(k8sClient)
+	Expect(err).ToNot(HaveOccurred())
+
 	mf, err := metrics.NewMetricsFactory(MetricRegistry, metrics.MetricsFactoryOptions{
 		Cluster:             "cluster-test",
 		Project:             PROJECT_NS,
@@ -180,6 +184,7 @@ var _ = BeforeSuite(func() {
 		WorkerGWSidecarClient: workerClientSidecarGwEmulator,
 		WorkerRouterClient:    workerClientRouterEmulator,
 		WorkerNetOpClient:     workerClientNetopEmulator,
+		WorkerRecyclerClient:  workerRecyclerClientEmulator,
 		NumberOfGateways:      2,
 	}).SetupWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())
