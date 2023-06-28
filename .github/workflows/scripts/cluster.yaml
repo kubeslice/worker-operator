@@ -6,15 +6,25 @@ networking:
   podSubnet: 192.168.0.0/16 # set to Calico's default subnet
 nodes:
 - role: control-plane
-  image: kindest/node:v1.23.12@sha256:9402cf1330bbd3a0d097d2033fa489b2abe40d479cc5ef47d0b6a6960613148a
+  image: kindest/node:v1.24.15@sha256:7db4f8bea3e14b82d12e044e25e34bd53754b7f2b0e9d56df21774e6f66a70ab
+- role: worker
+  image: kindest/node:v1.24.15@sha256:7db4f8bea3e14b82d12e044e25e34bd53754b7f2b0e9d56df21774e6f66a70ab
   kubeadmConfigPatches:
   - |
-    kind: InitConfiguration
+    kind: JoinConfiguration
     nodeRegistration:
       kubeletExtraArgs:
-        node-labels: "kubeslice.io/node-type=gateway"
+          node-labels: "kubeslice.io/node-type=gateway"
 - role: worker
-  image: kindest/node:v1.23.12@sha256:9402cf1330bbd3a0d097d2033fa489b2abe40d479cc5ef47d0b6a6960613148a
+  image: kindest/node:v1.24.15@sha256:7db4f8bea3e14b82d12e044e25e34bd53754b7f2b0e9d56df21774e6f66a70ab
+  kubeadmConfigPatches:
+  - |
+    kind: JoinConfiguration
+    nodeRegistration:
+      kubeletExtraArgs:
+          node-labels: "kubeslice.io/node-type=gateway"
+- role: worker
+  image: kindest/node:v1.24.15@sha256:7db4f8bea3e14b82d12e044e25e34bd53754b7f2b0e9d56df21774e6f66a70ab
   kubeadmConfigPatches:
   - |
     kind: JoinConfiguration
