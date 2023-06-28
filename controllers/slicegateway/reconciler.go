@@ -27,7 +27,6 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/kubeslice/kubeslice-monitoring/pkg/events"
 	ossEvents "github.com/kubeslice/worker-operator/events"
-	hub "github.com/kubeslice/worker-operator/pkg/hub/hubclient"
 	"github.com/kubeslice/worker-operator/pkg/utils"
 	webhook "github.com/kubeslice/worker-operator/pkg/webhook/pod"
 	appsv1 "k8s.io/api/apps/v1"
@@ -328,8 +327,7 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 			if err != nil {
 				return ctrl.Result{}, err
 			}
-			_, err = r.WorkerRecyclerClient.TriggerFSM(ctx, sliceGw, slice, r.HubClient.(*hub.HubClientConfig), r.Client, newestPod,
-				r.EventRecorder, controllerName, sliceGwName+"-"+fmt.Sprint(0))
+			_, err = r.WorkerRecyclerClient.TriggerFSM(sliceGw, slice, newestPod, controllerName, sliceGwName+"-"+fmt.Sprint(0))
 			// to maintain consistency with recycling we are creating this CR with zero as suffix in the name
 			if err != nil {
 				// TODO:add an event and log

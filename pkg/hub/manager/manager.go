@@ -197,7 +197,9 @@ func Start(meshClient client.Client, hubClient client.Client, ctx context.Contex
 		os.Exit(1)
 	}
 
-	workerRecyclerClient, err := slicegwrecycler.NewRecyclerClient()
+	workerRecyclerClient, err := slicegwrecycler.NewRecyclerClient(
+		ctx, meshClient, hubClient, &workerSliceEventRecorder,
+	)
 	if err != nil {
 		os.Exit(1)
 	}

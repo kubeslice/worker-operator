@@ -198,8 +198,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (ctrl
 						log.Error(err, "Failed to get Slice", "slice", sliceName)
 						return ctrl.Result{}, err
 					}
-					created, err := r.WorkerRecyclerClient.TriggerFSM(ctx, sliceGw, slice, r.ControllerClient.(*hub.HubClientConfig), r.Client,
-						&v, r.EventRecorder, controllerName, slice.Name+"-"+fmt.Sprint(i))
+					created, err := r.WorkerRecyclerClient.TriggerFSM(sliceGw, slice, &v, controllerName, slice.Name+"-"+fmt.Sprint(i))
 					if err != nil {
 						return ctrl.Result{}, err
 					}
