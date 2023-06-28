@@ -160,14 +160,12 @@ func main() {
 		setupLog.With("error", err).Error("could not create spoke netop client for slice gateway reconciler")
 		os.Exit(1)
 	}
-	workerRecyclerClient, err := slicegwrecycler.NewRecyclerClient()
-	if err != nil {
-		os.Exit(1)
-	}
 
 	clientForHubMgr, err := client.New(ctrl.GetConfigOrDie(), client.Options{
 		Scheme: scheme,
 	})
+
+	ctx := ctrl.SetupSignalHandler()
 
 	mf, err := metrics.NewMetricsFactory(ctrlmetrics.Registry, metrics.MetricsFactoryOptions{
 		Cluster:             controllers.ClusterName,
@@ -187,6 +185,11 @@ func main() {
 		Component: "sliceController",
 		Namespace: controllers.ControlPlaneNamespace,
 	})
+	workerRecyclerClient, err := slicegwrecycler.NewRecyclerClient(ctx, clientForHubMgr, hubClient, &sliceEventRecorder)
+	if err != nil {
+		os.Exit(1)
+	}
+
 	if err = (&slice.SliceReconciler{
 		Client:             mgr.GetClient(),
 		Log:                ctrl.Log.WithName("controllers").WithName("Slice"),
@@ -271,7 +274,6 @@ func main() {
 		setupLog.With("error", err).Error("unable to set up ready check")
 		os.Exit(1)
 	}
-	ctx := ctrl.SetupSignalHandler()
 
 	if err != nil {
 		setupLog.With("error", err).Error("unable to create kube client for hub manager")
