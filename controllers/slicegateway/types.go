@@ -21,14 +21,11 @@ package slicegateway
 import (
 	"context"
 
-	monitoringEvents "github.com/kubeslice/kubeslice-monitoring/pkg/events"
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
 	"github.com/kubeslice/worker-operator/pkg/gwsidecar"
-	hub "github.com/kubeslice/worker-operator/pkg/hub/hubclient"
 	"github.com/kubeslice/worker-operator/pkg/netop"
 	"github.com/kubeslice/worker-operator/pkg/router"
 	corev1 "k8s.io/api/core/v1"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // NetOpPod contains details of NetOp Pod running in the cluster
@@ -61,6 +58,5 @@ type WorkerNetOpClientProvider interface {
 }
 
 type WorkerRecyclerClientProvider interface {
-	TriggerFSM(ctx context.Context, sliceGw *kubeslicev1beta1.SliceGateway, slice *kubeslicev1beta1.Slice, hubClient *hub.HubClientConfig, meshClient client.Client, gatewayPod *corev1.Pod,
-		eventRecorder *monitoringEvents.EventRecorder, controllerName, gwRecyclerName string) (bool, error)
+	TriggerFSM(sliceGw *kubeslicev1beta1.SliceGateway, slice *kubeslicev1beta1.Slice, gatewayPod *corev1.Pod, controllerName, gwRecyclerName string) (bool, error)
 }
