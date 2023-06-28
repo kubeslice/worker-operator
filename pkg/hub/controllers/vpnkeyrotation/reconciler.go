@@ -16,8 +16,10 @@ import (
 	"github.com/kubeslice/kubeslice-monitoring/pkg/events"
 	"github.com/kubeslice/kubeslice-monitoring/pkg/metrics"
 
+	ossEvents "github.com/kubeslice/worker-operator/events"
 	hub "github.com/kubeslice/worker-operator/pkg/hub/hubclient"
 	"github.com/kubeslice/worker-operator/pkg/logger"
+	"github.com/kubeslice/worker-operator/pkg/utils"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -92,6 +94,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (ctrl
 					for _, v := range recyclers {
 						if v.Spec.State == "Error" {
 							log.V(3).Info("gateway recycler is in error state", "gateway", v.Name)
+							utils.RecordEvent(ctx, r.EventRecorder, vpnKeyRotation, nil, ossEvents.EventGatewayRecycleFSMFailed, controllerName)
 							if err := r.updateRotationStatusWithTimeStamp(ctx, selectedGw, hubv1alpha1.Error, vpnKeyRotation, metav1.Time{Time: time.Now()}); err != nil {
 								return ctrl.Result{}, err
 							}
@@ -104,6 +107,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (ctrl
 					}
 				}
 				// Update the rotation status to Complete with TimeStamp
+				utils.RecordEvent(ctx, r.EventRecorder, vpnKeyRotation, nil, ossEvents.EventGatewayRecyclingSuccessful, controllerName)
 				if err := r.updateRotationStatusWithTimeStamp(ctx, selectedGw, hubv1alpha1.Complete, vpnKeyRotation, metav1.Time{Time: time.Now()}); err != nil {
 					return ctrl.Result{}, nil
 				}
@@ -119,6 +123,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (ctrl
 		rotationTimeDiff := vpnKeyRotation.Spec.CertificateCreationTime.Time.Sub(rotationStatus.LastUpdatedTimestamp.Time)
 		if rotationTimeDiff.Hours() > 0 {
 			log.Info("Rotation interval has elapsed")
+			utils.RecordEvent(ctx, r.EventRecorder, vpnKeyRotation, nil, ossEvents.EventGatewayCertificateRecyclingTriggered, controllerName)
 			// Unsure why we need to update this status; doesn't seem to serve any purpose
 			if err := r.updateRotationStatus(ctx, selectedGw, hubv1alpha1.SecretReadInProgress, vpnKeyRotation); err != nil {
 				return ctrl.Result{}, err
@@ -135,6 +140,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (ctrl
 
 			// If certificates are updated, proceed to update the status
 			log.Info("Certificates are updated for gw", "gateway", selectedGw)
+			utils.RecordEvent(ctx, r.EventRecorder, vpnKeyRotation, nil, ossEvents.EventGatewayCertificateUpdated, controllerName)
 			if err := r.updateRotationStatus(ctx, selectedGw, hubv1alpha1.SecretUpdated, vpnKeyRotation); err != nil {
 				return ctrl.Result{}, err
 			}
@@ -197,6 +203,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (ctrl
 					if err != nil {
 						return ctrl.Result{}, err
 					}
+					utils.RecordEvent(ctx, r.EventRecorder, vpnKeyRotation, nil, ossEvents.EventTriggeredFSMToRecycleGateways, controllerName)
 					if created {
 						// if WorkerSliceGwRecycler is created even for one pod,
 						// we mark isUpdated to true so we can requeue

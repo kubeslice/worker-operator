@@ -654,6 +654,46 @@ var EventsMap = map[events.EventName]*events.EventSchema{
 		ReportingController: "worker",
 		Message:             "Failed to complete cluster deregistration job",
 	},
+	"GatewayCertificateRecyclingTriggered": {
+		Name:                "GatewayCertificateRecyclingTriggered",
+		Reason:              "GatewayCertificateRecyclingTriggered",
+		Action:              "None",
+		Type:                events.EventTypeNormal,
+		ReportingController: "worker",
+		Message:             "Gateway certificate recycling triggered",
+	},
+	"GatewayCertificateUpdated": {
+		Name:                "GatewayCertificateUpdated",
+		Reason:              "GatewayCertificateUpdated",
+		Action:              "None",
+		Type:                events.EventTypeNormal,
+		ReportingController: "worker",
+		Message:             "Gateway certificate updated successfully",
+	},
+	"TriggeredFSMToRecycleGateways": {
+		Name:                "TriggeredFSMToRecycleGateways",
+		Reason:              "TriggeredFSMToRecycleGateways",
+		Action:              "None",
+		Type:                events.EventTypeNormal,
+		ReportingController: "worker",
+		Message:             "FSM triggered to recycle gateway pairs",
+	},
+	"GatewayRecycleFSMFailed": {
+		Name:                "GatewayRecycleFSMFailed",
+		Reason:              "GatewayRecycleFSMFailed",
+		Action:              "None",
+		Type:                events.EventTypeWarning,
+		ReportingController: "worker",
+		Message:             "Gateway recycling FSM failed",
+	},
+	"GatewayRecyclingSuccessful": {
+		Name:                "GatewayRecyclingSuccessful",
+		Reason:              "GatewayRecyclingSuccessful",
+		Action:              "None",
+		Type:                events.EventTypeNormal,
+		ReportingController: "worker",
+		Message:             "Gateway recycling successful",
+	},
 }
 
 var (
@@ -736,4 +776,9 @@ var (
 	EventDeleteNamespaceInfoToHub                         events.EventName = "DeleteNamespaceInfoToHub"
 	EventDeleteNamespaceInfoToHubFailed                   events.EventName = "DeleteNamespaceInfoToHubFailed"
 	EventDeregistrationJobFailed                          events.EventName = "DeregistrationJobFailed"
+	EventGatewayCertificateRecyclingTriggered             events.EventName = "GatewayCertificateRecyclingTriggered"
+	EventGatewayCertificateUpdated                        events.EventName = "GatewayCertificateUpdated"
+	EventTriggeredFSMToRecycleGateways                    events.EventName = "TriggeredFSMToRecycleGateways"
+	EventGatewayRecycleFSMFailed                          events.EventName = "GatewayRecycleFSMFailed"
+	EventGatewayRecyclingSuccessful                       events.EventName = "GatewayRecyclingSuccessful"
 )

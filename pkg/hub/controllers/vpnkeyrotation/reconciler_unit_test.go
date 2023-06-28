@@ -8,12 +8,17 @@ import (
 	"time"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/kubernetes/scheme"
 
 	hubv1alpha1 "github.com/kubeslice/apis/pkg/controller/v1alpha1"
 	spokev1alpha1 "github.com/kubeslice/apis/pkg/worker/v1alpha1"
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
+	ossEvents "github.com/kubeslice/worker-operator/events"
 
+	mevents "github.com/kubeslice/kubeslice-monitoring/pkg/events"
 	"github.com/kubeslice/kubeslice-monitoring/pkg/metrics"
+	"github.com/kubeslice/worker-operator/pkg/hub/controllers"
 	hub "github.com/kubeslice/worker-operator/pkg/hub/hubclient"
 	utilmock "github.com/kubeslice/worker-operator/pkg/mocks"
 	"github.com/kubeslice/worker-operator/pkg/slicegwrecycler"
@@ -256,9 +261,23 @@ func TestReconcilerVPNRotationReconcilerCompletionAsSuccess(t *testing.T) {
 	}
 	client := utilmock.NewClient()
 	mf, _ := metrics.NewMetricsFactory(prometheus.NewRegistry(), metrics.MetricsFactoryOptions{})
-	reconciler := NewReconciler(client, &hub.HubClientConfig{
-		Client: client,
-	}, nil, mf, nil)
+	gv := hubv1alpha1.GroupVersion
+	testScheme := runtime.NewScheme()
+	err := scheme.AddToScheme(testScheme)
+	if err != nil {
+		t.Fatalf("Error adding core scheme to test scheme: %v", err)
+	}
+	testScheme.AddKnownTypeWithName(gv.WithKind("VpnKeyRotation"), &hubv1alpha1.VpnKeyRotation{})
+	testClusterEventRecorder := mevents.NewEventRecorder(client, testScheme, ossEvents.EventsMap, mevents.EventRecorderOptions{
+		Cluster:   "test-cluster",
+		Project:   "avesha",
+		Component: "worker-operator",
+		Namespace: controllers.ControlPlaneNamespace,
+	})
+	reconciler := NewReconciler(client,
+		&hub.HubClientConfig{
+			Client: client,
+		}, &testClusterEventRecorder, mf, nil)
 	reconciler.InjectClient(client)
 	ctx := context.WithValue(context.Background(), types.NamespacedName{Name: testVPNKeyRotationName, Namespace: testProjectNamespace}, vpnRotationObject)
 	vpmRotationKey := types.NamespacedName{Namespace: testProjectNamespace, Name: testVPNKeyRotationName}
@@ -286,6 +305,11 @@ func TestReconcilerVPNRotationReconcilerCompletionAsSuccess(t *testing.T) {
 		mock.IsType(&hubv1alpha1.VpnKeyRotation{}),
 		mock.IsType([]k8sclient.UpdateOption(nil)),
 	).Return(nil)
+	client.On("Create",
+		mock.IsType(ctx),
+		mock.IsType(&corev1.Event{}),
+		mock.IsType([]k8sclient.CreateOption(nil)),
+	).Return(nil)
 
 	result, _ := reconciler.Reconcile(expected.ctx, expected.req)
 	if expected.res != result {
@@ -308,9 +332,22 @@ func TestReconcilerVPNRotationReconcilerIntervalTestNegative(t *testing.T) {
 	}
 	client := utilmock.NewClient()
 	mf, _ := metrics.NewMetricsFactory(prometheus.NewRegistry(), metrics.MetricsFactoryOptions{})
+	gv := hubv1alpha1.GroupVersion
+	testScheme := runtime.NewScheme()
+	err := scheme.AddToScheme(testScheme)
+	if err != nil {
+		t.Fatalf("Error adding core scheme to test scheme: %v", err)
+	}
+	testScheme.AddKnownTypeWithName(gv.WithKind("VpnKeyRotation"), &hubv1alpha1.VpnKeyRotation{})
+	testClusterEventRecorder := mevents.NewEventRecorder(client, testScheme, ossEvents.EventsMap, mevents.EventRecorderOptions{
+		Cluster:   "test-cluster",
+		Project:   "avesha",
+		Component: "worker-operator",
+		Namespace: controllers.ControlPlaneNamespace,
+	})
 	reconciler := NewReconciler(client, &hub.HubClientConfig{
 		Client: client,
-	}, nil, mf, nil)
+	}, &testClusterEventRecorder, mf, nil)
 	reconciler.InjectClient(client)
 	ctx := context.WithValue(context.Background(), types.NamespacedName{Name: testVPNKeyRotationName, Namespace: testProjectNamespace}, testVPNKeyRotationObjectWithIntervalTest)
 	vpmRotationKey := types.NamespacedName{Namespace: testProjectNamespace, Name: testVPNKeyRotationName}
@@ -353,8 +390,13 @@ func TestReconcilerVPNRotationReconcilerIntervalTestNegative(t *testing.T) {
 		mock.IsType(types.NamespacedName{Name: "fire-worker-2-worker-1"}),
 		mock.IsType(&kubeslicev1beta1.SliceGateway{}),
 	).Return(errors.New("object not found"))
+	client.On("Create",
+		mock.IsType(ctx),
+		mock.IsType(&corev1.Event{}),
+		mock.IsType([]k8sclient.CreateOption(nil)),
+	).Return(nil)
 
-	_, err := reconciler.Reconcile(expected.ctx, expected.req)
+	_, err = reconciler.Reconcile(expected.ctx, expected.req)
 	if expected.errMsg != err.Error() {
 		t.Error("Expected error:", expected.errMsg, " but got ", err)
 	}
@@ -375,9 +417,22 @@ func TestReconcilerVPNRotationReconcilerIntervalTest(t *testing.T) {
 	}
 	client := utilmock.NewClient()
 	mf, _ := metrics.NewMetricsFactory(prometheus.NewRegistry(), metrics.MetricsFactoryOptions{})
+	gv := hubv1alpha1.GroupVersion
+	testScheme := runtime.NewScheme()
+	err := scheme.AddToScheme(testScheme)
+	if err != nil {
+		t.Fatalf("Error adding core scheme to test scheme: %v", err)
+	}
+	testScheme.AddKnownTypeWithName(gv.WithKind("VpnKeyRotation"), &hubv1alpha1.VpnKeyRotation{})
+	testClusterEventRecorder := mevents.NewEventRecorder(client, testScheme, ossEvents.EventsMap, mevents.EventRecorderOptions{
+		Cluster:   "test-cluster",
+		Project:   "avesha",
+		Component: "worker-operator",
+		Namespace: controllers.ControlPlaneNamespace,
+	})
 	reconciler := NewReconciler(client, &hub.HubClientConfig{
 		Client: client,
-	}, nil, mf, nil)
+	}, &testClusterEventRecorder, mf, nil)
 	reconciler.InjectClient(client)
 	ctx := context.WithValue(context.Background(), types.NamespacedName{Name: testVPNKeyRotationName, Namespace: testProjectNamespace}, testVPNKeyRotationObjectWithIntervalTest)
 	vpmRotationKey := types.NamespacedName{Namespace: testProjectNamespace, Name: testVPNKeyRotationName}
@@ -446,6 +501,12 @@ func TestReconcilerVPNRotationReconcilerIntervalTest(t *testing.T) {
 		mock.IsType(types.NamespacedName{Name: "fire-worker-2-worker-1"}),
 		mock.IsType(&kubeslicev1beta1.Slice{}),
 	).Return(errors.New("object not found"))
+	client.On("Create",
+		mock.IsType(ctx),
+		mock.IsType(&corev1.Event{}),
+		mock.IsType([]k8sclient.CreateOption(nil)),
+	).Return(nil)
+
 	result, err := reconciler.Reconcile(expected.ctx, expected.req)
 	if expected.res != result {
 		t.Error("Expected response :", expected.res, " but got ", result)
@@ -476,9 +537,23 @@ func TestReconcilerVPNRotationReconcilerTriggerFSM(t *testing.T) {
 		os.Exit(1)
 	}
 
+	gv := hubv1alpha1.GroupVersion
+	testScheme := runtime.NewScheme()
+	err = scheme.AddToScheme(testScheme)
+	if err != nil {
+		t.Fatalf("Error adding core scheme to test scheme: %v", err)
+	}
+	testScheme.AddKnownTypeWithName(gv.WithKind("VpnKeyRotation"), &hubv1alpha1.VpnKeyRotation{})
+	testClusterEventRecorder := mevents.NewEventRecorder(client, testScheme, ossEvents.EventsMap, mevents.EventRecorderOptions{
+		Cluster:   "test-cluster",
+		Project:   "avesha",
+		Component: "worker-operator",
+		Namespace: controllers.ControlPlaneNamespace,
+	})
+
 	reconciler := NewReconciler(client, &hub.HubClientConfig{
 		Client: client,
-	}, nil, mf, workerRecyclerClient)
+	}, &testClusterEventRecorder, mf, workerRecyclerClient)
 	reconciler.InjectClient(client)
 
 	ctx := context.WithValue(context.Background(), types.NamespacedName{Name: testVPNKeyRotationName, Namespace: testProjectNamespace}, testVPNKeyRotationObjectWithIntervalTest)
@@ -555,6 +630,17 @@ func TestReconcilerVPNRotationReconcilerTriggerFSM(t *testing.T) {
 		sliceCR := args.Get(2).(*kubeslicev1beta1.Slice)
 		*sliceCR = *workerSlice
 	})
+	client.On("Create",
+		mock.IsType(ctx),
+		mock.IsType(&corev1.Event{}),
+		mock.IsType([]k8sclient.CreateOption(nil)),
+	).Return(nil)
+	client.On("Update",
+		mock.IsType(ctx),
+		mock.IsType(&corev1.Event{}),
+		mock.IsType([]k8sclient.UpdateOption(nil)),
+	).Return(nil)
+
 	_, err = reconciler.Reconcile(expected.ctx, expected.req)
 	if err != nil {
 		t.Error("Expected response :", expected.res)
@@ -604,9 +690,23 @@ func TestReconcilerSecretCreationError(t *testing.T) {
 	}
 	client := utilmock.NewClient()
 	mf, _ := metrics.NewMetricsFactory(prometheus.NewRegistry(), metrics.MetricsFactoryOptions{})
+	gv := hubv1alpha1.GroupVersion
+	testScheme := runtime.NewScheme()
+	err := scheme.AddToScheme(testScheme)
+	if err != nil {
+		t.Fatalf("Error adding core scheme to test scheme: %v", err)
+	}
+	testScheme.AddKnownTypeWithName(gv.WithKind("VpnKeyRotation"), &hubv1alpha1.VpnKeyRotation{})
+	testClusterEventRecorder := mevents.NewEventRecorder(client, testScheme, ossEvents.EventsMap, mevents.EventRecorderOptions{
+		Cluster:   "test-cluster",
+		Project:   "avesha",
+		Component: "worker-operator",
+		Namespace: controllers.ControlPlaneNamespace,
+	})
+
 	reconciler := NewReconciler(client, &hub.HubClientConfig{
 		Client: client,
-	}, nil, mf, nil)
+	}, &testClusterEventRecorder, mf, nil)
 	reconciler.InjectClient(client)
 	ctx := context.WithValue(context.Background(), types.NamespacedName{Name: testVPNKeyRotationName, Namespace: testProjectNamespace}, vpnKeyObject)
 	vpmRotationKey := types.NamespacedName{Namespace: testProjectNamespace, Name: testVPNKeyRotationName}
@@ -659,7 +759,13 @@ func TestReconcilerSecretCreationError(t *testing.T) {
 		mock.IsType(&corev1.Secret{}),
 		mock.IsType([]k8sclient.CreateOption(nil)),
 	).Return(errors.New("unable to create secret to store slicegw certs in worker cluster"))
-	_, err := reconciler.Reconcile(expected.ctx, expected.req)
+	client.On("Create",
+		mock.IsType(ctx),
+		mock.IsType(&corev1.Event{}),
+		mock.IsType([]k8sclient.CreateOption(nil)),
+	).Return(nil)
+
+	_, err = reconciler.Reconcile(expected.ctx, expected.req)
 	if expected.errMsg != err.Error() {
 		t.Error("Expected error:", expected.errMsg, " but got ", err)
 	}
@@ -704,9 +810,22 @@ func TestReconcilerControllerSecretNotFound(t *testing.T) {
 	}
 	client := utilmock.NewClient()
 	mf, _ := metrics.NewMetricsFactory(prometheus.NewRegistry(), metrics.MetricsFactoryOptions{})
+	gv := hubv1alpha1.GroupVersion
+	testScheme := runtime.NewScheme()
+	err := scheme.AddToScheme(testScheme)
+	if err != nil {
+		t.Fatalf("Error adding core scheme to test scheme: %v", err)
+	}
+	testScheme.AddKnownTypeWithName(gv.WithKind("VpnKeyRotation"), &hubv1alpha1.VpnKeyRotation{})
+	testClusterEventRecorder := mevents.NewEventRecorder(client, testScheme, ossEvents.EventsMap, mevents.EventRecorderOptions{
+		Cluster:   "test-cluster",
+		Project:   "avesha",
+		Component: "worker-operator",
+		Namespace: controllers.ControlPlaneNamespace,
+	})
 	reconciler := NewReconciler(client, &hub.HubClientConfig{
 		Client: client,
-	}, nil, mf, nil)
+	}, &testClusterEventRecorder, mf, nil)
 	reconciler.InjectClient(client)
 	ctx := context.WithValue(context.Background(), types.NamespacedName{Name: testVPNKeyRotationName, Namespace: testProjectNamespace}, vpnKeyRotationObj)
 	vpmRotationKey := types.NamespacedName{Namespace: testProjectNamespace, Name: testVPNKeyRotationName}
@@ -754,7 +873,14 @@ func TestReconcilerControllerSecretNotFound(t *testing.T) {
 				Namespace: ControlPlaneNamespace}),
 		mock.IsType(&corev1.Secret{}),
 	).Return(errors.New("object not found"))
-	_, err := reconciler.Reconcile(expected.ctx, expected.req)
+
+	client.On("Create",
+		mock.IsType(ctx),
+		mock.IsType(&corev1.Event{}),
+		mock.IsType([]k8sclient.CreateOption(nil)),
+	).Return(nil)
+
+	_, err = reconciler.Reconcile(expected.ctx, expected.req)
 	if expected.errMsg != err.Error() {
 		t.Error("Expected error:", expected.errMsg, " but got ", err)
 	}
@@ -800,9 +926,22 @@ func TestReconcilerSecretCreationAndRequeue(t *testing.T) {
 	}
 	client := utilmock.NewClient()
 	mf, _ := metrics.NewMetricsFactory(prometheus.NewRegistry(), metrics.MetricsFactoryOptions{})
+	gv := hubv1alpha1.GroupVersion
+	testScheme := runtime.NewScheme()
+	err := scheme.AddToScheme(testScheme)
+	if err != nil {
+		t.Fatalf("Error adding core scheme to test scheme: %v", err)
+	}
+	testScheme.AddKnownTypeWithName(gv.WithKind("VpnKeyRotation"), &hubv1alpha1.VpnKeyRotation{})
+	testClusterEventRecorder := mevents.NewEventRecorder(client, testScheme, ossEvents.EventsMap, mevents.EventRecorderOptions{
+		Cluster:   "test-cluster",
+		Project:   "avesha",
+		Component: "worker-operator",
+		Namespace: controllers.ControlPlaneNamespace,
+	})
 	reconciler := NewReconciler(client, &hub.HubClientConfig{
 		Client: client,
-	}, nil, mf, nil)
+	}, &testClusterEventRecorder, mf, nil)
 	reconciler.InjectClient(client)
 	ctx := context.WithValue(context.Background(), types.NamespacedName{Name: testVPNKeyRotationName, Namespace: testProjectNamespace}, vpnKeyRotationObj)
 	vpmRotationKey := types.NamespacedName{Namespace: testProjectNamespace, Name: testVPNKeyRotationName}
@@ -853,6 +992,11 @@ func TestReconcilerSecretCreationAndRequeue(t *testing.T) {
 	client.On("Create",
 		mock.IsType(ctx),
 		mock.IsType(&corev1.Secret{}),
+		mock.IsType([]k8sclient.CreateOption(nil)),
+	).Return(nil)
+	client.On("Create",
+		mock.IsType(ctx),
+		mock.IsType(&corev1.Event{}),
 		mock.IsType([]k8sclient.CreateOption(nil)),
 	).Return(nil)
 
