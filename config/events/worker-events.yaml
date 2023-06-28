@@ -473,3 +473,34 @@ events:
     type: Warning
     reportingController: worker
     message: Failed to complete cluster deregistration job
+  - name: GatewayCertificateRecyclingTriggered
+    reason: GatewayCertificateRecyclingTriggered
+    action: None
+    type: Normal
+    reportingController: worker
+    message: Gateway certificate recycling triggered
+  - name: GatewayCertificateUpdated
+    reason: GatewayCertificateUpdated
+    action: None
+    type: Normal
+    reportingController: worker
+    message: Gateway certificate updated successfully
+  - name: TriggeredFSMToRecycleGateways
+    reason: TriggeredFSMToRecycleGateways
+    action: None
+    type: Normal
+    reportingController: worker
+    message: FSM triggered to recycle gateway pairs
+  - name: GatewayRecycleFSMFailed
+    reason: GatewayRecycleFSMFailed
+    action: None
+    type: Warning
+    reportingController: worker
+    message: Gateway recycling FSM failed
+  - name: GatewayRecyclingSuccessful
+    reason: GatewayRecyclingSuccessful
+    action: None
+    type: Normal
+    reportingController: worker
+    message: Gateway recycling successful
+
