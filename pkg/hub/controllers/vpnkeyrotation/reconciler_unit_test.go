@@ -310,6 +310,11 @@ func TestReconcilerVPNRotationReconcilerCompletionAsSuccess(t *testing.T) {
 		mock.IsType(&corev1.Event{}),
 		mock.IsType([]k8sclient.CreateOption(nil)),
 	).Return(nil)
+	client.On("Delete",
+		mock.IsType(ctx),
+		mock.IsType(&corev1.Secret{}),
+		mock.IsType([]k8sclient.DeleteOption{}),
+	).Return(nil)
 
 	result, _ := reconciler.Reconcile(expected.ctx, expected.req)
 	if expected.res != result {
@@ -639,6 +644,11 @@ func TestReconcilerVPNRotationReconcilerTriggerFSM(t *testing.T) {
 		mock.IsType(ctx),
 		mock.IsType(&corev1.Event{}),
 		mock.IsType([]k8sclient.UpdateOption(nil)),
+	).Return(nil)
+	client.On("Delete",
+		mock.IsType(ctx),
+		mock.IsType(&corev1.Secret{}),
+		mock.IsType([]k8sclient.DeleteOption{}),
 	).Return(nil)
 
 	_, err = reconciler.Reconcile(expected.ctx, expected.req)

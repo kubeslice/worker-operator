@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 
-	monitoringEvents "github.com/kubeslice/kubeslice-monitoring/pkg/events"
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
 	"github.com/kubeslice/worker-operator/controllers"
 
@@ -53,7 +52,7 @@ func (r recyclerClient) TriggerFSM(sliceGw *kubeslicev1beta1.SliceGateway, slice
 	log := logger.FromContext(r.ctx)
 
 	gwRemoteVpnIP := sliceGw.Status.Config.SliceGatewayRemoteVpnIP
-	clientID, err := r.getRemoteGwPodName(r.ctx, gwRemoteVpnIP, gatewayPod.Status.PodIP)
+	clientID, err := r.getRemoteGwPodName(gwRemoteVpnIP, gatewayPod.Status.PodIP)
 	if err != nil {
 		log.Error(err, "Error while fetching remote gw podName")
 		// post event to slicegw
@@ -79,12 +78,12 @@ func (r recyclerClient) TriggerFSM(sliceGw *kubeslicev1beta1.SliceGateway, slice
 
 // The function was relocated to this location in order to consolidate it into a central location
 // and facilitate its use as a utility function.
-func (r recyclerClient) handleSliceGwSvcCreation(ctx context.Context, sliceGw *kubeslicev1beta1.SliceGateway, n int, eventRecorder *monitoringEvents.EventRecorder, controllerName string) (bool, reconcile.Result, []int, error) {
+func (r recyclerClient) handleSliceGwSvcCreation(ctx context.Context, sliceGw *kubeslicev1beta1.SliceGateway, n int, eventRecorder *events.EventRecorder, controllerName string) (bool, reconcile.Result, []int, error) {
 	log := logger.FromContext(r.ctx).WithName("slicegw")
 	sliceGwName := sliceGw.Name
 	foundsvc := &corev1.Service{}
 	var sliceGwNodePorts []int
-	no, _ := r.getNumberOfGatewayNodePortServices(r.ctx, sliceGw)
+	no, _ := r.getNumberOfGatewayNodePortServices(sliceGw)
 	if no != n {
 		// capping the number of services to be 2 for now, later i will be equal to number of gateway nodes,eg: i = len(node.GetExternalIpList())
 		for i := 0; i < n; i++ {
@@ -116,7 +115,7 @@ func (r recyclerClient) handleSliceGwSvcCreation(ctx context.Context, sliceGw *k
 }
 
 // getRemoteGwPodName returns the remote gw PodName.
-func (r recyclerClient) getRemoteGwPodName(ctx context.Context, gwRemoteVpnIP string, podIP string) (string, error) {
+func (r recyclerClient) getRemoteGwPodName(gwRemoteVpnIP string, podIP string) (string, error) {
 	log := logger.FromContext(r.ctx)
 	log.Info("calling gw sidecar to get PodName", "type", "slicegw")
 	sidecarGrpcAddress := podIP + ":5000"
@@ -133,7 +132,7 @@ func (r recyclerClient) getRemoteGwPodName(ctx context.Context, gwRemoteVpnIP st
 	return remoteGwPodName, nil
 }
 
-func (r recyclerClient) getNumberOfGatewayNodePortServices(ctx context.Context, sliceGw *kubeslicev1beta1.SliceGateway) (int, error) {
+func (r recyclerClient) getNumberOfGatewayNodePortServices(sliceGw *kubeslicev1beta1.SliceGateway) (int, error) {
 	listOpts := []client.ListOption{
 		client.MatchingLabels(map[string]string{
 			controllers.ApplicationNamespaceSelectorLabelKey: sliceGw.Spec.SliceName,

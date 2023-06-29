@@ -53,10 +53,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (ctrl
 		}
 		return ctrl.Result{}, err
 	}
-
-	// contains all the gateways associated with the cluster for a particular slice
+	// Step 1: Begin the process of initializing the status of key rotation using certification creation data.
 	allGwsUnderCluster := vpnKeyRotation.Spec.ClusterGatewayMapping[os.Getenv("CLUSTER_NAME")]
-	// for eg allGwsUnderCluster = []string{"fire-worker-2-worker-1", "fire-worker-2-worker-3", "fire-worker-2-worker-4"}
+	// contains all the gateways associated with the cluster for a particular slice
 	log.V(3).Info("gateways under cluster", "allGwsUnderCluster", allGwsUnderCluster)
 	if len(vpnKeyRotation.Status.CurrentRotationState) == 0 && len(allGwsUnderCluster) > 0 {
 		// When vpnkeyrotation is initially created, update the LastUpdateelemdTimestamp for all gateways
@@ -78,6 +77,8 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (ctrl
 		return ctrl.Result{}, err
 	}
 
+	// Step 2: If VPN rotation is currently in progress, verify the status of workerryclers to determine
+	// if the process has been completed - error or success
 	currentDate := time.Now()
 	certificationCreationDate := vpnKeyRotation.Spec.CertificateCreationTime
 	if certificationCreationDate.Year() == currentDate.Year() &&
@@ -94,7 +95,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (ctrl
 					for _, v := range recyclers {
 						if v.Spec.State == "Error" {
 							log.V(3).Info("gateway recycler is in error state", "gateway", v.Name)
-							utils.RecordEvent(ctx, r.EventRecorder, vpnKeyRotation, nil, ossEvents.EventGatewayRecycleFSMFailed, controllerName)
+							utils.RecordEvent(ctx, r.EventRecorder, vpnKeyRotation, nil, ossEvents.EventGatewayRecyclingFailed, controllerName)
 							if err := r.updateRotationStatusWithTimeStamp(ctx, selectedGw, hubv1alpha1.Error, vpnKeyRotation, metav1.Time{Time: time.Now()}); err != nil {
 								return ctrl.Result{}, err
 							}
@@ -111,14 +112,18 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (ctrl
 				if err := r.updateRotationStatusWithTimeStamp(ctx, selectedGw, hubv1alpha1.Complete, vpnKeyRotation, metav1.Time{Time: time.Now()}); err != nil {
 					return ctrl.Result{}, nil
 				}
+				// clean up for deletion for old secrets
+				if err = r.removeOldSecrets(ctx, vpnKeyRotation.Spec.RotationCount, selectedGw); err != nil {
+					return ctrl.Result{}, err
+				}
 			}
 		}
 	}
 
 	isUpdated := false
+	// Step 3: We choose a gateway from the array and compare its LastUpdatedTimestamp with the CertificateCreationTime.
+	// If the time difference matches, we process the request; otherwise, we move on to the next gateway in the array.
 	for _, selectedGw := range allGwsUnderCluster {
-		// We choose a gateway from the array and compare its LastUpdatedTimestamp with the CertificateCreationTime.
-		// If the time difference matches, we process the request; otherwise, we move on to the next gateway in the array.
 		rotationStatus, _ := vpnKeyRotation.Status.CurrentRotationState[selectedGw]
 		rotationTimeDiff := vpnKeyRotation.Spec.CertificateCreationTime.Time.Sub(rotationStatus.LastUpdatedTimestamp.Time)
 		if rotationTimeDiff.Hours() > 0 {
@@ -389,6 +394,30 @@ func (r *Reconciler) updateCertificates(ctx context.Context, rotationVersion int
 	}
 	// secret with current rotation version already exists, no requeue
 	return ctrl.Result{}, false, nil
+}
+
+func (r *Reconciler) removeOldSecrets(ctx context.Context, rotationVersion int, sliceGwName string) error {
+	log := logger.FromContext(ctx)
+	currentSecretName := sliceGwName + "-" + strconv.Itoa(rotationVersion-1) // old secret
+	sliceGwCerts := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      currentSecretName,
+			Namespace: ControlPlaneNamespace,
+		},
+	}
+	err := r.Delete(ctx, sliceGwCerts)
+	log.V(3).Info("deleting previous certificates", "secretName", currentSecretName)
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			// Secret doesn't exist, no need to throw an error
+			log.V(1).Info("Secret not found, skipping deletion")
+			return nil
+		}
+		log.Error(err, "Error deleting old Gateway Secret while cleaning up")
+		return err
+	}
+
+	return nil
 }
 
 func (r *Reconciler) InjectClient(c client.Client) error {
