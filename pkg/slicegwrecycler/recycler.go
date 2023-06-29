@@ -3,7 +3,6 @@ package slicegwrecycler
 import (
 	"context"
 	"fmt"
-	"os"
 
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
 	"github.com/kubeslice/worker-operator/controllers"
@@ -68,7 +67,7 @@ func (r recyclerClient) TriggerFSM(sliceGw *kubeslicev1beta1.SliceGateway, slice
 	}
 	utils.RecordEvent(r.ctx, r.eventRecorder, sliceGw, slice, ossEvents.EventSliceGWRebalancingSuccess, controllerName)
 	// spawn a new gw nodeport service
-	_, _, _, err = r.handleSliceGwSvcCreation(r.ctx, sliceGw, NumberOfGateways+1, r.eventRecorder, controllerName)
+	_, _, _, err = r.handleSliceGwSvcCreation(sliceGw, NumberOfGateways+1, controllerName)
 	if err != nil {
 		//TODO:add an event and log
 		return false, err
@@ -78,7 +77,7 @@ func (r recyclerClient) TriggerFSM(sliceGw *kubeslicev1beta1.SliceGateway, slice
 
 // The function was relocated to this location in order to consolidate it into a central location
 // and facilitate its use as a utility function.
-func (r recyclerClient) handleSliceGwSvcCreation(ctx context.Context, sliceGw *kubeslicev1beta1.SliceGateway, n int, eventRecorder *events.EventRecorder, controllerName string) (bool, reconcile.Result, []int, error) {
+func (r recyclerClient) handleSliceGwSvcCreation(sliceGw *kubeslicev1beta1.SliceGateway, n int, controllerName string) (bool, reconcile.Result, []int, error) {
 	log := logger.FromContext(r.ctx).WithName("slicegw")
 	sliceGwName := sliceGw.Name
 	foundsvc := &corev1.Service{}
@@ -104,11 +103,11 @@ func (r recyclerClient) handleSliceGwSvcCreation(ctx context.Context, sliceGw *k
 			}
 		}
 	}
-	sliceGwNodePorts, _ = r.getNodePorts(r.ctx, sliceGw)
+	sliceGwNodePorts, _ = r.getNodePorts(sliceGw)
 	err := r.controllerClient.(*hub.HubClientConfig).UpdateNodePortForSliceGwServer(r.ctx, sliceGwNodePorts, sliceGwName)
 	if err != nil {
 		log.Error(err, "Failed to update NodePort for sliceGw in the hub")
-		utils.RecordEvent(r.ctx, eventRecorder, sliceGw, nil, ossEvents.EventSliceGWNodePortUpdateFailed, controllerName)
+		utils.RecordEvent(r.ctx, r.eventRecorder, sliceGw, nil, ossEvents.EventSliceGWNodePortUpdateFailed, controllerName)
 		return true, ctrl.Result{}, sliceGwNodePorts, err
 	}
 	return false, reconcile.Result{}, sliceGwNodePorts, nil
@@ -121,7 +120,7 @@ func (r recyclerClient) getRemoteGwPodName(gwRemoteVpnIP string, podIP string) (
 	sidecarGrpcAddress := podIP + ":5000"
 	workerGWClient, err := sidecar.NewWorkerGWSidecarClientProvider()
 	if err != nil {
-		os.Exit(1)
+		return "", err
 	}
 	remoteGwPodName, err := workerGWClient.GetSliceGwRemotePodName(r.ctx, gwRemoteVpnIP, sidecarGrpcAddress)
 	log.Info("slicegw remote pod name", "slicegw", remoteGwPodName)
@@ -181,7 +180,7 @@ func labelsForSliceGwService(name string, i int) map[string]string {
 		"kubeslice.io/slicegateway-pod": fmt.Sprint(i),
 	}
 }
-func (r recyclerClient) getNodePorts(ctx context.Context, sliceGw *kubeslicev1beta1.SliceGateway) ([]int, error) {
+func (r recyclerClient) getNodePorts(sliceGw *kubeslicev1beta1.SliceGateway) ([]int, error) {
 	var nodePorts []int
 	listOpts := []client.ListOption{
 		client.MatchingLabels(map[string]string{
