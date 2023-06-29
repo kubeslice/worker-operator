@@ -491,16 +491,15 @@ events:
     type: Normal
     reportingController: worker
     message: FSM triggered to recycle gateway pairs
-  - name: GatewayRecycleFSMFailed
-    reason: GatewayRecycleFSMFailed
-    action: None
-    type: Warning
-    reportingController: worker
-    message: Gateway recycling FSM failed
   - name: GatewayRecyclingSuccessful
     reason: GatewayRecyclingSuccessful
     action: None
     type: Normal
     reportingController: worker
     message: Gateway recycling successful
-
+  - name: GatewayRecyclingFailed
+    reason: GatewayRecyclingFailed
+    action: None
+    type: Warning
+    reportingController: worker
+    message: Gateway recycling failed

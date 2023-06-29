@@ -678,14 +678,6 @@ var EventsMap = map[events.EventName]*events.EventSchema{
 		ReportingController: "worker",
 		Message:             "FSM triggered to recycle gateway pairs",
 	},
-	"GatewayRecycleFSMFailed": {
-		Name:                "GatewayRecycleFSMFailed",
-		Reason:              "GatewayRecycleFSMFailed",
-		Action:              "None",
-		Type:                events.EventTypeWarning,
-		ReportingController: "worker",
-		Message:             "Gateway recycling FSM failed",
-	},
 	"GatewayRecyclingSuccessful": {
 		Name:                "GatewayRecyclingSuccessful",
 		Reason:              "GatewayRecyclingSuccessful",
@@ -693,6 +685,14 @@ var EventsMap = map[events.EventName]*events.EventSchema{
 		Type:                events.EventTypeNormal,
 		ReportingController: "worker",
 		Message:             "Gateway recycling successful",
+	},
+	"GatewayRecyclingFailed": {
+		Name:                "GatewayRecyclingFailed",
+		Reason:              "GatewayRecyclingFailed",
+		Action:              "None",
+		Type:                events.EventTypeWarning,
+		ReportingController: "worker",
+		Message:             "Gateway recycling failed",
 	},
 }
 
@@ -779,6 +779,6 @@ var (
 	EventGatewayCertificateRecyclingTriggered             events.EventName = "GatewayCertificateRecyclingTriggered"
 	EventGatewayCertificateUpdated                        events.EventName = "GatewayCertificateUpdated"
 	EventTriggeredFSMToRecycleGateways                    events.EventName = "TriggeredFSMToRecycleGateways"
-	EventGatewayRecycleFSMFailed                          events.EventName = "GatewayRecycleFSMFailed"
 	EventGatewayRecyclingSuccessful                       events.EventName = "GatewayRecyclingSuccessful"
+	EventGatewayRecyclingFailed                           events.EventName = "GatewayRecyclingFailed"
 )
