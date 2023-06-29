@@ -7,12 +7,15 @@ import (
 
 	hubv1alpha1 "github.com/kubeslice/apis/pkg/controller/v1alpha1"
 	spokev1alpha1 "github.com/kubeslice/apis/pkg/worker/v1alpha1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
+	ossEvents "github.com/kubeslice/worker-operator/events"
 	nsmv1 "github.com/networkservicemesh/sdk-k8s/pkg/tools/k8s/apis/networkservicemesh.io/v1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/util/retry"
@@ -98,6 +101,7 @@ var _ = Describe("Hub VPN Key Rotation", func() {
 		var createdSlice *kubeslicev1beta1.Slice
 		var createdSliceGw *kubeslicev1beta1.SliceGateway
 		var createSecretGw1 *corev1.Secret
+		var createdvpnKeyRotation *hubv1alpha1.VpnKeyRotation
 
 		BeforeEach(func() {
 			svc = &corev1.Service{
@@ -182,6 +186,7 @@ var _ = Describe("Hub VPN Key Rotation", func() {
 			createdSlice = &kubeslicev1beta1.Slice{}
 			createdSliceGw = &kubeslicev1beta1.SliceGateway{}
 			createSecretGw1 = &corev1.Secret{}
+			createdvpnKeyRotation = &hubv1alpha1.VpnKeyRotation{}
 
 			// Cleanup after each test
 			DeferCleanup(func() {
@@ -203,18 +208,6 @@ var _ = Describe("Hub VPN Key Rotation", func() {
 
 			Expect(k8sClient.Create(ctx, vpnKeyRotation)).Should(Succeed())
 
-			Eventually(func() error {
-				err := k8sClient.Get(ctx, types.NamespacedName{
-					Name:      vpnKeyRotation.Name,
-					Namespace: PROJECT_NS},
-					vpnKeyRotation)
-
-				if err != nil {
-					return err
-				}
-				return nil
-			}, time.Second*60, time.Millisecond*500).Should(BeNil())
-
 			Eventually(func() bool {
 				err := k8sClient.Get(ctx, types.NamespacedName{
 					Name:      vpnKeyRotation.Name,
@@ -232,6 +225,12 @@ var _ = Describe("Hub VPN Key Rotation", func() {
 				err := k8sClient.Update(ctx, vpnKeyRotation)
 				return err == nil
 			}, time.Second*30, time.Millisecond*250).Should(BeTrue())
+
+			events := &corev1.EventList{}
+			Eventually(func() bool {
+				err := k8sClient.List(ctx, events, client.InNamespace("kubeslice-system"))
+				return err == nil && len(events.Items) > 0 && eventFound(events, string(ossEvents.EventGatewayCertificateRecyclingTriggered))
+			}, 30*time.Second, 1*time.Second).Should(BeTrue())
 
 			//get the rotation object
 			Eventually(func() bool {
@@ -314,6 +313,12 @@ var _ = Describe("Hub VPN Key Rotation", func() {
 				return err == nil
 			}, time.Second*30, time.Millisecond*250).Should(BeTrue())
 
+			events := &corev1.EventList{}
+			Eventually(func() bool {
+				err := k8sClient.List(ctx, events, client.InNamespace("kubeslice-system"))
+				return err == nil && len(events.Items) > 0 && eventFound(events, string(ossEvents.EventGatewayCertificateUpdated))
+			}, 30*time.Second, 1*time.Second).Should(BeTrue())
+
 			Eventually(func() bool {
 				err := k8sClient.Get(ctx, types.NamespacedName{
 					Name:      vpnKeyRotation.Name,
@@ -359,18 +364,6 @@ var _ = Describe("Hub VPN Key Rotation", func() {
 
 			Expect(k8sClient.Create(ctx, vpnKeyRotation)).Should(Succeed())
 
-			Eventually(func() error {
-				err := k8sClient.Get(ctx, types.NamespacedName{
-					Name:      vpnKeyRotation.Name,
-					Namespace: PROJECT_NS},
-					vpnKeyRotation)
-
-				if err != nil {
-					return err
-				}
-				return nil
-			}, time.Second*60, time.Millisecond*500).Should(BeNil())
-
 			Eventually(func() bool {
 				err := k8sClient.Get(ctx, types.NamespacedName{
 					Name:      vpnKeyRotation.Name,
@@ -398,6 +391,85 @@ var _ = Describe("Hub VPN Key Rotation", func() {
 			}, time.Second*60, time.Millisecond*500).Should(BeNil())
 		})
 
+		It("should delete previous certificates", func() {
+			Expect(k8sClient.Create(ctx, vpnKeyRotation)).Should(Succeed())
+			Expect(k8sClient.Create(ctx, slice)).Should(Succeed())
+			Expect(k8sClient.Create(ctx, sliceGw)).Should(Succeed())
+			Expect(k8sClient.Create(ctx, hubSecretGw1)).Should(Succeed())
+			Expect(k8sClient.Create(ctx, hubSecretGw2)).Should(Succeed())
+			Expect(k8sClient.Create(ctx, hubSecretGw3)).Should(Succeed())
+			Eventually(func() error {
+				err := k8sClient.Get(ctx, types.NamespacedName{
+					Name:      vpnKeyRotation.Name,
+					Namespace: PROJECT_NS},
+					createdvpnKeyRotation)
+
+				if err != nil {
+					return err
+				}
+				return nil
+			}, time.Second*60, time.Millisecond*500).Should(BeNil())
+
+			err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+				err := k8sClient.Get(ctx, types.NamespacedName{
+					Name:      vpnKeyRotation.Name,
+					Namespace: PROJECT_NS,
+				}, createdvpnKeyRotation)
+				if err != nil {
+					return err
+				}
+				createdvpnKeyRotation.Status.CurrentRotationState = map[string]hubv1alpha1.StatusOfKeyRotation{
+					gws[0]: {
+						Status:               hubv1alpha1.InProgress,
+						LastUpdatedTimestamp: metav1.Time{Time: time.Now()},
+					},
+					gws[1]: {
+						Status:               hubv1alpha1.InProgress,
+						LastUpdatedTimestamp: metav1.Time{Time: time.Now()},
+					},
+					gws[2]: {
+						Status:               hubv1alpha1.InProgress,
+						LastUpdatedTimestamp: metav1.Time{Time: time.Now()},
+					},
+				}
+				err = k8sClient.Status().Update(ctx, createdvpnKeyRotation)
+				return err
+			})
+			Expect(err).ToNot(HaveOccurred())
+
+			//get the rotation object
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, types.NamespacedName{
+					Name:      vpnKeyRotation.Name,
+					Namespace: PROJECT_NS},
+					createdvpnKeyRotation)
+				if err != nil {
+					return false
+				}
+				for _, gw := range gws {
+					value, ok := createdvpnKeyRotation.Status.CurrentRotationState[gw]
+					if !ok {
+						return false
+					}
+					return value.Status == hubv1alpha1.Complete
+				}
+				return true
+			}, time.Second*80, time.Millisecond*500).Should(BeTrue())
+
+			events := &corev1.EventList{}
+			Eventually(func() bool {
+				err := k8sClient.List(ctx, events, client.InNamespace("kubeslice-system"))
+				return err == nil && len(events.Items) > 0 && eventFound(events, string(ossEvents.EventGatewayRecyclingSuccessful))
+			}, 30*time.Second, 1*time.Second).Should(BeTrue())
+
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, types.NamespacedName{
+					Name:      hubSecretGw1.Name + "-" + strconv.Itoa(vpnKeyRotation.Spec.RotationCount-1),
+					Namespace: CONTROL_PLANE_NS},
+					createSecretGw1)
+				return errors.IsNotFound(err)
+			}, time.Second*60, time.Millisecond*500).Should(BeTrue())
+		})
 	})
 
 	Context("VPN Key Rotation Completion", func() {
@@ -528,6 +600,12 @@ var _ = Describe("Hub VPN Key Rotation", func() {
 				}
 				return true
 			}, time.Second*80, time.Millisecond*500).Should(BeTrue())
+
+			events := &corev1.EventList{}
+			Eventually(func() bool {
+				err := k8sClient.List(ctx, events, client.InNamespace("kubeslice-system"))
+				return err == nil && len(events.Items) > 0 && eventFound(events, string(ossEvents.EventGatewayRecyclingSuccessful))
+			}, 30*time.Second, 1*time.Second).Should(BeTrue())
 		})
 
 		It("if workerslicegwrecylcer is present and in error - vpn should be error state", func() {
@@ -576,6 +654,12 @@ var _ = Describe("Hub VPN Key Rotation", func() {
 			})
 			Expect(err).ToNot(HaveOccurred())
 
+			events := &corev1.EventList{}
+			Eventually(func() bool {
+				err := k8sClient.List(ctx, events, client.InNamespace("kubeslice-system"))
+				return err == nil && len(events.Items) > 0 && eventFound(events, string(ossEvents.EventGatewayRecyclingFailed))
+			}, 30*time.Second, 1*time.Second).Should(BeTrue())
+
 			//get the rotation object
 			Eventually(func() bool {
 				err := k8sClient.Get(ctx, types.NamespacedName{
@@ -595,6 +679,7 @@ var _ = Describe("Hub VPN Key Rotation", func() {
 				return true
 			}, time.Second*60, time.Millisecond*500).Should(BeTrue())
 		})
+
 	})
 
 	Context("cluster attach/detach test", func() {
@@ -635,7 +720,7 @@ var _ = Describe("Hub VPN Key Rotation", func() {
 			}, time.Second*60, time.Millisecond*500).Should(BeTrue())
 		})
 
-		It("cluster append", func() {
+		It("cluster attach", func() {
 			Expect(k8sClient.Create(ctx, vpnKeyRotation)).Should(Succeed())
 			//get the rotation object
 			Eventually(func() bool {
@@ -670,7 +755,7 @@ var _ = Describe("Hub VPN Key Rotation", func() {
 			}, time.Second*60, time.Millisecond*500).Should(BeTrue())
 		})
 
-		It("cluster delete", func() {
+		It("cluster detach", func() {
 			Expect(k8sClient.Create(ctx, vpnKeyRotation)).Should(Succeed())
 			//get the rotation object
 			Eventually(func() bool {
@@ -726,4 +811,13 @@ func compareMapKeysAndArrayElements(myMap map[string]hubv1alpha1.StatusOfKeyRota
 	}
 
 	return len(myMap) == len(arrayElements)
+}
+
+func eventFound(events *corev1.EventList, eventTitle string) bool {
+	for _, event := range events.Items {
+		if event.Labels["eventTitle"] == eventTitle {
+			return true
+		}
+	}
+	return false
 }
