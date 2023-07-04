@@ -327,7 +327,7 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 			if err != nil {
 				return ctrl.Result{}, err
 			}
-			_, err = r.WorkerRecyclerClient.TriggerFSM(sliceGw, slice, newestPod, controllerName, sliceGwName+"-"+fmt.Sprint(0))
+			_, err = r.WorkerRecyclerClient.TriggerFSM(sliceGw, slice, newestPod, controllerName, sliceGwName+"-"+fmt.Sprint(0), 1)
 			// to maintain consistency with recycling we are creating this CR with zero as suffix in the name
 			if err != nil {
 				// TODO:add an event and log

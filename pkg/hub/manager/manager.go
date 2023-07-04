@@ -213,9 +213,6 @@ func Start(meshClient client.Client, hubClient client.Client, ctx context.Contex
 	err = builder.
 		ControllerManagedBy(mgr).
 		For(&hubv1alpha1.VpnKeyRotation{}).
-		WithEventFilter(predicate.NewPredicateFuncs(func(object client.Object) bool {
-			return object.GetName() == ClusterName
-		})).
 		WithEventFilter(predicate.GenerationChangedPredicate{}).
 		Complete(vpnKeyRotationReconciler)
 	if err != nil {

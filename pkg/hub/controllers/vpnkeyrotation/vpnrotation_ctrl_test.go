@@ -144,8 +144,8 @@ var _ = Describe("Hub VPN Key Rotation", func() {
 					ClusterGatewayMapping: map[string][]string{
 						CLUSTER_NAME: gws,
 					},
-					CertificateCreationTime: metav1.Time{Time: time.Now()},
-					CertificateExpiryTime:   metav1.Time{Time: time.Now().AddDate(0, 0, 30)},
+					CertificateCreationTime: &metav1.Time{Time: time.Now()},
+					CertificateExpiryTime:   &metav1.Time{Time: time.Now().AddDate(0, 0, 30)},
 					RotationInterval:        30,
 					RotationCount:           2,
 				},
@@ -219,8 +219,8 @@ var _ = Describe("Hub VPN Key Rotation", func() {
 				return len(vpnKeyRotation.Status.CurrentRotationState) != 0
 			}, time.Second*60, time.Millisecond*500).Should(BeTrue())
 
-			vpnKeyRotation.Spec.CertificateCreationTime = metav1.Time{Time: time.Now().AddDate(0, 0, 30)}
-			vpnKeyRotation.Spec.CertificateExpiryTime = metav1.Time{Time: time.Now().AddDate(0, 0, 30)}
+			vpnKeyRotation.Spec.CertificateCreationTime = &metav1.Time{Time: time.Now().AddDate(0, 0, 30)}
+			vpnKeyRotation.Spec.CertificateExpiryTime = &metav1.Time{Time: time.Now().AddDate(0, 0, 30)}
 			Eventually(func() bool {
 				err := k8sClient.Update(ctx, vpnKeyRotation)
 				return err == nil
@@ -306,8 +306,8 @@ var _ = Describe("Hub VPN Key Rotation", func() {
 				return len(vpnKeyRotation.Status.CurrentRotationState) != 0
 			}, time.Second*60, time.Millisecond*500).Should(BeTrue())
 
-			vpnKeyRotation.Spec.CertificateCreationTime = metav1.Time{Time: time.Now().AddDate(0, 0, 30)}
-			vpnKeyRotation.Spec.CertificateExpiryTime = metav1.Time{Time: time.Now().AddDate(0, 0, 60)}
+			vpnKeyRotation.Spec.CertificateCreationTime = &metav1.Time{Time: time.Now().AddDate(0, 0, 30)}
+			vpnKeyRotation.Spec.CertificateExpiryTime = &metav1.Time{Time: time.Now().AddDate(0, 0, 60)}
 			Eventually(func() bool {
 				err := k8sClient.Update(ctx, vpnKeyRotation)
 				return err == nil
@@ -375,8 +375,8 @@ var _ = Describe("Hub VPN Key Rotation", func() {
 				return len(vpnKeyRotation.Status.CurrentRotationState) != 0
 			}, time.Second*60, time.Millisecond*500).Should(BeTrue())
 
-			vpnKeyRotation.Spec.CertificateCreationTime = metav1.Time{Time: time.Now().AddDate(0, 0, 30)}
-			vpnKeyRotation.Spec.CertificateExpiryTime = metav1.Time{Time: time.Now().AddDate(0, 0, 60)}
+			vpnKeyRotation.Spec.CertificateCreationTime = &metav1.Time{Time: time.Now().AddDate(0, 0, 30)}
+			vpnKeyRotation.Spec.CertificateExpiryTime = &metav1.Time{Time: time.Now().AddDate(0, 0, 60)}
 			Eventually(func() bool {
 				err := k8sClient.Update(ctx, vpnKeyRotation)
 				return err == nil
@@ -491,8 +491,8 @@ var _ = Describe("Hub VPN Key Rotation", func() {
 					ClusterGatewayMapping: map[string][]string{
 						CLUSTER_NAME: gws,
 					},
-					CertificateCreationTime: metav1.Time{Time: time.Now()},
-					CertificateExpiryTime:   metav1.Time{Time: time.Now().AddDate(0, 0, 30)},
+					CertificateCreationTime: &metav1.Time{Time: time.Now()},
+					CertificateExpiryTime:   &metav1.Time{Time: time.Now().AddDate(0, 0, 30)},
 					RotationInterval:        30,
 				},
 			}
