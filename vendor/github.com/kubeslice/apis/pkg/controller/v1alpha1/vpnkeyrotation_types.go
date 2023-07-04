@@ -28,13 +28,16 @@ type VpnKeyRotationSpec struct {
 	SliceName string `json:"sliceName,omitempty"`
 	// ClusterGatewayMapping represents a map where key is cluster name and value is array of gateways present on that cluster.
 	// This is used to avoid unnecessary reconciliation in worker-operator.
-	ClusterGatewayMapping map[string][]string `json:"gateways,omitempty"`
+	ClusterGatewayMapping map[string][]string `json:"clusterGatewayMapping,omitempty"`
 	// CertificateCreationTime is a time when certificate for all the gateway pairs is created/updated
-	CertificateCreationTime metav1.Time `json:"certificateCreationTime,omitempty"`
+	CertificateCreationTime *metav1.Time `json:"certificateCreationTime,omitempty"`
 	// CertificateExpiryTime is a time when certificate for all the gateway pairs will expire
-	CertificateExpiryTime metav1.Time `json:"certificateExpiryTime,omitempty"`
-	RotationInterval      int         `json:"rotationInterval,omitempty"`
-	RotationCount         int         `json:"rotationCount,omitempty"`
+	CertificateExpiryTime *metav1.Time `json:"certificateExpiryTime,omitempty"`
+	RotationInterval      int          `json:"rotationInterval,omitempty"`
+	// clusters contains the list of clusters attached to this slice
+	Clusters []string `json:"clusters,omitempty"`
+	// RotationCount represent the number of times rotation has been already performed.
+	RotationCount int `json:"rotationCount,omitempty"`
 }
 
 // VpnKeyRotationStatus defines the observed state of VpnKeyRotation
@@ -45,9 +48,10 @@ type VpnKeyRotationStatus struct {
 	StatusHistory map[string][]StatusOfKeyRotation `json:"statusHistory,omitempty"`
 }
 
+// StatusOfKeyRotation represent per gateway status
 type StatusOfKeyRotation struct {
-	Status               string      `json:"status"`
-	LastUpdatedTimestamp metav1.Time `json:"lastUpdatedTimestamp"`
+	Status               string      `json:"status,omitempty"`
+	LastUpdatedTimestamp metav1.Time `json:"lastUpdatedTimestamp,omitempty"`
 }
 
 //+kubebuilder:object:root=true
@@ -75,6 +79,7 @@ func init() {
 	SchemeBuilder.Register(&VpnKeyRotation{}, &VpnKeyRotationList{})
 }
 
+// status of key rotation updated by workers
 const (
 	SecretReadInProgress string = "READ_IN_PROGRESS"
 	SecretUpdated        string = "SECRET_UPDATED"

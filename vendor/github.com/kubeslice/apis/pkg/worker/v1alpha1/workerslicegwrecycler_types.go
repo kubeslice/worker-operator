@@ -27,6 +27,7 @@ import (
 type WorkerSliceGwRecyclerSpec struct {
 	SliceGwServer string `json:"sliceGwServer,omitempty"`
 	SliceGwClient string `json:"sliceGwClient,omitempty"`
+	RedundancyNumber int `json:"redundancyNumber,omitempty"`
 	GwPair        GwPair `json:"gwPair,omitempty"`
 	State         string `json:"state,omitempty"`
 	Request       string `json:"request,omitempty"`

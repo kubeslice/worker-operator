@@ -45,7 +45,7 @@ func NewRecyclerClient(ctx context.Context, workerClient client.Client, controll
 }
 
 func (r recyclerClient) TriggerFSM(sliceGw *kubeslicev1beta1.SliceGateway, slice *kubeslicev1beta1.Slice,
-	gatewayPod *corev1.Pod, controllerName, gwRecyclerName string) (bool, error) {
+	gatewayPod *corev1.Pod, controllerName, gwRecyclerName string, numberOfGwSvc int) (bool, error) {
 	// start FSM for graceful termination of gateway pods
 	// create workerslicegwrecycler on controller
 	log := logger.FromContext(r.ctx)
@@ -58,7 +58,11 @@ func (r recyclerClient) TriggerFSM(sliceGw *kubeslicev1beta1.SliceGateway, slice
 		utils.RecordEvent(r.ctx, r.eventRecorder, sliceGw, slice, ossEvents.EventSliceGWRemotePodSyncFailed, controllerName)
 		return false, err
 	}
-	err = r.controllerClient.(*hub.HubClientConfig).CreateWorkerSliceGwRecycler(r.ctx, gwRecyclerName, clientID, gatewayPod.Name, sliceGw.Name, sliceGw.Status.Config.SliceGatewayRemoteGatewayID, sliceGw.Spec.SliceName)
+	err = r.controllerClient.(*hub.HubClientConfig).CreateWorkerSliceGwRecycler(r.ctx,
+		gwRecyclerName,            // recycler name
+		clientID, gatewayPod.Name, // gateway pod pairs to recycle
+		sliceGw.Name, sliceGw.Status.Config.SliceGatewayRemoteGatewayID, // slice gateway server and client name
+		sliceGw.Spec.SliceName) // slice name
 	if err != nil {
 		if apierrors.IsAlreadyExists(err) {
 			return false, nil
@@ -67,7 +71,7 @@ func (r recyclerClient) TriggerFSM(sliceGw *kubeslicev1beta1.SliceGateway, slice
 	}
 	utils.RecordEvent(r.ctx, r.eventRecorder, sliceGw, slice, ossEvents.EventSliceGWRebalancingSuccess, controllerName)
 	// spawn a new gw nodeport service
-	_, _, _, err = r.handleSliceGwSvcCreation(sliceGw, NumberOfGateways+1, controllerName)
+	_, _, _, err = r.handleSliceGwSvcCreation(sliceGw, NumberOfGateways+numberOfGwSvc, controllerName)
 	if err != nil {
 		//TODO:add an event and log
 		return false, err
