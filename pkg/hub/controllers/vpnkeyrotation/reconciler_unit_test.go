@@ -47,7 +47,7 @@ var testVPNKeyRotationObject = &hubv1alpha1.VpnKeyRotation{
 		ClusterGatewayMapping: map[string][]string{
 			"cluster1": {"fire-worker-2-worker-1", "fire-worker-2-worker-3", "fire-worker-2-worker-4"},
 		},
-		CertificateCreationTime: metav1.Time{Time: time.Now()},
+		CertificateCreationTime: &metav1.Time{Time: time.Now()},
 	},
 	Status: hubv1alpha1.VpnKeyRotationStatus{},
 }
@@ -61,7 +61,7 @@ var testVPNKeyRotationObjectWithInProgressStatus = &hubv1alpha1.VpnKeyRotation{
 		ClusterGatewayMapping: map[string][]string{
 			"cluster1": {"fire-worker-2-worker-1", "fire-worker-2-worker-3", "fire-worker-2-worker-4"},
 		},
-		CertificateCreationTime: metav1.Time{Time: time.Now()},
+		CertificateCreationTime: &metav1.Time{Time: time.Now()},
 	},
 	Status: hubv1alpha1.VpnKeyRotationStatus{
 		CurrentRotationState: map[string]hubv1alpha1.StatusOfKeyRotation{
@@ -82,7 +82,7 @@ var testVPNKeyRotationObjectWithIntervalTest = &hubv1alpha1.VpnKeyRotation{
 		ClusterGatewayMapping: map[string][]string{
 			"cluster1": {"fire-worker-2-worker-1", "fire-worker-2-worker-3", "fire-worker-2-worker-4"},
 		},
-		CertificateCreationTime: metav1.Time{Time: time.Now()},
+		CertificateCreationTime: &metav1.Time{Time: time.Now()},
 	},
 	Status: hubv1alpha1.VpnKeyRotationStatus{
 		CurrentRotationState: map[string]hubv1alpha1.StatusOfKeyRotation{
@@ -236,7 +236,7 @@ func TestReconcilerVPNRotationReconcilerCompletionAsSuccess(t *testing.T) {
 			ClusterGatewayMapping: map[string][]string{
 				"cluster1": {"fire-worker-2-worker-1"},
 			},
-			CertificateCreationTime: metav1.Time{Time: time.Now()},
+			CertificateCreationTime: &metav1.Time{Time: time.Now()},
 		},
 		Status: hubv1alpha1.VpnKeyRotationStatus{
 			CurrentRotationState: map[string]hubv1alpha1.StatusOfKeyRotation{
@@ -667,7 +667,7 @@ func TestReconcilerSecretCreationError(t *testing.T) {
 			ClusterGatewayMapping: map[string][]string{
 				"cluster1": {"fire-worker-2-worker-1", "fire-worker-2-worker-3", "fire-worker-2-worker-4"},
 			},
-			CertificateCreationTime: metav1.Time{Time: time.Now()},
+			CertificateCreationTime: &metav1.Time{Time: time.Now()},
 		},
 		Status: hubv1alpha1.VpnKeyRotationStatus{
 			CurrentRotationState: map[string]hubv1alpha1.StatusOfKeyRotation{
@@ -791,7 +791,7 @@ func TestReconcilerControllerSecretNotFound(t *testing.T) {
 			ClusterGatewayMapping: map[string][]string{
 				"cluster1": {"fire-worker-2-worker-1", "fire-worker-2-worker-3"},
 			},
-			CertificateCreationTime: metav1.Time{Time: time.Now()},
+			CertificateCreationTime: &metav1.Time{Time: time.Now()},
 		},
 		Status: hubv1alpha1.VpnKeyRotationStatus{
 			CurrentRotationState: map[string]hubv1alpha1.StatusOfKeyRotation{
@@ -906,7 +906,7 @@ func TestReconcilerSecretCreationAndRequeue(t *testing.T) {
 			ClusterGatewayMapping: map[string][]string{
 				"cluster1": {"fire-worker-2-worker-1", "fire-worker-2-worker-3"},
 			},
-			CertificateCreationTime: metav1.Time{Time: time.Now()},
+			CertificateCreationTime: &metav1.Time{Time: time.Now()},
 		},
 		Status: hubv1alpha1.VpnKeyRotationStatus{
 			CurrentRotationState: map[string]hubv1alpha1.StatusOfKeyRotation{
@@ -1026,7 +1026,7 @@ func TestReconcilerClusterSync(t *testing.T) {
 			ClusterGatewayMapping: map[string][]string{
 				"cluster1": {"fire-worker-2-worker-1", "fire-worker-2-worker-3"},
 			},
-			CertificateCreationTime: metav1.Time{Time: time.Now()},
+			CertificateCreationTime: &metav1.Time{Time: time.Now()},
 		},
 		Status: hubv1alpha1.VpnKeyRotationStatus{
 			CurrentRotationState: map[string]hubv1alpha1.StatusOfKeyRotation{
@@ -1060,9 +1060,23 @@ func TestReconcilerClusterSync(t *testing.T) {
 	}
 	client := utilmock.NewClient()
 	mf, _ := metrics.NewMetricsFactory(prometheus.NewRegistry(), metrics.MetricsFactoryOptions{})
-	reconciler := NewReconciler(client, &hub.HubClientConfig{
-		Client: client,
-	}, nil, mf, nil)
+	gv := hubv1alpha1.GroupVersion
+	testScheme := runtime.NewScheme()
+	err := scheme.AddToScheme(testScheme)
+	if err != nil {
+		t.Fatalf("Error adding core scheme to test scheme: %v", err)
+	}
+	testScheme.AddKnownTypeWithName(gv.WithKind("VpnKeyRotation"), &hubv1alpha1.VpnKeyRotation{})
+	testClusterEventRecorder := mevents.NewEventRecorder(client, testScheme, ossEvents.EventsMap, mevents.EventRecorderOptions{
+		Cluster:   "test-cluster",
+		Project:   "avesha",
+		Component: "worker-operator",
+		Namespace: controllers.ControlPlaneNamespace,
+	})
+	reconciler := NewReconciler(client,
+		&hub.HubClientConfig{
+			Client: client,
+		}, &testClusterEventRecorder, mf, nil)
 	reconciler.InjectClient(client)
 	ctx := context.WithValue(context.Background(), types.NamespacedName{Name: testVPNKeyRotationName, Namespace: testProjectNamespace}, vpnKeyRotationObj)
 	vpmRotationKey := types.NamespacedName{Namespace: testProjectNamespace, Name: testVPNKeyRotationName}
@@ -1090,6 +1104,21 @@ func TestReconcilerClusterSync(t *testing.T) {
 		mock.IsType(&hubv1alpha1.VpnKeyRotation{}),
 		mock.IsType([]k8sclient.UpdateOption(nil)),
 	).Return(nil)
+	// client.On("Create",
+	// 	mock.IsType(ctx),
+	// 	mock.IsType(&corev1.Event{}),
+	// 	mock.IsType([]k8sclient.CreateOption(nil)),
+	// ).Return(nil)
+	// client.On("Create",
+	// 	mock.IsType(ctx),
+	// 	mock.IsType(&corev1.Secret{}),
+	// 	mock.IsType([]k8sclient.CreateOption(nil)),
+	// ).Return(nil)
+	// client.On("Get",
+	// 	mock.IsType(ctx),
+	// 	mock.IsType(types.NamespacedName{Name: "fire-worker-2-worker-1-0"}),
+	// 	mock.IsType(&corev1.Secret{}),
+	// ).Return(nil, false, nil)
 	result, err := reconciler.Reconcile(expected.ctx, expected.req)
 	if err != nil && expected.res != result {
 		t.Error("Expected response :", expected.res, " but got ", result)
@@ -1107,7 +1136,7 @@ func TestReconcileRotationSyncingClusterAttach(t *testing.T) {
 			ClusterGatewayMapping: map[string][]string{
 				"cluster1": allGws,
 			},
-			CertificateCreationTime: metav1.Time{Time: time.Now()},
+			CertificateCreationTime: &metav1.Time{Time: time.Now()},
 		},
 		Status: hubv1alpha1.VpnKeyRotationStatus{
 			CurrentRotationState: map[string]hubv1alpha1.StatusOfKeyRotation{
@@ -1183,7 +1212,7 @@ func TestReconcileRotationSyncingClusterDetach(t *testing.T) {
 			ClusterGatewayMapping: map[string][]string{
 				"cluster1": allGws,
 			},
-			CertificateCreationTime: metav1.Time{Time: time.Now()},
+			CertificateCreationTime: &metav1.Time{Time: time.Now()},
 		},
 		Status: hubv1alpha1.VpnKeyRotationStatus{
 			CurrentRotationState: map[string]hubv1alpha1.StatusOfKeyRotation{
