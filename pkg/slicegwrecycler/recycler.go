@@ -19,9 +19,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
-	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
 const (
@@ -48,8 +46,7 @@ func (r recyclerClient) TriggerFSM(sliceGw *kubeslicev1beta1.SliceGateway, slice
 	gatewayPod *corev1.Pod, controllerName, gwRecyclerName string, numberOfGwSvc int) (bool, error) {
 	// start FSM for graceful termination of gateway pods
 	// create workerslicegwrecycler on controller
-	log := logger.FromContext(r.ctx)
-
+	log := logger.FromContext(r.ctx).WithName("fsm-recycler")
 	gwRemoteVpnIP := sliceGw.Status.Config.SliceGatewayRemoteVpnIP
 	clientID, err := r.getRemoteGwPodName(gwRemoteVpnIP, gatewayPod.Status.PodIP)
 	if err != nil {
@@ -58,6 +55,7 @@ func (r recyclerClient) TriggerFSM(sliceGw *kubeslicev1beta1.SliceGateway, slice
 		utils.RecordEvent(r.ctx, r.eventRecorder, sliceGw, slice, ossEvents.EventSliceGWRemotePodSyncFailed, controllerName)
 		return false, err
 	}
+	log.Info("creating workerslicegwrecycler", "gwRecyclerName", gwRecyclerName)
 	err = r.controllerClient.(*hub.HubClientConfig).CreateWorkerSliceGwRecycler(r.ctx,
 		gwRecyclerName,            // recycler name
 		clientID, gatewayPod.Name, // gateway pod pairs to recycle
@@ -71,7 +69,8 @@ func (r recyclerClient) TriggerFSM(sliceGw *kubeslicev1beta1.SliceGateway, slice
 	}
 	utils.RecordEvent(r.ctx, r.eventRecorder, sliceGw, slice, ossEvents.EventSliceGWRebalancingSuccess, controllerName)
 	// spawn a new gw nodeport service
-	_, _, _, err = r.handleSliceGwSvcCreation(sliceGw, NumberOfGateways+numberOfGwSvc, controllerName)
+	log.Info("creating service", "NumberOfGateways+numberOfGwSvc", NumberOfGateways+numberOfGwSvc)
+	err = r.handleSliceGwSvcCreation(sliceGw, NumberOfGateways+numberOfGwSvc, controllerName)
 	if err != nil {
 		//TODO:add an event and log
 		return false, err
@@ -81,12 +80,16 @@ func (r recyclerClient) TriggerFSM(sliceGw *kubeslicev1beta1.SliceGateway, slice
 
 // The function was relocated to this location in order to consolidate it into a central location
 // and facilitate its use as a utility function.
-func (r recyclerClient) handleSliceGwSvcCreation(sliceGw *kubeslicev1beta1.SliceGateway, n int, controllerName string) (bool, reconcile.Result, []int, error) {
-	log := logger.FromContext(r.ctx).WithName("slicegw")
+func (r recyclerClient) handleSliceGwSvcCreation(sliceGw *kubeslicev1beta1.SliceGateway, n int, controllerName string) error {
+	log := logger.FromContext(r.ctx).WithName("fsm-recycler")
 	sliceGwName := sliceGw.Name
 	foundsvc := &corev1.Service{}
 	var sliceGwNodePorts []int
-	no, _ := r.getNumberOfGatewayNodePortServices(sliceGw)
+	no, err := r.getNumberOfGatewayNodePortServices(sliceGw)
+	if err != nil {
+		return err
+
+	}
 	if no != n {
 		// capping the number of services to be 2 for now, later i will be equal to number of gateway nodes,eg: i = len(node.GetExternalIpList())
 		for i := 0; i < n; i++ {
@@ -98,28 +101,28 @@ func (r recyclerClient) handleSliceGwSvcCreation(sliceGw *kubeslicev1beta1.Slice
 					err = r.workerClient.Create(r.ctx, svc)
 					if err != nil {
 						log.Error(err, "Failed to create new Service", "Namespace", svc.Namespace, "Name", svc.Name)
-						return true, ctrl.Result{}, nil, err
+						return err
 					}
-					return true, ctrl.Result{Requeue: true}, nil, nil
+					return nil
 				}
 				log.Error(err, "Failed to get Service")
-				return true, ctrl.Result{}, nil, err
+				return err
 			}
 		}
 	}
 	sliceGwNodePorts, _ = r.getNodePorts(sliceGw)
-	err := r.controllerClient.(*hub.HubClientConfig).UpdateNodePortForSliceGwServer(r.ctx, sliceGwNodePorts, sliceGwName)
+	err = r.controllerClient.(*hub.HubClientConfig).UpdateNodePortForSliceGwServer(r.ctx, sliceGwNodePorts, sliceGwName)
 	if err != nil {
 		log.Error(err, "Failed to update NodePort for sliceGw in the hub")
 		utils.RecordEvent(r.ctx, r.eventRecorder, sliceGw, nil, ossEvents.EventSliceGWNodePortUpdateFailed, controllerName)
-		return true, ctrl.Result{}, sliceGwNodePorts, err
+		return err
 	}
-	return false, reconcile.Result{}, sliceGwNodePorts, nil
+	return nil
 }
 
 // getRemoteGwPodName returns the remote gw PodName.
 func (r recyclerClient) getRemoteGwPodName(gwRemoteVpnIP string, podIP string) (string, error) {
-	log := logger.FromContext(r.ctx)
+	log := logger.FromContext(r.ctx).WithName("fsm-recycler")
 	log.Info("calling gw sidecar to get PodName", "type", "slicegw")
 	sidecarGrpcAddress := podIP + ":5000"
 	workerGWClient, err := sidecar.NewWorkerGWSidecarClientProvider()
