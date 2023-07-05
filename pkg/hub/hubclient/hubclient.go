@@ -120,6 +120,7 @@ func (hubClient *HubClientConfig) ListWorkerSliceGwRecycler(ctx context.Context,
 	labels := map[string]string{"slicegw_name": sliceGWName}
 	listOpts := []client.ListOption{
 		client.MatchingLabels(labels),
+		client.InNamespace(ProjectNamespace),
 	}
 	err := hubClient.List(ctx, &workerslicegwrecycler, listOpts...)
 	if err != nil {
