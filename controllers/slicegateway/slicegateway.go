@@ -346,6 +346,7 @@ func (r *SliceGwReconciler) serviceForGateway(g *kubeslicev1beta1.SliceGateway, 
 			Labels: map[string]string{
 				controllers.ApplicationNamespaceSelectorLabelKey: g.Spec.SliceName,
 				"kubeslice.io/slicegw":                           g.Name,
+				"kubeslice.io/slicegatewayRedundancyNumber":      fmt.Sprint(i % 2),
 			},
 		},
 		Spec: corev1.ServiceSpec{
@@ -419,6 +420,7 @@ func (r *SliceGwReconciler) deploymentForGatewayClient(g *kubeslicev1beta1.Slice
 				controllers.ApplicationNamespaceSelectorLabelKey: g.Spec.SliceName,
 				webhook.PodInjectLabelKey:                        "slicegateway",
 				"kubeslice.io/slicegw":                           g.Name,
+				"kubeslice.io/slicegatewayRedundancyNumber":      fmt.Sprint(i % 2),
 			},
 		},
 		Spec: appsv1.DeploymentSpec{

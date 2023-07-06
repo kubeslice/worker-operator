@@ -3,6 +3,7 @@ package workerslicegwrecycler
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"time"
 
@@ -290,6 +291,7 @@ func (r *Reconciler) update_routing_table(e *fsm.Event) error {
 		listOpts := []client.ListOption{
 			client.MatchingLabels(map[string]string{
 				controllers.ApplicationNamespaceSelectorLabelKey: slicegateway.Spec.SliceName,
+				"kubeslice.io/slicegatewayRedundancyNumber":      fmt.Sprint(workerslicegwrecycler.Spec.RedundancyNumber),
 			}),
 			client.InNamespace(controllers.ControlPlaneNamespace),
 		}
