@@ -75,8 +75,8 @@ func (r *Reconciler) verify_new_deployment_created(e *fsm.Event) error {
 				r.Log.Error(err, "Failed to List gw deployments")
 				return err
 			}
-			// Check if Number of GW deployments should equal to 3
-			if len(deployList.Items) != 3 {
+			// Check if Number of GW deployments should equal to 2
+			if len(deployList.Items) != 2 {
 				return errors.New("number of GW deployemt should equal to 3")
 			}
 			newGwDeploy, err := r.getNewestGwDeploy(ctx, workerslicegwrecycler.Spec.SliceGwServer)
