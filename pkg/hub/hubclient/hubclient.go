@@ -171,6 +171,18 @@ func (hubClient *HubClientConfig) GetClusterNodeIP(ctx context.Context, clusterN
 	return cluster.Status.NodeIPs, nil
 }
 
+func (hubClient *HubClientConfig) GetVPNKeyRotation(ctx context.Context, rotationName string) (*hubv1alpha1.VpnKeyRotation, error) {
+	vpnKeyRotation := &hubv1alpha1.VpnKeyRotation{}
+	err := hubClient.Get(ctx, types.NamespacedName{
+		Name:      rotationName,
+		Namespace: ProjectNamespace,
+	}, vpnKeyRotation)
+	if err != nil {
+		return nil, err
+	}
+	return vpnKeyRotation, nil
+}
+
 func UpdateNamespaceInfoToHub(ctx context.Context, hubClient client.Client, onboardNamespace, sliceName string) error {
 	hubCluster := &hubv1alpha1.Cluster{}
 	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
