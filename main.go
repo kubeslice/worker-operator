@@ -185,7 +185,7 @@ func main() {
 		Component: "sliceController",
 		Namespace: controllers.ControlPlaneNamespace,
 	})
-	workerRecyclerClient, err := slicegwrecycler.NewRecyclerClient(ctx, clientForHubMgr, hubClient, &sliceEventRecorder)
+	workerRecyclerClient, err := slicegwrecycler.NewRecyclerClient(ctx, clientForHubMgr, hubClient, &sliceEventRecorder, mgr.GetScheme())
 	if err != nil {
 		os.Exit(1)
 	}
