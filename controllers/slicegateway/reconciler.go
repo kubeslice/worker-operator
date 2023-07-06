@@ -239,14 +239,20 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		log.Info("number of nodeports", "nodeports", sliceGw.Status.Config.SliceGatewayRemoteNodePorts, "len", len(sliceGw.Status.Config.SliceGatewayRemoteNodePorts))
 	}
 	log.Info("gw deployments", "deployments", len(deployments.Items))
+
 	if len(deployments.Items) < noOfGwServices {
+		vpnKeyRotation, err := r.HubClient.GetVPNKeyRotation(ctx, sliceName)
+		if err != nil {
+			log.Error(err, "yyy")
+			return ctrl.Result{}, err
+		}
 		for i := 0; i < noOfGwServices; i++ {
 			found := &appsv1.Deployment{}
 			err = r.Get(ctx, types.NamespacedName{Name: sliceGwName + "-" + fmt.Sprint(i), Namespace: controllers.ControlPlaneNamespace}, found)
 			if err != nil {
 				if errors.IsNotFound(err) {
 					// Define a new deployment
-					dep := r.deploymentForGateway(sliceGw, i)
+					dep := r.deploymentForGateway(sliceGw, i, vpnKeyRotation.Spec.RotationCount)
 					log.Info("Creating a new Deployment", "Namespace", dep.Namespace, "Name", dep.Name)
 					err = r.Create(ctx, dep)
 					if err != nil {

@@ -57,7 +57,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (ctrl
 	if vpnKeyRotation.Spec.CertificateCreationTime == nil {
 		return ctrl.Result{
 			RequeueAfter: time.Second,
-		}, err
+		}, nil
 	}
 	// Step 1: Begin the process of initializing the status of key rotation using certification creation data.
 	allGwsUnderCluster := vpnKeyRotation.Spec.ClusterGatewayMapping[os.Getenv("CLUSTER_NAME")]
@@ -110,6 +110,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (ctrl
 						} else {
 							// This means that recycling is in progress.
 							// We will queue the task again and recheck after a five-minute interval.
+							log.Info("gateway recycler is in progress state", "gateway", v.Name)
 							return ctrl.Result{RequeueAfter: time.Minute * 5}, nil
 						}
 					}
@@ -152,7 +153,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (ctrl
 
 			result, requeue, err := r.updateCertificates(ctx, vpnKeyRotation.Spec.RotationCount, selectedGw, req)
 			if requeue {
-				return ctrl.Result{Requeue: true}, nil
+				return result, nil
 			}
 			if err != nil {
 				log.Error(err, "Failed to update certificates")
@@ -400,7 +401,7 @@ func (r *Reconciler) updateCertificates(ctx context.Context, rotationVersion int
 				log.Error(err, "unable to fetch slicegw certs from the hub", "sliceGw", sliceGw)
 				return ctrl.Result{
 					RequeueAfter: 10 * time.Second,
-				}, false, err
+				}, true, nil
 			}
 			meshSliceGwCerts := &corev1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
@@ -416,7 +417,7 @@ func (r *Reconciler) updateCertificates(ctx context.Context, rotationVersion int
 			}
 			log.Info("sliceGw secret created in worker cluster")
 			// this required requeueing
-			return ctrl.Result{}, true, nil
+			return ctrl.Result{Requeue: true}, true, nil
 		} else {
 			log.Error(err, "unable to fetch slicegw certs from the worker", "sliceGw", sliceGw)
 			return ctrl.Result{}, false, err
