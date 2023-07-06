@@ -70,7 +70,7 @@ type HubClientRpc interface {
 	UpdateServiceExportEndpointForIngressGw(ctx context.Context, serviceexport *kubeslicev1beta1.ServiceExport,
 		ep *kubeslicev1beta1.ServicePod) error
 	UpdateAppNamespaces(ctx context.Context, sliceConfigName string, onboardedNamespaces []string) error
-	CreateWorkerSliceGwRecycler(ctx context.Context, gwRecyclerName, clientID, serverID, sliceGwServer, sliceGwClient, slice string) error
+	CreateWorkerSliceGwRecycler(ctx context.Context, gwRecyclerName, clientID, serverID, sliceGwServer, sliceGwClient, slice, redundancyNumber string) error
 }
 
 func NewHubClientConfig(er *monitoring.EventRecorder) (*HubClientConfig, error) {
