@@ -84,15 +84,15 @@ func labelsForSliceGwStatus(name string) map[string]string {
 }
 
 // deploymentForGateway returns a gateway Deployment object
-func (r *SliceGwReconciler) deploymentForGateway(g *kubeslicev1beta1.SliceGateway, i int) *appsv1.Deployment {
+func (r *SliceGwReconciler) deploymentForGateway(g *kubeslicev1beta1.SliceGateway, i, rotationCount int) *appsv1.Deployment {
 	if g.Status.Config.SliceGatewayHostType == "Server" {
-		return r.deploymentForGatewayServer(g, i)
+		return r.deploymentForGatewayServer(g, i, rotationCount)
 	} else {
-		return r.deploymentForGatewayClient(g, i)
+		return r.deploymentForGatewayClient(g, i, rotationCount)
 	}
 }
 
-func (r *SliceGwReconciler) deploymentForGatewayServer(g *kubeslicev1beta1.SliceGateway, i int) *appsv1.Deployment {
+func (r *SliceGwReconciler) deploymentForGatewayServer(g *kubeslicev1beta1.SliceGateway, i, rotationCount int) *appsv1.Deployment {
 	ls := labelsForSliceGwDeployment(g.Name, g.Spec.SliceName, i)
 
 	var replicas int32 = 1
@@ -278,7 +278,7 @@ func (r *SliceGwReconciler) deploymentForGatewayServer(g *kubeslicev1beta1.Slice
 							Name: "vpn-certs",
 							VolumeSource: corev1.VolumeSource{
 								Secret: &corev1.SecretVolumeSource{
-									SecretName:  g.Name,
+									SecretName:  g.Name + "-" + strconv.Itoa(rotationCount), // append rotation count
 									DefaultMode: &vpnSecretDefaultMode,
 									Items: []corev1.KeyToPath{
 										{
@@ -364,7 +364,7 @@ func (r *SliceGwReconciler) serviceForGateway(g *kubeslicev1beta1.SliceGateway, 
 	return svc
 }
 
-func (r *SliceGwReconciler) deploymentForGatewayClient(g *kubeslicev1beta1.SliceGateway, i int) *appsv1.Deployment {
+func (r *SliceGwReconciler) deploymentForGatewayClient(g *kubeslicev1beta1.SliceGateway, i, rotationCount int) *appsv1.Deployment {
 	var replicas int32 = 1
 	var privileged = true
 
@@ -552,7 +552,7 @@ func (r *SliceGwReconciler) deploymentForGatewayClient(g *kubeslicev1beta1.Slice
 						Name: "shared-volume",
 						VolumeSource: corev1.VolumeSource{
 							Secret: &corev1.SecretVolumeSource{
-								SecretName:  g.Name,
+								SecretName:  g.Name + "-" + strconv.Itoa(rotationCount),
 								DefaultMode: &vpnSecretDefaultMode,
 								Items: []corev1.KeyToPath{
 									{

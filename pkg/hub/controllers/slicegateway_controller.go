@@ -23,7 +23,9 @@ import (
 	"strconv"
 	"time"
 
+	hubv1alpha1 "github.com/kubeslice/apis/pkg/controller/v1alpha1"
 	spokev1alpha1 "github.com/kubeslice/apis/pkg/worker/v1alpha1"
+
 	"github.com/kubeslice/kubeslice-monitoring/pkg/events"
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
 	"github.com/kubeslice/worker-operator/controllers"
@@ -134,8 +136,17 @@ func (r *SliceGwReconciler) InjectClient(c client.Client) error {
 func (r *SliceGwReconciler) createSliceGwCerts(ctx context.Context, sliceGw *spokev1alpha1.WorkerSliceGateway, req reconcile.Request) (reconcile.Result, error) {
 	log := logger.FromContext(ctx)
 	meshSliceGwCerts := &corev1.Secret{}
-	err := r.MeshClient.Get(ctx, types.NamespacedName{
-		Name:      sliceGw.Name,
+	vpnKeyRotation := &hubv1alpha1.VpnKeyRotation{}
+	err := r.Get(ctx, types.NamespacedName{
+		Name:      sliceGw.Spec.SliceName,
+		Namespace: req.NamespacedName.Namespace,
+	}, vpnKeyRotation)
+	if err != nil {
+		return reconcile.Result{}, err
+	}
+	meshSecretName := sliceGw.Name + "-" + strconv.Itoa(vpnKeyRotation.Spec.RotationCount) //get vpn key rotation count
+	err = r.MeshClient.Get(ctx, types.NamespacedName{
+		Name:      meshSecretName,
 		Namespace: ControlPlaneNamespace,
 	}, meshSliceGwCerts)
 	if err != nil {
@@ -148,9 +159,10 @@ func (r *SliceGwReconciler) createSliceGwCerts(ctx context.Context, sliceGw *spo
 					RequeueAfter: 10 * time.Second,
 				}, err
 			}
+
 			meshSliceGwCerts := &corev1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      sliceGw.Name,
+					Name:      meshSecretName,
 					Namespace: ControlPlaneNamespace,
 				},
 				Data: sliceGwCerts.Data,
