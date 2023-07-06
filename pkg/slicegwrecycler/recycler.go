@@ -161,6 +161,7 @@ func serviceForGateway(g *kubeslicev1beta1.SliceGateway, i int) *corev1.Service 
 			Labels: map[string]string{
 				controllers.ApplicationNamespaceSelectorLabelKey: g.Spec.SliceName,
 				"kubeslice.io/slicegw":                           g.Name,
+				"kubeslice.io/slicegatewayRedundancyNumber":      fmt.Sprint(i % 2),
 			},
 		},
 		Spec: corev1.ServiceSpec{
