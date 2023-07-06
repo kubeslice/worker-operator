@@ -147,9 +147,10 @@ func (r *Reconciler) SetupWithManager(mgr ctrl.Manager) error {
 	r.FSM = fsm.NewFSM(
 		INIT,
 		fsm.Events{
-			{Name: verify_new_deployment_created, Src: []string{INIT, new_deployment_created}, Dst: new_deployment_created},
-			{Name: update_routing_table, Src: []string{INIT, new_deployment_created, slicerouter_updated}, Dst: slicerouter_updated},
-			{Name: delete_old_gw_pods, Src: []string{INIT, slicerouter_updated}, Dst: old_gw_deleted},
+			{Name: "verifyDeploymentCreation", Src: []string{"INIT"}, Dst: "NEW_DEPLOYMENT_CREATED"},
+			{Name: "updateRoutingTable", Src: []string{"NEW_DEPLOYMENT_CREATED"}, Dst: "ROUTING_TABLE_UPDATED"},
+			{Name: "deleteOldGatewayPods", Src: []string{"ROUTING_TABLE_UPDATED"}, Dst: "OLD_GATEWAY_DELETED"},
+			{Name: "onError", Src: []string{"INIT", "NEW_DEPLOYMENT_CREATED", "ROUTING_TABLE_UPDATED", "OLD_GATEWAY_DELETED"}, Dst: "ERROR"},
 		},
 		fsm.Callbacks{
 			"enter_new_deployment_created": func(e *fsm.Event) { r.verify_new_deployment_created(e) },
