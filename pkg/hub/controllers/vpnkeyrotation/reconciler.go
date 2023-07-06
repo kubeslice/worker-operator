@@ -92,9 +92,31 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (ctrl
 		certificationCreationDate.Month() == currentDate.Month() &&
 		certificationCreationDate.Day() == currentDate.Day() {
 		for _, selectedGw := range allGwsUnderCluster {
+			gwName := selectedGw
 			// check for status read in progress
 			if vpnKeyRotation.Status.CurrentRotationState[selectedGw].Status == hubv1alpha1.InProgress {
-				recyclers, err := r.ControllerClient.(*hub.HubClientConfig).ListWorkerSliceGwRecycler(ctx, selectedGw)
+				// if client then check for server
+
+				sliceGw := &kubeslicev1beta1.SliceGateway{}
+				err = r.WorkerClient.Get(ctx, types.NamespacedName{
+					Name:      selectedGw,
+					Namespace: ControlPlaneNamespace,
+				}, sliceGw)
+				if err != nil {
+					if apierrors.IsNotFound(err) {
+						log.Error(err, "slice gateway doesn't exist")
+						return ctrl.Result{}, nil
+					}
+					log.Error(err, "error fetching slice gateway")
+					return ctrl.Result{}, err
+				}
+
+				// Upon certificate update, if the selected gateway is a server, await the client pod to transition into the SECRET_UPDATED state
+				// then trigger gateway recycle FSM at server side
+				if !isServer(sliceGw) {
+					gwName = sliceGw.Status.Config.SliceGatewayRemoteGatewayID
+				}
+				recyclers, err := r.ControllerClient.(*hub.HubClientConfig).ListWorkerSliceGwRecycler(ctx, gwName)
 				if err != nil {
 					return ctrl.Result{}, err
 				}
@@ -196,45 +218,54 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (ctrl
 					log.Info("secret has not been updated in the gateway client yet; requeuing..")
 					return ctrl.Result{}, errors.New("client gateway is not is secretupdated state")
 				}
-				sliceName := sliceGw.Spec.SliceName
-				podsUnderGw := corev1.PodList{}
-				listOptions := []client.ListOption{
-					client.MatchingLabels(
-						map[string]string{
-							"kubeslice.io/pod-type":              "slicegateway",
-							ApplicationNamespaceSelectorLabelKey: sliceName,
-							"kubeslice.io/slice-gw":              sliceGw.Name},
-					),
-				}
-				err := r.WorkerClient.List(ctx, &podsUnderGw, listOptions...)
-				if err != nil {
-					log.Error(err, "err")
-					return ctrl.Result{}, err
-				}
-				if err := r.updateRotationStatus(ctx, selectedGw, hubv1alpha1.InProgress, vpnKeyRotation); err != nil {
-					return ctrl.Result{}, err
-				}
-				if err := r.updateRotationStatus(ctx, clientGWName, hubv1alpha1.InProgress, vpnKeyRotation); err != nil {
-					return ctrl.Result{}, err
-				}
-				for i, v := range podsUnderGw.Items {
-					// trigger FSM to recylce both gateway pod pairs
-					slice, err := controllers.GetSlice(ctx, r.WorkerClient, sliceName)
+				if clientGWRotation.Status == hubv1alpha1.SecretUpdated {
+					sliceName := sliceGw.Spec.SliceName
+					podsUnderGw := corev1.PodList{}
+					listOptions := []client.ListOption{
+						client.MatchingLabels(
+							map[string]string{
+								"kubeslice.io/pod-type":              "slicegateway",
+								ApplicationNamespaceSelectorLabelKey: sliceName,
+								"kubeslice.io/slice-gw":              sliceGw.Name},
+						),
+					}
+					err := r.WorkerClient.List(ctx, &podsUnderGw, listOptions...)
 					if err != nil {
-						log.Error(err, "Failed to get Slice", "slice", sliceName)
+						log.Error(err, "err")
 						return ctrl.Result{}, err
 					}
-					created, err := r.WorkerRecyclerClient.TriggerFSM(sliceGw, slice, &v, controllerName, slice.Name+"-"+fmt.Sprint(i), 2)
-					if err != nil {
+					if err := r.updateRotationStatus(ctx, selectedGw, hubv1alpha1.InProgress, vpnKeyRotation); err != nil {
 						return ctrl.Result{}, err
 					}
-					utils.RecordEvent(ctx, r.EventRecorder, vpnKeyRotation, nil, ossEvents.EventTriggeredFSMToRecycleGateways, controllerName)
-					if created {
-						// if WorkerSliceGwRecycler is created even for one pod,
-						// we mark isUpdated to true so we can requeue
-						isUpdated = created
+					fmt.Println("clientGWName yyy", clientGWName, selectedGw)
+					if err := r.updateRotationStatus(ctx, clientGWName, hubv1alpha1.InProgress, vpnKeyRotation); err != nil {
+						return ctrl.Result{}, err
 					}
+					for i, v := range podsUnderGw.Items {
+						// trigger FSM to recylce both gateway pod pairs
+						slice, err := controllers.GetSlice(ctx, r.WorkerClient, sliceName)
+						if err != nil {
+							log.Error(err, "Failed to get Slice", "slice", sliceName)
+							return ctrl.Result{}, err
+						}
+						created, err := r.WorkerRecyclerClient.TriggerFSM(sliceGw, slice, &v, controllerName, slice.Name+"-"+fmt.Sprint(i), 2)
+						if err != nil {
+							return ctrl.Result{}, err
+						}
+						utils.RecordEvent(ctx, r.EventRecorder, vpnKeyRotation, nil, ossEvents.EventTriggeredFSMToRecycleGateways, controllerName)
+						if created {
+							// if WorkerSliceGwRecycler is created even for one pod,
+							// we mark isUpdated to true so we can requeue
+							isUpdated = created
+						}
+					}
+				} else {
+					return ctrl.Result{Requeue: true}, nil
 				}
+			} else { // requeue client to check the status of recycling after five minutes
+				return ctrl.Result{
+					RequeueAfter: 5 * time.Minute,
+				}, nil
 			}
 		}
 	}
@@ -258,7 +289,7 @@ func (r *Reconciler) updateRotationStatus(ctx context.Context, gatewayName, rota
 		if len(vpnKeyRotation.Status.CurrentRotationState) == 0 {
 			return errors.New("current state is empty")
 		}
-
+		fmt.Println("gatewayName yyy", gatewayName, rotationStatus)
 		vpnKeyRotation.Status.CurrentRotationState[gatewayName] = hubv1alpha1.StatusOfKeyRotation{
 			Status:               rotationStatus,
 			LastUpdatedTimestamp: vpnKeyRotation.Status.CurrentRotationState[gatewayName].LastUpdatedTimestamp,

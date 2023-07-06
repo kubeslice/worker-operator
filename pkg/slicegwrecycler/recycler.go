@@ -17,8 +17,10 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -31,14 +33,16 @@ type recyclerClient struct {
 	workerClient     client.Client
 	ctx              context.Context
 	eventRecorder    *events.EventRecorder
+	scheme           *runtime.Scheme
 }
 
-func NewRecyclerClient(ctx context.Context, workerClient client.Client, controllerClient client.Client, er *events.EventRecorder) (*recyclerClient, error) {
+func NewRecyclerClient(ctx context.Context, workerClient client.Client, controllerClient client.Client, er *events.EventRecorder, scheme *runtime.Scheme) (*recyclerClient, error) {
 	return &recyclerClient{
 		controllerClient: controllerClient,
 		workerClient:     workerClient,
 		ctx:              ctx,
 		eventRecorder:    er,
+		scheme:           scheme,
 	}, nil
 }
 
@@ -97,7 +101,7 @@ func (r recyclerClient) handleSliceGwSvcCreation(sliceGw *kubeslicev1beta1.Slice
 			err := r.workerClient.Get(r.ctx, types.NamespacedName{Name: "svc-" + sliceGwName + "-" + fmt.Sprint(i), Namespace: controllers.ControlPlaneNamespace}, foundsvc)
 			if err != nil {
 				if errors.IsNotFound(err) {
-					svc := serviceForGateway(sliceGw, i)
+					svc := r.serviceForGateway(sliceGw, i)
 					log.Info("Creating a new Service", "Namespace", svc.Namespace, "Name", svc.Name)
 					err = r.workerClient.Create(r.ctx, svc)
 					if err != nil {
@@ -118,6 +122,7 @@ func (r recyclerClient) handleSliceGwSvcCreation(sliceGw *kubeslicev1beta1.Slice
 		utils.RecordEvent(r.ctx, r.eventRecorder, sliceGw, nil, ossEvents.EventSliceGWNodePortUpdateFailed, controllerName)
 		return err
 	}
+
 	return nil
 }
 
@@ -154,7 +159,7 @@ func (r recyclerClient) getNumberOfGatewayNodePortServices(sliceGw *kubeslicev1b
 	return len(services.Items), nil
 }
 
-func serviceForGateway(g *kubeslicev1beta1.SliceGateway, i int) *corev1.Service {
+func (r recyclerClient) serviceForGateway(g *kubeslicev1beta1.SliceGateway, i int) *corev1.Service {
 	svc := &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "svc-" + g.Name + "-" + fmt.Sprint(i),
@@ -179,7 +184,7 @@ func serviceForGateway(g *kubeslicev1beta1.SliceGateway, i int) *corev1.Service 
 	// if len(g.Status.Config.SliceGatewayNodePorts) != 0 {
 	// 	svc.Spec.Ports[0].NodePort = int32(g.Status.Config.SliceGatewayNodePort)
 	// }
-	// ctrl.SetControllerReference(g, svc, r.Scheme)
+	ctrl.SetControllerReference(g, svc, r.scheme)
 	return svc
 }
 
