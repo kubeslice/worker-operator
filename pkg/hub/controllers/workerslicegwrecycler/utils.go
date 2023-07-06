@@ -281,12 +281,14 @@ func (r *Reconciler) update_routing_table(e *fsm.Event) error {
 		return err
 	}
 
+	nodePortValue := nodePortService.Spec.Ports[0].NodePort
+
 	err = r.MeshClient.Delete(ctx, &nodePortService)
 	if err != nil {
 		return err
 	}
 	log.Info("Deleted the service", "svc", nodePortService.Name)
-	// verify number of services to be equal to 2
+	// verify number of services to be equal to 1
 	retry.Do(func() error {
 		listOpts := []client.ListOption{
 			client.MatchingLabels(map[string]string{
@@ -300,8 +302,8 @@ func (r *Reconciler) update_routing_table(e *fsm.Event) error {
 			return err
 		}
 		log.Info("number of services", "services", len(services.Items))
-		if len(services.Items) == 1 {
-			return errors.New("services still not decreased to 2")
+		if len(services.Items) != 1 {
+			return errors.New("services still not decreased to 1")
 		}
 		return nil
 	})
@@ -318,7 +320,7 @@ func (r *Reconciler) update_routing_table(e *fsm.Event) error {
 		return err
 	}
 	log.Info("Deleted the deployment", "deploy", deployToBeDeleted.Name)
-	//wait and verify number of nodePorts are updated in slicegw
+	//wait and verify nodePortValue should not be present in slicslice.Spec.LocalGatewayConfig.NodePorts
 	retry.Do(func() error {
 		sliceGw := &spokev1alpha1.WorkerSliceGateway{}
 		err = r.Get(ctx, types.NamespacedName{
@@ -329,7 +331,7 @@ func (r *Reconciler) update_routing_table(e *fsm.Event) error {
 			return err
 		}
 		log.Info("number of nodeports", "nodeports", len(sliceGw.Spec.LocalGatewayConfig.NodePorts))
-		if len(sliceGw.Spec.LocalGatewayConfig.NodePorts) != 2 {
+		if isPresent(sliceGw.Spec.LocalGatewayConfig.NodePorts, int(nodePortValue)) {
 			return errors.New("waiting for nodePorts to be updated")
 		}
 		return nil
@@ -339,6 +341,15 @@ func (r *Reconciler) update_routing_table(e *fsm.Event) error {
 	workerslicegwrecycler.Spec.Request = delete_old_gw_pods
 
 	return r.Update(ctx, workerslicegwrecycler)
+}
+
+func isPresent(nodePorts []int, v int) bool {
+	for _, j := range nodePorts {
+		if j == v {
+			return true
+		}
+	}
+	return false
 }
 
 func (r *Reconciler) delete_old_gw_pods(e *fsm.Event) error {
