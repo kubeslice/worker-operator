@@ -214,6 +214,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (ctrl
 				if err := r.updateRotationStatus(ctx, selectedGw, hubv1alpha1.InProgress, vpnKeyRotation); err != nil {
 					return ctrl.Result{}, err
 				}
+				if err := r.updateRotationStatus(ctx, clientGWName, hubv1alpha1.InProgress, vpnKeyRotation); err != nil {
+					return ctrl.Result{}, err
+				}
 				for i, v := range podsUnderGw.Items {
 					// trigger FSM to recylce both gateway pod pairs
 					slice, err := controllers.GetSlice(ctx, r.WorkerClient, sliceName)
@@ -255,6 +258,7 @@ func (r *Reconciler) updateRotationStatus(ctx context.Context, gatewayName, rota
 		if len(vpnKeyRotation.Status.CurrentRotationState) == 0 {
 			return errors.New("current state is empty")
 		}
+
 		vpnKeyRotation.Status.CurrentRotationState[gatewayName] = hubv1alpha1.StatusOfKeyRotation{
 			Status:               rotationStatus,
 			LastUpdatedTimestamp: vpnKeyRotation.Status.CurrentRotationState[gatewayName].LastUpdatedTimestamp,
