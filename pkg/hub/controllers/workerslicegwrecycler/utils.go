@@ -300,7 +300,7 @@ func (r *Reconciler) update_routing_table(e *fsm.Event) error {
 			return err
 		}
 		log.Info("number of services", "services", len(services.Items))
-		if len(services.Items) != 2 {
+		if len(services.Items) == 1 {
 			return errors.New("services still not decreased to 2")
 		}
 		return nil

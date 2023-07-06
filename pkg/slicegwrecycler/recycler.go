@@ -47,6 +47,7 @@ func (r recyclerClient) TriggerFSM(sliceGw *kubeslicev1beta1.SliceGateway, slice
 	// start FSM for graceful termination of gateway pods
 	// create workerslicegwrecycler on controller
 	log := logger.FromContext(r.ctx).WithName("fsm-recycler")
+	redundancyNumber := gatewayPod.Labels["kubeslice.io/slicegatewayRedundancyNumber"]
 	gwRemoteVpnIP := sliceGw.Status.Config.SliceGatewayRemoteVpnIP
 	clientID, err := r.getRemoteGwPodName(gwRemoteVpnIP, gatewayPod.Status.PodIP)
 	if err != nil {
@@ -60,7 +61,7 @@ func (r recyclerClient) TriggerFSM(sliceGw *kubeslicev1beta1.SliceGateway, slice
 		gwRecyclerName,            // recycler name
 		clientID, gatewayPod.Name, // gateway pod pairs to recycle
 		sliceGw.Name, sliceGw.Status.Config.SliceGatewayRemoteGatewayID, // slice gateway server and client name
-		sliceGw.Spec.SliceName) // slice name
+		sliceGw.Spec.SliceName, redundancyNumber) // slice name
 	if err != nil {
 		if apierrors.IsAlreadyExists(err) {
 			return false, nil

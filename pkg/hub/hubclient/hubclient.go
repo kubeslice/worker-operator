@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"os"
 	"reflect"
+	"strconv"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 
@@ -90,7 +91,8 @@ func NewHubClientConfig(er *monitoring.EventRecorder) (*HubClientConfig, error) 
 	}, err
 }
 
-func (hubClient *HubClientConfig) CreateWorkerSliceGwRecycler(ctx context.Context, gwRecyclerName, clientID, serverID, sliceGwServer, sliceGwClient, slice string) error {
+func (hubClient *HubClientConfig) CreateWorkerSliceGwRecycler(ctx context.Context, gwRecyclerName, clientID, serverID, sliceGwServer, sliceGwClient, slice, redundancyNumber string) error {
+	redundancyInt, _ := strconv.Atoi(redundancyNumber)
 	workerslicegwrecycler := spokev1alpha1.WorkerSliceGwRecycler{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      gwRecyclerName,
@@ -105,11 +107,12 @@ func (hubClient *HubClientConfig) CreateWorkerSliceGwRecycler(ctx context.Contex
 				ServerID: serverID,
 				ClientID: clientID,
 			},
-			State:         "init",
-			Request:       "verify_new_deployment_created",
-			SliceGwServer: sliceGwServer,
-			SliceGwClient: sliceGwClient,
-			SliceName:     slice,
+			RedundancyNumber: redundancyInt,
+			State:            "init",
+			Request:          "verify_new_deployment_created",
+			SliceGwServer:    sliceGwServer,
+			SliceGwClient:    sliceGwClient,
+			SliceName:        slice,
 		},
 	}
 	return hubClient.Create(ctx, &workerslicegwrecycler)
