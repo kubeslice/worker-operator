@@ -45,12 +45,41 @@ type Reconciler struct {
 	WorkerGWSidecarClient WorkerGWSidecarClientProvider
 	WorkerRouterClient    WorkerRouterClientProvider
 	EventRecorder         *events.EventRecorder
-	FSM                   *fsm.FSM
+	FSM                   map[string]*fsm.FSM
+}
+
+func getUniqueIdentifier(req ctrl.Request) string {
+	return req.String()
 }
 
 func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := logger.FromContext(ctx).WithName("workerslicegwrecycler")
 	ctx = logger.WithLogger(ctx, log)
+
+	// Get the unique identifier for the current CR
+	crIdentifier := getUniqueIdentifier(req)
+
+	// Retrieve or create the FSM for the current CR
+	f, exists := r.FSM[crIdentifier]
+	if !exists {
+		// Create a new FSM for the CR
+		f = fsm.NewFSM(
+			INIT,
+			fsm.Events{
+				{Name: verify_new_deployment_created, Src: []string{INIT, new_deployment_created}, Dst: new_deployment_created},
+				{Name: update_routing_table, Src: []string{INIT, new_deployment_created, slicerouter_updated}, Dst: slicerouter_updated},
+				{Name: delete_old_gw_pods, Src: []string{INIT, slicerouter_updated}, Dst: old_gw_deleted},
+				{Name: onError, Src: []string{INIT, new_deployment_created, slicerouter_updated, old_gw_deleted}, Dst: ERROR},
+			},
+			fsm.Callbacks{
+				"enter_new_deployment_created": func(e *fsm.Event) { r.verify_new_deployment_created(e) },
+				"enter_slicerouter_updated":    func(e *fsm.Event) { r.update_routing_table(e) },
+				"enter_old_gw_deleted":         func(e *fsm.Event) { r.delete_old_gw_pods(e) },
+				"enter_error":                  func(e *fsm.Event) { r.errorEntryFunction(e) },
+			},
+		)
+		r.FSM[crIdentifier] = f
+	}
 
 	workerslicegwrecycler := &spokev1alpha1.WorkerSliceGwRecycler{}
 
@@ -60,8 +89,8 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			// Request object not found, could have been deleted after reconcile request.
 			// Return and don't requeue
 			log.Info("workerslicegwrecycler resource not found. Ignoring since object must be deleted")
-			// move FSM to INIT state
-			r.FSM.SetState(INIT)
+			// delete the FSM from map
+			delete(r.FSM, crIdentifier)
 			return ctrl.Result{}, nil
 		}
 		// Error reading the object - requeue the request.
@@ -70,7 +99,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	}
 
 	log.Info("reconciling workerslicegwrecycler ", "workerslicegwrecycler", workerslicegwrecycler.Name)
-	log.V(1).Info("current state", "FSM", r.FSM.Current())
+	log.V(1).Info("current state", "FSM", f.Current())
 	slicegw := kubeslicev1beta1.SliceGateway{}
 
 	if err := r.MeshClient.Get(ctx, types.NamespacedName{Namespace: "kubeslice-system", Name: workerslicegwrecycler.Spec.SliceGwServer}, &slicegw); err != nil {
@@ -89,21 +118,21 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	if isClient {
 		switch workerslicegwrecycler.Spec.Request {
 		case verify_new_deployment_created:
-			err := r.FSM.Event(verify_new_deployment_created, workerslicegwrecycler, isClient)
+			err := f.Event(verify_new_deployment_created, workerslicegwrecycler, isClient, req)
 			if err != nil {
 				utils.RecordEvent(ctx, r.EventRecorder, workerslicegwrecycler, nil, ossEvents.EventFSMNewGWSpawnFailed, controllerName)
 				return ctrl.Result{}, err
 			}
 			utils.RecordEvent(ctx, r.EventRecorder, workerslicegwrecycler, nil, ossEvents.EventFSMNewGWSpawned, controllerName)
 		case update_routing_table:
-			err := r.FSM.Event(update_routing_table, workerslicegwrecycler, isClient, slicegw)
+			err := f.Event(update_routing_table, workerslicegwrecycler, isClient, slicegw, req)
 			if err != nil {
 				utils.RecordEvent(ctx, r.EventRecorder, workerslicegwrecycler, nil, ossEvents.EventFSMRoutingTableUpdateFailed, controllerName)
 				return ctrl.Result{}, err
 			}
 			utils.RecordEvent(ctx, r.EventRecorder, workerslicegwrecycler, nil, ossEvents.EventFSMRoutingTableUpdated, controllerName)
 		case delete_old_gw_pods:
-			err := r.FSM.Event(delete_old_gw_pods, workerslicegwrecycler, isClient, slicegw)
+			err := f.Event(delete_old_gw_pods, workerslicegwrecycler, isClient, slicegw, req)
 			if err != nil {
 				utils.RecordEvent(ctx, r.EventRecorder, workerslicegwrecycler, nil, ossEvents.EventFSMDeleteOldGWFailed, controllerName)
 				return ctrl.Result{}, err
@@ -113,21 +142,21 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	} else {
 		switch workerslicegwrecycler.Status.Client.Response {
 		case new_deployment_created:
-			err := r.FSM.Event(verify_new_deployment_created, workerslicegwrecycler, isClient)
+			err := f.Event(verify_new_deployment_created, workerslicegwrecycler, isClient, req)
 			if err != nil {
 				utils.RecordEvent(ctx, r.EventRecorder, workerslicegwrecycler, nil, ossEvents.EventFSMNewGWSpawnFailed, controllerName)
 				return ctrl.Result{}, err
 			}
 			utils.RecordEvent(ctx, r.EventRecorder, workerslicegwrecycler, nil, ossEvents.EventFSMNewGWSpawned, controllerName)
 		case slicerouter_updated:
-			err := r.FSM.Event(update_routing_table, workerslicegwrecycler, isClient, slicegw)
+			err := f.Event(update_routing_table, workerslicegwrecycler, isClient, slicegw, req)
 			if err != nil {
 				utils.RecordEvent(ctx, r.EventRecorder, workerslicegwrecycler, nil, ossEvents.EventFSMRoutingTableUpdateFailed, controllerName)
 				return ctrl.Result{}, err
 			}
 			utils.RecordEvent(ctx, r.EventRecorder, workerslicegwrecycler, nil, ossEvents.EventFSMRoutingTableUpdated, controllerName)
 		case old_gw_deleted:
-			err := r.FSM.Event(delete_old_gw_pods, workerslicegwrecycler, isClient, slicegw)
+			err := f.Event(delete_old_gw_pods, workerslicegwrecycler, isClient, slicegw, req)
 			if err != nil {
 				utils.RecordEvent(ctx, r.EventRecorder, workerslicegwrecycler, nil, ossEvents.EventFSMDeleteOldGWFailed, controllerName)
 				return ctrl.Result{}, err
@@ -145,21 +174,7 @@ func (a *Reconciler) InjectClient(c client.Client) error {
 
 // SetupWithManager sets up reconciler with manager
 func (r *Reconciler) SetupWithManager(mgr ctrl.Manager) error {
-	r.FSM = fsm.NewFSM(
-		INIT,
-		fsm.Events{
-			{Name: verify_new_deployment_created, Src: []string{INIT, new_deployment_created}, Dst: new_deployment_created},
-			{Name: update_routing_table, Src: []string{INIT, new_deployment_created, slicerouter_updated}, Dst: slicerouter_updated},
-			{Name: delete_old_gw_pods, Src: []string{INIT, slicerouter_updated}, Dst: old_gw_deleted},
-			{Name: onError, Src: []string{INIT, new_deployment_created, slicerouter_updated, old_gw_deleted}, Dst: ERROR},
-		},
-		fsm.Callbacks{
-			"enter_new_deployment_created": func(e *fsm.Event) { r.verify_new_deployment_created(e) },
-			"enter_slicerouter_updated":    func(e *fsm.Event) { r.update_routing_table(e) },
-			"enter_old_gw_deleted":         func(e *fsm.Event) { r.delete_old_gw_pods(e) },
-			"enter_error":                  func(e *fsm.Event) { r.errorEntryFunction(e) },
-		},
-	)
+	r.FSM = make(map[string]*fsm.FSM) // Initialize the map of FSMs
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&spokev1alpha1.WorkerSliceGwRecycler{}).
 		Complete(r)

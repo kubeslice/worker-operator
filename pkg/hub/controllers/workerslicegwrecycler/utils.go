@@ -19,6 +19,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
 func (r *Reconciler) verify_new_deployment_created(e *fsm.Event) error {
@@ -27,6 +28,7 @@ func (r *Reconciler) verify_new_deployment_created(e *fsm.Event) error {
 	log := logger.FromContext(ctx).WithName("workerslicegwrecycler").WithName("verify_new_deployment_created logger")
 	workerslicegwrecycler := e.Args[0].(*spokev1alpha1.WorkerSliceGwRecycler)
 	isClient := e.Args[1].(bool)
+	req := e.Args[2].(reconcile.Request)
 	var slicegateway string
 	// List all the available gw deployments
 	deployList := &appsv1.DeploymentList{}
@@ -60,7 +62,7 @@ func (r *Reconciler) verify_new_deployment_created(e *fsm.Event) error {
 		}, retry.Attempts(5000))
 
 		if err != nil {
-			r.moveFSMToErrorState(err)
+			r.moveFSMToErrorState(req, err)
 			workerslicegwrecycler.Status.Client.Response = ERROR
 			_ = r.Status().Update(ctx, workerslicegwrecycler)
 			return err
@@ -98,7 +100,7 @@ func (r *Reconciler) verify_new_deployment_created(e *fsm.Event) error {
 		}, retry.Attempts(5000))
 
 		if err != nil {
-			r.moveFSMToErrorState(err)
+			r.moveFSMToErrorState(req, err)
 			workerslicegwrecycler.Spec.State = ERROR
 			_ = r.Status().Update(ctx, workerslicegwrecycler)
 			return err
@@ -155,6 +157,7 @@ func (r *Reconciler) update_routing_table(e *fsm.Event) error {
 	workerslicegwrecycler := e.Args[0].(*spokev1alpha1.WorkerSliceGwRecycler)
 	isClient := e.Args[1].(bool)
 	slicegateway := e.Args[2].(kubeslicev1beta1.SliceGateway)
+	req := e.Args[3].(reconcile.Request)
 	var nsmIPOfNewGwPod string
 
 	// fsm library used does not has the error handling mechanism for callback currently,
@@ -214,7 +217,7 @@ func (r *Reconciler) update_routing_table(e *fsm.Event) error {
 	}, retry.Attempts(5000))
 
 	if err != nil {
-		r.moveFSMToErrorState(err)
+		r.moveFSMToErrorState(req, err)
 		if isClient {
 			workerslicegwrecycler.Status.Client.Response = ERROR
 			_ = r.Status().Update(ctx, workerslicegwrecycler)
@@ -279,7 +282,7 @@ func (r *Reconciler) update_routing_table(e *fsm.Event) error {
 	}, retry.Attempts(5000))
 
 	if err != nil {
-		r.moveFSMToErrorState(err)
+		r.moveFSMToErrorState(req, err)
 		workerslicegwrecycler.Spec.State = ERROR
 		_ = r.Status().Update(ctx, workerslicegwrecycler)
 		return err
@@ -336,7 +339,7 @@ func (r *Reconciler) update_routing_table(e *fsm.Event) error {
 	}, retry.Attempts(5000))
 
 	if err != nil {
-		r.moveFSMToErrorState(err)
+		r.moveFSMToErrorState(req, err)
 		workerslicegwrecycler.Spec.State = ERROR
 		_ = r.Status().Update(ctx, workerslicegwrecycler)
 		return err
@@ -371,7 +374,7 @@ func (r *Reconciler) update_routing_table(e *fsm.Event) error {
 	}, retry.Attempts(5000))
 
 	if err != nil {
-		r.moveFSMToErrorState(err)
+		r.moveFSMToErrorState(req, err)
 		workerslicegwrecycler.Spec.State = ERROR
 		_ = r.Status().Update(ctx, workerslicegwrecycler)
 		return err
@@ -401,6 +404,7 @@ func (r *Reconciler) delete_old_gw_pods(e *fsm.Event) error {
 	workerslicegwrecycler := e.Args[0].(*spokev1alpha1.WorkerSliceGwRecycler)
 	isClient := e.Args[1].(bool)
 	slicegateway := e.Args[2].(kubeslicev1beta1.SliceGateway)
+	req := e.Args[3].(reconcile.Request)
 	// before deleting old gw_pods delete the route from vl3 router
 	if isClient {
 		err := retry.Do(func() error {
@@ -451,7 +455,7 @@ func (r *Reconciler) delete_old_gw_pods(e *fsm.Event) error {
 		}, retry.Attempts(5000))
 
 		if err != nil {
-			r.moveFSMToErrorState(err)
+			r.moveFSMToErrorState(req, err)
 			workerslicegwrecycler.Status.Client.Response = ERROR
 			_ = r.Status().Update(ctx, workerslicegwrecycler)
 			return err
@@ -472,7 +476,7 @@ func (r *Reconciler) delete_old_gw_pods(e *fsm.Event) error {
 			return nil
 		})
 		if err != nil {
-			r.moveFSMToErrorState(err)
+			r.moveFSMToErrorState(req, err)
 			workerslicegwrecycler.Status.Client.Response = ERROR
 			_ = r.Status().Update(ctx, workerslicegwrecycler)
 			return err
@@ -524,9 +528,10 @@ func (r *Reconciler) errorEntryFunction(e *fsm.Event) error {
 	return nil
 }
 
-func (r *Reconciler) moveFSMToErrorState(err error) {
+func (r *Reconciler) moveFSMToErrorState(req reconcile.Request, err error) {
 	// move the FSM to ERROR state
-	r.FSM.Event(onError, err)
+	crIdentifier := getUniqueIdentifier(req)
+	r.FSM[crIdentifier].Event(onError, err)
 }
 
 func getNsmIp(slicegw *kubeslicev1beta1.SliceGateway, podName string) string {
