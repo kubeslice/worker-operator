@@ -33,6 +33,7 @@ const (
 	verify_new_deployment_created string = "verify_new_deployment_created"
 	update_routing_table          string = "update_routing_table"
 	delete_old_gw_pods            string = "delete_old_gw_pods"
+	onError                       string = "onError"
 	controllerName                string = "workerSliceGWRecyclerController"
 )
 
@@ -68,7 +69,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		return ctrl.Result{}, err
 	}
 
-	log.Info("reconciling", "workerslicegwrecycler", workerslicegwrecycler.Name)
+	log.Info("reconciling workerslicegwrecycler ", "workerslicegwrecycler", workerslicegwrecycler.Name)
 	log.V(1).Info("current state", "FSM", r.FSM.Current())
 	slicegw := kubeslicev1beta1.SliceGateway{}
 
@@ -78,6 +79,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 				// workergwrecycler not meant for this cluster, return and dont requeue
 				log.Error(err, "workergwrecycler not meant for this cluster, return and dont requeue")
 				return ctrl.Result{}, nil
+
 			}
 		}
 	}
@@ -143,18 +145,19 @@ func (a *Reconciler) InjectClient(c client.Client) error {
 
 // SetupWithManager sets up reconciler with manager
 func (r *Reconciler) SetupWithManager(mgr ctrl.Manager) error {
-	//TODO: add more states and events
 	r.FSM = fsm.NewFSM(
 		INIT,
 		fsm.Events{
 			{Name: verify_new_deployment_created, Src: []string{INIT, new_deployment_created}, Dst: new_deployment_created},
 			{Name: update_routing_table, Src: []string{INIT, new_deployment_created, slicerouter_updated}, Dst: slicerouter_updated},
 			{Name: delete_old_gw_pods, Src: []string{INIT, slicerouter_updated}, Dst: old_gw_deleted},
+			{Name: onError, Src: []string{INIT, new_deployment_created, slicerouter_updated, old_gw_deleted}, Dst: ERROR},
 		},
 		fsm.Callbacks{
 			"enter_new_deployment_created": func(e *fsm.Event) { r.verify_new_deployment_created(e) },
 			"enter_slicerouter_updated":    func(e *fsm.Event) { r.update_routing_table(e) },
 			"enter_old_gw_deleted":         func(e *fsm.Event) { r.delete_old_gw_pods(e) },
+			"enter_error":                  func(e *fsm.Event) { r.errorEntryFunction(e) },
 		},
 	)
 	return ctrl.NewControllerManagedBy(mgr).
