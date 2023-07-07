@@ -53,12 +53,29 @@ func getUniqueIdentifier(req ctrl.Request) string {
 }
 
 func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	log := logger.FromContext(ctx).WithName("workerslicegwrecycler")
+	log := logger.FromContext(ctx).WithName("workerslicegwrecycler").WithName(req.Name)
 	ctx = logger.WithLogger(ctx, log)
 
 	// Get the unique identifier for the current CR
+	// This is used as a key while maintaining the map
 	crIdentifier := getUniqueIdentifier(req)
 
+	workerslicegwrecycler := &spokev1alpha1.WorkerSliceGwRecycler{}
+
+	err := r.Get(ctx, req.NamespacedName, workerslicegwrecycler)
+	if err != nil {
+		if errors.IsNotFound(err) {
+			// Request object not found, could have been deleted after reconcile request.
+			// Return and don't requeue
+			log.Info("workerslicegwrecycler resource not found. Ignoring since object must be deleted")
+			// delete the FSM from map
+			delete(r.FSM, crIdentifier)
+			return ctrl.Result{}, nil
+		}
+		// Error reading the object - requeue the request.
+		log.Error(err, "Failed to get workerslicegwrecycler")
+		return ctrl.Result{}, err
+	}
 	// Retrieve or create the FSM for the current CR
 	f, exists := r.FSM[crIdentifier]
 	if !exists {
@@ -81,25 +98,8 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		r.FSM[crIdentifier] = f
 	}
 
-	workerslicegwrecycler := &spokev1alpha1.WorkerSliceGwRecycler{}
-
-	err := r.Get(ctx, req.NamespacedName, workerslicegwrecycler)
-	if err != nil {
-		if errors.IsNotFound(err) {
-			// Request object not found, could have been deleted after reconcile request.
-			// Return and don't requeue
-			log.Info("workerslicegwrecycler resource not found. Ignoring since object must be deleted")
-			// delete the FSM from map
-			delete(r.FSM, crIdentifier)
-			return ctrl.Result{}, nil
-		}
-		// Error reading the object - requeue the request.
-		log.Error(err, "Failed to get workerslicegwrecycler")
-		return ctrl.Result{}, err
-	}
-
 	log.Info("reconciling workerslicegwrecycler ", "workerslicegwrecycler", workerslicegwrecycler.Name)
-	log.V(1).Info("current state", "FSM", f.Current())
+	log.Info("current state", "FSM", f.Current())
 	slicegw := kubeslicev1beta1.SliceGateway{}
 
 	if err := r.MeshClient.Get(ctx, types.NamespacedName{Namespace: "kubeslice-system", Name: workerslicegwrecycler.Spec.SliceGwServer}, &slicegw); err != nil {
