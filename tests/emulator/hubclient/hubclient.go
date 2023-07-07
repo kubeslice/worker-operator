@@ -21,6 +21,7 @@ package hubclient
 import (
 	"context"
 
+	hubv1alpha1 "github.com/kubeslice/apis/pkg/controller/v1alpha1"
 	spokev1alpha1 "github.com/kubeslice/apis/pkg/worker/v1alpha1"
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
 
@@ -77,10 +78,15 @@ func (hubClientEmulator *HubClientEmulator) GetClusterNodeIP(ctx context.Context
 	return []string{"35.235.10.1"}, nil
 }
 
-func (hubClientEmulator *HubClientEmulator) CreateWorkerSliceGwRecycler(ctx context.Context, gwRecyclerName, clientID, serverID, sliceGwServer, sliceGwClient, slice string) error {
+func (hubClientEmulator *HubClientEmulator) CreateWorkerSliceGwRecycler(ctx context.Context, gwRecyclerName, clientID, serverID, sliceGwServer, sliceGwClient, slice, redundancyNumber string) error {
 	return nil
 }
 
 func (hubClientEmulator *HubClientEmulator) ListWorkerSliceGwRecycler(ctx context.Context, sliceGWName string) ([]spokev1alpha1.WorkerSliceGwRecycler, error) {
 	return nil, nil
+}
+
+func (hubClientEmulator *HubClientEmulator) GetVPNKeyRotation(ctx context.Context, rotationName string) (*hubv1alpha1.VpnKeyRotation, error) {
+	return nil, nil
+
 }

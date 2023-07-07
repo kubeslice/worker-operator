@@ -96,7 +96,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (ctrl
 			// check for status read in progress
 			if vpnKeyRotation.Status.CurrentRotationState[selectedGw].Status == hubv1alpha1.InProgress {
 				// if client then check for server
-
 				sliceGw := &kubeslicev1beta1.SliceGateway{}
 				err = r.WorkerClient.Get(ctx, types.NamespacedName{
 					Name:      selectedGw,
@@ -237,7 +236,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (ctrl
 					if err := r.updateRotationStatus(ctx, selectedGw, hubv1alpha1.InProgress, vpnKeyRotation); err != nil {
 						return ctrl.Result{}, err
 					}
-					fmt.Println("clientGWName yyy", clientGWName, selectedGw)
 					if err := r.updateRotationStatus(ctx, clientGWName, hubv1alpha1.InProgress, vpnKeyRotation); err != nil {
 						return ctrl.Result{}, err
 					}
@@ -248,7 +246,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (ctrl
 							log.Error(err, "Failed to get Slice", "slice", sliceName)
 							return ctrl.Result{}, err
 						}
-						created, err := r.WorkerRecyclerClient.TriggerFSM(sliceGw, slice, &v, controllerName, slice.Name+"-"+fmt.Sprint(i), 2)
+						created, err := r.WorkerRecyclerClient.TriggerFSM(sliceGw, slice, &v, controllerName, selectedGw+"-"+fmt.Sprint(i), 2)
 						if err != nil {
 							return ctrl.Result{}, err
 						}
@@ -289,7 +287,6 @@ func (r *Reconciler) updateRotationStatus(ctx context.Context, gatewayName, rota
 		if len(vpnKeyRotation.Status.CurrentRotationState) == 0 {
 			return errors.New("current state is empty")
 		}
-		fmt.Println("gatewayName yyy", gatewayName, rotationStatus)
 		vpnKeyRotation.Status.CurrentRotationState[gatewayName] = hubv1alpha1.StatusOfKeyRotation{
 			Status:               rotationStatus,
 			LastUpdatedTimestamp: vpnKeyRotation.Status.CurrentRotationState[gatewayName].LastUpdatedTimestamp,

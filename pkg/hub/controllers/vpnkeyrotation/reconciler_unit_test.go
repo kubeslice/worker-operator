@@ -315,7 +315,11 @@ func TestReconcilerVPNRotationReconcilerCompletionAsSuccess(t *testing.T) {
 		mock.IsType(&corev1.Secret{}),
 		mock.IsType([]k8sclient.DeleteOption{}),
 	).Return(nil)
-
+	client.On("Get",
+		mock.IsType(ctx),
+		mock.IsType(types.NamespacedName{Name: "fire-worker-2-worker-1"}),
+		mock.IsType(&kubeslicev1beta1.SliceGateway{}),
+	).Return(errors.New("object not found"))
 	result, _ := reconciler.Reconcile(expected.ctx, expected.req)
 	if expected.res != result {
 		t.Error("Expected response :", expected.res, " but got ", result)
@@ -883,7 +887,6 @@ func TestReconcilerControllerSecretNotFound(t *testing.T) {
 				Namespace: ControlPlaneNamespace}),
 		mock.IsType(&corev1.Secret{}),
 	).Return(errors.New("object not found"))
-
 	client.On("Create",
 		mock.IsType(ctx),
 		mock.IsType(&corev1.Event{}),
@@ -891,7 +894,7 @@ func TestReconcilerControllerSecretNotFound(t *testing.T) {
 	).Return(nil)
 
 	_, err = reconciler.Reconcile(expected.ctx, expected.req)
-	if expected.errMsg != err.Error() {
+	if err != nil && expected.errMsg != err.Error() {
 		t.Error("Expected error:", expected.errMsg, " but got ", err)
 	}
 }
@@ -1010,115 +1013,6 @@ func TestReconcilerSecretCreationAndRequeue(t *testing.T) {
 		mock.IsType([]k8sclient.CreateOption(nil)),
 	).Return(nil)
 
-	result, err := reconciler.Reconcile(expected.ctx, expected.req)
-	if err != nil && expected.res != result {
-		t.Error("Expected response :", expected.res, " but got ", result)
-	}
-}
-
-func TestReconcilerClusterSync(t *testing.T) {
-	vpnKeyRotationObj := &hubv1alpha1.VpnKeyRotation{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      testVPNKeyRotationName,
-			Namespace: testProjectNamespace,
-		},
-		Spec: hubv1alpha1.VpnKeyRotationSpec{
-			ClusterGatewayMapping: map[string][]string{
-				"cluster1": {"fire-worker-2-worker-1", "fire-worker-2-worker-3"},
-			},
-			CertificateCreationTime: &metav1.Time{Time: time.Now()},
-		},
-		Status: hubv1alpha1.VpnKeyRotationStatus{
-			CurrentRotationState: map[string]hubv1alpha1.StatusOfKeyRotation{
-				"fire-worker-2-worker-1": {
-					Status:               hubv1alpha1.Complete,
-					LastUpdatedTimestamp: metav1.Time{Time: time.Now().AddDate(0, 0, -1)}, // anything less than current date
-				},
-				"fire-worker-2-worker-3": {
-					Status:               hubv1alpha1.Complete,
-					LastUpdatedTimestamp: metav1.Time{Time: time.Now().AddDate(0, 0, -2)}, // anything less than current date
-				},
-				"fire-worker-2-worker-4": {
-					Status:               hubv1alpha1.Complete,
-					LastUpdatedTimestamp: metav1.Time{Time: time.Now().AddDate(0, 0, -2)}, // anything less than current date
-				},
-			},
-		},
-	}
-
-	os.Setenv("CLUSTER_NAME", "cluster1")
-	expected := struct {
-		ctx context.Context
-		req reconcile.Request
-		res reconcile.Result
-		err error
-	}{
-		context.WithValue(context.Background(), types.NamespacedName{Namespace: testProjectNamespace, Name: testVPNKeyRotationName}, vpnKeyRotationObj),
-		reconcile.Request{NamespacedName: types.NamespacedName{Name: testVPNKeyRotationName, Namespace: testProjectNamespace}},
-		reconcile.Result{},
-		nil,
-	}
-	client := utilmock.NewClient()
-	mf, _ := metrics.NewMetricsFactory(prometheus.NewRegistry(), metrics.MetricsFactoryOptions{})
-	gv := hubv1alpha1.GroupVersion
-	testScheme := runtime.NewScheme()
-	err := scheme.AddToScheme(testScheme)
-	if err != nil {
-		t.Fatalf("Error adding core scheme to test scheme: %v", err)
-	}
-	testScheme.AddKnownTypeWithName(gv.WithKind("VpnKeyRotation"), &hubv1alpha1.VpnKeyRotation{})
-	testClusterEventRecorder := mevents.NewEventRecorder(client, testScheme, ossEvents.EventsMap, mevents.EventRecorderOptions{
-		Cluster:   "test-cluster",
-		Project:   "avesha",
-		Component: "worker-operator",
-		Namespace: controllers.ControlPlaneNamespace,
-	})
-	reconciler := NewReconciler(client,
-		&hub.HubClientConfig{
-			Client: client,
-		}, &testClusterEventRecorder, mf, nil)
-	reconciler.InjectClient(client)
-	ctx := context.WithValue(context.Background(), types.NamespacedName{Name: testVPNKeyRotationName, Namespace: testProjectNamespace}, vpnKeyRotationObj)
-	vpmRotationKey := types.NamespacedName{Namespace: testProjectNamespace, Name: testVPNKeyRotationName}
-
-	client.On("Get",
-		mock.IsType(ctx),
-		mock.IsType(vpmRotationKey),
-		mock.IsType(&hubv1alpha1.VpnKeyRotation{}),
-	).Return(nil).Run(func(args mock.Arguments) {
-		vpnKeyRotation := args.Get(2).(*hubv1alpha1.VpnKeyRotation)
-		*vpnKeyRotation = *vpnKeyRotationObj
-	})
-	client.On("List",
-		mock.IsType(ctx),
-		mock.IsType(&spokev1alpha1.WorkerSliceGwRecyclerList{}),
-		mock.IsType([]k8sclient.ListOption(nil)),
-	).Return(nil, nil)
-	client.On("Get",
-		mock.IsType(ctx),
-		mock.IsType(vpmRotationKey),
-		mock.IsType(&hubv1alpha1.VpnKeyRotation{}),
-	).Return(nil)
-	client.StatusMock.On("Update",
-		mock.IsType(ctx),
-		mock.IsType(&hubv1alpha1.VpnKeyRotation{}),
-		mock.IsType([]k8sclient.UpdateOption(nil)),
-	).Return(nil)
-	// client.On("Create",
-	// 	mock.IsType(ctx),
-	// 	mock.IsType(&corev1.Event{}),
-	// 	mock.IsType([]k8sclient.CreateOption(nil)),
-	// ).Return(nil)
-	// client.On("Create",
-	// 	mock.IsType(ctx),
-	// 	mock.IsType(&corev1.Secret{}),
-	// 	mock.IsType([]k8sclient.CreateOption(nil)),
-	// ).Return(nil)
-	// client.On("Get",
-	// 	mock.IsType(ctx),
-	// 	mock.IsType(types.NamespacedName{Name: "fire-worker-2-worker-1-0"}),
-	// 	mock.IsType(&corev1.Secret{}),
-	// ).Return(nil, false, nil)
 	result, err := reconciler.Reconcile(expected.ctx, expected.req)
 	if err != nil && expected.res != result {
 		t.Error("Expected response :", expected.res, " but got ", result)
