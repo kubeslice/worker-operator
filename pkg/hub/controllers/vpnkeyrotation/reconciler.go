@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"reflect"
 	"strconv"
 	"time"
 
@@ -64,7 +65,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (ctrl
 	// contains all the gateways associated with the cluster for a particular slice
 	log.Info("gateways under cluster", "allGwsUnderCluster", allGwsUnderCluster)
 	if len(vpnKeyRotation.Status.CurrentRotationState) == 0 && len(allGwsUnderCluster) > 0 {
-		// When vpnkeyrotation is initially created, update the LastUpdateelemdTimestamp for all gateways
+		// When vpnkeyrotation is initially created, update the LastUpdatedTimestamp for all gateways
 		// as same as CertificateCreationTime for vpnKeyRotation cr. Then stop the rquest and return.
 		log.Info("initiation of StatusOfKeyRotation with certification creation data")
 		err = r.updateInitialRotationStatusForAllGws(ctx, vpnKeyRotation, allGwsUnderCluster)
@@ -75,6 +76,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (ctrl
 		return ctrl.Result{}, nil
 	}
 
+	// handle cluster attach/detach cases
 	requeue, err := r.syncCurrentRotationState(ctx, vpnKeyRotation, allGwsUnderCluster)
 	if requeue {
 		return ctrl.Result{Requeue: true}, nil
@@ -84,9 +86,10 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (ctrl
 		return ctrl.Result{}, err
 	}
 
-	// Step 2: If VPN rotation is currently in progress, verify the status of workerryclers to determine
+	// Step 2: If VPN rotation is currently in progress, verify the status of workerslicegwrecyclers to determine
 	// if the process has been completed - error or success
 	currentDate := time.Now()
+	// no hour check??
 	certificationCreationDate := vpnKeyRotation.Spec.CertificateCreationTime
 	if certificationCreationDate.Year() == currentDate.Year() &&
 		certificationCreationDate.Month() == currentDate.Month() &&
@@ -121,7 +124,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (ctrl
 				}
 				if len(recyclers) > 0 {
 					for _, v := range recyclers {
-						if v.Spec.State == "Error" {
+						if v.Spec.State == "error" {
 							log.Info("gateway recycler is in error state", "gateway", v.Name)
 							utils.RecordEvent(ctx, r.EventRecorder, vpnKeyRotation, nil, ossEvents.EventGatewayRecyclingFailed, controllerName)
 							if err := r.updateRotationStatusWithTimeStamp(ctx, selectedGw, hubv1alpha1.Error, vpnKeyRotation, metav1.Time{Time: time.Now()}); err != nil {
@@ -156,6 +159,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (ctrl
 		rotationStatus, ok := vpnKeyRotation.Status.CurrentRotationState[selectedGw]
 		if !ok {
 			// this can occur when there is new cluster onboarded to the slice
+			// isn;t it is already handled by syncCurrentRotationState()?
 			if err := r.updateRotationStatusWithTimeStamp(ctx, selectedGw, hubv1alpha1.Complete,
 				vpnKeyRotation,
 				*vpnKeyRotation.Spec.CertificateCreationTime); err != nil {
@@ -174,7 +178,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (ctrl
 
 			result, requeue, err := r.updateCertificates(ctx, vpnKeyRotation.Spec.RotationCount, selectedGw, req)
 			if requeue {
-				return result, nil
+				return result, err
 			}
 			if err != nil {
 				log.Error(err, "Failed to update certificates")
@@ -215,7 +219,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (ctrl
 				}
 				if clientGWRotation.Status == hubv1alpha1.SecretReadInProgress {
 					log.Info("secret has not been updated in the gateway client yet; requeuing..")
-					return ctrl.Result{}, errors.New("client gateway is not is secretupdated state")
+					return ctrl.Result{}, errors.New("client gateway is not is secret updated state, is in progress")
 				}
 				if clientGWRotation.Status == hubv1alpha1.SecretUpdated {
 					sliceName := sliceGw.Spec.SliceName
@@ -334,56 +338,64 @@ func (r *Reconciler) updateRotationStatusWithTimeStamp(ctx context.Context, gate
 	return nil
 }
 
-func (r *Reconciler) syncCurrentRotationState(ctx context.Context,
-	vpnKeyRotation *hubv1alpha1.VpnKeyRotation, allGwsUnderCluster []string) (bool, error) {
+func (r *Reconciler) syncCurrentRotationState(ctx context.Context, vpnKeyRotation *hubv1alpha1.VpnKeyRotation, allGwsUnderCluster []string) (bool, error) {
 	log := logger.FromContext(ctx)
-	// cluster deregister handling
-	requeue := false
-	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		if getErr := r.Get(ctx,
-			types.NamespacedName{Name: vpnKeyRotation.Name, Namespace: vpnKeyRotation.Namespace},
-			vpnKeyRotation); getErr != nil {
-			return getErr
-		}
-		currentRotationState := vpnKeyRotation.Status.CurrentRotationState
-		syncedRotationState := make(map[string]hubv1alpha1.StatusOfKeyRotation)
-		for _, gw := range allGwsUnderCluster {
-			if obj, ok := currentRotationState[gw]; ok {
-				syncedRotationState[gw] = obj
-			} else if !ok {
-				syncedRotationState[gw] = hubv1alpha1.StatusOfKeyRotation{
-					Status:               hubv1alpha1.Complete,
-					LastUpdatedTimestamp: *vpnKeyRotation.Spec.CertificateCreationTime,
-				}
-			}
-		}
 
-		// Add any remaining gateways from currentRotationState to SyncedRotationState
-		for gw, obj := range currentRotationState {
-			if _, ok := syncedRotationState[gw]; !ok {
-				syncedRotationState[gw] = obj
-			}
-		}
+	// Create a map to store the synced rotation state
+	syncedRotationState := make(map[string]hubv1alpha1.StatusOfKeyRotation)
 
-		if len(syncedRotationState) != len(vpnKeyRotation.Status.CurrentRotationState) {
-			log.Info("syncing current rotation state for the gateways",
-				"from", vpnKeyRotation.Status.CurrentRotationState,
-				"to", syncedRotationState)
-			// Merge the new syncedRotationState with the existing state
-			for gw, obj := range syncedRotationState {
-				currentRotationState[gw] = obj
+	// Retrieve the current rotation state from vpnKeyRotation
+	currentRotationState := vpnKeyRotation.Status.CurrentRotationState
+
+	// Iterate through all gateways in allGwsUnderCluster
+	for _, gw := range allGwsUnderCluster {
+		// Check if the gateway exists in the current rotation state
+		if obj, ok := currentRotationState[gw]; ok {
+			syncedRotationState[gw] = obj
+		} else {
+			// If the gateway doesn't exist, create a new entry with Complete status and the certificate creation time
+			syncedRotationState[gw] = hubv1alpha1.StatusOfKeyRotation{
+				Status:               hubv1alpha1.Complete,
+				LastUpdatedTimestamp: *vpnKeyRotation.Spec.CertificateCreationTime,
 			}
-			vpnKeyRotation.Status.CurrentRotationState = currentRotationState
-			requeue = true
-			return r.Status().Update(ctx, vpnKeyRotation)
 		}
-		return nil
-	})
-	if err != nil {
-		return requeue, err
 	}
-	return requeue, nil
+
+	// Check if the synced rotation state is different from the current rotation state
+	if !compareRotationStateMaps(syncedRotationState,currentRotationState) {
+		log.Info("Syncing current rotation state for the gateways",
+			"from", vpnKeyRotation.Status.CurrentRotationState,
+			"to", syncedRotationState)
+
+		// Update vpnKeyRotation with the synced rotation state
+		vpnKeyRotation.Status.CurrentRotationState = syncedRotationState
+
+		// Update the status of vpnKeyRotation
+		err := r.Status().Update(ctx, vpnKeyRotation)
+		if err != nil {
+			return true, err
+		}
+		return true, nil
+	}
+
+	return false, nil
 }
+
+func compareRotationStateMaps(syncedRotationState, currentRotationState map[string]hubv1alpha1.StatusOfKeyRotation) bool {
+	if len(syncedRotationState) != len(currentRotationState) {
+		return false
+	}
+
+	for gw, obj := range syncedRotationState {
+		currentObj, ok := currentRotationState[gw]
+		if !ok || !reflect.DeepEqual(obj, currentObj) {
+			return false
+		}
+	}
+
+	return true
+}
+
 
 func (r *Reconciler) updateInitialRotationStatusForAllGws(ctx context.Context, vpnKeyRotation *hubv1alpha1.VpnKeyRotation,
 	allGwsUnderCluster []string) error {
@@ -430,10 +442,9 @@ func (r *Reconciler) updateCertificates(ctx context.Context, rotationVersion int
 				Namespace: req.Namespace,
 			}, sliceGwCerts)
 			if err != nil {
+				// why requeue after 10 secs??
 				log.Error(err, "unable to fetch slicegw certs from the hub", "sliceGw", sliceGw)
-				return ctrl.Result{
-					RequeueAfter: 10 * time.Second,
-				}, true, nil
+				return ctrl.Result{}, true, err
 			}
 			meshSliceGwCerts := &corev1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
@@ -445,7 +456,7 @@ func (r *Reconciler) updateCertificates(ctx context.Context, rotationVersion int
 			err = r.WorkerClient.Create(ctx, meshSliceGwCerts)
 			if err != nil {
 				log.Error(err, "unable to create secret to store slicegw certs in worker cluster", "sliceGw", sliceGw)
-				return ctrl.Result{}, false, err
+				return ctrl.Result{}, true, err
 			}
 			log.Info("sliceGw secret created in worker cluster")
 			// this required requeueing
