@@ -6,9 +6,15 @@ import (
 	spokev1alpha1 "github.com/kubeslice/apis/pkg/worker/v1alpha1"
 )
 
-func getDeployLabels(workerslicegwrecycler *spokev1alpha1.WorkerSliceGwRecycler) map[string]string {
+func getDeployLabels(workerslicegwrecycler *spokev1alpha1.WorkerSliceGwRecycler, isClient bool) map[string]string {
+	if isClient {
+		return map[string]string{
+			"kubeslice.io/slicegw":                      workerslicegwrecycler.Spec.SliceGwClient,
+			"kubeslice.io/slicegatewayRedundancyNumber": fmt.Sprint(workerslicegwrecycler.Spec.RedundancyNumber),
+		}
+	}
 	return map[string]string{
-		"kubeslice.io/slicegw":                      workerslicegwrecycler.Spec.SliceGwClient,
+		"kubeslice.io/slicegw":                      workerslicegwrecycler.Spec.SliceGwServer,
 		"kubeslice.io/slicegatewayRedundancyNumber": fmt.Sprint(workerslicegwrecycler.Spec.RedundancyNumber),
 	}
 }
