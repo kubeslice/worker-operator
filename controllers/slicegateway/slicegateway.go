@@ -1130,7 +1130,20 @@ func (r *SliceGwReconciler) isRebalancingRequired(ctx context.Context, sliceGw *
 	}
 
 	//get the minimum number of pods that have to be associated with a node
-	nodeCount := len(cluster.GetNodeExternalIpList())
+	nodeList := corev1.NodeList{}
+	nodeLabels := map[string]string{controllers.NodeTypeSelectorLabelKey: "gateway"}
+	listOpts := []client.ListOption{
+		client.MatchingLabels(nodeLabels),
+	}
+	if err := r.List(ctx, &nodeList, listOpts...); err != nil {
+		log.Error(err, "Error getting kubeslice nodeList")
+		return false, err
+	}
+	if len(nodeList.Items) == 0 {
+		// no gateway nodes found
+		return false, fmt.Errorf("no gateway nodes available")
+	}
+	nodeCount := len(nodeList.Items)
 	MinNumberOfPodsReq := math.Ceil(float64(readyReplica) / float64(nodeCount))
 
 	log.Info("rebalancing reqd?", "nodeCount", nodeCount, "replicas", readyReplica, "MinNumberOfPodsReq", MinNumberOfPodsReq)
@@ -1151,19 +1164,6 @@ func (r *SliceGwReconciler) isRebalancingRequired(ctx context.Context, sliceGw *
 	if len(PodList.Items) == 0 {
 		log.Error(err, "the pods list is empty")
 		return false, err
-	}
-	nodeList := corev1.NodeList{}
-	nodeLabels := map[string]string{controllers.NodeTypeSelectorLabelKey: "gateway"}
-	listOpts := []client.ListOption{
-		client.MatchingLabels(nodeLabels),
-	}
-	if err := r.List(ctx, &nodeList, listOpts...); err != nil {
-		log.Error(err, "Error getting kubeslice nodeList")
-		return false, err
-	}
-	if len(nodeList.Items) == 0 {
-		// no gateway nodes found
-		return false, fmt.Errorf("no gateway nodes available")
 	}
 	//populate the map with key as node name and the value with the number of pods that particular node holds
 	for _, pod := range PodList.Items {
