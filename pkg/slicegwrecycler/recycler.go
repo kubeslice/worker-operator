@@ -47,7 +47,7 @@ func NewRecyclerClient(ctx context.Context, workerClient client.Client, controll
 }
 
 func (r recyclerClient) TriggerFSM(sliceGw *kubeslicev1beta1.SliceGateway, slice *kubeslicev1beta1.Slice,
-	gatewayPod *corev1.Pod, controllerName, gwRecyclerName string, numberOfGwSvc int) (bool, error) {
+	gatewayPod *corev1.Pod, controllerName, gwRecyclerName string, numberOfGwSvc int) error {
 	// start FSM for graceful termination of gateway pods
 	// create workerslicegwrecycler on controller
 	log := logger.FromContext(r.ctx).WithName("fsm-recycler")
@@ -58,9 +58,9 @@ func (r recyclerClient) TriggerFSM(sliceGw *kubeslicev1beta1.SliceGateway, slice
 		log.Error(err, "Error while fetching remote gw podName")
 		// post event to slicegw
 		utils.RecordEvent(r.ctx, r.eventRecorder, sliceGw, slice, ossEvents.EventSliceGWRemotePodSyncFailed, controllerName)
-		return false, err
+		return err
 	}
-	log.Info("creating workerslicegwrecycler", "gwRecyclerName", gwRecyclerName)
+	log.Info("creating workerslicegwrecycler", "gwRecyclerName", gwRecyclerName, "slicegateway", sliceGw.Name)
 	err = r.controllerClient.(*hub.HubClientConfig).CreateWorkerSliceGwRecycler(r.ctx,
 		gwRecyclerName,            // recycler name
 		clientID, gatewayPod.Name, // gateway pod pairs to recycle
@@ -68,9 +68,10 @@ func (r recyclerClient) TriggerFSM(sliceGw *kubeslicev1beta1.SliceGateway, slice
 		sliceGw.Spec.SliceName, redundancyNumber) // slice name
 	if err != nil {
 		if apierrors.IsAlreadyExists(err) {
-			return false, nil
+			log.Info("workerslicegwrecycler already exists", "gwRecyclerName", gwRecyclerName)
+			return nil
 		}
-		return false, err
+		return err
 	}
 	utils.RecordEvent(r.ctx, r.eventRecorder, sliceGw, slice, ossEvents.EventSliceGWRebalancingSuccess, controllerName)
 	// spawn a new gw nodeport service
@@ -78,9 +79,9 @@ func (r recyclerClient) TriggerFSM(sliceGw *kubeslicev1beta1.SliceGateway, slice
 	err = r.handleSliceGwSvcCreation(sliceGw, NumberOfGateways+numberOfGwSvc, controllerName)
 	if err != nil {
 		//TODO:add an event and log
-		return false, err
+		return err
 	}
-	return true, nil
+	return nil
 }
 
 // The function was relocated to this location in order to consolidate it into a central location

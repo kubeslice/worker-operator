@@ -107,12 +107,12 @@ func (hubClient *HubClientConfig) CreateWorkerSliceGwRecycler(ctx context.Contex
 				ServerID: serverID,
 				ClientID: clientID,
 			},
-			RedundancyNumber: redundancyInt,
-			State:            "init",
-			Request:          "verify_new_deployment_created",
-			SliceGwServer:    sliceGwServer,
-			SliceGwClient:    sliceGwClient,
-			SliceName:        slice,
+			ServerRedundancyNumber: redundancyInt,
+			State:                  "init",
+			Request:                "verify_new_deployment_created",
+			SliceGwServer:          sliceGwServer,
+			SliceGwClient:          sliceGwClient,
+			SliceName:              slice,
 		},
 	}
 	return hubClient.Create(ctx, &workerslicegwrecycler)

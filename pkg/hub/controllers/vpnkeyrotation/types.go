@@ -9,7 +9,7 @@ import (
 
 type WorkerRecyclerClientProvider interface {
 	TriggerFSM(sliceGw *kubeslicev1beta1.SliceGateway, slice *kubeslicev1beta1.Slice, gatewayPod *corev1.Pod,
-		controllerName, gwRecyclerName string, numberOfGwSvc int) (bool, error)
+		controllerName, gwRecyclerName string, numberOfGwSvc int) error
 }
 
 type Reconciler struct {

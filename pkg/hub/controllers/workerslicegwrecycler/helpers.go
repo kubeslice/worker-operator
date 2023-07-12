@@ -10,20 +10,28 @@ func getDeployLabels(workerslicegwrecycler *spokev1alpha1.WorkerSliceGwRecycler,
 	if isClient {
 		return map[string]string{
 			"kubeslice.io/slicegw":                      workerslicegwrecycler.Spec.SliceGwClient,
-			"kubeslice.io/slicegatewayRedundancyNumber": fmt.Sprint(workerslicegwrecycler.Spec.RedundancyNumber),
+			"kubeslice.io/slicegatewayRedundancyNumber": fmt.Sprint(workerslicegwrecycler.Spec.ClientRedundancyNumber),
 		}
 	}
 	return map[string]string{
 		"kubeslice.io/slicegw":                      workerslicegwrecycler.Spec.SliceGwServer,
-		"kubeslice.io/slicegatewayRedundancyNumber": fmt.Sprint(workerslicegwrecycler.Spec.RedundancyNumber),
+		"kubeslice.io/slicegatewayRedundancyNumber": fmt.Sprint(workerslicegwrecycler.Spec.ServerRedundancyNumber),
 	}
 }
 
-func getPodLabels(workerslicegwrecycler *spokev1alpha1.WorkerSliceGwRecycler, sliceGateway string) map[string]string {
+func getPodLabels(workerslicegwrecycler *spokev1alpha1.WorkerSliceGwRecycler, sliceGateway string, isClient bool) map[string]string {
+	if isClient {
+		return map[string]string{
+			"kubeslice.io/pod-type":                     "slicegateway",
+			"kubeslice.io/slice":                        workerslicegwrecycler.Spec.SliceName,
+			"kubeslice.io/slice-gw":                     sliceGateway,
+			"kubeslice.io/slicegatewayRedundancyNumber": fmt.Sprint(workerslicegwrecycler.Spec.ClientRedundancyNumber),
+		}
+	}
 	return map[string]string{
 		"kubeslice.io/pod-type":                     "slicegateway",
 		"kubeslice.io/slice":                        workerslicegwrecycler.Spec.SliceName,
 		"kubeslice.io/slice-gw":                     sliceGateway,
-		"kubeslice.io/slicegatewayRedundancyNumber": fmt.Sprint(workerslicegwrecycler.Spec.RedundancyNumber),
+		"kubeslice.io/slicegatewayRedundancyNumber": fmt.Sprint(workerslicegwrecycler.Spec.ServerRedundancyNumber),
 	}
 }

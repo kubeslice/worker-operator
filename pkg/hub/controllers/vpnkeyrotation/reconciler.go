@@ -3,7 +3,6 @@ package vpnkeyrotation
 import (
 	"context"
 	"errors"
-	"fmt"
 	"os"
 	"strconv"
 	"time"
@@ -24,6 +23,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/util/retry"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -40,11 +40,11 @@ func NewReconciler(mc client.Client, hc client.Client, er *events.EventRecorder,
 }
 
 func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (ctrl.Result, error) {
-	log := logger.FromContext(ctx).WithName("vpnkeyrotation-reconciler")
+	log := logger.FromContext(ctx).WithName("vpnkeyrotation-reconciler").WithValues("name", req.Name, "namespace", req.Namespace)
 	ctx = logger.WithLogger(ctx, log)
 	vpnKeyRotation := &hubv1alpha1.VpnKeyRotation{}
 	err := r.Get(ctx, req.NamespacedName, vpnKeyRotation)
-	log.Info("got vpnkeyrotation from controller", "vpnKeyRotation", vpnKeyRotation)
+	log.Info("got vpnkeyrotation from controller", "vpnKeyRotation", vpnKeyRotation.Name)
 	// Request object not found, could have been deleted after reconcile request.
 	if err != nil {
 		if apierrors.IsNotFound(err) {
@@ -66,20 +66,156 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (ctrl
 	for _, gw := range allGwsUnderCluster {
 		_, ok := vpnKeyRotation.Status.CurrentRotationState[gw]
 		if !ok {
-			r.updateInitialRotationStatusForGw(ctx, vpnKeyRotation, gw)
+			log.Info("adding InitialRotationStatusForGw for gw: ", gw)
+			err = r.updateInitialRotationStatusForGw(ctx, vpnKeyRotation, gw)
+			if err != nil {
+				return ctrl.Result{}, err
+			}
 		}
 	}
-	requeue, err := r.syncCurrentRotationState(ctx, vpnKeyRotation, allGwsUnderCluster)
-	if requeue {
-		return ctrl.Result{Requeue: true}, nil
-	}
-	if err != nil {
-		log.Error(err, "error while updating vpnKeyRotation status while rotation status is out of sync")
-		return ctrl.Result{}, err
+	// requeue, err := r.syncCurrentRotationState(ctx, vpnKeyRotation, allGwsUnderCluster)
+	// if requeue {
+	// 	return ctrl.Result{Requeue: true}, nil
+	// }
+	// if err != nil {
+	// 	log.Error(err, "error while updating vpnKeyRotation status while rotation status is out of sync")
+	// 	return ctrl.Result{}, err
+	// }
+
+	// Step 2: We choose a gateway from the array and compare its LastUpdatedTimestamp with the CertificateCreationTime.
+	// If the time difference matches, we process the request; otherwise, we move on to the next gateway in the array.
+	// The control should not move to step 3 before step 2 is completed for each gateway and each pod
+	//
+	for _, selectedGw := range allGwsUnderCluster {
+		// TODO: handle !ok
+		rotationStatus := vpnKeyRotation.Status.CurrentRotationState[selectedGw]
+
+		rotationTimeDiff := vpnKeyRotation.Spec.CertificateCreationTime.Equal(&rotationStatus.LastUpdatedTimestamp)
+		if !rotationTimeDiff {
+			log.Info("rotation interval has elapsed", "rotationTimeDiff", rotationTimeDiff)
+			utils.RecordEvent(ctx, r.EventRecorder, vpnKeyRotation, nil, ossEvents.EventGatewayCertificateRecyclingTriggered, controllerName)
+
+			// if error occurs , the reconcile loop will be re-triggered and it should not update back to
+			// hubv1alpha1.SecretReadInProgress if status was already hubv1alpha1.SecretUpdated
+			if (rotationStatus.Status != hubv1alpha1.SecretUpdated) && (rotationStatus.Status != hubv1alpha1.SecretReadInProgress && (rotationStatus.Status != hubv1alpha1.InProgress)) {
+				// Check if status is not in SecretReadInProgress , if not update it else ignore and move ahead
+				if err := r.updateRotationStatus(ctx, selectedGw, hubv1alpha1.SecretReadInProgress, vpnKeyRotation); err != nil {
+					return ctrl.Result{}, err
+				}
+				return ctrl.Result{Requeue: true}, nil
+			}
+
+			result, requeue, err := r.updateCertificates(ctx, vpnKeyRotation.Spec.RotationCount, selectedGw, req)
+			if requeue {
+				return result, nil
+			}
+			if err != nil {
+				log.Error(err, "failed to update certificates")
+				return result, err
+			}
+
+			log.Info("certificates are updated for gw", "gateway", selectedGw)
+			log.Info("logging status", "server status", rotationStatus.Status)
+			utils.RecordEvent(ctx, r.EventRecorder, vpnKeyRotation, nil, ossEvents.EventGatewayCertificateUpdated, controllerName)
+			// if error occurs , the reconcile loop will be re-triggered and it should not update back to
+			// hubv1alpha1.SecretUpdated if status was already hubv1alpha1.InProgress
+			if (rotationStatus.Status != hubv1alpha1.InProgress) && (rotationStatus.Status != hubv1alpha1.SecretUpdated) {
+				log.Info("updating status to SecretUpdated")
+				if err := r.updateRotationStatus(ctx, selectedGw, hubv1alpha1.SecretUpdated, vpnKeyRotation); err != nil {
+					return ctrl.Result{}, err
+				}
+				return ctrl.Result{Requeue: true}, nil
+			}
+
+			log.Info("fetching slicegateway")
+			// fetch the slicegateway to check if it client or server
+			sliceGw := &kubeslicev1beta1.SliceGateway{}
+			err = r.WorkerClient.Get(ctx, types.NamespacedName{
+				Name:      selectedGw,
+				Namespace: ControlPlaneNamespace,
+			}, sliceGw)
+
+			if err != nil {
+				log.Error(err, "Err():", err.Error())
+				return ctrl.Result{}, err
+			}
+			// Upon certificate update, if the selected gateway is a server, await the client pod to transition into the hubv1alpha1.SecretUpdated state
+			// then trigger gateway recycle FSM at server side
+			if isServer(sliceGw) {
+				clientGWName := sliceGw.Status.Config.SliceGatewayRemoteGatewayID
+				clientGWRotation, ok := vpnKeyRotation.Status.CurrentRotationState[clientGWName]
+				log.Info("logging status", "client status", clientGWRotation.Status)
+				if !ok {
+					log.Info("waiting for the inclusion of the client status in the rotation status")
+					return ctrl.Result{
+						RequeueAfter: 5 * time.Second,
+					}, nil
+				}
+				if clientGWRotation.Status == hubv1alpha1.SecretReadInProgress {
+					log.Info("secret has not been updated in the gateway client yet; requeuing")
+					return ctrl.Result{Requeue: true}, nil
+				}
+				// if server is in hubv1alpha1.SecretUpdated state, trigger the FSM
+				if rotationStatus.Status == hubv1alpha1.SecretUpdated {
+					sliceName := sliceGw.Spec.SliceName
+					podsUnderGw := corev1.PodList{}
+					listOptions := []client.ListOption{
+						client.MatchingLabels(
+							map[string]string{
+								"kubeslice.io/pod-type":              "slicegateway",
+								ApplicationNamespaceSelectorLabelKey: sliceName,
+								"kubeslice.io/slice-gw":              sliceGw.Name},
+						),
+					}
+					err := r.WorkerClient.List(ctx, &podsUnderGw, listOptions...)
+					if err != nil {
+						log.Error(err, "err list gw pods")
+						return ctrl.Result{}, err
+					}
+					// trigger FSM for all the gateway pods before updating the status and timestamp
+
+					for _, v := range podsUnderGw.Items {
+						// trigger FSM to recylce both gateway pod pairs
+						slice, err := controllers.GetSlice(ctx, r.WorkerClient, sliceName)
+						if err != nil {
+							log.Error(err, "Failed to get Slice", "slice", sliceName)
+							return ctrl.Result{}, err
+						}
+						// using pod name as a unique identifier
+						err = r.WorkerRecyclerClient.TriggerFSM(sliceGw, slice, &v, controllerName, v.Name, 2)
+						if err != nil {
+							log.Error(err, "Err(): triggering FSM")
+							return ctrl.Result{}, err
+						}
+					}
+					utils.RecordEvent(ctx, r.EventRecorder, vpnKeyRotation, nil, ossEvents.EventTriggeredFSMToRecycleGateways, controllerName)
+
+					log.Info("logging status", "server status", rotationStatus.Status, "client status", vpnKeyRotation.Status.CurrentRotationState[clientGWName].Status)
+
+					if (vpnKeyRotation.Status.CurrentRotationState[clientGWName].Status != hubv1alpha1.InProgress) || (vpnKeyRotation.Status.CurrentRotationState[selectedGw].Status != hubv1alpha1.InProgress) {
+						// update the last Updated Timestamp so even if it requeues the rotation Time Diff will not be greater than 0
+						if err := r.updateRotationStatusWithTimeStamp(ctx, clientGWName, hubv1alpha1.InProgress, vpnKeyRotation, vpnKeyRotation.Spec.CertificateCreationTime); err != nil {
+							log.Error(err, "Err:() updating client gateway status")
+							return ctrl.Result{}, err
+						}
+						// since server updates the client status, we first update the client status and then server's
+						// update the last Updated Timestamp so even if it requeues the rotation Time Diff will not be greater than 0
+						if err := r.updateRotationStatusWithTimeStamp(ctx, selectedGw, hubv1alpha1.InProgress, vpnKeyRotation, vpnKeyRotation.Spec.CertificateCreationTime); err != nil {
+							log.Error(err, "Err:() updating server gateway status")
+							return ctrl.Result{}, err
+						}
+						return ctrl.Result{Requeue: true}, nil
+					}
+				} else {
+					return ctrl.Result{Requeue: true}, nil
+				}
+			}
+		}
 	}
 
-	// Step 2: If VPN rotation is currently in progress, verify the status of workerryclers to determine
+	// Step 3: If VPN rotation is currently in progress, verify the status of workerslicegwrecyclers to determine
 	// if the process has been completed - error or success
+	// client gw will only move to in-progress once the FSM is started by server.
 	currentDate := time.Now()
 	certificationCreationDate := vpnKeyRotation.Spec.CertificateCreationTime
 	if certificationCreationDate.Year() == currentDate.Year() &&
@@ -96,11 +232,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (ctrl
 					Namespace: ControlPlaneNamespace,
 				}, sliceGw)
 				if err != nil {
-					if apierrors.IsNotFound(err) {
-						log.Error(err, "slice gateway doesn't exist")
-						return ctrl.Result{}, nil
-					}
-					log.Error(err, "error fetching slice gateway")
 					return ctrl.Result{}, err
 				}
 
@@ -115,26 +246,26 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (ctrl
 				}
 				if len(recyclers) > 0 {
 					for _, v := range recyclers {
-						if v.Spec.State == "error" {
+						if v.Spec.State == "error" || v.Status.Client.Response == "error" {
 							log.Info("gateway recycler is in error state", "gateway", v.Name)
 							utils.RecordEvent(ctx, r.EventRecorder, vpnKeyRotation, nil, ossEvents.EventGatewayRecyclingFailed, controllerName)
-							if err := r.updateRotationStatusWithTimeStamp(ctx, selectedGw, hubv1alpha1.Error, vpnKeyRotation, metav1.Time{Time: time.Now()}); err != nil {
+							if err := r.updateRotationStatusWithTimeStamp(ctx, selectedGw, hubv1alpha1.Error, vpnKeyRotation, vpnKeyRotation.Spec.CertificateCreationTime); err != nil {
 								return ctrl.Result{}, err
 							}
 							return ctrl.Result{}, nil
 						} else {
 							// This means that recycling is in progress.
-							// We will queue the task again and recheck after a five-minute interval.
+							// We will queue the task again and recheck after a minute interval.
 							log.Info("gateway recycler is in progress state", "gateway", v.Name)
-							return ctrl.Result{RequeueAfter: time.Minute * 5}, nil
+							return ctrl.Result{RequeueAfter: time.Minute * 1}, nil
 						}
 					}
 				}
 				// Update the rotation status to Complete with TimeStamp
-				utils.RecordEvent(ctx, r.EventRecorder, vpnKeyRotation, nil, ossEvents.EventGatewayRecyclingSuccessful, controllerName)
-				if err := r.updateRotationStatusWithTimeStamp(ctx, selectedGw, hubv1alpha1.Complete, vpnKeyRotation, metav1.Time{Time: time.Now()}); err != nil {
+				if err := r.updateRotationStatusWithTimeStamp(ctx, selectedGw, hubv1alpha1.Complete, vpnKeyRotation, vpnKeyRotation.Spec.CertificateCreationTime); err != nil {
 					return ctrl.Result{}, nil
 				}
+				utils.RecordEvent(ctx, r.EventRecorder, vpnKeyRotation, nil, ossEvents.EventGatewayRecyclingSuccessful, controllerName)
 				// clean up for deletion for old secrets
 				if err = r.removeOldSecrets(ctx, vpnKeyRotation.Spec.RotationCount, selectedGw); err != nil {
 					return ctrl.Result{}, err
@@ -142,148 +273,16 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (ctrl
 			}
 		}
 	}
-
-	isUpdated := false
-	// Step 3: We choose a gateway from the array and compare its LastUpdatedTimestamp with the CertificateCreationTime.
-	// If the time difference matches, we process the request; otherwise, we move on to the next gateway in the array.
-	for _, selectedGw := range allGwsUnderCluster {
-		rotationStatus, ok := vpnKeyRotation.Status.CurrentRotationState[selectedGw]
-		if !ok {
-			// this can occur when there is new cluster onboarded to the slice
-			if err := r.updateRotationStatusWithTimeStamp(ctx, selectedGw, hubv1alpha1.Complete,
-				vpnKeyRotation,
-				*vpnKeyRotation.Spec.CertificateCreationTime); err != nil {
-				return ctrl.Result{}, err
-			}
-			return ctrl.Result{Requeue: true}, nil
-		}
-		rotationTimeDiff := vpnKeyRotation.Spec.CertificateCreationTime.Time.Sub(rotationStatus.LastUpdatedTimestamp.Time)
-		if rotationTimeDiff.Hours() > 0 {
-			log.Info("Rotation interval has elapsed", "rotationTimeDiff", rotationTimeDiff.Hours())
-			utils.RecordEvent(ctx, r.EventRecorder, vpnKeyRotation, nil, ossEvents.EventGatewayCertificateRecyclingTriggered, controllerName)
-			// Unsure why we need to update this status; doesn't seem to serve any purpose
-			if vpnKeyRotation.Status.CurrentRotationState[selectedGw].Status != hubv1alpha1.SecretReadInProgress {
-				if err := r.updateRotationStatus(ctx, selectedGw, hubv1alpha1.SecretReadInProgress, vpnKeyRotation); err != nil {
-					return ctrl.Result{}, err
-				}
-			}
-
-			result, requeue, err := r.updateCertificates(ctx, vpnKeyRotation.Spec.RotationCount, selectedGw, req)
-			if requeue {
-				return result, nil
-			}
-			if err != nil {
-				log.Error(err, "Failed to update certificates")
-				return result, err
-			}
-
-			// If certificates are updated, proceed to update the status
-			log.Info("Certificates are updated for gw", "gateway", selectedGw)
-			utils.RecordEvent(ctx, r.EventRecorder, vpnKeyRotation, nil, ossEvents.EventGatewayCertificateUpdated, controllerName)
-			if vpnKeyRotation.Status.CurrentRotationState[selectedGw].Status != hubv1alpha1.SecretUpdated {
-				if err := r.updateRotationStatus(ctx, selectedGw, hubv1alpha1.SecretUpdated, vpnKeyRotation); err != nil {
-					return ctrl.Result{}, err
-				}
-			}
-
-			sliceGw := &kubeslicev1beta1.SliceGateway{}
-			err = r.WorkerClient.Get(ctx, types.NamespacedName{
-				Name:      selectedGw,
-				Namespace: ControlPlaneNamespace,
-			}, sliceGw)
-			if err != nil {
-				if apierrors.IsNotFound(err) {
-					log.Error(err, "slice gateway doesn't exist")
-					return ctrl.Result{}, nil
-				}
-				log.Error(err, "error fetching slice gateway")
-				return ctrl.Result{}, err
-			}
-
-			// Upon certificate update, if the selected gateway is a server, await the client pod to transition into the SECRET_UPDATED state
-			// then trigger gateway recycle FSM at server side
-			if isServer(sliceGw) {
-				clientGWName := sliceGw.Status.Config.SliceGatewayRemoteGatewayID
-				clientGWRotation, ok := vpnKeyRotation.Status.CurrentRotationState[clientGWName]
-				if !ok {
-					log.Info("Waiting for the inclusion of the client status in the rotation status")
-					return ctrl.Result{
-						RequeueAfter: 5 * time.Second,
-					}, nil
-				}
-				if clientGWRotation.Status == hubv1alpha1.SecretReadInProgress {
-					log.Info("secret has not been updated in the gateway client yet; requeuing..")
-					return ctrl.Result{}, errors.New("client gateway is not is secret updated state")
-				}
-				if clientGWRotation.Status == hubv1alpha1.SecretUpdated {
-					sliceName := sliceGw.Spec.SliceName
-					podsUnderGw := corev1.PodList{}
-					listOptions := []client.ListOption{
-						client.MatchingLabels(
-							map[string]string{
-								"kubeslice.io/pod-type":              "slicegateway",
-								ApplicationNamespaceSelectorLabelKey: sliceName,
-								"kubeslice.io/slice-gw":              sliceGw.Name},
-						),
-					}
-					err := r.WorkerClient.List(ctx, &podsUnderGw, listOptions...)
-					if err != nil {
-						log.Error(err, "err")
-						return ctrl.Result{}, err
-					}
-					// TODO: improve this logic
-					for i, v := range podsUnderGw.Items {
-						// trigger FSM to recylce both gateway pod pairs
-						slice, err := controllers.GetSlice(ctx, r.WorkerClient, sliceName)
-						if err != nil {
-							log.Error(err, "Failed to get Slice", "slice", sliceName)
-							return ctrl.Result{}, err
-						}
-						created, err := r.WorkerRecyclerClient.TriggerFSM(sliceGw, slice, &v, controllerName, selectedGw+"-"+fmt.Sprint(i), 2)
-						if err != nil {
-							return ctrl.Result{}, err
-						}
-						utils.RecordEvent(ctx, r.EventRecorder, vpnKeyRotation, nil, ossEvents.EventTriggeredFSMToRecycleGateways, controllerName)
-						if created {
-							// if WorkerSliceGwRecycler is created even for one pod,
-							// we mark isUpdated to true so we can requeue
-							isUpdated = created
-						}
-						if vpnKeyRotation.Status.CurrentRotationState[selectedGw].Status != hubv1alpha1.InProgress {
-							if err := r.updateRotationStatus(ctx, selectedGw, hubv1alpha1.InProgress, vpnKeyRotation); err != nil {
-								return ctrl.Result{}, err
-							}
-						}
-						if vpnKeyRotation.Status.CurrentRotationState[clientGWName].Status != hubv1alpha1.InProgress {
-							fmt.Println("clientGWName yyy", clientGWName, selectedGw)
-							if err := r.updateRotationStatus(ctx, clientGWName, hubv1alpha1.InProgress, vpnKeyRotation); err != nil {
-								return ctrl.Result{}, err
-							}
-						}
-					}
-				} else {
-					return ctrl.Result{Requeue: true}, nil
-				}
-			} else { // requeue client to check the status of recycling after five minutes
-				// why is this needed?
-				return ctrl.Result{
-					RequeueAfter: 1 * time.Minute,
-				}, nil
-			}
-		}
-	}
-	if isUpdated {
-		// We are requeuing the task after 5 minutes because gateway recycling usually takes approximately 5 minutes.
-		// After the recycling process, we will check the status of the recycling and update vpnkeyrotation.
-		return ctrl.Result{
-			RequeueAfter: 2 * time.Minute,
-		}, nil
-	}
 	return ctrl.Result{}, nil
 }
 
 func (r *Reconciler) updateRotationStatus(ctx context.Context, gatewayName, rotationStatus string, vpnKeyRotation *hubv1alpha1.VpnKeyRotation) error {
-	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+	err := retry.RetryOnConflict(wait.Backoff{
+		Steps:    100,
+		Duration: 10 * time.Millisecond,
+		Factor:   1.0,
+		Jitter:   0.1,
+	}, func() error {
 		if getErr := r.Get(ctx,
 			types.NamespacedName{Name: vpnKeyRotation.Name, Namespace: vpnKeyRotation.Namespace},
 			vpnKeyRotation); getErr != nil {
@@ -293,13 +292,9 @@ func (r *Reconciler) updateRotationStatus(ctx context.Context, gatewayName, rota
 			return errors.New("current state is empty")
 		}
 
-		m := hubv1alpha1.StatusOfKeyRotation{
-			Status:               rotationStatus,
-			LastUpdatedTimestamp: vpnKeyRotation.Status.CurrentRotationState[gatewayName].LastUpdatedTimestamp,
-		}
-		// only update if required
-		if vpnKeyRotation.Status.CurrentRotationState[gatewayName] != m {
-			vpnKeyRotation.Status.CurrentRotationState[gatewayName] = m
+		if status, ok := vpnKeyRotation.Status.CurrentRotationState[gatewayName]; ok && status.Status != rotationStatus {
+			status.Status = rotationStatus
+			vpnKeyRotation.Status.CurrentRotationState[gatewayName] = status
 			return r.Status().Update(ctx, vpnKeyRotation)
 		}
 		return nil
@@ -311,8 +306,13 @@ func (r *Reconciler) updateRotationStatus(ctx context.Context, gatewayName, rota
 }
 
 func (r *Reconciler) updateRotationStatusWithTimeStamp(ctx context.Context, gatewayName, rotationStatus string, vpnKeyRotation *hubv1alpha1.VpnKeyRotation,
-	timestamp metav1.Time) error {
-	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+	timestamp *metav1.Time) error {
+	err := retry.RetryOnConflict(wait.Backoff{
+		Steps:    100,
+		Duration: 10 * time.Millisecond,
+		Factor:   1.0,
+		Jitter:   0.1,
+	}, func() error {
 		if getErr := r.Get(ctx,
 			types.NamespacedName{Name: vpnKeyRotation.Name, Namespace: vpnKeyRotation.Namespace},
 			vpnKeyRotation); getErr != nil {
@@ -320,23 +320,9 @@ func (r *Reconciler) updateRotationStatusWithTimeStamp(ctx context.Context, gate
 		}
 		rotation := hubv1alpha1.StatusOfKeyRotation{
 			Status:               rotationStatus,
-			LastUpdatedTimestamp: timestamp,
+			LastUpdatedTimestamp: *timestamp,
 		}
 		vpnKeyRotation.Status.CurrentRotationState[gatewayName] = rotation
-
-		if vpnKeyRotation.Status.StatusHistory == nil {
-			vpnKeyRotation.Status.StatusHistory = make(map[string][]hubv1alpha1.StatusOfKeyRotation)
-		}
-		history := vpnKeyRotation.Status.StatusHistory[gatewayName]
-
-		// Prepend current rotation to history, maintaining a maximum of 5 rotations
-		// StatusHistory is a stack n number of gateways rotation status
-		history = append([]hubv1alpha1.StatusOfKeyRotation{rotation}, history...)
-		if len(history) >= 5 {
-			// Remove the oldest rotation from the history
-			history = history[:5]
-		}
-		vpnKeyRotation.Status.StatusHistory[gatewayName] = history
 		return r.Status().Update(ctx, vpnKeyRotation)
 	})
 	if err != nil {
