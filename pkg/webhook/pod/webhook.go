@@ -171,8 +171,9 @@ func MutatePod(pod *corev1.Pod, sliceName string) *corev1.Pod {
 	}
 	pod.ObjectMeta.Annotations[AdmissionWebhookAnnotationStatusKey] = "injected"
 
-	if pod.ObjectMeta.Annotations == nil {
-		pod.ObjectMeta.Annotations = map[string]string{}
+	// Initialize the Labels field as an empty map
+	if pod.ObjectMeta.Labels == nil {
+		pod.ObjectMeta.Labels = map[string]string{}
 	}
 
 	// Add vl3 annotation to pod template
@@ -201,6 +202,9 @@ func MutateDeployment(deploy *appsv1.Deployment, sliceName string) *appsv1.Deplo
 	annotations[nsmInjectAnnotaionKey1] = "vl3-service-" + sliceName
 	annotations[nsmInjectAnnotaionKey2] = fmt.Sprintf("kernel://vl3-service-%s/nsm0", sliceName)
 
+	if deploy.Spec.Template.ObjectMeta.Labels == nil {
+		deploy.Spec.Template.ObjectMeta.Labels = map[string]string{}
+	}
 	// Add slice identifier labels to pod template
 	labels := deploy.Spec.Template.ObjectMeta.Labels
 	labels[PodInjectLabelKey] = "app"
@@ -222,6 +226,9 @@ func MutateStatefulset(ss *appsv1.StatefulSet, sliceName string) *appsv1.Statefu
 	annotations[nsmInjectAnnotaionKey1] = "vl3-service-" + sliceName
 	annotations[nsmInjectAnnotaionKey2] = fmt.Sprintf("kernel://vl3-service-%s/nsm0", sliceName)
 
+	if ss.Spec.Template.ObjectMeta.Labels == nil {
+		ss.Spec.Template.ObjectMeta.Labels = map[string]string{}
+	}
 	// Add slice identifier labels to pod template
 	labels := ss.Spec.Template.ObjectMeta.Labels
 	labels[PodInjectLabelKey] = "app"
@@ -243,6 +250,9 @@ func MutateDaemonSet(ds *appsv1.DaemonSet, sliceName string) *appsv1.DaemonSet {
 	annotations[nsmInjectAnnotaionKey1] = "vl3-service-" + sliceName
 	annotations[nsmInjectAnnotaionKey2] = fmt.Sprintf("kernel://vl3-service-%s/nsm0", sliceName)
 
+	if ds.Spec.Template.ObjectMeta.Labels == nil {
+		ds.Spec.Template.ObjectMeta.Labels = map[string]string{}
+	}
 	// Add slice identifier labels to pod template
 	labels := ds.Spec.Template.ObjectMeta.Labels
 	labels[PodInjectLabelKey] = "app"
