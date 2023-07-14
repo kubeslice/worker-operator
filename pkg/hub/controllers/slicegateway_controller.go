@@ -164,6 +164,7 @@ func (r *SliceGwReconciler) createSliceGwCerts(ctx context.Context, sliceGw *spo
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      meshSecretName,
 					Namespace: ControlPlaneNamespace,
+					Labels:    map[string]string{"kubeslice.io/slice-gw": sliceGw.Name},
 				},
 				Data: sliceGwCerts.Data,
 			}

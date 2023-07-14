@@ -243,7 +243,6 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	if len(deployments.Items) < noOfGwServices {
 		vpnKeyRotation, err := r.HubClient.GetVPNKeyRotation(ctx, sliceName)
 		if err != nil {
-			log.Error(err, "yyy")
 			return ctrl.Result{}, err
 		}
 		for i := 0; i < noOfGwServices; i++ {
