@@ -55,7 +55,7 @@ var cancel context.CancelFunc
 
 const CONTROL_PLANE_NS = "kubeslice-system"
 const PROJECT_NS = "project-example"
-const CLUSTER_NAME = "cluster-test"
+const CLUSTER_NAME = "worker-1"
 
 var MetricRegistry = prometheus.NewRegistry()
 

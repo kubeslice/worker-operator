@@ -198,58 +198,6 @@ var _ = Describe("Hub VPN Key Rotation", func() {
 			})
 		})
 
-		It("recycler for a gw should be secret read state", func() {
-			Expect(k8sClient.Create(ctx, hubSecretGw1)).Should(Succeed())
-			Expect(k8sClient.Create(ctx, hubSecretGw2)).Should(Succeed())
-			Expect(k8sClient.Create(ctx, hubSecretGw3)).Should(Succeed())
-
-			Expect(k8sClient.Create(ctx, vpnKeyRotation)).Should(Succeed())
-
-			Eventually(func() bool {
-				err := k8sClient.Get(ctx, types.NamespacedName{
-					Name:      vpnKeyRotation.Name,
-					Namespace: PROJECT_NS},
-					vpnKeyRotation)
-				if err != nil {
-					return false
-				}
-				return len(vpnKeyRotation.Status.CurrentRotationState) != 0
-			}, time.Second*120, time.Millisecond*500).Should(BeTrue())
-
-			vpnKeyRotation.Spec.CertificateCreationTime = &metav1.Time{Time: time.Now().AddDate(0, 0, 30)}
-			vpnKeyRotation.Spec.CertificateExpiryTime = &metav1.Time{Time: time.Now().AddDate(0, 0, 30)}
-			Eventually(func() bool {
-				err := k8sClient.Update(ctx, vpnKeyRotation)
-				return err == nil
-			}, time.Second*30, time.Millisecond*250).Should(BeTrue())
-
-			events := &corev1.EventList{}
-			Eventually(func() bool {
-				err := k8sClient.List(ctx, events, client.InNamespace("kubeslice-system"))
-				return err == nil && len(events.Items) > 0 && eventFound(events, string(ossEvents.EventGatewayCertificateRecyclingTriggered))
-			}, 30*time.Second, 1*time.Second).Should(BeTrue())
-
-			//get the rotation object
-			Eventually(func() bool {
-				err := k8sClient.Get(ctx, types.NamespacedName{
-					Name:      vpnKeyRotation.Name,
-					Namespace: PROJECT_NS},
-					vpnKeyRotation)
-				if err != nil {
-					return false
-				}
-
-				for _, gw := range gws {
-					value, ok := vpnKeyRotation.Status.CurrentRotationState[gw]
-					if !ok {
-						return false
-					}
-					return value.Status == hubv1alpha1.SecretReadInProgress
-				}
-				return true
-			}, time.Second*60, time.Millisecond*500).Should(BeTrue())
-		})
-
 		It("recycler for a gw should be secret updated state", func() {
 			Expect(k8sClient.Create(ctx, hubSecretGw1)).Should(Succeed())
 			Expect(k8sClient.Create(ctx, hubSecretGw2)).Should(Succeed())
@@ -311,6 +259,11 @@ var _ = Describe("Hub VPN Key Rotation", func() {
 			}, time.Second*30, time.Millisecond*250).Should(BeTrue())
 
 			events := &corev1.EventList{}
+			Eventually(func() bool {
+				err := k8sClient.List(ctx, events, client.InNamespace("kubeslice-system"))
+				return err == nil && len(events.Items) > 0 && eventFound(events, string(ossEvents.EventGatewayCertificateRecyclingTriggered))
+			}, 30*time.Second, 1*time.Second).Should(BeTrue())
+
 			Eventually(func() bool {
 				err := k8sClient.List(ctx, events, client.InNamespace("kubeslice-system"))
 				return err == nil && len(events.Items) > 0 && eventFound(events, string(ossEvents.EventGatewayCertificateUpdated))
@@ -395,6 +348,25 @@ var _ = Describe("Hub VPN Key Rotation", func() {
 			Expect(k8sClient.Create(ctx, hubSecretGw1)).Should(Succeed())
 			Expect(k8sClient.Create(ctx, hubSecretGw2)).Should(Succeed())
 			Expect(k8sClient.Create(ctx, hubSecretGw3)).Should(Succeed())
+			sliceKey := types.NamespacedName{Name: slice.Name, Namespace: CONTROL_PLANE_NS}
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, sliceKey, createdSlice)
+				return err == nil
+			}, time.Second*10, time.Millisecond*250).Should(BeTrue())
+
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, types.NamespacedName{Name: sliceGw.Name, Namespace: sliceGw.Namespace}, createdSliceGw)
+				return err == nil
+			}, time.Second*60, time.Millisecond*250).Should(BeTrue())
+
+			createdSliceGw.Status.Config.SliceGatewayHostType = "Server"
+			sliceGw.Status.Config.SliceGatewayRemoteGatewayID = "fire-worker-1-worker-3"
+
+			Eventually(func() bool {
+				err := k8sClient.Status().Update(ctx, createdSliceGw)
+				return err == nil
+			}, time.Second*30, time.Millisecond*250).Should(BeTrue())
+
 			Eventually(func() error {
 				err := k8sClient.Get(ctx, types.NamespacedName{
 					Name:      vpnKeyRotation.Name,
@@ -469,31 +441,17 @@ var _ = Describe("Hub VPN Key Rotation", func() {
 		})
 	})
 
-	FContext("VPN Key Rotation Completion", func() {
+	Context("VPN Key Rotation Completion", func() {
 		var vpnKeyRotation *hubv1alpha1.VpnKeyRotation
 		var workerSliceGWRecycler0 *spokev1alpha1.WorkerSliceGwRecycler
 		var createdWorkerSliceGWRecycler0 *spokev1alpha1.WorkerSliceGwRecycler
 
-		var svc *corev1.Service
 		var slice *kubeslicev1beta1.Slice
-		var vl3ServiceEndpoint *nsmv1.NetworkServiceEndpoint
 		var sliceGw *kubeslicev1beta1.SliceGateway
 		var createdSlice *kubeslicev1beta1.Slice
 		var createdSliceGw *kubeslicev1beta1.SliceGateway
 		var createdvpnKeyRotation *hubv1alpha1.VpnKeyRotation
 		BeforeEach(func() {
-			svc = &corev1.Service{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "kubeslice-dns",
-					Namespace: "kubeslice-system",
-				},
-				Spec: corev1.ServiceSpec{
-					ClusterIP: "10.0.0.20",
-					Ports: []corev1.ServicePort{{
-						Port: 52,
-					}},
-				},
-			}
 			sliceGw = &kubeslicev1beta1.SliceGateway{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      gws[0],
@@ -526,22 +484,7 @@ var _ = Describe("Hub VPN Key Rotation", func() {
 					RotationInterval:        30,
 				},
 			}
-			vl3ServiceEndpoint = &nsmv1.NetworkServiceEndpoint{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "vl3-nse-" + "fire",
-					Namespace: "kubeslice-system",
-					Labels: map[string]string{
-						"app":                "vl3-nse-" + "fire",
-						"networkservicename": "vl3-service-" + "fire",
-					},
-				},
-				Spec: nsmv1.NetworkServiceEndpointSpec{
-					Name: "vl3-service-" + "fire",
-					NetworkServiceNames: []string{
-						"vl3-service-" + "fire",
-					},
-				},
-			}
+
 			workerSliceGWRecycler0 = &spokev1alpha1.WorkerSliceGwRecycler{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      gws[0],
@@ -551,7 +494,7 @@ var _ = Describe("Hub VPN Key Rotation", func() {
 					},
 				},
 				Spec: spokev1alpha1.WorkerSliceGwRecyclerSpec{
-					State: "Error",
+					State: "error",
 				},
 			}
 			createdWorkerSliceGWRecycler0 = &spokev1alpha1.WorkerSliceGwRecycler{}
@@ -567,9 +510,7 @@ var _ = Describe("Hub VPN Key Rotation", func() {
 		})
 
 		It("if no workerslicegwrecylcer - vpn should be completion state", func() {
-			Expect(k8sClient.Create(ctx, svc)).Should(Succeed())
 			Expect(k8sClient.Create(ctx, slice)).Should(Succeed())
-			Expect(k8sClient.Create(ctx, vl3ServiceEndpoint)).Should(Succeed())
 			Expect(k8sClient.Create(ctx, sliceGw)).Should(Succeed())
 			Expect(k8sClient.Create(ctx, vpnKeyRotation)).Should(Succeed())
 
@@ -584,6 +525,14 @@ var _ = Describe("Hub VPN Key Rotation", func() {
 				err := k8sClient.Get(ctx, sliceGwKey, createdSliceGw)
 				return err == nil
 			}, time.Second*10, time.Millisecond*250).Should(BeTrue())
+
+			createdSliceGw.Status.Config.SliceGatewayHostType = "Server"
+			sliceGw.Status.Config.SliceGatewayRemoteGatewayID = "fire-worker-1-worker-3"
+
+			Eventually(func() bool {
+				err := k8sClient.Status().Update(ctx, createdSliceGw)
+				return err == nil
+			}, time.Second*30, time.Millisecond*250).Should(BeTrue())
 
 			Eventually(func() error {
 				err := k8sClient.Get(ctx, types.NamespacedName{
@@ -708,11 +657,11 @@ var _ = Describe("Hub VPN Key Rotation", func() {
 			})
 			Expect(err).ToNot(HaveOccurred())
 
-			// events := &corev1.EventList{}
-			// Eventually(func() bool {
-			// 	err := k8sClient.List(ctx, events, client.InNamespace("kubeslice-system"))
-			// 	return err == nil && len(events.Items) > 0 && eventFound(events, string(ossEvents.EventGatewayRecyclingFailed))
-			// }, 30*time.Second, 1*time.Second).Should(BeTrue())
+			events := &corev1.EventList{}
+			Eventually(func() bool {
+				err := k8sClient.List(ctx, events, client.InNamespace("kubeslice-system"))
+				return err == nil && len(events.Items) > 0 && eventFound(events, string(ossEvents.EventGatewayRecyclingFailed))
+			}, 30*time.Second, 1*time.Second).Should(BeTrue())
 
 			//get the rotation object
 			Eventually(func() bool {
@@ -738,8 +687,15 @@ var _ = Describe("Hub VPN Key Rotation", func() {
 
 	Context("cluster attach/detach test", func() {
 		var vpnKeyRotation *hubv1alpha1.VpnKeyRotation
+		var gws = []string{
+			"fire-worker-1-worker-2",
+			"fire-worker-1-worker-3",
+			"fire-worker-3-worker-1",
+			"fire-worker-2-worker-1",
+			"fire-worker-2-worker-3",
+			"fire-worker-1-worker-4",
+		}
 		BeforeEach(func() {
-
 			vpnKeyRotation = &hubv1alpha1.VpnKeyRotation{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "test-vpn-rotation",
@@ -748,8 +704,9 @@ var _ = Describe("Hub VPN Key Rotation", func() {
 				Spec: hubv1alpha1.VpnKeyRotationSpec{
 					SliceName: "fire",
 					ClusterGatewayMapping: map[string][]string{
-						CLUSTER_NAME: gws,
+						"worker-1": gws,
 					},
+					CertificateCreationTime: &metav1.Time{Time: time.Now()},
 				},
 			}
 			// Cleanup after each test
@@ -807,6 +764,9 @@ var _ = Describe("Hub VPN Key Rotation", func() {
 				}
 				return compareMapKeysAndArrayElements(vpnKeyRotation.Status.CurrentRotationState, gws)
 			}, time.Second*60, time.Millisecond*500).Should(BeTrue())
+
+			Expect(keyShouldPresent("fire-worker-1-worker-5", vpnKeyRotation.Status.CurrentRotationState)).Should(BeTrue()) //attach
+
 		})
 
 		It("cluster detach", func() {
@@ -842,9 +802,20 @@ var _ = Describe("Hub VPN Key Rotation", func() {
 				}
 				return compareMapKeysAndArrayElements(vpnKeyRotation.Status.CurrentRotationState, gws)
 			}, time.Second*60, time.Millisecond*500).Should(BeTrue())
+
+			Expect(keyShouldPresent("fire-worker-1-worker-5", vpnKeyRotation.Status.CurrentRotationState)).Should(BeFalse()) //detach
 		})
 	})
 })
+
+func keyShouldPresent(keyToCheck string, myMap map[string]hubv1alpha1.StatusOfKeyRotation) bool {
+	for key := range myMap {
+		if key == keyToCheck {
+			return true
+		}
+	}
+	return false
+}
 
 func compareMapKeysAndArrayElements(myMap map[string]hubv1alpha1.StatusOfKeyRotation, array []string) bool {
 	arrayElements := make(map[string]bool)

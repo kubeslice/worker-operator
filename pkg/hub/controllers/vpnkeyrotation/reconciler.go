@@ -81,7 +81,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (ctrl
 		rotationStatus := vpnKeyRotation.Status.CurrentRotationState[selectedGw]
 		rotationTimeDiff := vpnKeyRotation.Spec.CertificateCreationTime.Equal(&rotationStatus.LastUpdatedTimestamp)
 		if !rotationTimeDiff && rotationStatus.Status != hubv1alpha1.InProgress {
-			log.Info("rotation interval has elapsed", "rotationTimeDiff", rotationTimeDiff)
+			log.Info("rotation interval has elapsed yyy", "rotationTimeDiff", rotationTimeDiff, "rotationStatus", rotationStatus.Status)
 			utils.RecordEvent(ctx, r.EventRecorder, vpnKeyRotation, nil, ossEvents.EventGatewayCertificateRecyclingTriggered, controllerName)
 			// if error occurs , the reconcile loop will be re-triggered and it should not update back to
 			// hubv1alpha1.SecretReadInProgress if status was already hubv1alpha1.SecretUpdated
@@ -112,7 +112,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (ctrl
 				if err := r.updateRotationStatus(ctx, selectedGw, hubv1alpha1.SecretUpdated, vpnKeyRotation); err != nil {
 					return ctrl.Result{}, err
 				}
-				return ctrl.Result{Requeue: true}, nil
+				// return ctrl.Result{Requeue: true}, nil
 			}
 			// fetch the slicegateway to check if it client or server
 			sliceGw := &kubeslicev1beta1.SliceGateway{}
@@ -313,6 +313,23 @@ func (r *Reconciler) updateRotationStatusWithTimeStamp(ctx context.Context, gate
 			LastUpdatedTimestamp: *timestamp,
 		}
 		vpnKeyRotation.Status.CurrentRotationState[gatewayName] = rotation
+		if rotationStatus == hubv1alpha1.Complete || rotationStatus == hubv1alpha1.Error {
+			if vpnKeyRotation.Status.StatusHistory == nil {
+				vpnKeyRotation.Status.StatusHistory = make(map[string][]hubv1alpha1.StatusOfKeyRotation)
+			}
+			history := vpnKeyRotation.Status.StatusHistory[gatewayName]
+
+			// Prepend current rotation to history, maintaining a maximum of 5 rotations
+			// StatusHistory is a stack n number of gateways rotation status
+			history = append([]hubv1alpha1.StatusOfKeyRotation{rotation}, history...)
+			if len(history) >= 5 {
+				// Remove the oldest rotation from the history
+				history = history[:5]
+			}
+			vpnKeyRotation.Status.StatusHistory[gatewayName] = history
+
+		}
+
 		return r.Status().Update(ctx, vpnKeyRotation)
 	})
 	if err != nil {
@@ -358,8 +375,7 @@ func (r *Reconciler) syncCurrentRotationState(ctx context.Context,
 		}
 		keysInStatus := []string{}
 		for key := range currentRotationState {
-			subsets := strings.Split(key, "-")
-			if len(subsets) > 4 && strings.Join(subsets[1:4], "-") == os.Getenv("CLUSTER_NAME") {
+			if strings.Contains(key, os.Getenv("CLUSTER_NAME")) && !strings.HasSuffix(key, os.Getenv("CLUSTER_NAME")) {
 				keysInStatus = append(keysInStatus, key)
 			}
 		}
@@ -408,30 +424,6 @@ func (r *Reconciler) syncCurrentRotationState(ctx context.Context,
 		return requeue, err
 	}
 	return requeue, nil
-}
-
-func (r *Reconciler) updateInitialRotationStatusForGw(ctx context.Context, vpnKeyRotation *hubv1alpha1.VpnKeyRotation,
-	gw string) error {
-	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		if getErr := r.Get(ctx,
-			types.NamespacedName{Name: vpnKeyRotation.Name, Namespace: vpnKeyRotation.Namespace},
-			vpnKeyRotation); getErr != nil {
-			return getErr
-		}
-		if vpnKeyRotation.Status.CurrentRotationState == nil {
-			vpnKeyRotation.Status.CurrentRotationState = make(map[string]hubv1alpha1.StatusOfKeyRotation)
-		}
-
-		vpnKeyRotation.Status.CurrentRotationState[gw] = hubv1alpha1.StatusOfKeyRotation{
-			Status:               hubv1alpha1.Complete,
-			LastUpdatedTimestamp: *vpnKeyRotation.Spec.CertificateCreationTime,
-		}
-		return r.Status().Update(ctx, vpnKeyRotation)
-	})
-	if err != nil {
-		return err
-	}
-	return nil
 }
 
 func isServer(sliceGw *kubeslicev1beta1.SliceGateway) bool {
