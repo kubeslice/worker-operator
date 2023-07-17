@@ -112,7 +112,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (ctrl
 				if err := r.updateRotationStatus(ctx, selectedGw, hubv1alpha1.SecretUpdated, vpnKeyRotation); err != nil {
 					return ctrl.Result{}, err
 				}
-				// return ctrl.Result{Requeue: true}, nil
 			}
 			// fetch the slicegateway to check if it client or server
 			sliceGw := &kubeslicev1beta1.SliceGateway{}

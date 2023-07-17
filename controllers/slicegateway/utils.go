@@ -37,7 +37,7 @@ func (r *SliceGwReconciler) cleanupSliceGwResources(ctx context.Context, slicegw
 	secretList := &corev1.SecretList{}
 	if err := r.List(ctx, secretList, listOpts...); err != nil {
 		r.Log.Error(err, "Failed to list gateway secrets")
-
+		return err
 	}
 	for _, v := range secretList.Items {
 		meshSliceGwCerts := &corev1.Secret{
