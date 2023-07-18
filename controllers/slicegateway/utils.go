@@ -22,7 +22,9 @@ import (
 	"context"
 
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
+	ossEvents "github.com/kubeslice/worker-operator/events"
 	"github.com/kubeslice/worker-operator/pkg/hub/controllers"
+	"github.com/kubeslice/worker-operator/pkg/utils"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -47,6 +49,7 @@ func (r *SliceGwReconciler) cleanupSliceGwResources(ctx context.Context, slicegw
 			},
 		}
 		if err := r.Delete(ctx, meshSliceGwCerts); err != nil {
+			utils.RecordEvent(ctx, r.EventRecorder, slicegw, nil, ossEvents.EventSliceGWSecretDeletionFailed, controllerName)
 			r.Log.Error(err, "Error Deleting Gateway Secret while cleaning up.. Please Delete it before installing slice again")
 			return err
 		}
