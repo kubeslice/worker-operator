@@ -85,7 +85,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			fsm.Events{
 				{Name: verify_new_deployment_created, Src: []string{INIT, new_deployment_created}, Dst: new_deployment_created},
 				{Name: update_routing_table, Src: []string{INIT, new_deployment_created, slicerouter_updated}, Dst: slicerouter_updated},
-				{Name: delete_old_gw_pods, Src: []string{INIT, slicerouter_updated}, Dst: old_gw_deleted},
+				{Name: delete_old_gw_pods, Src: []string{INIT, slicerouter_updated, delete_old_gw_pods}, Dst: old_gw_deleted},
 				{Name: onError, Src: []string{INIT, new_deployment_created, slicerouter_updated, old_gw_deleted}, Dst: ERROR},
 			},
 			fsm.Callbacks{
@@ -120,21 +120,19 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		case verify_new_deployment_created:
 			err := f.Event(verify_new_deployment_created, workerslicegwrecycler, isClient, req)
 			if err != nil {
-				utils.RecordEvent(ctx, r.EventRecorder, workerslicegwrecycler, nil, ossEvents.EventFSMNewGWSpawnFailed, controllerName)
 				return ctrl.Result{}, err
 			}
 			utils.RecordEvent(ctx, r.EventRecorder, workerslicegwrecycler, nil, ossEvents.EventFSMNewGWSpawned, controllerName)
 		case update_routing_table:
 			err := f.Event(update_routing_table, workerslicegwrecycler, isClient, slicegw, req)
 			if err != nil {
-				utils.RecordEvent(ctx, r.EventRecorder, workerslicegwrecycler, nil, ossEvents.EventFSMRoutingTableUpdateFailed, controllerName)
 				return ctrl.Result{}, err
 			}
 			utils.RecordEvent(ctx, r.EventRecorder, workerslicegwrecycler, nil, ossEvents.EventFSMRoutingTableUpdated, controllerName)
+
 		case delete_old_gw_pods:
 			err := f.Event(delete_old_gw_pods, workerslicegwrecycler, isClient, slicegw, req)
 			if err != nil {
-				utils.RecordEvent(ctx, r.EventRecorder, workerslicegwrecycler, nil, ossEvents.EventFSMDeleteOldGWFailed, controllerName)
 				return ctrl.Result{}, err
 			}
 			utils.RecordEvent(ctx, r.EventRecorder, workerslicegwrecycler, nil, ossEvents.EventFSMDeleteOldGW, controllerName)
@@ -144,21 +142,20 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		case new_deployment_created:
 			err := f.Event(verify_new_deployment_created, workerslicegwrecycler, isClient, req)
 			if err != nil {
-				utils.RecordEvent(ctx, r.EventRecorder, workerslicegwrecycler, nil, ossEvents.EventFSMNewGWSpawnFailed, controllerName)
 				return ctrl.Result{}, err
 			}
 			utils.RecordEvent(ctx, r.EventRecorder, workerslicegwrecycler, nil, ossEvents.EventFSMNewGWSpawned, controllerName)
+
 		case slicerouter_updated:
 			err := f.Event(update_routing_table, workerslicegwrecycler, isClient, slicegw, req)
 			if err != nil {
-				utils.RecordEvent(ctx, r.EventRecorder, workerslicegwrecycler, nil, ossEvents.EventFSMRoutingTableUpdateFailed, controllerName)
 				return ctrl.Result{}, err
 			}
 			utils.RecordEvent(ctx, r.EventRecorder, workerslicegwrecycler, nil, ossEvents.EventFSMRoutingTableUpdated, controllerName)
+
 		case old_gw_deleted:
 			err := f.Event(delete_old_gw_pods, workerslicegwrecycler, isClient, slicegw, req)
 			if err != nil {
-				utils.RecordEvent(ctx, r.EventRecorder, workerslicegwrecycler, nil, ossEvents.EventFSMDeleteOldGWFailed, controllerName)
 				return ctrl.Result{}, err
 			}
 			utils.RecordEvent(ctx, r.EventRecorder, workerslicegwrecycler, nil, ossEvents.EventFSMDeleteOldGW, controllerName)

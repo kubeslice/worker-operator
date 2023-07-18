@@ -243,8 +243,11 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	if len(deployments.Items) < noOfGwServices {
 		vpnKeyRotation, err := r.HubClient.GetVPNKeyRotation(ctx, sliceName)
 		if err != nil {
-			log.Error(err, "yyy")
 			return ctrl.Result{}, err
+		}
+		secretVersion := 1
+		if vpnKeyRotation != nil {
+			secretVersion = vpnKeyRotation.Spec.RotationCount
 		}
 		for i := 0; i < noOfGwServices; i++ {
 			found := &appsv1.Deployment{}
@@ -252,7 +255,7 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 			if err != nil {
 				if errors.IsNotFound(err) {
 					// Define a new deployment
-					dep := r.deploymentForGateway(sliceGw, i, vpnKeyRotation.Spec.RotationCount)
+					dep := r.deploymentForGateway(sliceGw, i, secretVersion)
 					log.Info("Creating a new Deployment", "Namespace", dep.Namespace, "Name", dep.Name)
 					err = r.Create(ctx, dep)
 					if err != nil {
@@ -333,7 +336,7 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 			if err != nil {
 				return ctrl.Result{}, err
 			}
-			_, err = r.WorkerRecyclerClient.TriggerFSM(sliceGw, slice, newestPod, controllerName, sliceGwName+"-"+fmt.Sprint(0), 1)
+			err = r.WorkerRecyclerClient.TriggerFSM(sliceGw, slice, newestPod, controllerName, sliceGwName+"-"+fmt.Sprint(0), 1)
 			// to maintain consistency with recycling we are creating this CR with zero as suffix in the name
 			if err != nil {
 				// TODO:add an event and log

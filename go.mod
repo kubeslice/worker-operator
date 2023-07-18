@@ -9,7 +9,7 @@ require (
 	github.com/go-logr/zapr v1.2.3
 	github.com/golang/protobuf v1.5.2
 	github.com/google/go-cmp v0.5.9
-	github.com/kubeslice/apis v0.1.8-0.20230704090506-f7ddf3f12382
+	github.com/kubeslice/apis v0.1.8-0.20230711141912-a10134de8313
 	github.com/kubeslice/gateway-sidecar v0.2.0
 	github.com/kubeslice/kubeslice-monitoring v0.1.10
 	github.com/kubeslice/netops v0.1.3

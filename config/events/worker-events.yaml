@@ -209,6 +209,12 @@ events:
     type: Warning
     reportingController: worker
     message: Slice GateWay NodePort update failed.
+  - name: SliceGWSecretDeletionFailed
+    reason: SliceGWSecretDeletionFailed
+    action: None
+    type: Warning
+    reportingController: worker
+    message: Slice GateWay secret deletion failed.
   - name: SliceServiceImportUpdateAvailableEndpointsFailed
     reason: SliceServiceImportUpdateAvailableEndpointsFailed
     action: ReconcileServiceImport
