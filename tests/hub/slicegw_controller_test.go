@@ -21,8 +21,10 @@ package hub_test
 import (
 	"time"
 
+	hubv1alpha1 "github.com/kubeslice/apis/pkg/controller/v1alpha1"
 	workerv1alpha1 "github.com/kubeslice/apis/pkg/worker/v1alpha1"
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
+
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
@@ -38,6 +40,8 @@ var _ = Describe("Hub SlicegwController", func() {
 		var hubSliceGw *workerv1alpha1.WorkerSliceGateway
 		var hubSecret *corev1.Secret
 		var createdSliceGwOnSpoke *kubeslicev1beta1.SliceGateway
+		var vpnKeyRotation *hubv1alpha1.VpnKeyRotation
+
 		var hundred = 100
 
 		BeforeEach(func() {
@@ -79,6 +83,22 @@ var _ = Describe("Hub SlicegwController", func() {
 					},
 				},
 			}
+			vpnKeyRotation = &hubv1alpha1.VpnKeyRotation{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-slice",
+					Namespace: PROJECT_NS,
+				},
+				Spec: hubv1alpha1.VpnKeyRotationSpec{
+					SliceName: "fire",
+					ClusterGatewayMapping: map[string][]string{
+						CLUSTER_NAME: {
+							"fire-worker-1-worker-2",
+						},
+					},
+					RotationCount:           1,
+					CertificateCreationTime: &metav1.Time{Time: time.Now()},
+				},
+			}
 			hubSecret = &corev1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "test-slicegateway",
@@ -88,10 +108,11 @@ var _ = Describe("Hub SlicegwController", func() {
 			}
 			createdSlice = &kubeslicev1beta1.Slice{}
 			createdSliceGwOnSpoke = &kubeslicev1beta1.SliceGateway{}
-
 			// Cleanup after each test
 			DeferCleanup(func() {
 				Expect(k8sClient.Delete(ctx, hubSlice)).Should(Succeed())
+				Expect(k8sClient.Delete(ctx, vpnKeyRotation)).Should(Succeed())
+
 				Eventually(func() bool {
 					err := k8sClient.Get(ctx, types.NamespacedName{Namespace: hubSlice.Namespace, Name: hubSlice.Name}, hubSlice)
 					return errors.IsNotFound(err)
@@ -108,6 +129,7 @@ var _ = Describe("Hub SlicegwController", func() {
 
 		It("Should create SliceGw on spoke cluster", func() {
 			Expect(k8sClient.Create(ctx, hubSlice)).Should(Succeed())
+			Expect(k8sClient.Create(ctx, vpnKeyRotation)).Should(Succeed())
 			Expect(k8sClient.Create(ctx, hubSliceGw)).Should(Succeed())
 			Expect(k8sClient.Create(ctx, hubSecret)).Should(Succeed())
 			//once hubSlice is created controller will create a slice CR on spoke cluster
@@ -127,6 +149,7 @@ var _ = Describe("Hub SlicegwController", func() {
 		It("Should update the nodeIps field of slice gateway", func() {
 			Expect(k8sClient.Create(ctx, hubSlice)).Should(Succeed())
 			Expect(k8sClient.Create(ctx, hubSliceGw)).Should(Succeed())
+			Expect(k8sClient.Create(ctx, vpnKeyRotation)).Should(Succeed())
 			Expect(k8sClient.Create(ctx, hubSecret)).Should(Succeed())
 			//once hubSlice is created controller will create a slice CR on spoke cluster
 			sliceKey := types.NamespacedName{Name: "test-slice", Namespace: "kubeslice-system"}
@@ -148,6 +171,7 @@ var _ = Describe("Hub SlicegwController", func() {
 			Expect(k8sClient.Create(ctx, hubSlice)).Should(Succeed())
 			Expect(k8sClient.Create(ctx, hubSliceGw)).Should(Succeed())
 			Expect(k8sClient.Create(ctx, hubSecret)).Should(Succeed())
+			Expect(k8sClient.Create(ctx, vpnKeyRotation)).Should(Succeed())
 
 			//once hubSlice is created controller will create a slice CR on spoke cluster
 			sliceKey := types.NamespacedName{Name: "test-slice", Namespace: "kubeslice-system"}
@@ -192,6 +216,8 @@ var _ = Describe("Hub SlicegwController", func() {
 			Expect(k8sClient.Create(ctx, hubSlice)).Should(Succeed())
 			Expect(k8sClient.Create(ctx, hubSliceGw)).Should(Succeed())
 			Expect(k8sClient.Create(ctx, hubSecret)).Should(Succeed())
+			Expect(k8sClient.Create(ctx, vpnKeyRotation)).Should(Succeed())
+
 			//once hubSlice is created controller will create a slice CR on spoke cluster
 			sliceKey := types.NamespacedName{Name: "test-slice", Namespace: "kubeslice-system"}
 			// Make sure slice is reconciled in spoke cluster
@@ -211,6 +237,7 @@ var _ = Describe("Hub SlicegwController", func() {
 
 		It("Should set slice as owner of slicegw", func() {
 			Expect(k8sClient.Create(ctx, hubSlice)).Should(Succeed())
+			Expect(k8sClient.Create(ctx, vpnKeyRotation)).Should(Succeed())
 			Expect(k8sClient.Create(ctx, hubSliceGw)).Should(Succeed())
 			Expect(k8sClient.Create(ctx, hubSecret)).Should(Succeed())
 			//once hubSlice is created controller will create a slice CR on spoke cluster
