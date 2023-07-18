@@ -63,7 +63,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (ctrl
 	// Step 1: Begin the process of initializing the status of key rotation using certification creation data.
 	allGwsUnderCluster := vpnKeyRotation.Spec.ClusterGatewayMapping[os.Getenv("CLUSTER_NAME")]
 	// contains all the gateways associated with the cluster for a particular slice
-	log.V(3).Info("gateways under cluster", "allGwsUnderCluster", allGwsUnderCluster)
+	log.V(1).Info("gateways under cluster", "allGwsUnderCluster", allGwsUnderCluster)
 	requeue, err := r.syncCurrentRotationState(ctx, vpnKeyRotation, allGwsUnderCluster)
 	if requeue {
 		return ctrl.Result{Requeue: true}, nil
@@ -103,7 +103,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (ctrl
 				return result, err
 			}
 
-			log.V(3).Info("certificates are updated for gw", "gateway", selectedGw)
+			log.V(1).Info("certificates are updated for gw", "gateway", selectedGw)
 			utils.RecordEvent(ctx, r.EventRecorder, vpnKeyRotation, nil, ossEvents.EventGatewayCertificateUpdated, controllerName)
 			// if error occurs , the reconcile loop will be re-triggered and it should not update back to
 			// hubv1alpha1.SecretUpdated if status was already hubv1alpha1.InProgress
@@ -131,7 +131,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (ctrl
 				clientGWName := sliceGw.Status.Config.SliceGatewayRemoteGatewayID
 				clientGWRotation, ok := vpnKeyRotation.Status.CurrentRotationState[clientGWName]
 				if !ok {
-					log.V(3).Info("waiting for the inclusion of the client status in the rotation status")
+					log.V(1).Info("waiting for the inclusion of the client status in the rotation status")
 					return ctrl.Result{
 						RequeueAfter: 5 * time.Second,
 					}, nil
@@ -226,7 +226,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (ctrl
 					if len(recyclers) > 0 {
 						for _, v := range recyclers {
 							if v.Spec.State == "error" || v.Status.Client.Response == "error" {
-								log.V(3).Info("gateway recycler is in error state", "gateway", v.Name)
+								log.V(1).Info("gateway recycler is in error state", "gateway", v.Name)
 								utils.RecordEvent(ctx, r.EventRecorder, vpnKeyRotation, nil, ossEvents.EventGatewayRecyclingFailed, controllerName)
 								if err := r.updateRotationStatusWithTimeStamp(ctx, sliceGw.Status.Config.SliceGatewayRemoteGatewayID, hubv1alpha1.Error, vpnKeyRotation, updatedTime); err != nil {
 									return ctrl.Result{}, nil
@@ -238,7 +238,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (ctrl
 							} else {
 								// This means that recycling is in progress.
 								// We will queue the task again and recheck after a five-minute interval.
-								log.V(3).Info("gateway recycler is in progress state", "gateway", v.Name)
+								log.V(1).Info("gateway recycler is in progress state", "gateway", v.Name)
 								return ctrl.Result{RequeueAfter: time.Minute * 2}, nil
 							}
 						}
@@ -464,7 +464,7 @@ func (r *Reconciler) updateCertificates(ctx context.Context, rotationVersion int
 				log.Error(err, "unable to create secret to store slicegw certs in worker cluster", "sliceGw", sliceGwName)
 				return ctrl.Result{}, false, err
 			}
-			log.V(3).Info("sliceGw secret created in worker cluster")
+			log.V(1).Info("sliceGw secret created in worker cluster")
 			// this required requeueing
 			// return ctrl.Result{Requeue: true}, true, nil
 		} else {
