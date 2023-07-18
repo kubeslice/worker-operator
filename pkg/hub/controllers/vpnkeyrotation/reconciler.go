@@ -151,7 +151,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (ctrl
 					}
 					err := r.WorkerClient.List(ctx, &podsUnderGw, listOptions...)
 					if err != nil {
-						log.Error(err, "err list gw pods")
+						log.Error(err, "err listing gw pods")
 						return ctrl.Result{}, err
 					}
 					// trigger FSM for all the gateway pods before updating the status and timestamp
@@ -216,8 +216,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (ctrl
 				}
 
 				if isServer(sliceGw) {
-					// Upon certificate update, if the selected gateway is a server, await the client pod to transition into the SECRET_UPDATED state
-					// then trigger gateway recycle FSM at server side
 					recyclers, err := r.ControllerClient.(*hub.HubClientConfig).ListWorkerSliceGwRecycler(ctx, selectedGw)
 					if err != nil {
 						return ctrl.Result{}, err
