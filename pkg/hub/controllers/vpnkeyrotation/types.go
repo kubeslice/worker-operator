@@ -8,7 +8,7 @@ import (
 )
 
 type WorkerRecyclerClientProvider interface {
-	// triggers FSM to recycle gateway pairr by passing server gateway pod
+	// triggers FSM to recycle gateway pair by passing server gateway pod
 	// numberOfGwSvc should be equal to number of new deploy that should come up
 	TriggerFSM(sliceGw *kubeslicev1beta1.SliceGateway, slice *kubeslicev1beta1.Slice, gatewayPod *corev1.Pod,
 		controllerName, gwRecyclerName string, numberOfGwSvc int) error
