@@ -377,6 +377,8 @@ github.com/kubeslice/apis v0.1.8-0.20230704090506-f7ddf3f12382 h1:30ZtSHXf9zYMYN
 github.com/kubeslice/apis v0.1.8-0.20230704090506-f7ddf3f12382/go.mod h1:YDSfpIsQM+FtQPaZVGNCTZnlp3viWuQhkjJjIHQdaYs=
 github.com/kubeslice/apis v0.1.8-0.20230711141912-a10134de8313 h1:NF997M7V8bVdz/B8U7zDUtZQY7dZoJBvqbJ7rWso8ww=
 github.com/kubeslice/apis v0.1.8-0.20230711141912-a10134de8313/go.mod h1:YDSfpIsQM+FtQPaZVGNCTZnlp3viWuQhkjJjIHQdaYs=
+github.com/kubeslice/apis v0.1.9 h1:LrzOY6q4fjgkB9nwmjr/GjOB6uUvmHLi8K8Xx9zH9uE=
+github.com/kubeslice/apis v0.1.9/go.mod h1:YDSfpIsQM+FtQPaZVGNCTZnlp3viWuQhkjJjIHQdaYs=
 github.com/kubeslice/gateway-sidecar v0.2.0 h1:Ja3fIUivuSjUFQ4lPCt79ATq99BxslvAFYUwV9Urpy4=
 github.com/kubeslice/gateway-sidecar v0.2.0/go.mod h1:nM1+Wjud2vk44cUg+9iwBbWTpqI+2Ecbn9NuaHEs9aY=
 github.com/kubeslice/kubeslice-monitoring v0.1.10 h1:ozzGuSxr5dsouI2ATtPOLygsKfQ8w6wUI9QHkSp33TQ=
