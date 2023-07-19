@@ -3,7 +3,9 @@ package workerslicegwrecycler
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
+	"strconv"
 	"time"
 
 	retry "github.com/avast/retry-go"
@@ -18,134 +20,178 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
 func (r *Reconciler) verify_new_deployment_created(e *fsm.Event) error {
-	// we need to verify the number of deployments, shouold be 3 on both client and server and wait till the new pod is up and running and update this new pods name in workerslicegwrecycler object and move the fsm to new state = new_deployment_created
+	// we need to verify the number of deployments presnt
+	// should be 2 (one old and newly created) on both client and server.
+	// wait till the new deployment is up and running and update this new pods name in workerslicegwrecycler object and move the fsm to new state = new_deployment_created
 	ctx := context.Background()
-	log := logger.FromContext(ctx).WithName("workerslicegwrecycler")
+
 	workerslicegwrecycler := e.Args[0].(*spokev1alpha1.WorkerSliceGwRecycler)
+	log := logger.FromContext(ctx).WithName("workerslicegwrecycler").WithName(workerslicegwrecycler.Name)
 	isClient := e.Args[1].(bool)
+	req := e.Args[2].(reconcile.Request)
 	var slicegateway string
 	// List all the available gw deployments
-	// TODO: Move this redundant code to a func
 	deployList := &appsv1.DeploymentList{}
 	gwPod := corev1.Pod{}
 	if isClient {
-		retry.Do(func() error {
+		err := retry.Do(func() error {
 			slicegateway = workerslicegwrecycler.Spec.SliceGwClient
-			deployLabels := map[string]string{"kubeslice.io/slicegw": workerslicegwrecycler.Spec.SliceGwClient}
+			deployLabels := getDeployLabels(workerslicegwrecycler, isClient)
 			listOpts := []client.ListOption{
 				client.InNamespace(controllers.ControlPlaneNamespace),
 				client.MatchingLabels(deployLabels),
 			}
 			err := r.MeshClient.List(ctx, deployList, listOpts...)
 			if err != nil {
-				log.Error(err, "Failed to List gw deployments")
+				log.Error(err, "failed to list gw deployments")
 				return err
 			}
-			// Check if Number of GW deployments should equal to 3
-			if len(deployList.Items) != 3 {
-				return errors.New("number of GW deployemt should equal to 3")
+			// Check if Number of GW deployments should equal to 2
+			if len(deployList.Items) != 2 {
+				return errors.New("number of gateway deployments should be equal to 2")
 			}
 			newGwDeploy, err := r.getNewestGwDeploy(ctx, workerslicegwrecycler.Spec.SliceGwClient)
 			if err != nil {
+				log.Error(err, "error in getNewestGwDeploy")
 				return err
 			}
 
 			if newGwDeploy.Status.Replicas != newGwDeploy.Status.AvailableReplicas {
-				return errors.New("Waiting for gw pod to be up and running")
+				return errors.New("waiting for the new gw pod to be up and running")
 			}
-			return nil
-		})
-		if err := r.MeshClient.Get(context.Background(), types.NamespacedName{Namespace: "kubeslice-system", Name: workerslicegwrecycler.Spec.GwPair.ClientID}, &gwPod); err != nil {
+			log.Info("new deployment is up for client", "workerslicegwrecycler", workerslicegwrecycler.Name)
+
+			if err := r.MeshClient.Get(context.Background(), types.NamespacedName{Namespace: "kubeslice-system", Name: workerslicegwrecycler.Spec.GwPair.ClientID}, &gwPod); err != nil {
+				return err
+			}
+			clientRedundancyNumber, _ := strconv.Atoi(gwPod.Labels["kubeslice.io/slicegatewayRedundancyNumber"])
+			workerslicegwrecycler.Spec.ClientRedundancyNumber = clientRedundancyNumber
+			return r.Update(ctx, workerslicegwrecycler)
+		}, retry.Attempts(100))
+
+		if err != nil {
+			log.Error(err, "error in verify_new_deployment_created event")
+			r.moveFSMToErrorState(req, err)
+			workerslicegwrecycler.Status.Client.Response = ERROR
+			_ = r.Status().Update(ctx, workerslicegwrecycler)
 			return err
 		}
+
 	} else {
-		retry.Do(func() error {
+		err := retry.Do(func() error {
 			slicegateway = workerslicegwrecycler.Spec.SliceGwServer
-			deployLabels := map[string]string{"kubeslice.io/slicegw": workerslicegwrecycler.Spec.SliceGwServer}
+			deployLabels := getDeployLabels(workerslicegwrecycler, isClient)
 			listOpts := []client.ListOption{
 				client.InNamespace(controllers.ControlPlaneNamespace),
 				client.MatchingLabels(deployLabels),
 			}
 			err := r.MeshClient.List(ctx, deployList, listOpts...)
 			if err != nil {
-				r.Log.Error(err, "Failed to List gw deployments")
+				log.Error(err, "failed to list gateway deployments")
 				return err
 			}
-			// Check if Number of GW deployments should equal to 3
-			if len(deployList.Items) != 3 {
-				return errors.New("number of GW deployemt should equal to 3")
+			// Check if Number of GW deployments should equal to 2
+			if len(deployList.Items) != 2 {
+				return errors.New("number of GW deployemt should be equal to 2")
 			}
 			newGwDeploy, err := r.getNewestGwDeploy(ctx, workerslicegwrecycler.Spec.SliceGwServer)
 			if err != nil {
+				log.Error(err, "Error:", err.Error())
 				return err
 			}
-
 			if newGwDeploy.Status.Replicas != newGwDeploy.Status.AvailableReplicas {
-				return errors.New("Waiting for gw pod to be up and running")
+				return errors.New("waiting for gw pod to be up and running")
 			}
+			log.Info("new deployment is up for server", "workerslicegwrecycler", workerslicegwrecycler.Name)
 			return nil
-		})
+		}, retry.Attempts(100))
+
+		if err != nil {
+			log.Error(err, "error in verify_new_deployment_created")
+			r.moveFSMToErrorState(req, err)
+			workerslicegwrecycler.Spec.State = ERROR
+			_ = r.Status().Update(ctx, workerslicegwrecycler)
+			return err
+		}
+
 		if err := r.MeshClient.Get(context.Background(), types.NamespacedName{Namespace: "kubeslice-system", Name: workerslicegwrecycler.Spec.GwPair.ServerID}, &gwPod); err != nil {
 			return err
 		}
 	}
 
-	// add this label for future reference
-	gwPod.Labels["kubeslice.io/gw-pod-type"] = "toBeDeleted"
-	err := r.MeshClient.Update(context.Background(), &gwPod)
-	if err != nil {
-		return err
-	}
-
-	podList := corev1.PodList{}
-	labels := map[string]string{"kubeslice.io/pod-type": "slicegateway", "kubeslice.io/slice": workerslicegwrecycler.Spec.SliceName, "kubeslice.io/slice-gw": slicegateway}
-	listOptions := []client.ListOption{
-		client.MatchingLabels(labels),
-	}
-	err = r.MeshClient.List(ctx, &podList, listOptions...)
-	if err != nil {
-		return err
-	}
-	newestPod := podList.Items[0]
-	newestPodDuration := time.Since(podList.Items[0].CreationTimestamp.Time).Seconds()
-	for _, pod := range podList.Items {
-		duration := time.Since(pod.CreationTimestamp.Time).Seconds()
-		if duration < newestPodDuration {
-			newestPodDuration = duration
-			newestPod = pod
+	err := retry.Do(func() error {
+		// add this label for future reference
+		gwPod.Labels["kubeslice.io/gw-pod-type"] = "toBeDeleted"
+		err := r.MeshClient.Update(context.Background(), &gwPod)
+		if err != nil {
+			return err
 		}
+		log.Info("labelled gateway pod to be deleted")
+
+		podList := corev1.PodList{}
+		labels := getPodLabels(workerslicegwrecycler, slicegateway, isClient)
+		listOptions := []client.ListOption{
+			client.MatchingLabels(labels),
+		}
+		err = r.MeshClient.List(ctx, &podList, listOptions...)
+		if err != nil {
+			log.Error(err, "Error:", err.Error())
+			return err
+		}
+		newestPod := podList.Items[0]
+		newestPodDuration := time.Since(podList.Items[0].CreationTimestamp.Time).Seconds()
+		for _, pod := range podList.Items {
+			duration := time.Since(pod.CreationTimestamp.Time).Seconds()
+			if duration < newestPodDuration {
+				newestPodDuration = duration
+				newestPod = pod
+			}
+		}
+		if isClient {
+			workerslicegwrecycler.Status.Client.Response = new_deployment_created
+			workerslicegwrecycler.Status.Client.RecycledClient = newestPod.Name
+			return r.Status().Update(ctx, workerslicegwrecycler)
+		} else {
+			// progress the FSM to the next state by updating the CR object with the next state: new_gw_spawned
+			workerslicegwrecycler.Spec.GwPair.ClientID = workerslicegwrecycler.Status.Client.RecycledClient
+			workerslicegwrecycler.Spec.GwPair.ServerID = newestPod.Name
+			workerslicegwrecycler.Spec.State = new_deployment_created
+			workerslicegwrecycler.Spec.Request = update_routing_table
+		}
+		return r.Update(ctx, workerslicegwrecycler)
+	})
+
+	if err != nil {
+		r.moveFSMToErrorState(req, err)
+		if isClient {
+			workerslicegwrecycler.Status.Client.Response = ERROR
+			_ = r.Status().Update(ctx, workerslicegwrecycler)
+		} else {
+			workerslicegwrecycler.Spec.State = ERROR
+			_ = r.Status().Update(ctx, workerslicegwrecycler)
+		}
+		return err
 	}
-	if isClient {
-		workerslicegwrecycler.Status.Client.Response = new_deployment_created
-		workerslicegwrecycler.Status.Client.RecycledClient = newestPod.Name
-		return r.Status().Update(ctx, workerslicegwrecycler)
-	} else {
-		// progress the FSM to the next state by updating the CR object with the next state: new_gw_spawned
-		workerslicegwrecycler.Spec.GwPair.ClientID = workerslicegwrecycler.Status.Client.RecycledClient
-		workerslicegwrecycler.Spec.GwPair.ServerID = newestPod.Name
-		workerslicegwrecycler.Spec.State = new_deployment_created
-		workerslicegwrecycler.Spec.Request = update_routing_table
-	}
-	return r.Update(ctx, workerslicegwrecycler)
+	return nil
 }
 
 func (r *Reconciler) update_routing_table(e *fsm.Event) error {
 	ctx := context.Background()
-	log := logger.FromContext(ctx).WithName("workerslicegwrecycler")
-
-	log.Info("in update_routing_table", "current_state", r.FSM.Current())
-
 	workerslicegwrecycler := e.Args[0].(*spokev1alpha1.WorkerSliceGwRecycler)
+	log := logger.FromContext(ctx).WithName("workerslicegwrecycler").WithName(workerslicegwrecycler.Name)
 	isClient := e.Args[1].(bool)
 	slicegateway := e.Args[2].(kubeslicev1beta1.SliceGateway)
+	req := e.Args[3].(reconcile.Request)
 	var nsmIPOfNewGwPod string
 
+	log.Info("checking for routes update in vl3 pod")
 	// fsm library used does not has the error handling mechanism for callback currently,
 	// hence we need to retry in case of errors
-	retry.Do(func() error {
+	err := retry.Do(func() error {
 		var gwPod string
 		if isClient {
 			gwPod = workerslicegwrecycler.Status.Client.RecycledClient
@@ -164,8 +210,6 @@ func (r *Reconciler) update_routing_table(e *fsm.Event) error {
 				return err
 			}
 		}
-
-		log.Info("recycled pod", "podname", gwPod)
 
 		nsmIPOfNewGwPod = getNsmIp(&slicegateway, gwPod)
 		if nsmIPOfNewGwPod == "" {
@@ -197,18 +241,38 @@ func (r *Reconciler) update_routing_table(e *fsm.Event) error {
 			return errors.New("route not yet present")
 		}
 		return nil
-	}, retry.Attempts(5000))
+	}, retry.Attempts(100))
 
-	// use retry.RetryOnConflict
-	if isClient {
-		workerslicegwrecycler.Status.Client.Response = slicerouter_updated
-		return r.Status().Update(ctx, workerslicegwrecycler)
+	if err != nil {
+		log.Error(err, "Err():", err.Error())
+		r.moveFSMToErrorState(req, err)
+		if isClient {
+			workerslicegwrecycler.Status.Client.Response = ERROR
+			_ = r.Status().Update(ctx, workerslicegwrecycler)
+		} else {
+			workerslicegwrecycler.Spec.State = ERROR
+			_ = r.Status().Update(ctx, workerslicegwrecycler)
+		}
+		return err
 	}
-	// once the routes are updated its time for server cluster to delete the old deployment and svc
-	// delete the route from vl3 router
-	retry.Do(func() error {
+
+	if isClient {
+		err = retry.Do(func() error {
+			workerslicegwrecycler.Status.Client.Response = slicerouter_updated
+			return r.Status().Update(ctx, workerslicegwrecycler)
+		})
+		return err
+	}
+	// once the routes are updated its time for server cluster to delete the old routes from vl3 pod , delete the old deployment and svc
+	// step1: delete the routes from vl3 router
+	err = retry.Do(func() error {
 		podList := corev1.PodList{}
-		labels := map[string]string{"kubeslice.io/gw-pod-type": "toBeDeleted", "kubeslice.io/slice": workerslicegwrecycler.Spec.SliceName}
+		labels := map[string]string{
+			"kubeslice.io/gw-pod-type":                  "toBeDeleted",
+			"kubeslice.io/slice":                        workerslicegwrecycler.Spec.SliceName,
+			"kubeslice.io/slicegatewayRedundancyNumber": fmt.Sprint(workerslicegwrecycler.Spec.ServerRedundancyNumber),
+			"kubeslice.io/slice-gw":                     slicegateway.Name,
+		}
 		listOptions := []client.ListOption{
 			client.MatchingLabels(labels),
 		}
@@ -216,27 +280,32 @@ func (r *Reconciler) update_routing_table(e *fsm.Event) error {
 		if err != nil {
 			return err
 		}
+		// there should be only 1 pod with label "kubeslice.io/gw-pod-type":"toBeDeleted" per gw pair.
+		if len(podList.Items) != 1 {
+			log.Error(fmt.Errorf("more than 1 pods with label kubeslice.io/gw-pod-type:toBeDeleted, something went wrong"), "Err:()")
+		}
 		grpcAdd := podList.Items[0].Status.PodIP + ":5000"
 
 		status, err := r.WorkerGWSidecarClient.GetStatus(ctx, grpcAdd)
 		if err != nil {
-			r.Log.Error(err, "Unable to fetch gw status")
+			log.Error(err, "unable to fetch gw status")
 			return err
 		}
 		nsmIP := status.NsmStatus.LocalIP
+
 		_, podIP, err := controllers.GetSliceRouterPodNameAndIP(ctx, r.MeshClient, slicegateway.Spec.SliceName)
 		if err != nil {
-			log.Error(err, "Unable to get slice router pod info")
+			log.Error(err, "unable to get slice router pod info")
 			return err
 		}
 		if podIP == "" {
-			log.Info("Slice router podIP not available yet, requeuing")
+			log.Info("slice router podIP not available yet, requeuing")
 			return err
 		}
 
 		if slicegateway.Status.Config.SliceGatewayRemoteSubnet == "" ||
 			len(slicegateway.Status.GatewayPodStatus) == 0 {
-			log.Info("Waiting for remote subnet and local nsm IPs. Delaying conn ctx update to router")
+			log.Info("waiting for remote subnet and local nsm IPs. Delaying conn ctx update to router")
 			return err
 		}
 
@@ -247,48 +316,79 @@ func (r *Reconciler) update_routing_table(e *fsm.Event) error {
 		}
 		err = r.WorkerRouterClient.UpdateEcmpRoutes(ctx, sidecarGrpcAddress, routeInfo)
 		if err != nil {
-			log.Error(err, "Unable to update ecmp routes in the slice router")
+			log.Error(err, "unable to update ecmp routes in the slice router")
 			return err
 		}
 		return nil
-	}, retry.Attempts(5000))
+	}, retry.Attempts(500))
 
-	// delete nodePort Service and Deployment
-	podList := corev1.PodList{}
-	labels := map[string]string{"kubeslice.io/gw-pod-type": "toBeDeleted", "kubeslice.io/slice": workerslicegwrecycler.Spec.SliceName}
-	listOptions := []client.ListOption{
-		client.MatchingLabels(labels),
-	}
-	err := r.MeshClient.List(ctx, &podList, listOptions...)
 	if err != nil {
-		return err
-	}
-	log.Info("old gw deploy to be deleted", "podList", len(podList.Items))
-	//TODO:add rbac in charts to include delete verb
-	rsName := podList.Items[0].ObjectMeta.OwnerReferences[0].Name
-	rs := appsv1.ReplicaSet{}
-	if err := r.MeshClient.Get(ctx, types.NamespacedName{Namespace: controllers.ControlPlaneNamespace, Name: rsName}, &rs); err != nil {
-		log.Error(err, "error getting replicaset")
-		return err
-	}
-	log.Info("got replica set", "rs", rs.Name)
-	deployName := rs.ObjectMeta.OwnerReferences[0].Name
-	// delete nodePort service
-	nodePortService := corev1.Service{}
-	if err := r.MeshClient.Get(ctx, types.NamespacedName{Namespace: controllers.ControlPlaneNamespace, Name: "svc-" + deployName}, &nodePortService); err != nil {
+		log.Error(err, "Err:()", err.Error())
+		r.moveFSMToErrorState(req, err)
+		workerslicegwrecycler.Spec.State = ERROR
+		_ = r.Status().Update(ctx, workerslicegwrecycler)
 		return err
 	}
 
-	err = r.MeshClient.Delete(ctx, &nodePortService)
+	var nodePortValue int32
+	var deployName string
+	// step2: delete nodePort Service
+	err = retry.Do(func() error {
+		podList := corev1.PodList{}
+		labels := map[string]string{
+			"kubeslice.io/gw-pod-type":                  "toBeDeleted",
+			"kubeslice.io/slice":                        workerslicegwrecycler.Spec.SliceName,
+			"kubeslice.io/slicegatewayRedundancyNumber": fmt.Sprint(workerslicegwrecycler.Spec.ServerRedundancyNumber),
+			"kubeslice.io/slice-gw":                     slicegateway.Name,
+		}
+		listOptions := []client.ListOption{
+			client.MatchingLabels(labels),
+		}
+		err = r.MeshClient.List(ctx, &podList, listOptions...)
+		if err != nil {
+			return err
+		}
+		// there should be only 1 pod with label "kubeslice.io/gw-pod-type":"toBeDeleted" per gw pair.
+		if len(podList.Items) != 1 {
+			log.Error(fmt.Errorf("more than 1 pods with label kubeslice.io/gw-pod-type:toBeDeleted, something went wrong"), "Err:()")
+		}
+		// fetch the replicaset and deployment from podName
+		rsName := podList.Items[0].ObjectMeta.OwnerReferences[0].Name
+		rs := appsv1.ReplicaSet{}
+		if err := r.MeshClient.Get(ctx, types.NamespacedName{Namespace: controllers.ControlPlaneNamespace, Name: rsName}, &rs); err != nil {
+			log.Error(err, "error getting replicaset")
+			return err
+		}
+		deployName = rs.ObjectMeta.OwnerReferences[0].Name
+		// delete nodePort service, name = svc-deployName
+		nodePortService := corev1.Service{}
+		if err := r.MeshClient.Get(ctx, types.NamespacedName{Namespace: controllers.ControlPlaneNamespace, Name: "svc-" + deployName}, &nodePortService); err != nil {
+			return err
+		}
+
+		// before deleting service, store the nodePort value to verify in future.
+		nodePortValue = nodePortService.Spec.Ports[0].NodePort
+		err = r.MeshClient.Delete(ctx, &nodePortService)
+		if err != nil {
+			return err
+		}
+		return nil
+	}, retry.Attempts(100))
+
 	if err != nil {
+		log.Error(err, "Error:()", err.Error())
+		r.moveFSMToErrorState(req, err)
+		workerslicegwrecycler.Spec.State = ERROR
+		_ = r.Status().Update(ctx, workerslicegwrecycler)
 		return err
 	}
-	log.Info("Deleted the service", "svc", nodePortService.Name)
-	// verify number of services to be equal to 2
-	retry.Do(func() error {
+	// verify number of services to be equal to 1
+	err = retry.Do(func() error {
 		listOpts := []client.ListOption{
 			client.MatchingLabels(map[string]string{
 				controllers.ApplicationNamespaceSelectorLabelKey: slicegateway.Spec.SliceName,
+				"kubeslice.io/slicegatewayRedundancyNumber":      fmt.Sprint(workerslicegwrecycler.Spec.ServerRedundancyNumber),
+				"kubeslice.io/slicegw":                           slicegateway.Name,
 			}),
 			client.InNamespace(controllers.ControlPlaneNamespace),
 		}
@@ -296,27 +396,46 @@ func (r *Reconciler) update_routing_table(e *fsm.Event) error {
 		if err := r.MeshClient.List(ctx, &services, listOpts...); err != nil {
 			return err
 		}
-		log.Info("number of services", "services", len(services.Items))
-		if len(services.Items) != 2 {
-			return errors.New("services still not decreased to 2")
+		log.Info("number of services", "services", services)
+		if len(services.Items) != 1 {
+			return errors.New("services still not decreased to 1")
+		}
+		return nil
+	}, retry.Attempts(100))
+
+	if err != nil {
+		log.Error(err, "Error:()", err.Error())
+		r.moveFSMToErrorState(req, err)
+		workerslicegwrecycler.Spec.State = ERROR
+		_ = r.Status().Update(ctx, workerslicegwrecycler)
+		return err
+	}
+
+	// step3: delete the deployment
+	err = retry.Do(func() error {
+		deployToBeDeleted := appsv1.Deployment{}
+		if err := r.MeshClient.Get(ctx, types.NamespacedName{Namespace: controllers.ControlPlaneNamespace, Name: deployName}, &deployToBeDeleted); err != nil {
+			log.Error(err, "error getting deployment")
+			return err
+		}
+
+		err = r.MeshClient.Delete(ctx, &deployToBeDeleted)
+		if err != nil {
+			return err
 		}
 		return nil
 	})
 
-	// delete the deployment
-	deployToBeDeleted := appsv1.Deployment{}
-	if err := r.MeshClient.Get(ctx, types.NamespacedName{Namespace: controllers.ControlPlaneNamespace, Name: deployName}, &deployToBeDeleted); err != nil {
-		log.Error(err, "error getting deployment")
+	if err != nil {
+		log.Error(err, "Error:()", err.Error())
+		r.moveFSMToErrorState(req, err)
+		workerslicegwrecycler.Spec.State = ERROR
+		_ = r.Status().Update(ctx, workerslicegwrecycler)
 		return err
 	}
 
-	err = r.MeshClient.Delete(ctx, &deployToBeDeleted)
-	if err != nil {
-		return err
-	}
-	log.Info("Deleted the deployment", "deploy", deployToBeDeleted.Name)
-	//wait and verify number of nodePorts are updated in slicegw
-	retry.Do(func() error {
+	//step4: wait and verify nodePortValue should not be present in slice.Spec.LocalGatewayConfig.NodePorts
+	err = retry.Do(func() error {
 		sliceGw := &spokev1alpha1.WorkerSliceGateway{}
 		err = r.Get(ctx, types.NamespacedName{
 			Name:      slicegateway.Name,
@@ -325,33 +444,56 @@ func (r *Reconciler) update_routing_table(e *fsm.Event) error {
 		if err != nil {
 			return err
 		}
-		log.Info("number of nodeports", "nodeports", len(sliceGw.Spec.LocalGatewayConfig.NodePorts))
-		if len(sliceGw.Spec.LocalGatewayConfig.NodePorts) != 2 {
-			return errors.New("Waiting for nodePorts to be updated")
+		log.V(1).Info("number of nodeports", "nodeports", len(sliceGw.Spec.LocalGatewayConfig.NodePorts))
+		if isPresent(sliceGw.Spec.LocalGatewayConfig.NodePorts, int(nodePortValue)) {
+			return errors.New("waiting for nodePorts to be updated")
 		}
-		return nil
-	}, retry.Attempts(1000))
+		workerslicegwrecycler.Spec.State = slicerouter_updated
+		workerslicegwrecycler.Spec.Request = delete_old_gw_pods
 
-	workerslicegwrecycler.Spec.State = slicerouter_updated
-	workerslicegwrecycler.Spec.Request = delete_old_gw_pods
+		return r.Update(ctx, workerslicegwrecycler)
+	})
 
-	return r.Update(ctx, workerslicegwrecycler)
+	if err != nil {
+		log.Error(err, "Error:()", err.Error())
+		r.moveFSMToErrorState(req, err)
+		workerslicegwrecycler.Spec.State = ERROR
+		_ = r.Status().Update(ctx, workerslicegwrecycler)
+		return err
+	}
+	return nil
+}
+
+func isPresent(nodePorts []int, v int) bool {
+	for _, j := range nodePorts {
+		if j == v {
+			return true
+		}
+	}
+	return false
 }
 
 func (r *Reconciler) delete_old_gw_pods(e *fsm.Event) error {
 	ctx := context.Background()
-	log := logger.FromContext(ctx).WithName("workerslicegwrecycler")
-
-	log.Info("Deleteing Old gw pods")
 
 	workerslicegwrecycler := e.Args[0].(*spokev1alpha1.WorkerSliceGwRecycler)
+	log := logger.FromContext(ctx).WithName("workerslicegwrecycler").WithName(workerslicegwrecycler.Name)
+
+	log.Info("deleteing old gateway deployment")
 	isClient := e.Args[1].(bool)
 	slicegateway := e.Args[2].(kubeslicev1beta1.SliceGateway)
-	// before deleting old gw_pods delete the route from vl3 router
+	req := e.Args[3].(reconcile.Request)
+	// before deleting old gw deployment delete the routes from vl3 router
 	if isClient {
-		retry.Do(func() error {
+		err := retry.Do(func() error {
+			// step1: update the routes in vl3
 			podList := corev1.PodList{}
-			labels := map[string]string{"kubeslice.io/gw-pod-type": "toBeDeleted", "kubeslice.io/slice": workerslicegwrecycler.Spec.SliceName}
+			labels := map[string]string{
+				"kubeslice.io/gw-pod-type":                  "toBeDeleted",
+				"kubeslice.io/slice":                        workerslicegwrecycler.Spec.SliceName,
+				"kubeslice.io/slicegatewayRedundancyNumber": fmt.Sprint(workerslicegwrecycler.Spec.ClientRedundancyNumber),
+				"kubeslice.io/slice-gw":                     slicegateway.Name,
+			}
 			listOptions := []client.ListOption{
 				client.MatchingLabels(labels),
 			}
@@ -359,27 +501,31 @@ func (r *Reconciler) delete_old_gw_pods(e *fsm.Event) error {
 			if err != nil {
 				return err
 			}
+			// there should be only 1 pod with label "kubeslice.io/gw-pod-type":"toBeDeleted" per gw pair.
+			if len(podList.Items) != 1 {
+				log.Error(fmt.Errorf("more than 1 pods with label kubeslice.io/gw-pod-type:toBeDeleted, something went wrong"), "Err:()")
+			}
 			grpcAdd := podList.Items[0].Status.PodIP + ":5000"
 
 			status, err := r.WorkerGWSidecarClient.GetStatus(ctx, grpcAdd)
 			if err != nil {
-				r.Log.Error(err, "Unable to fetch gw status")
+				log.Error(err, "Unable to fetch gw status")
 				return err
 			}
 			nsmIP := status.NsmStatus.LocalIP
 			_, podIP, err := controllers.GetSliceRouterPodNameAndIP(ctx, r.MeshClient, slicegateway.Spec.SliceName)
 			if err != nil {
-				log.Error(err, "Unable to get slice router pod info")
+				log.Error(err, "unable to get slice router pod info")
 				return err
 			}
 			if podIP == "" {
-				log.Info("Slice router podIP not available yet, requeuing")
+				log.V(1).Info("slice router podIP not available yet, requeuing")
 				return err
 			}
 
 			if slicegateway.Status.Config.SliceGatewayRemoteSubnet == "" ||
 				len(slicegateway.Status.GatewayPodStatus) == 0 {
-				log.Info("Waiting for remote subnet and local nsm IPs. Delaying conn ctx update to router")
+				log.V(1).Info("Waiting for remote subnet and local nsm IPs. Delaying conn ctx update to router")
 				return err
 			}
 
@@ -390,68 +536,121 @@ func (r *Reconciler) delete_old_gw_pods(e *fsm.Event) error {
 			}
 			err = r.WorkerRouterClient.UpdateEcmpRoutes(ctx, sidecarGrpcAddress, routeInfo)
 			if err != nil {
-				log.Error(err, "Unable to update ecmp routes in the slice router")
+				log.Error(err, "unable to update ecmp routes in the slice router")
 				return err
 			}
 			return nil
-		}, retry.Attempts(5000))
+		}, retry.Attempts(100))
 
-		retry.Do(func() error {
-			err := r.MeshClient.Get(ctx, types.NamespacedName{
-				Name:      slicegateway.Name,
-				Namespace: controllers.ControlPlaneNamespace,
-			}, &slicegateway)
+		if err != nil {
+			log.Error(err, "Err():", err.Error())
+			r.moveFSMToErrorState(req, err)
+			workerslicegwrecycler.Status.Client.Response = ERROR
+			_ = r.Status().Update(ctx, workerslicegwrecycler)
+			return err
+		}
+		// // step2: verify the nodeports are updated
+		// err = retry.Do(func() error {
+		// 	err := r.MeshClient.Get(ctx, types.NamespacedName{
+		// 		Name:      slicegateway.Name,
+		// 		Namespace: controllers.ControlPlaneNamespace,
+		// 	}, &slicegateway)
+		// 	if err != nil {
+		// 		return err
+		// 	}
+		// 	log.V(1).Info("number of nodeports", "nodeports", slicegateway.Status.Config.SliceGatewayRemoteNodePorts, "len", len(slicegateway.Status.Config.SliceGatewayRemoteNodePorts))
+		// 	if len(slicegateway.Status.Config.SliceGatewayRemoteNodePorts) != 2 {
+		// 		return errors.New("waiting for nodePorts to be updated")
+		// 	}
+		// 	return nil
+		// })
+
+		// if err != nil {
+		// 	log.Error(err, "Err():", err.Error())
+		// 	r.moveFSMToErrorState(req, err)
+		// 	workerslicegwrecycler.Status.Client.Response = ERROR
+		// 	_ = r.Status().Update(ctx, workerslicegwrecycler)
+		// 	return err
+		// }
+
+		// step3: delete the old deployment
+		deployToBeDeleted := appsv1.Deployment{}
+		err = retry.Do(func() error {
+			podList := corev1.PodList{}
+			labels := map[string]string{
+				"kubeslice.io/gw-pod-type":                  "toBeDeleted",
+				"kubeslice.io/slice":                        workerslicegwrecycler.Spec.SliceName,
+				"kubeslice.io/slicegatewayRedundancyNumber": fmt.Sprint(workerslicegwrecycler.Spec.ClientRedundancyNumber),
+				"kubeslice.io/slice-gw":                     slicegateway.Name,
+			}
+			listOptions := []client.ListOption{
+				client.MatchingLabels(labels),
+			}
+			err = r.MeshClient.List(ctx, &podList, listOptions...)
 			if err != nil {
 				return err
 			}
-			log.Info("number of nodeports", "nodeports", slicegateway.Status.Config.SliceGatewayRemoteNodePorts, "len", len(slicegateway.Status.Config.SliceGatewayRemoteNodePorts))
-			if len(slicegateway.Status.Config.SliceGatewayRemoteNodePorts) != 2 {
-				return errors.New("Waiting for nodePorts to be updated")
+			rsName := podList.Items[0].ObjectMeta.OwnerReferences[0].Name
+			rs := appsv1.ReplicaSet{}
+			if err := r.MeshClient.Get(ctx, types.NamespacedName{Namespace: controllers.ControlPlaneNamespace, Name: rsName}, &rs); err != nil {
+				log.Error(err, "error getting replicaset")
+				return err
+			}
+			deployName := rs.ObjectMeta.OwnerReferences[0].Name
+			deployToBeDeleted = appsv1.Deployment{}
+			if err := r.MeshClient.Get(ctx, types.NamespacedName{Namespace: controllers.ControlPlaneNamespace, Name: deployName}, &deployToBeDeleted); err != nil {
+				log.Error(err, "error getting deployment")
+				return err
+			}
+			err = r.MeshClient.Delete(ctx, &deployToBeDeleted)
+			if err != nil {
+				return err
 			}
 			return nil
 		})
-
-		podList := corev1.PodList{}
-		labels := map[string]string{"kubeslice.io/gw-pod-type": "toBeDeleted", "kubeslice.io/slice": workerslicegwrecycler.Spec.SliceName}
-		listOptions := []client.ListOption{
-			client.MatchingLabels(labels),
-		}
-		err := r.MeshClient.List(ctx, &podList, listOptions...)
 		if err != nil {
+			log.Error(err, "Err():", err.Error())
+			r.moveFSMToErrorState(req, err)
+			workerslicegwrecycler.Status.Client.Response = ERROR
+			_ = r.Status().Update(ctx, workerslicegwrecycler)
 			return err
 		}
-		log.Info("old gw deploy to be deleted", "podList", len(podList.Items))
-		//TODO:add rbac in charts to include delete verb
-		rsName := podList.Items[0].ObjectMeta.OwnerReferences[0].Name
-		rs := appsv1.ReplicaSet{}
-		if err := r.MeshClient.Get(ctx, types.NamespacedName{Namespace: controllers.ControlPlaneNamespace, Name: rsName}, &rs); err != nil {
-			log.Error(err, "error getting replicaset")
-			return err
-		}
-		log.Info("got replica set", "rs", rs.Name)
-		deployName := rs.ObjectMeta.OwnerReferences[0].Name
-		deployToBeDeleted := appsv1.Deployment{}
-		if err := r.MeshClient.Get(ctx, types.NamespacedName{Namespace: controllers.ControlPlaneNamespace, Name: deployName}, &deployToBeDeleted); err != nil {
-			log.Error(err, "error getting deployment")
-			return err
-		}
-		err = r.MeshClient.Delete(ctx, &deployToBeDeleted)
-		if err != nil {
-			return err
-		}
+		// once the deployment is deleted, update the global map GwMap to delete the deploy info.
 		delete(slicegwpkg.GwMap, deployToBeDeleted.Name)
 		workerslicegwrecycler.Status.Client.Response = old_gw_deleted
 		return r.Status().Update(ctx, workerslicegwrecycler)
 	}
 
-	workerslicegwrecycler.Spec.State = old_gw_deleted
-	workerslicegwrecycler.Spec.Request = "end"
-	err := r.Update(ctx, workerslicegwrecycler)
+	// end the FSM
+	err := retry.Do(func() error {
+		workerslicegwrecycler.Spec.State = old_gw_deleted
+		workerslicegwrecycler.Spec.Request = "end"
+		err := r.Update(ctx, workerslicegwrecycler)
+		if err != nil {
+			return err
+		}
+		// FSM complete - delete workergwrecycler
+		return r.Delete(ctx, workerslicegwrecycler)
+	})
 	if err != nil {
+		log.Error(err, "Error:()", err.Error())
+		r.moveFSMToErrorState(req, err)
+		workerslicegwrecycler.Spec.State = ERROR
+		_ = r.Status().Update(ctx, workerslicegwrecycler)
 		return err
 	}
-	// FSM complete - delete workergwrecycler
-	return r.Delete(ctx, workerslicegwrecycler)
+	return nil
+}
+
+func (r *Reconciler) errorEntryFunction(e *fsm.Event) error {
+	// raise events
+	// move the FSM to INIT
+	return nil
+}
+
+func (r *Reconciler) moveFSMToErrorState(req reconcile.Request, err error) {
+	// move the FSM to ERROR state
+	r.FSM[req.String()].Event(onError, err)
 }
 
 func getNsmIp(slicegw *kubeslicev1beta1.SliceGateway, podName string) string {

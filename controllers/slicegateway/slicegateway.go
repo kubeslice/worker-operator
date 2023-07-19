@@ -67,6 +67,7 @@ func labelsForSliceGwDeployment(name string, slice string, i int) map[string]str
 		controllers.ApplicationNamespaceSelectorLabelKey: slice,
 		"kubeslice.io/slice-gw":                          name,
 		"kubeslice.io/slicegateway-pod":                  fmt.Sprint(i),
+		"kubeslice.io/slicegatewayRedundancyNumber":      fmt.Sprint(i % 2),
 	}
 }
 
@@ -84,15 +85,15 @@ func labelsForSliceGwStatus(name string) map[string]string {
 }
 
 // deploymentForGateway returns a gateway Deployment object
-func (r *SliceGwReconciler) deploymentForGateway(g *kubeslicev1beta1.SliceGateway, i int) *appsv1.Deployment {
+func (r *SliceGwReconciler) deploymentForGateway(g *kubeslicev1beta1.SliceGateway, i, rotationCount int) *appsv1.Deployment {
 	if g.Status.Config.SliceGatewayHostType == "Server" {
-		return r.deploymentForGatewayServer(g, i)
+		return r.deploymentForGatewayServer(g, i, rotationCount)
 	} else {
-		return r.deploymentForGatewayClient(g, i)
+		return r.deploymentForGatewayClient(g, i, rotationCount)
 	}
 }
 
-func (r *SliceGwReconciler) deploymentForGatewayServer(g *kubeslicev1beta1.SliceGateway, i int) *appsv1.Deployment {
+func (r *SliceGwReconciler) deploymentForGatewayServer(g *kubeslicev1beta1.SliceGateway, i, rotationCount int) *appsv1.Deployment {
 	ls := labelsForSliceGwDeployment(g.Name, g.Spec.SliceName, i)
 
 	var replicas int32 = 1
@@ -138,6 +139,7 @@ func (r *SliceGwReconciler) deploymentForGatewayServer(g *kubeslicev1beta1.Slice
 				controllers.ApplicationNamespaceSelectorLabelKey: g.Spec.SliceName,
 				webhook.PodInjectLabelKey:                        "slicegateway",
 				"kubeslice.io/slicegw":                           g.Name,
+				"kubeslice.io/slicegatewayRedundancyNumber":      fmt.Sprint(i % 2),
 			},
 		},
 		Spec: appsv1.DeploymentSpec{
@@ -278,7 +280,7 @@ func (r *SliceGwReconciler) deploymentForGatewayServer(g *kubeslicev1beta1.Slice
 							Name: "vpn-certs",
 							VolumeSource: corev1.VolumeSource{
 								Secret: &corev1.SecretVolumeSource{
-									SecretName:  g.Name,
+									SecretName:  g.Name + "-" + strconv.Itoa(rotationCount), // append rotation count
 									DefaultMode: &vpnSecretDefaultMode,
 									Items: []corev1.KeyToPath{
 										{
@@ -344,6 +346,7 @@ func (r *SliceGwReconciler) serviceForGateway(g *kubeslicev1beta1.SliceGateway, 
 			Labels: map[string]string{
 				controllers.ApplicationNamespaceSelectorLabelKey: g.Spec.SliceName,
 				"kubeslice.io/slicegw":                           g.Name,
+				"kubeslice.io/slicegatewayRedundancyNumber":      fmt.Sprint(i % 2),
 			},
 		},
 		Spec: corev1.ServiceSpec{
@@ -364,7 +367,7 @@ func (r *SliceGwReconciler) serviceForGateway(g *kubeslicev1beta1.SliceGateway, 
 	return svc
 }
 
-func (r *SliceGwReconciler) deploymentForGatewayClient(g *kubeslicev1beta1.SliceGateway, i int) *appsv1.Deployment {
+func (r *SliceGwReconciler) deploymentForGatewayClient(g *kubeslicev1beta1.SliceGateway, i, rotationCount int) *appsv1.Deployment {
 	var replicas int32 = 1
 	var privileged = true
 
@@ -417,6 +420,7 @@ func (r *SliceGwReconciler) deploymentForGatewayClient(g *kubeslicev1beta1.Slice
 				controllers.ApplicationNamespaceSelectorLabelKey: g.Spec.SliceName,
 				webhook.PodInjectLabelKey:                        "slicegateway",
 				"kubeslice.io/slicegw":                           g.Name,
+				"kubeslice.io/slicegatewayRedundancyNumber":      fmt.Sprint(i % 2),
 			},
 		},
 		Spec: appsv1.DeploymentSpec{
@@ -552,7 +556,7 @@ func (r *SliceGwReconciler) deploymentForGatewayClient(g *kubeslicev1beta1.Slice
 						Name: "shared-volume",
 						VolumeSource: corev1.VolumeSource{
 							Secret: &corev1.SecretVolumeSource{
-								SecretName:  g.Name,
+								SecretName:  g.Name + "-" + strconv.Itoa(rotationCount),
 								DefaultMode: &vpnSecretDefaultMode,
 								Items: []corev1.KeyToPath{
 									{
@@ -604,6 +608,14 @@ func (r *SliceGwReconciler) GetGwPodInfo(ctx context.Context, sliceGw *kubeslice
 	for _, pod := range podList.Items {
 		if pod.Status.Phase == corev1.PodRunning && pod.ObjectMeta.DeletionTimestamp == nil {
 			gwPod := &kubeslicev1beta1.GwPodInfo{PodName: pod.Name, PodIP: pod.Status.PodIP}
+			gwPod.PodCreationTS = &pod.CreationTimestamp
+			if existingPodInfo := findGwPodInfo(sliceGw.Status.GatewayPodStatus, pod.Name); existingPodInfo != nil {
+				gwPod.OriginalPodCreationTS = existingPodInfo.OriginalPodCreationTS
+			} else {
+				// should only be called once!!
+				gwPod.OriginalPodCreationTS = &pod.CreationTimestamp
+			}
+			// OriginalPodCreationTS should only be updated once at the start
 			gwPodList = append(gwPodList, gwPod)
 		}
 	}
@@ -691,6 +703,16 @@ func (r *SliceGwReconciler) ReconcileGwPodStatus(ctx context.Context, slicegatew
 		return ctrl.Result{}, err, true
 	}
 	return ctrl.Result{}, nil, false
+}
+
+// Helper function to find existing GwPodInfo by name in the status
+func findGwPodInfo(gwPodStatus []*kubeslicev1beta1.GwPodInfo, podName string) *kubeslicev1beta1.GwPodInfo {
+	for _, gwPod := range gwPodStatus {
+		if gwPod.PodName == podName {
+			return gwPod
+		}
+	}
+	return nil
 }
 func (r *SliceGwReconciler) UpdateRoutesInRouter(ctx context.Context, slicegateway *kubeslicev1beta1.SliceGateway, NsmIP string) error {
 	log := logger.FromContext(ctx).WithValues("type", "SliceGw")

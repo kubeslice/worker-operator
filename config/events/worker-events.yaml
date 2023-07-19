@@ -209,6 +209,12 @@ events:
     type: Warning
     reportingController: worker
     message: Slice GateWay NodePort update failed.
+  - name: SliceGWSecretDeletionFailed
+    reason: SliceGWSecretDeletionFailed
+    action: None
+    type: Warning
+    reportingController: worker
+    message: Slice GateWay secret deletion failed.
   - name: SliceServiceImportUpdateAvailableEndpointsFailed
     reason: SliceServiceImportUpdateAvailableEndpointsFailed
     action: ReconcileServiceImport
@@ -473,3 +479,33 @@ events:
     type: Warning
     reportingController: worker
     message: Failed to complete cluster deregistration job
+  - name: GatewayCertificateRecyclingTriggered
+    reason: GatewayCertificateRecyclingTriggered
+    action: None
+    type: Normal
+    reportingController: worker
+    message: Gateway certificate recycling triggered
+  - name: GatewayCertificateUpdated
+    reason: GatewayCertificateUpdated
+    action: None
+    type: Normal
+    reportingController: worker
+    message: Gateway certificate updated successfully
+  - name: TriggeredFSMToRecycleGateways
+    reason: TriggeredFSMToRecycleGateways
+    action: None
+    type: Normal
+    reportingController: worker
+    message: FSM triggered to recycle gateway pairs
+  - name: GatewayRecyclingSuccessful
+    reason: GatewayRecyclingSuccessful
+    action: None
+    type: Normal
+    reportingController: worker
+    message: Gateway recycling successful
+  - name: GatewayRecyclingFailed
+    reason: GatewayRecyclingFailed
+    action: None
+    type: Warning
+    reportingController: worker
+    message: Gateway recycling failed

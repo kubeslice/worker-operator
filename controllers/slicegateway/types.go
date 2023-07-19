@@ -21,10 +21,12 @@ package slicegateway
 import (
 	"context"
 
+	hubv1alpha1 "github.com/kubeslice/apis/pkg/controller/v1alpha1"
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
 	"github.com/kubeslice/worker-operator/pkg/gwsidecar"
 	"github.com/kubeslice/worker-operator/pkg/netop"
 	"github.com/kubeslice/worker-operator/pkg/router"
+	corev1 "k8s.io/api/core/v1"
 )
 
 // NetOpPod contains details of NetOp Pod running in the cluster
@@ -36,7 +38,8 @@ type NetOpPod struct {
 type HubClientProvider interface {
 	UpdateNodePortForSliceGwServer(ctx context.Context, sliceGwNodePort []int, sliceGwName string) error
 	GetClusterNodeIP(ctx context.Context, clusterName, namespace string) ([]string, error)
-	CreateWorkerSliceGwRecycler(ctx context.Context, gwRecyclerName, clientID, serverID, sliceGwServer, sliceGwClient, slice string) error
+	CreateWorkerSliceGwRecycler(ctx context.Context, gwRecyclerName, clientID, serverID, sliceGwServer, sliceGwClient, slice, redundancyNumber string) error
+	GetVPNKeyRotation(ctx context.Context, rotationName string) (*hubv1alpha1.VpnKeyRotation, error)
 }
 type WorkerGWSidecarClientProvider interface {
 	GetSliceGwRemotePodName(ctx context.Context, gwRemoteVpnIP string, serverAddr string) (string, error)
@@ -54,4 +57,10 @@ type WorkerNetOpClientProvider interface {
 	UpdateSliceQosProfile(ctx context.Context, addr string, slice *kubeslicev1beta1.Slice) error
 	SendSliceLifeCycleEventToNetOp(ctx context.Context, addr string, sliceName string, eventType netop.EventType) error
 	SendConnectionContext(ctx context.Context, serverAddr string, gw *kubeslicev1beta1.SliceGateway, sliceGwNodePorts []int) error
+}
+
+type WorkerRecyclerClientProvider interface {
+	// triggers FSM to recycle gateway pair by passing server gateway pod
+	// numberOfGwSvc should be equal to number of new deploy that should come up
+	TriggerFSM(sliceGw *kubeslicev1beta1.SliceGateway, slice *kubeslicev1beta1.Slice, gatewayPod *corev1.Pod, controllerName, gwRecyclerName string, numberOfGwSvc int) error
 }

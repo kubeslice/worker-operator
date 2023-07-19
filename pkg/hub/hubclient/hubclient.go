@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"os"
 	"reflect"
+	"strconv"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 
@@ -69,7 +70,7 @@ type HubClientRpc interface {
 	UpdateServiceExportEndpointForIngressGw(ctx context.Context, serviceexport *kubeslicev1beta1.ServiceExport,
 		ep *kubeslicev1beta1.ServicePod) error
 	UpdateAppNamespaces(ctx context.Context, sliceConfigName string, onboardedNamespaces []string) error
-	CreateWorkerSliceGwRecycler(ctx context.Context, gwRecyclerName, clientID, serverID, sliceGwServer, sliceGwClient, slice string) error
+	CreateWorkerSliceGwRecycler(ctx context.Context, gwRecyclerName, clientID, serverID, sliceGwServer, sliceGwClient, slice, redundancyNumber string) error
 }
 
 func NewHubClientConfig(er *monitoring.EventRecorder) (*HubClientConfig, error) {
@@ -90,13 +91,15 @@ func NewHubClientConfig(er *monitoring.EventRecorder) (*HubClientConfig, error) 
 	}, err
 }
 
-func (hubClient *HubClientConfig) CreateWorkerSliceGwRecycler(ctx context.Context, gwRecyclerName, clientID, serverID, sliceGwServer, sliceGwClient, slice string) error {
+func (hubClient *HubClientConfig) CreateWorkerSliceGwRecycler(ctx context.Context, gwRecyclerName, clientID, serverID, sliceGwServer, sliceGwClient, slice, redundancyNumber string) error {
+	redundancyInt, _ := strconv.Atoi(redundancyNumber)
 	workerslicegwrecycler := spokev1alpha1.WorkerSliceGwRecycler{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      gwRecyclerName,
 			Namespace: ProjectNamespace,
 			Labels: map[string]string{
-				"slice_name": slice,
+				"slice_name":   slice,
+				"slicegw_name": sliceGwServer,
 			},
 		},
 		Spec: spokev1alpha1.WorkerSliceGwRecyclerSpec{
@@ -104,14 +107,29 @@ func (hubClient *HubClientConfig) CreateWorkerSliceGwRecycler(ctx context.Contex
 				ServerID: serverID,
 				ClientID: clientID,
 			},
-			State:         "init",
-			Request:       "verify_new_deployment_created",
-			SliceGwServer: sliceGwServer,
-			SliceGwClient: sliceGwClient,
-			SliceName:     slice,
+			ServerRedundancyNumber: redundancyInt,
+			State:                  "init",
+			Request:                "verify_new_deployment_created",
+			SliceGwServer:          sliceGwServer,
+			SliceGwClient:          sliceGwClient,
+			SliceName:              slice,
 		},
 	}
 	return hubClient.Create(ctx, &workerslicegwrecycler)
+}
+
+func (hubClient *HubClientConfig) ListWorkerSliceGwRecycler(ctx context.Context, sliceGWName string) ([]spokev1alpha1.WorkerSliceGwRecycler, error) {
+	workerslicegwrecycler := spokev1alpha1.WorkerSliceGwRecyclerList{}
+	labels := map[string]string{"slicegw_name": sliceGWName}
+	listOpts := []client.ListOption{
+		client.MatchingLabels(labels),
+		client.InNamespace(ProjectNamespace),
+	}
+	err := hubClient.List(ctx, &workerslicegwrecycler, listOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return workerslicegwrecycler.Items, nil
 }
 
 func (hubClient *HubClientConfig) UpdateNodePortForSliceGwServer(ctx context.Context, sliceGwNodePorts []int, sliceGwName string) error {
@@ -154,6 +172,18 @@ func (hubClient *HubClientConfig) GetClusterNodeIP(ctx context.Context, clusterN
 		return []string{""}, err
 	}
 	return cluster.Status.NodeIPs, nil
+}
+
+func (hubClient *HubClientConfig) GetVPNKeyRotation(ctx context.Context, rotationName string) (*hubv1alpha1.VpnKeyRotation, error) {
+	vpnKeyRotation := &hubv1alpha1.VpnKeyRotation{}
+	err := hubClient.Get(ctx, types.NamespacedName{
+		Name:      rotationName,
+		Namespace: ProjectNamespace,
+	}, vpnKeyRotation)
+	if err != nil {
+		return nil, err
+	}
+	return vpnKeyRotation, nil
 }
 
 func UpdateNamespaceInfoToHub(ctx context.Context, hubClient client.Client, onboardNamespace, sliceName string) error {

@@ -9,7 +9,7 @@ require (
 	github.com/go-logr/zapr v1.2.3
 	github.com/golang/protobuf v1.5.2
 	github.com/google/go-cmp v0.5.9
-	github.com/kubeslice/apis v0.1.5
+	github.com/kubeslice/apis v0.1.8-0.20230711141912-a10134de8313
 	github.com/kubeslice/gateway-sidecar v0.2.0
 	github.com/kubeslice/kubeslice-monitoring v0.1.10
 	github.com/kubeslice/netops v0.1.3
@@ -19,6 +19,7 @@ require (
 	github.com/onsi/ginkgo/v2 v2.1.3
 	github.com/onsi/gomega v1.18.1
 	github.com/prometheus/client_golang v1.14.0
+	github.com/prometheus/client_model v0.3.0
 	github.com/stretchr/testify v1.8.1
 	go.opencensus.io v0.24.0
 	go.uber.org/zap v1.24.0
@@ -29,6 +30,7 @@ require (
 	istio.io/api v0.0.0-20210226184957-53be27d8195b
 	istio.io/client-go v1.9.0
 	k8s.io/api v0.23.5
+	k8s.io/apiextensions-apiserver v0.23.0
 	k8s.io/apimachinery v0.23.5
 	k8s.io/client-go v0.23.5
 	sigs.k8s.io/controller-runtime v0.11.1
@@ -66,7 +68,6 @@ require (
 	github.com/networkservicemesh/api v1.6.1 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
-	github.com/prometheus/client_model v0.3.0 // indirect
 	github.com/prometheus/common v0.37.0 // indirect
 	github.com/prometheus/procfs v0.8.0 // indirect
 	github.com/prometheus/statsd_exporter v0.21.0 // indirect
@@ -89,7 +90,6 @@ require (
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	istio.io/gogo-genproto v0.0.0-20210113155706-4daf5697332f // indirect
-	k8s.io/apiextensions-apiserver v0.23.0 // indirect
 	k8s.io/component-base v0.23.0 // indirect
 	k8s.io/klog/v2 v2.80.1 // indirect
 	k8s.io/kube-openapi v0.0.0-20211115234752-e816edb12b65 // indirect

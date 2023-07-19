@@ -302,6 +302,14 @@ var EventsMap = map[events.EventName]*events.EventSchema{
 		ReportingController: "worker",
 		Message:             "Slice GateWay NodePort update failed.",
 	},
+	"SliceGWSecretDeletionFailed": {
+		Name:                "SliceGWSecretDeletionFailed",
+		Reason:              "SliceGWSecretDeletionFailed",
+		Action:              "None",
+		Type:                events.EventTypeWarning,
+		ReportingController: "worker",
+		Message:             "Slice GateWay secret deletion failed.",
+	},
 	"SliceServiceImportUpdateAvailableEndpointsFailed": {
 		Name:                "SliceServiceImportUpdateAvailableEndpointsFailed",
 		Reason:              "SliceServiceImportUpdateAvailableEndpointsFailed",
@@ -654,6 +662,46 @@ var EventsMap = map[events.EventName]*events.EventSchema{
 		ReportingController: "worker",
 		Message:             "Failed to complete cluster deregistration job",
 	},
+	"GatewayCertificateRecyclingTriggered": {
+		Name:                "GatewayCertificateRecyclingTriggered",
+		Reason:              "GatewayCertificateRecyclingTriggered",
+		Action:              "None",
+		Type:                events.EventTypeNormal,
+		ReportingController: "worker",
+		Message:             "Gateway certificate recycling triggered",
+	},
+	"GatewayCertificateUpdated": {
+		Name:                "GatewayCertificateUpdated",
+		Reason:              "GatewayCertificateUpdated",
+		Action:              "None",
+		Type:                events.EventTypeNormal,
+		ReportingController: "worker",
+		Message:             "Gateway certificate updated successfully",
+	},
+	"TriggeredFSMToRecycleGateways": {
+		Name:                "TriggeredFSMToRecycleGateways",
+		Reason:              "TriggeredFSMToRecycleGateways",
+		Action:              "None",
+		Type:                events.EventTypeNormal,
+		ReportingController: "worker",
+		Message:             "FSM triggered to recycle gateway pairs",
+	},
+	"GatewayRecyclingSuccessful": {
+		Name:                "GatewayRecyclingSuccessful",
+		Reason:              "GatewayRecyclingSuccessful",
+		Action:              "None",
+		Type:                events.EventTypeNormal,
+		ReportingController: "worker",
+		Message:             "Gateway recycling successful",
+	},
+	"GatewayRecyclingFailed": {
+		Name:                "GatewayRecyclingFailed",
+		Reason:              "GatewayRecyclingFailed",
+		Action:              "None",
+		Type:                events.EventTypeWarning,
+		ReportingController: "worker",
+		Message:             "Gateway recycling failed",
+	},
 }
 
 var (
@@ -692,6 +740,7 @@ var (
 	EventSliceGWRebalancingSuccess                        events.EventName = "SliceGWRebalancingSuccess"
 	EventSliceGWServiceCreationFailed                     events.EventName = "SliceGWServiceCreationFailed"
 	EventSliceGWNodePortUpdateFailed                      events.EventName = "SliceGWNodePortUpdateFailed"
+	EventSliceGWSecretDeletionFailed                      events.EventName = "SliceGWSecretDeletionFailed"
 	EventSliceServiceImportUpdateAvailableEndpointsFailed events.EventName = "SliceServiceImportUpdateAvailableEndpointsFailed"
 	EventSliceServiceImportDeleted                        events.EventName = "SliceServiceImportDeleted"
 	EventSliceServiceImportDeleteFailed                   events.EventName = "SliceServiceImportDeleteFailed"
@@ -736,4 +785,9 @@ var (
 	EventDeleteNamespaceInfoToHub                         events.EventName = "DeleteNamespaceInfoToHub"
 	EventDeleteNamespaceInfoToHubFailed                   events.EventName = "DeleteNamespaceInfoToHubFailed"
 	EventDeregistrationJobFailed                          events.EventName = "DeregistrationJobFailed"
+	EventGatewayCertificateRecyclingTriggered             events.EventName = "GatewayCertificateRecyclingTriggered"
+	EventGatewayCertificateUpdated                        events.EventName = "GatewayCertificateUpdated"
+	EventTriggeredFSMToRecycleGateways                    events.EventName = "TriggeredFSMToRecycleGateways"
+	EventGatewayRecyclingSuccessful                       events.EventName = "GatewayRecyclingSuccessful"
+	EventGatewayRecyclingFailed                           events.EventName = "GatewayRecyclingFailed"
 )

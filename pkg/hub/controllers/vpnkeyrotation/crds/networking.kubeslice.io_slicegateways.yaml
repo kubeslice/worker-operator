@@ -135,16 +135,7 @@ spec:
                   properties:
                     localNsmIP:
                       type: string
-                    originalPodCreationTS:
-                      description: originalPodCreationTS indicates how old the gw
-                        pod is even if is restarted
-                      format: date-time
-                      type: string
                     peerPodName:
-                      type: string
-                    podCreationTS:
-                      description: podCreationTS indicates the creation TS of a pod
-                      format: date-time
                       type: string
                     podIP:
                       type: string

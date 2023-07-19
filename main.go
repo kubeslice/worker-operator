@@ -27,6 +27,7 @@ import (
 	"github.com/kubeslice/worker-operator/controllers"
 	"github.com/kubeslice/worker-operator/pkg/monitoring"
 	namespacecontroller "github.com/kubeslice/worker-operator/pkg/namespace/controllers"
+	"github.com/kubeslice/worker-operator/pkg/slicegwrecycler"
 	"github.com/prometheus/client_golang/prometheus"
 	"go.opencensus.io/stats/view"
 
@@ -164,6 +165,8 @@ func main() {
 		Scheme: scheme,
 	})
 
+	ctx := ctrl.SetupSignalHandler()
+
 	mf, err := metrics.NewMetricsFactory(ctrlmetrics.Registry, metrics.MetricsFactoryOptions{
 		Cluster:             controllers.ClusterName,
 		Project:             strings.TrimPrefix(hub.ProjectNamespace, "kubeslice_"),
@@ -182,6 +185,11 @@ func main() {
 		Component: "sliceController",
 		Namespace: controllers.ControlPlaneNamespace,
 	})
+	workerRecyclerClient, err := slicegwrecycler.NewRecyclerClient(ctx, clientForHubMgr, hubClient, &sliceEventRecorder, mgr.GetScheme())
+	if err != nil {
+		os.Exit(1)
+	}
+
 	if err = (&slice.SliceReconciler{
 		Client:             mgr.GetClient(),
 		Log:                ctrl.Log.WithName("controllers").WithName("Slice"),
@@ -208,6 +216,7 @@ func main() {
 		WorkerGWSidecarClient: workerGWClient,
 		WorkerRouterClient:    workerRouterClient,
 		WorkerNetOpClient:     workerNetOPClient,
+		WorkerRecyclerClient:  workerRecyclerClient,
 		EventRecorder:         &sliceEventRecorder,
 		NumberOfGateways:      2,
 	}).SetupWithManager(mgr); err != nil {
@@ -265,7 +274,6 @@ func main() {
 		setupLog.With("error", err).Error("unable to set up ready check")
 		os.Exit(1)
 	}
-	ctx := ctrl.SetupSignalHandler()
 
 	if err != nil {
 		setupLog.With("error", err).Error("unable to create kube client for hub manager")
@@ -273,7 +281,7 @@ func main() {
 	}
 	go func() {
 		setupLog.Info("starting hub manager")
-		manager.Start(clientForHubMgr, ctx)
+		manager.Start(clientForHubMgr, hubClient, ctx)
 	}()
 
 	setupLog.Info("starting manager")

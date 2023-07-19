@@ -62,10 +62,12 @@ type SliceGwReconciler struct {
 	WorkerRouterClient    WorkerRouterClientProvider
 	WorkerNetOpClient     WorkerNetOpClientProvider
 	WorkerGWSidecarClient WorkerGWSidecarClientProvider
-	NetOpPods             []NetOpPod
-	EventRecorder         *events.EventRecorder
-	NodeIPs               []string
-	NumberOfGateways      int
+	WorkerRecyclerClient  WorkerRecyclerClientProvider
+
+	NetOpPods        []NetOpPod
+	EventRecorder    *events.EventRecorder
+	NodeIPs          []string
+	NumberOfGateways int
 }
 
 // gwMap holds the mapping between gwPodName and NodePort number
@@ -237,14 +239,23 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		log.Info("number of nodeports", "nodeports", sliceGw.Status.Config.SliceGatewayRemoteNodePorts, "len", len(sliceGw.Status.Config.SliceGatewayRemoteNodePorts))
 	}
 	log.Info("gw deployments", "deployments", len(deployments.Items))
+
 	if len(deployments.Items) < noOfGwServices {
+		vpnKeyRotation, err := r.HubClient.GetVPNKeyRotation(ctx, sliceName)
+		if err != nil {
+			return ctrl.Result{}, err
+		}
+		secretVersion := 1
+		if vpnKeyRotation != nil {
+			secretVersion = vpnKeyRotation.Spec.RotationCount
+		}
 		for i := 0; i < noOfGwServices; i++ {
 			found := &appsv1.Deployment{}
 			err = r.Get(ctx, types.NamespacedName{Name: sliceGwName + "-" + fmt.Sprint(i), Namespace: controllers.ControlPlaneNamespace}, found)
 			if err != nil {
 				if errors.IsNotFound(err) {
 					// Define a new deployment
-					dep := r.deploymentForGateway(sliceGw, i)
+					dep := r.deploymentForGateway(sliceGw, i, secretVersion)
 					log.Info("Creating a new Deployment", "Namespace", dep.Namespace, "Name", dep.Name)
 					err = r.Create(ctx, dep)
 					if err != nil {
@@ -311,41 +322,25 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		return ctrl.Result{}, err
 	}
 	if isServer(sliceGw) {
-		toRebalace, err := r.isRebalancingRequired(ctx, sliceGw)
+		toRebalance, err := r.isRebalancingRequired(ctx, sliceGw)
 		if err != nil {
 			log.Error(err, "Unable to rebalace gw pods")
 			utils.RecordEvent(ctx, r.EventRecorder, sliceGw, slice, ossEvents.EventSliceGWRebalancingFailed, controllerName)
 			return ctrl.Result{}, err
 		}
-		log.Info("Rebalancing required?", "toRebalance", toRebalace)
-		if toRebalace {
+		log.Info("Rebalancing required?", "toRebalance", toRebalance)
+		if toRebalance {
 			// start FSM for graceful termination of gateway pods
 			// create workerslicegwrecycler on controller
 			newestPod, err := r.getNewestPod(sliceGw)
 			if err != nil {
 				return ctrl.Result{}, err
 			}
-
-			gwRemoteVpnIP := sliceGw.Status.Config.SliceGatewayRemoteVpnIP
-			clientID, err := r.getRemoteGwPodName(ctx, gwRemoteVpnIP, newestPod.Status.PodIP)
+			err = r.WorkerRecyclerClient.TriggerFSM(sliceGw, slice, newestPod, controllerName, sliceGwName+"-"+fmt.Sprint(0), 1)
+			// to maintain consistency with recycling we are creating this CR with zero as suffix in the name
 			if err != nil {
-				log.Error(err, "Error while fetching remote gw podName")
-				// post event to slicegw
-				utils.RecordEvent(ctx, r.EventRecorder, sliceGw, slice, ossEvents.EventSliceGWRemotePodSyncFailed, controllerName)
-				return ctrl.Result{}, err
-			}
-			err = r.HubClient.CreateWorkerSliceGwRecycler(ctx, sliceGw.Name, clientID, newestPod.Name, sliceGwName, sliceGw.Status.Config.SliceGatewayRemoteGatewayID, sliceGw.Spec.SliceName)
-			if err != nil {
-				if errors.IsAlreadyExists(err) {
-					return ctrl.Result{}, nil
-				}
-				return ctrl.Result{}, err
-			}
-			utils.RecordEvent(ctx, r.EventRecorder, sliceGw, slice, ossEvents.EventSliceGWRebalancingSuccess, controllerName)
-			// spawn a new gw nodeport service
-			_, _, _, err = r.handleSliceGwSvcCreation(ctx, sliceGw, r.NumberOfGateways+1)
-			if err != nil {
-				//TODO:add an event and log
+				// TODO:add an event and log
+				log.Error(err, "Error while recycling gateway pods")
 				return ctrl.Result{}, err
 			}
 		}
@@ -470,7 +465,6 @@ func (r *SliceGwReconciler) handleSliceGwSvcCreation(ctx context.Context, sliceG
 	}
 	return false, reconcile.Result{}, sliceGwNodePorts, nil
 }
-
 func (r *SliceGwReconciler) handleSliceGwDeletion(sliceGw *kubeslicev1beta1.SliceGateway, ctx context.Context) (bool, reconcile.Result, error) {
 	// Examine DeletionTimestamp to determine if object is under deletion
 	log := logger.FromContext(ctx).WithName("slicegw-deletion")
