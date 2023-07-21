@@ -71,7 +71,7 @@ func (r *Reconciler) verify_new_deployment_created(e *fsm.Event) error {
 			clientRedundancyNumber, _ := strconv.Atoi(gwPod.Labels["kubeslice.io/slicegatewayRedundancyNumber"])
 			workerslicegwrecycler.Spec.ClientRedundancyNumber = clientRedundancyNumber
 			return r.Update(ctx, workerslicegwrecycler)
-		}, retry.Attempts(100))
+		}, retry.Attempts(1000))
 
 		if err != nil {
 			log.Error(err, "error in verify_new_deployment_created event")
@@ -108,7 +108,7 @@ func (r *Reconciler) verify_new_deployment_created(e *fsm.Event) error {
 			}
 			log.Info("new deployment is up for server", "workerslicegwrecycler", workerslicegwrecycler.Name)
 			return nil
-		}, retry.Attempts(100))
+		}, retry.Attempts(1000))
 
 		if err != nil {
 			log.Error(err, "error in verify_new_deployment_created")
@@ -142,6 +142,9 @@ func (r *Reconciler) verify_new_deployment_created(e *fsm.Event) error {
 			log.Error(err, "Error:", err.Error())
 			return err
 		}
+		if len(podList.Items) == 0 {
+			return errors.New("number of newest pods equal to 0")
+		}
 		newestPod := podList.Items[0]
 		newestPodDuration := time.Since(podList.Items[0].CreationTimestamp.Time).Seconds()
 		for _, pod := range podList.Items {
@@ -163,7 +166,7 @@ func (r *Reconciler) verify_new_deployment_created(e *fsm.Event) error {
 			workerslicegwrecycler.Spec.Request = update_routing_table
 		}
 		return r.Update(ctx, workerslicegwrecycler)
-	})
+	}, retry.Attempts(1000))
 
 	if err != nil {
 		r.moveFSMToErrorState(req, err)
@@ -241,7 +244,7 @@ func (r *Reconciler) update_routing_table(e *fsm.Event) error {
 			return errors.New("route not yet present")
 		}
 		return nil
-	}, retry.Attempts(100))
+	}, retry.Attempts(1000))
 
 	if err != nil {
 		log.Error(err, "Err():", err.Error())
@@ -283,6 +286,7 @@ func (r *Reconciler) update_routing_table(e *fsm.Event) error {
 		// there should be only 1 pod with label "kubeslice.io/gw-pod-type":"toBeDeleted" per gw pair.
 		if len(podList.Items) != 1 {
 			log.Error(fmt.Errorf("more than 1 pods with label kubeslice.io/gw-pod-type:toBeDeleted, something went wrong"), "Err:()")
+			return err
 		}
 		grpcAdd := podList.Items[0].Status.PodIP + ":5000"
 
@@ -320,7 +324,7 @@ func (r *Reconciler) update_routing_table(e *fsm.Event) error {
 			return err
 		}
 		return nil
-	}, retry.Attempts(500))
+	}, retry.Attempts(1000))
 
 	if err != nil {
 		log.Error(err, "Err:()", err.Error())
@@ -351,6 +355,7 @@ func (r *Reconciler) update_routing_table(e *fsm.Event) error {
 		// there should be only 1 pod with label "kubeslice.io/gw-pod-type":"toBeDeleted" per gw pair.
 		if len(podList.Items) != 1 {
 			log.Error(fmt.Errorf("more than 1 pods with label kubeslice.io/gw-pod-type:toBeDeleted, something went wrong"), "Err:()")
+			return err
 		}
 		// fetch the replicaset and deployment from podName
 		rsName := podList.Items[0].ObjectMeta.OwnerReferences[0].Name
@@ -373,7 +378,7 @@ func (r *Reconciler) update_routing_table(e *fsm.Event) error {
 			return err
 		}
 		return nil
-	}, retry.Attempts(100))
+	}, retry.Attempts(1000))
 
 	if err != nil {
 		log.Error(err, "Error:()", err.Error())
@@ -401,7 +406,7 @@ func (r *Reconciler) update_routing_table(e *fsm.Event) error {
 			return errors.New("services still not decreased to 1")
 		}
 		return nil
-	}, retry.Attempts(100))
+	}, retry.Attempts(1000))
 
 	if err != nil {
 		log.Error(err, "Error:()", err.Error())
@@ -504,6 +509,7 @@ func (r *Reconciler) delete_old_gw_pods(e *fsm.Event) error {
 			// there should be only 1 pod with label "kubeslice.io/gw-pod-type":"toBeDeleted" per gw pair.
 			if len(podList.Items) != 1 {
 				log.Error(fmt.Errorf("more than 1 pods with label kubeslice.io/gw-pod-type:toBeDeleted, something went wrong"), "Err:()")
+				return err
 			}
 			grpcAdd := podList.Items[0].Status.PodIP + ":5000"
 
@@ -540,7 +546,7 @@ func (r *Reconciler) delete_old_gw_pods(e *fsm.Event) error {
 				return err
 			}
 			return nil
-		}, retry.Attempts(100))
+		}, retry.Attempts(1000))
 
 		if err != nil {
 			log.Error(err, "Err():", err.Error())
@@ -645,6 +651,7 @@ func (r *Reconciler) delete_old_gw_pods(e *fsm.Event) error {
 func (r *Reconciler) errorEntryFunction(e *fsm.Event) error {
 	// raise events
 	// move the FSM to INIT
+	r.Log.Error(errors.New("FSM in error"),"error in FSM")
 	return nil
 }
 
