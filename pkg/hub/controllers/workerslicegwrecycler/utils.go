@@ -283,6 +283,7 @@ func (r *Reconciler) update_routing_table(e *fsm.Event) error {
 		// there should be only 1 pod with label "kubeslice.io/gw-pod-type":"toBeDeleted" per gw pair.
 		if len(podList.Items) != 1 {
 			log.Error(fmt.Errorf("more than 1 pods with label kubeslice.io/gw-pod-type:toBeDeleted, something went wrong"), "Err:()")
+			return err
 		}
 		grpcAdd := podList.Items[0].Status.PodIP + ":5000"
 
