@@ -76,30 +76,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		log.Error(err, "Failed to get workerslicegwrecycler")
 		return ctrl.Result{}, err
 	}
-	// Retrieve or create the FSM for the current CR
-	f, exists := r.FSM[crIdentifier]
-	if !exists {
-		// Create a new FSM for the CR
-		f = fsm.NewFSM(
-			INIT,
-			fsm.Events{
-				{Name: verify_new_deployment_created, Src: []string{INIT, new_deployment_created}, Dst: new_deployment_created},
-				{Name: update_routing_table, Src: []string{INIT, new_deployment_created, slicerouter_updated}, Dst: slicerouter_updated},
-				{Name: delete_old_gw_pods, Src: []string{INIT, slicerouter_updated, delete_old_gw_pods}, Dst: old_gw_deleted},
-				{Name: onError, Src: []string{INIT, new_deployment_created, slicerouter_updated, old_gw_deleted}, Dst: ERROR},
-			},
-			fsm.Callbacks{
-				"enter_new_deployment_created": func(e *fsm.Event) { r.verify_new_deployment_created(e) },
-				"enter_slicerouter_updated":    func(e *fsm.Event) { r.update_routing_table(e) },
-				"enter_old_gw_deleted":         func(e *fsm.Event) { r.delete_old_gw_pods(e) },
-				"enter_error":                  func(e *fsm.Event) { r.errorEntryFunction(e) },
-			},
-		)
-		r.FSM[crIdentifier] = f
-	}
-
-	log.Info("reconciling workerslicegwrecycler ", "workerslicegwrecycler", workerslicegwrecycler.Name)
-	log.Info("current state", "FSM", f.Current())
 	slicegw := kubeslicev1beta1.SliceGateway{}
 
 	if err := r.MeshClient.Get(ctx, types.NamespacedName{Namespace: "kubeslice-system", Name: workerslicegwrecycler.Spec.SliceGwServer}, &slicegw); err != nil {
@@ -112,10 +88,40 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			}
 		}
 	}
-	*r.EventRecorder = (*r.EventRecorder).WithSlice(slicegw.Spec.SliceName)
+
 	isClient := slicegw.Status.Config.SliceGatewayHostType == "Client"
+	// Retrieve or create the FSM for the current CR
+	f, exists := r.FSM[crIdentifier]
+	if !exists {
+		// Create a new FSM for the CR
+		f = fsm.NewFSM(
+			INIT,
+			fsm.Events{
+				{Name: verify_new_deployment_created, Src: []string{INIT}, Dst: new_deployment_created},
+				{Name: update_routing_table, Src: []string{new_deployment_created}, Dst: slicerouter_updated},
+				{Name: delete_old_gw_pods, Src: []string{slicerouter_updated}, Dst: old_gw_deleted},
+				{Name: onError, Src: []string{INIT, new_deployment_created, slicerouter_updated, old_gw_deleted}, Dst: ERROR},
+			},
+			fsm.Callbacks{
+				"before_verify_new_deployment_created": func(e *fsm.Event) { r.verify_new_deployment_created(e) },
+				"before_update_routing_table":          func(e *fsm.Event) { r.update_routing_table(e) },
+				"before_delete_old_gw_pods":            func(e *fsm.Event) { r.delete_old_gw_pods(e) },
+				"enter_error":                          func(e *fsm.Event) { r.errorEntryFunction(e) },
+			},
+		)
+		r.FSM[crIdentifier] = f
+	}
+
+	log.Info("reconciling workerslicegwrecycler ", "workerslicegwrecycler", workerslicegwrecycler.Name)
+	log.Info("current state", "FSM", f.Current())
+	*r.EventRecorder = (*r.EventRecorder).WithSlice(slicegw.Spec.SliceName)
 
 	if isClient {
+		if !f.Can(workerslicegwrecycler.Spec.Request) {
+			// FSM already in this state, no need to entertain requests and cause un-necessary requeues.
+			log.Info("FSM current state %s, request state %s ", f.Current(), workerslicegwrecycler.Spec.Request)
+			return ctrl.Result{}, nil
+		}
 		switch workerslicegwrecycler.Spec.Request {
 		case verify_new_deployment_created:
 			err := f.Event(verify_new_deployment_created, workerslicegwrecycler, isClient, req)
@@ -140,6 +146,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	} else {
 		switch workerslicegwrecycler.Status.Client.Response {
 		case new_deployment_created:
+			if !f.Can(verify_new_deployment_created) {
+				return ctrl.Result{}, nil
+			}
 			err := f.Event(verify_new_deployment_created, workerslicegwrecycler, isClient, req)
 			if err != nil {
 				return ctrl.Result{}, err
@@ -147,6 +156,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			utils.RecordEvent(ctx, r.EventRecorder, workerslicegwrecycler, nil, ossEvents.EventFSMNewGWSpawned, controllerName)
 
 		case slicerouter_updated:
+			if !f.Can(update_routing_table) {
+				return ctrl.Result{}, nil
+			}
 			err := f.Event(update_routing_table, workerslicegwrecycler, isClient, slicegw, req)
 			if err != nil {
 				return ctrl.Result{}, err
@@ -154,6 +166,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			utils.RecordEvent(ctx, r.EventRecorder, workerslicegwrecycler, nil, ossEvents.EventFSMRoutingTableUpdated, controllerName)
 
 		case old_gw_deleted:
+			if !f.Can(delete_old_gw_pods) {
+				return ctrl.Result{}, nil
+			}
 			err := f.Event(delete_old_gw_pods, workerslicegwrecycler, isClient, slicegw, req)
 			if err != nil {
 				return ctrl.Result{}, err
