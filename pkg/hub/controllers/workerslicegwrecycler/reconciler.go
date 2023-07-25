@@ -76,6 +76,19 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		log.Error(err, "Failed to get workerslicegwrecycler")
 		return ctrl.Result{}, err
 	}
+
+	slicegw := kubeslicev1beta1.SliceGateway{}
+
+	if err := r.MeshClient.Get(ctx, types.NamespacedName{Namespace: "kubeslice-system", Name: workerslicegwrecycler.Spec.SliceGwServer}, &slicegw); err != nil {
+		if errors.IsNotFound(err) {
+			if err := r.MeshClient.Get(ctx, types.NamespacedName{Namespace: "kubeslice-system", Name: workerslicegwrecycler.Spec.SliceGwClient}, &slicegw); err != nil {
+				// workergwrecycler not meant for this cluster, return and dont requeue
+				log.Error(err, "workergwrecycler not meant for this cluster, return and dont requeue")
+				return ctrl.Result{}, nil
+
+			}
+		}
+	}
 	// Retrieve or create the FSM for the current CR
 	f, exists := r.FSM[crIdentifier]
 	if !exists {
@@ -100,18 +113,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 
 	log.Info("reconciling workerslicegwrecycler ", "workerslicegwrecycler", workerslicegwrecycler.Name)
 	log.Info("current state", "FSM", f.Current())
-	slicegw := kubeslicev1beta1.SliceGateway{}
 
-	if err := r.MeshClient.Get(ctx, types.NamespacedName{Namespace: "kubeslice-system", Name: workerslicegwrecycler.Spec.SliceGwServer}, &slicegw); err != nil {
-		if errors.IsNotFound(err) {
-			if err := r.MeshClient.Get(ctx, types.NamespacedName{Namespace: "kubeslice-system", Name: workerslicegwrecycler.Spec.SliceGwClient}, &slicegw); err != nil {
-				// workergwrecycler not meant for this cluster, return and dont requeue
-				log.Error(err, "workergwrecycler not meant for this cluster, return and dont requeue")
-				return ctrl.Result{}, nil
-
-			}
-		}
-	}
 	*r.EventRecorder = (*r.EventRecorder).WithSlice(slicegw.Spec.SliceName)
 	isClient := slicegw.Status.Config.SliceGatewayHostType == "Client"
 
