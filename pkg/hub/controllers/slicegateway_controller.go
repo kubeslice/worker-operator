@@ -50,7 +50,7 @@ type SliceGwReconciler struct {
 }
 
 var sliceGWController = "workersliceGWController"
-var sliceGwFinalizer = "controller.kubeslice.io/hubSpokeSliceGw-finalizer"
+var sliceGwFinalizer = "controller.kubeslice.io/sliceGw-finalizer"
 
 func (r *SliceGwReconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
 	log := logger.FromContext(ctx)
