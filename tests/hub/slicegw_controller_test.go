@@ -123,7 +123,15 @@ var _ = Describe("Hub SlicegwController", func() {
 					err := k8sClient.Get(ctx, types.NamespacedName{Namespace: "kubeslice-system", Name: createdSlice.Name}, createdSlice)
 					return errors.IsNotFound(err)
 				}, time.Second*10, time.Millisecond*250).Should(BeTrue())
-				Expect(k8sClient.Delete(ctx, createdSliceGwOnSpoke)).Should(Succeed())
+				sliceGwKey := types.NamespacedName{Namespace: CONTROL_PLANE_NS, Name: hubSliceGw.Name}
+				Eventually(func() bool {
+					err := k8sClient.Get(ctx, sliceGwKey, createdSliceGwOnSpoke)
+					if errors.IsNotFound(err) {
+						return true
+					}
+					return false
+				}, time.Second*20, time.Second*1).Should(BeTrue())
+
 			})
 		})
 
