@@ -384,8 +384,7 @@ func (r *Reconciler) syncCurrentRotationState(ctx context.Context,
 			if ok {
 				syncedRotationState[gw] = obj
 			} else if !ok {
-				gwIsReady := r.areGatewayPodsReady(ctx, gw)
-				if !gwIsReady {
+				if !r.areGatewayPodsReady(ctx, gw) {
 					requeue = true
 					return errors.New("gateway pods are not ready")
 				}
