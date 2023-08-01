@@ -35,6 +35,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/util/retry"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -488,10 +489,26 @@ func (r *SliceGwReconciler) handleSliceGwDeletion(sliceGw *kubeslicev1beta1.Slic
 				log.Error(err, "error while deleting sliceGW")
 				utils.RecordEvent(ctx, r.EventRecorder, sliceGw, nil, ossEvents.EventSliceGWDeleteFailed, controllerName)
 			}
-			controllerutil.RemoveFinalizer(sliceGw, sliceGwFinalizer)
-			if err := r.Update(ctx, sliceGw); err != nil {
+			err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+				//fetch the latest spokeslice from hub
+				if err := r.Get(ctx,
+					types.NamespacedName{
+						Namespace: sliceGw.Namespace,
+						Name:      sliceGw.Name},
+					sliceGw); err != nil {
+					return err
+				}
+				//remove the finalizer
+				controllerutil.RemoveFinalizer(sliceGw, sliceGwFinalizer)
+				if err := r.Update(ctx, sliceGw); err != nil {
+					return err
+				}
+				return nil
+			})
+			if err != nil {
 				return true, ctrl.Result{}, err
 			}
+
 		}
 		utils.RecordEvent(ctx, r.EventRecorder, sliceGw, nil, ossEvents.EventSliceGWDeleted, controllerName)
 		// Stop reconciliation as the item is being deleted

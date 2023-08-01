@@ -50,6 +50,7 @@ type SliceGwReconciler struct {
 }
 
 var sliceGWController = "workersliceGWController"
+var sliceGwFinalizer = "controller.kubeslice.io/sliceGw-finalizer"
 
 func (r *SliceGwReconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
 	log := logger.FromContext(ctx)
@@ -73,8 +74,12 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req reconcile.Request
 		log.Info("sliceGw doesn't belong to this cluster", "sliceGw", sliceGw.Name, "cluster", clusterName, "slicegw cluster", sliceGw.Spec.LocalGatewayConfig.ClusterName)
 		return reconcile.Result{}, nil
 	}
+	requeue, result, err := r.handleSliceGWDeletion(sliceGw, ctx, req)
+	if requeue {
+		return result, err
+	}
 
-	result, err := r.createSliceGwCerts(ctx, sliceGw, req)
+	result, err = r.createSliceGwCerts(ctx, sliceGw, req)
 	if err != nil {
 		return result, err
 	}
@@ -180,6 +185,68 @@ func (r *SliceGwReconciler) createSliceGwCerts(ctx context.Context, sliceGw *spo
 		}
 	}
 	return reconcile.Result{}, nil
+}
+
+func (r *SliceGwReconciler) deleteSliceGwResourceOnSpoke(ctx context.Context, sliceGw *spokev1alpha1.WorkerSliceGateway) error {
+	log := logger.FromContext(ctx)
+	sliceGwOnSpoke := &kubeslicev1beta1.SliceGateway{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      sliceGw.Name,
+			Namespace: ControlPlaneNamespace,
+		},
+	}
+	if err := r.MeshClient.Delete(ctx, sliceGwOnSpoke); err != nil {
+		if errors.IsNotFound(err) {
+			return nil
+		}
+		return err
+	}
+	log.Info("Deleted SliceGateway CR on spoke cluster", "slicegw", sliceGwOnSpoke.Name)
+	return nil
+}
+
+func (r *SliceGwReconciler) handleSliceGWDeletion(sliceGw *spokev1alpha1.WorkerSliceGateway, ctx context.Context, req reconcile.Request) (bool, reconcile.Result, error) {
+	if sliceGw.ObjectMeta.DeletionTimestamp.IsZero() {
+		// The object is not being deleted, so if it does not have our finalizer,
+		// then lets add the finalizer and update the object. This is equivalent
+		// registering our finalizer.
+		if !controllerutil.ContainsFinalizer(sliceGw, sliceGwFinalizer) {
+			controllerutil.AddFinalizer(sliceGw, sliceGwFinalizer)
+			if err := r.Update(ctx, sliceGw); err != nil {
+				return true, reconcile.Result{}, err
+			}
+		}
+	} else {
+		// The object is being deleted
+		if controllerutil.ContainsFinalizer(sliceGw, sliceGwFinalizer) {
+			// our finalizer is present, so lets handle any external dependency
+			if err := r.deleteSliceGwResourceOnSpoke(ctx, sliceGw); err != nil {
+				// if fail to delete the external dependency here, return with error
+				// so that it can be retried
+				return true, reconcile.Result{}, err
+			}
+			// remove our finalizer from the spokeslice and update it.
+			// retry on conflict
+			err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+				//fetch the latest spokeslice from hub
+				if err := r.Get(ctx, req.NamespacedName, sliceGw); err != nil {
+					return err
+				}
+				//remove the finalizer
+				controllerutil.RemoveFinalizer(sliceGw, sliceGwFinalizer)
+				if err := r.Update(ctx, sliceGw); err != nil {
+					return err
+				}
+				return nil
+			})
+			if err != nil {
+				return true, reconcile.Result{}, err
+			}
+		}
+		// Stop reconciliation as the item is being deleted
+		return true, reconcile.Result{}, nil
+	}
+	return false, reconcile.Result{}, nil
 }
 
 func (r *SliceGwReconciler) createSliceGwOnSpoke(ctx context.Context, sliceGw *spokev1alpha1.WorkerSliceGateway, meshSliceGw *kubeslicev1beta1.SliceGateway) error {
