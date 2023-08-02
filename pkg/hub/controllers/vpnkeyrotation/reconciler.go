@@ -366,10 +366,10 @@ func (r *Reconciler) syncCurrentRotationState(ctx context.Context,
 			return getErr
 		}
 		currentRotationState := vpnKeyRotation.Status.CurrentRotationState
-		allGwsUnderCluster = vpnKeyRotation.Spec.ClusterGatewayMapping[os.Getenv("CLUSTER_NAME")]
 		if len(currentRotationState) == 0 {
 			currentRotationState = make(map[string]hubv1alpha1.StatusOfKeyRotation)
 		}
+		allGwsUnderCluster = vpnKeyRotation.Spec.ClusterGatewayMapping[os.Getenv("CLUSTER_NAME")]
 		keysInStatus := []string{}
 		for key := range currentRotationState {
 			if strings.Contains(key, os.Getenv("CLUSTER_NAME")) && !strings.HasSuffix(key, os.Getenv("CLUSTER_NAME")) {
@@ -380,9 +380,14 @@ func (r *Reconciler) syncCurrentRotationState(ctx context.Context,
 		syncedRotationState := make(map[string]hubv1alpha1.StatusOfKeyRotation)
 		for _, gw := range allGwsUnderCluster {
 			obj, ok := currentRotationState[gw]
+
 			if ok {
 				syncedRotationState[gw] = obj
 			} else if !ok {
+				if !r.areGatewayPodsReady(ctx, gw) {
+					requeue = true
+					return errors.New("gateway pods are not ready")
+				}
 				syncedRotationState[gw] = hubv1alpha1.StatusOfKeyRotation{
 					Status:               hubv1alpha1.Complete,
 					LastUpdatedTimestamp: *vpnKeyRotation.Spec.CertificateCreationTime,
@@ -472,6 +477,25 @@ func (r *Reconciler) updateCertificates(ctx context.Context, rotationVersion int
 	}
 	// secret with current rotation version already exists, no requeue
 	return ctrl.Result{}, false, nil
+}
+
+func (r *Reconciler) areGatewayPodsReady(ctx context.Context, sliceGWName string) bool {
+	podsList := corev1.PodList{}
+	labels := map[string]string{
+		"kubeslice.io/pod-type": "slicegateway",
+		"kubeslice.io/slice-gw": sliceGWName,
+	}
+	listOptions := []client.ListOption{
+		client.MatchingLabels(labels),
+	}
+	err := r.WorkerClient.List(ctx, &podsList, listOptions...)
+	if err != nil {
+		return false
+	}
+	if len(podsList.Items) == 2 {
+		return true
+	}
+	return false
 }
 
 func (r *Reconciler) removeOldSecrets(ctx context.Context, rotationVersion int, sliceGwName string) error {

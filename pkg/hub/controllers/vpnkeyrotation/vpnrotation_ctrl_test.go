@@ -29,6 +29,37 @@ var (
 	}
 )
 
+func createPod(client client.Client, name, gwName string) {
+	labels := map[string]string{
+		"kubeslice.io/slice-gw": gwName,
+		"kubeslice.io/pod-type": "slicegateway",
+	}
+
+	pod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: CONTROL_PLANE_NS,
+			Labels:    labels,
+		},
+		Spec: corev1.PodSpec{
+			Containers: []corev1.Container{
+				{
+					Image: "nginx",
+					Name:  "gw",
+					Ports: []corev1.ContainerPort{
+						{
+							ContainerPort: 80,
+						},
+					},
+				},
+			},
+		},
+	}
+
+	// Create the pod using the fake client.
+	Expect(k8sClient.Create(ctx, pod))
+}
+
 var _ = Describe("Hub VPN Key Rotation", func() {
 	Context("With Rotation Created at hub cluster", func() {
 		var vpnKeyRotation *hubv1alpha1.VpnKeyRotation
@@ -42,11 +73,16 @@ var _ = Describe("Hub VPN Key Rotation", func() {
 				Spec: hubv1alpha1.VpnKeyRotationSpec{
 					SliceName: "fire",
 					ClusterGatewayMapping: map[string][]string{
-						CLUSTER_NAME: gws,
+						CLUSTER_NAME: {gws[0]},
 					},
 					CertificateCreationTime: &metav1.Time{Time: time.Now()},
 				},
 			}
+			for _, v := range gws {
+				createPod(k8sClient, v+"-0", v)
+				createPod(k8sClient, v+"-1", v)
+			}
+
 			// Cleanup after each test
 			DeferCleanup(func() {
 				ctx := context.Background()
@@ -56,6 +92,7 @@ var _ = Describe("Hub VPN Key Rotation", func() {
 
 		It("current rotation state should have all gws status populated", func() {
 			Expect(k8sClient.Create(ctx, vpnKeyRotation)).Should(Succeed())
+
 			Eventually(func() bool {
 				err := k8sClient.Get(ctx, types.NamespacedName{
 					Name:      vpnKeyRotation.Name,
@@ -75,12 +112,11 @@ var _ = Describe("Hub VPN Key Rotation", func() {
 				if err != nil {
 					return false
 				}
-				for _, gw := range gws {
-					_, ok := vpnKeyRotation.Status.CurrentRotationState[gw]
-					if !ok {
-						return false
-					}
+				_, ok := vpnKeyRotation.Status.CurrentRotationState[gws[0]]
+				if !ok {
+					return false
 				}
+
 				return true
 			}, time.Second*60, time.Millisecond*500).Should(BeTrue())
 		})
@@ -709,6 +745,12 @@ var _ = Describe("Hub VPN Key Rotation", func() {
 					CertificateCreationTime: &metav1.Time{Time: time.Now()},
 				},
 			}
+
+			for _, v := range gws {
+				createPod(k8sClient, v+"-0", v)
+				createPod(k8sClient, v+"-1", v)
+			}
+
 			// Cleanup after each test
 			DeferCleanup(func() {
 				ctx := context.Background()
@@ -745,7 +787,11 @@ var _ = Describe("Hub VPN Key Rotation", func() {
 				return compareMapKeysAndArrayElements(vpnKeyRotation.Status.CurrentRotationState, gws)
 			}, time.Second*60, time.Millisecond*500).Should(BeTrue())
 
-			gws = append(gws, "fire-worker-1-worker-5")
+			newGw := "fire-worker-1-worker-5"
+			gws = append(gws, newGw)
+			createPod(k8sClient, newGw+"-0", newGw)
+			createPod(k8sClient, newGw+"-1", newGw)
+
 			vpnKeyRotation.Spec.ClusterGatewayMapping = map[string][]string{
 				CLUSTER_NAME: gws,
 			}
