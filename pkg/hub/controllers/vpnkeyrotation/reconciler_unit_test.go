@@ -1095,6 +1095,14 @@ func TestReconcileRotationSyncingClusterAttach(t *testing.T) {
 		mock.IsType(&hubv1alpha1.VpnKeyRotation{}),
 		mock.IsType([]k8sclient.UpdateOption(nil)),
 	).Return(nil)
+	client.On("List",
+		mock.IsType(ctx),
+		mock.IsType(&corev1.PodList{}),
+		mock.IsType([]k8sclient.ListOption(nil)),
+	).Return(nil).Run(func(args mock.Arguments) {
+		podsList := args.Get(1).(*corev1.PodList)
+		*podsList = *podListCustom
+	})
 
 	_, err := reconciler.syncCurrentRotationState(expected.ctx, vpnRotationObject, allGws)
 	if err != nil {
