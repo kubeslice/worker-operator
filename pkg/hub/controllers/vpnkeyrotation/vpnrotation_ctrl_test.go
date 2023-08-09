@@ -75,6 +75,7 @@ var _ = Describe("Hub VPN Key Rotation", func() {
 					ClusterGatewayMapping: map[string][]string{
 						CLUSTER_NAME: {gws[0]},
 					},
+					Clusters:                []string{"worker-1"},
 					CertificateCreationTime: &metav1.Time{Time: time.Now()},
 				},
 			}
