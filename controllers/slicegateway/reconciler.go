@@ -155,6 +155,24 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		}, nil
 	}
 
+	if isServer(sliceGw) {
+		res, err, requeue := r.ReconcileGatewayDeployments(ctx, sliceGw)
+		if err != nil {
+			return ctrl.Result{}, err
+		}
+		if requeue {
+			return res, err
+		}
+
+		res, err, requeue = r.ReconcileGatewayServices(ctx, sliceGw)
+		if err != nil {
+			return ctrl.Result{}, err
+		}
+		if requeue {
+			return res, err
+		}
+	}
+
 	// true if the gateway is openvpn server
 	// Check if the Gw service already exists, if not create a new one if it is a server
 	if isServer(sliceGw) {

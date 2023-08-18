@@ -1212,3 +1212,54 @@ func (r *SliceGwReconciler) isRebalancingRequired(ctx context.Context, sliceGw *
 	}
 	return false, nil
 }
+
+func (r *SliceGwReconciler) ReconcileGatewayServices(ctx context.Context, slicegateway *kubeslicev1beta1.SliceGateway) (ctrl.Result, error, bool) {
+    return ctrl.Result{}, nil, false
+}
+
+func (r *SliceGwReconciler) ReconcileGatewayDeployments(ctx context.Context, sliceGw *kubeslicev1beta1.SliceGateway) (ctrl.Result, error, bool) {
+	log := r.Log
+	deployments, err := r.getDeployments(ctx, sliceGw)
+	if err != nil {
+		return ctrl.Result{}, err, true
+	}
+
+	sliceName := sliceGw.Spec.SliceName
+	sliceGwName := sliceGw.Name
+
+	vpnKeyRotation, err := r.HubClient.GetVPNKeyRotation(ctx, sliceName)
+	if err != nil {
+		return ctrl.Result{}, err, true
+	}
+
+	gwConfigKey := 1
+	if vpnKeyRotation != nil {
+		gwConfigKey = vpnKeyRotation.Spec.RotationCount
+	}
+
+	for gwInstance := 0; gwInstance < r.NumberOfGateways; gwInstance++ {
+		if !gwDeploymentIsPresent(sliceGwName, gwInstance, deployments) {
+			dep := r.deploymentForGateway(sliceGw, gwInstance, gwConfigKey)
+			log.Info("Creating a new Deployment", "Namespace", dep.Namespace, "Name", dep.Name)
+			err = r.Create(ctx, dep)
+			if err != nil {
+				log.Error(err, "Failed to create new Deployment", "Namespace", dep.Namespace, "Name", dep.Name)
+				return ctrl.Result{}, err, true
+			}
+			return ctrl.Result{Requeue: true}, nil, true
+		}
+	}
+
+	return ctrl.Result{}, nil, false
+}
+
+func gwDeploymentIsPresent(sliceGwName string, gwInstance int, deployments *appsv1.DeploymentList) bool {
+	for _, deployment := range deployments.Items {
+		if deployment.Name == sliceGwName+fmt.Sprint(gwInstance)+"-"+"0" ||
+			deployment.Name == sliceGwName+fmt.Sprint(gwInstance)+"-"+"1" {
+			return true
+		}
+	}
+
+	return false
+}
