@@ -25,6 +25,7 @@ import (
 	"math"
 	"os"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/kubeslice/worker-operator/controllers"
@@ -42,10 +43,12 @@ import (
 
 	gwsidecarpb "github.com/kubeslice/gateway-sidecar/pkg/sidecar/sidecarpb"
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
+	ossEvents "github.com/kubeslice/worker-operator/events"
 	"github.com/kubeslice/worker-operator/pkg/cluster"
 	"github.com/kubeslice/worker-operator/pkg/gwsidecar"
 	"github.com/kubeslice/worker-operator/pkg/logger"
 	"github.com/kubeslice/worker-operator/pkg/router"
+	"github.com/kubeslice/worker-operator/pkg/utils"
 	webhook "github.com/kubeslice/worker-operator/pkg/webhook/pod"
 )
 
@@ -59,22 +62,21 @@ var (
 	openVpnClientPullPolicy = os.Getenv("AVESHA_OPENVPN_CLIENT_PULLPOLICY")
 )
 
+var gwClientToRemotePortMap sync.Map
+
 // labelsForSliceGwDeployment returns the labels for creating slice gw deployment
-func labelsForSliceGwDeployment(name string, slice string, i int) map[string]string {
+func labelsForSliceGwDeployment(name string, slice string) map[string]string {
 	return map[string]string{
 		"networkservicemesh.io/app":                      name,
 		webhook.PodInjectLabelKey:                        "slicegateway",
 		controllers.ApplicationNamespaceSelectorLabelKey: slice,
 		"kubeslice.io/slice-gw":                          name,
-		"kubeslice.io/slicegateway-pod":                  fmt.Sprint(i),
-		"kubeslice.io/slicegatewayRedundancyNumber":      fmt.Sprint(i % 2),
 	}
 }
 
-func labelsForSliceGwService(name string, i int) map[string]string {
+func labelsForSliceGwService(name string) map[string]string {
 	return map[string]string{
-		"kubeslice.io/slice-gw":         name,
-		"kubeslice.io/slicegateway-pod": fmt.Sprint(i),
+		"kubeslice.io/slice-gw": name,
 	}
 }
 
@@ -85,16 +87,16 @@ func labelsForSliceGwStatus(name string) map[string]string {
 }
 
 // deploymentForGateway returns a gateway Deployment object
-func (r *SliceGwReconciler) deploymentForGateway(g *kubeslicev1beta1.SliceGateway, i, rotationCount int) *appsv1.Deployment {
+func (r *SliceGwReconciler) deploymentForGateway(g *kubeslicev1beta1.SliceGateway, depName string, gwInstance, gwConfigKey int) *appsv1.Deployment {
 	if g.Status.Config.SliceGatewayHostType == "Server" {
-		return r.deploymentForGatewayServer(g, i, rotationCount)
+		return r.deploymentForGatewayServer(g, depName, gwInstance, gwConfigKey)
 	} else {
-		return r.deploymentForGatewayClient(g, i, rotationCount)
+		return r.deploymentForGatewayClient(g, depName, gwInstance, gwConfigKey)
 	}
 }
 
-func (r *SliceGwReconciler) deploymentForGatewayServer(g *kubeslicev1beta1.SliceGateway, i, rotationCount int) *appsv1.Deployment {
-	ls := labelsForSliceGwDeployment(g.Name, g.Spec.SliceName, i)
+func (r *SliceGwReconciler) deploymentForGatewayServer(g *kubeslicev1beta1.SliceGateway, depName string, gwInstance, gwConfigKey int) *appsv1.Deployment {
+	ls := labelsForSliceGwDeployment(g.Name, g.Spec.SliceName)
 
 	var replicas int32 = 1
 
@@ -133,13 +135,12 @@ func (r *SliceGwReconciler) deploymentForGatewayServer(g *kubeslicev1beta1.Slice
 	}
 	dep := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      g.Name + "-" + fmt.Sprint(i),
+			Name:      depName,
 			Namespace: g.Namespace,
 			Labels: map[string]string{
 				controllers.ApplicationNamespaceSelectorLabelKey: g.Spec.SliceName,
 				webhook.PodInjectLabelKey:                        "slicegateway",
 				"kubeslice.io/slicegw":                           g.Name,
-				"kubeslice.io/slicegatewayRedundancyNumber":      fmt.Sprint(i % 2),
 			},
 		},
 		Spec: appsv1.DeploymentSpec{
@@ -280,7 +281,7 @@ func (r *SliceGwReconciler) deploymentForGatewayServer(g *kubeslicev1beta1.Slice
 							Name: "vpn-certs",
 							VolumeSource: corev1.VolumeSource{
 								Secret: &corev1.SecretVolumeSource{
-									SecretName:  g.Name + "-" + strconv.Itoa(rotationCount), // append rotation count
+									SecretName:  g.Name + "-" + strconv.Itoa(gwConfigKey), // secret contains the vpn config
 									DefaultMode: &vpnSecretDefaultMode,
 									Items: []corev1.KeyToPath{
 										{
@@ -338,20 +339,19 @@ func (r *SliceGwReconciler) deploymentForGatewayServer(g *kubeslicev1beta1.Slice
 	return dep
 }
 
-func (r *SliceGwReconciler) serviceForGateway(g *kubeslicev1beta1.SliceGateway, i int) *corev1.Service {
+func (r *SliceGwReconciler) serviceForGateway(g *kubeslicev1beta1.SliceGateway, svcName string) *corev1.Service {
 	svc := &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "svc-" + g.Name + "-" + fmt.Sprint(i),
+			Name:      svcName,
 			Namespace: g.Namespace,
 			Labels: map[string]string{
 				controllers.ApplicationNamespaceSelectorLabelKey: g.Spec.SliceName,
 				"kubeslice.io/slicegw":                           g.Name,
-				"kubeslice.io/slicegatewayRedundancyNumber":      fmt.Sprint(i % 2),
 			},
 		},
 		Spec: corev1.ServiceSpec{
 			Type:     "NodePort",
-			Selector: labelsForSliceGwService(g.Name, i),
+			Selector: labelsForSliceGwService(g.Name),
 			Ports: []corev1.ServicePort{{
 				Port:       11194,
 				Protocol:   corev1.ProtocolUDP,
@@ -367,7 +367,7 @@ func (r *SliceGwReconciler) serviceForGateway(g *kubeslicev1beta1.SliceGateway, 
 	return svc
 }
 
-func (r *SliceGwReconciler) deploymentForGatewayClient(g *kubeslicev1beta1.SliceGateway, i, rotationCount int) *appsv1.Deployment {
+func (r *SliceGwReconciler) deploymentForGatewayClient(g *kubeslicev1beta1.SliceGateway, depName string, gwInstance, gwConfigKey int) *appsv1.Deployment {
 	var replicas int32 = 1
 	var privileged = true
 
@@ -380,7 +380,7 @@ func (r *SliceGwReconciler) deploymentForGatewayClient(g *kubeslicev1beta1.Slice
 	vpnImg := "nexus.dev.aveshalabs.io/kubeslice/openvpn-client.alpine.amd64:1.0.0"
 	vpnPullPolicy := corev1.PullAlways
 
-	ls := labelsForSliceGwDeployment(g.Name, g.Spec.SliceName, i)
+	ls := labelsForSliceGwDeployment(g.Name, g.Spec.SliceName)
 
 	if len(gwSidecarImage) != 0 {
 		sidecarImg = gwSidecarImage
@@ -400,27 +400,24 @@ func (r *SliceGwReconciler) deploymentForGatewayClient(g *kubeslicev1beta1.Slice
 
 	nsmAnnotation := fmt.Sprintf("kernel://vl3-service-%s/nsm0", g.Spec.SliceName)
 
-	r.Log.Info("gwMap", "gwMap", GwMap)
-	// If val is present in the map loop through all the nodePorts and select a unique one
-	if !checkIfNodePortIsAlreadyUsed(g.Status.Config.SliceGatewayRemoteNodePorts[i]) {
-		GwMap[g.Name+"-"+fmt.Sprint(i)] = g.Status.Config.SliceGatewayRemoteNodePorts[i]
-	} else {
-		// select nodePort that is not used
-		for _, nodePort := range g.Status.Config.SliceGatewayRemoteNodePorts {
-			if selectNodePort(nodePort) {
-				GwMap[g.Name+"-"+fmt.Sprint(i)] = nodePort
-			}
+	for _, nodePort := range g.Status.Config.SliceGatewayRemoteNodePorts {
+		if !checkIfNodePortIsAlreadyUsed(nodePort) {
+			gwClientToRemotePortMap.Store(depName, nodePort)
+			break
 		}
 	}
+
+	remotePortVal, _ := gwClientToRemotePortMap.Load(depName)
+	remotePortNumber := remotePortVal.(int)
+
 	dep := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      g.Name + "-" + fmt.Sprint(i),
+			Name:      depName,
 			Namespace: g.Namespace,
 			Labels: map[string]string{
 				controllers.ApplicationNamespaceSelectorLabelKey: g.Spec.SliceName,
 				webhook.PodInjectLabelKey:                        "slicegateway",
 				"kubeslice.io/slicegw":                           g.Name,
-				"kubeslice.io/slicegatewayRedundancyNumber":      fmt.Sprint(i % 2),
 			},
 		},
 		Spec: appsv1.DeploymentSpec{
@@ -488,7 +485,7 @@ func (r *SliceGwReconciler) deploymentForGatewayClient(g *kubeslicev1beta1.Slice
 							},
 							{
 								Name:  "NODE_PORT",
-								Value: strconv.Itoa(GwMap[g.Name+"-"+fmt.Sprint(i)]),
+								Value: strconv.Itoa(remotePortNumber),
 							},
 						},
 						SecurityContext: &corev1.SecurityContext{
@@ -528,7 +525,7 @@ func (r *SliceGwReconciler) deploymentForGatewayClient(g *kubeslicev1beta1.Slice
 							"--remote",
 							g.Status.Config.SliceGatewayRemoteGatewayID,
 							"--port",
-							strconv.Itoa(GwMap[g.Name+"-"+fmt.Sprint(i)]),
+							strconv.Itoa(remotePortNumber),
 							"--ping-restart",
 							"15",
 							"--proto",
@@ -556,7 +553,7 @@ func (r *SliceGwReconciler) deploymentForGatewayClient(g *kubeslicev1beta1.Slice
 						Name: "shared-volume",
 						VolumeSource: corev1.VolumeSource{
 							Secret: &corev1.SecretVolumeSource{
-								SecretName:  g.Name + "-" + strconv.Itoa(rotationCount),
+								SecretName:  g.Name + "-" + strconv.Itoa(gwConfigKey),
 								DefaultMode: &vpnSecretDefaultMode,
 								Items: []corev1.KeyToPath{
 									{
@@ -1213,8 +1210,86 @@ func (r *SliceGwReconciler) isRebalancingRequired(ctx context.Context, sliceGw *
 	return false, nil
 }
 
-func (r *SliceGwReconciler) ReconcileGatewayServices(ctx context.Context, slicegateway *kubeslicev1beta1.SliceGateway) (ctrl.Result, error, bool) {
-    return ctrl.Result{}, nil, false
+func (r *SliceGwReconciler) getGatewayServices(ctx context.Context, sliceGw *kubeslicev1beta1.SliceGateway) (*corev1.ServiceList, error) {
+	listOpts := []client.ListOption{
+		client.MatchingLabels(map[string]string{
+			controllers.ApplicationNamespaceSelectorLabelKey: sliceGw.Spec.SliceName,
+			"kubeslice.io/slicegw":                           sliceGw.Name,
+		}),
+		client.InNamespace(controllers.ControlPlaneNamespace),
+	}
+	services := corev1.ServiceList{}
+	if err := r.List(ctx, &services, listOpts...); err != nil {
+		return nil, err
+	}
+	return &services, nil
+}
+
+func (r *SliceGwReconciler) handleSliceGwSvcCreation(ctx context.Context, sliceGw *kubeslicev1beta1.SliceGateway, svcName string) (reconcile.Result, error, bool) {
+	log := logger.FromContext(ctx).WithName("slicegw")
+
+	svc := r.serviceForGateway(sliceGw, svcName)
+	log.Info("Creating a new Service", "Namespace", svc.Namespace, "Name", svc.Name)
+	err := r.Create(ctx, svc)
+	if err != nil {
+		log.Error(err, "Failed to create new Service", "Namespace", svc.Namespace, "Name", svc.Name)
+		return ctrl.Result{}, err, true
+	}
+
+	return ctrl.Result{Requeue: true}, nil, true
+}
+
+func (r *SliceGwReconciler) getNodePorts(ctx context.Context, sliceGw *kubeslicev1beta1.SliceGateway) ([]int, error) {
+	var nodePorts []int
+	listOpts := []client.ListOption{
+		client.MatchingLabels(map[string]string{
+			controllers.ApplicationNamespaceSelectorLabelKey: sliceGw.Spec.SliceName,
+			"kubeslice.io/slicegw":                           sliceGw.Name,
+		}),
+	}
+	services := corev1.ServiceList{}
+	if err := r.List(ctx, &services, listOpts...); err != nil {
+		return nil, err
+	}
+	for _, service := range services.Items {
+		nodePorts = append(nodePorts, int(service.Spec.Ports[0].NodePort))
+	}
+	return nodePorts, nil
+}
+
+func (r *SliceGwReconciler) ReconcileGatewayServices(ctx context.Context, sliceGw *kubeslicev1beta1.SliceGateway) (ctrl.Result, error, bool) {
+	log := r.Log
+	gwServices, err := r.getGatewayServices(ctx, sliceGw)
+	if err != nil {
+		return ctrl.Result{}, err, true
+	}
+
+	sliceGwName := sliceGw.Name
+
+	for gwInstance := 0; gwInstance < r.NumberOfGateways; gwInstance++ {
+		if !gwServiceIsPresent(sliceGwName, gwInstance, gwServices) {
+			svcName := "svc-" + sliceGwName + "-" + fmt.Sprint(gwInstance) + "-" + "0"
+			_, err, _ := r.handleSliceGwSvcCreation(ctx, sliceGw, svcName)
+			if err != nil {
+				return ctrl.Result{}, err, true
+			}
+			return ctrl.Result{Requeue: true}, nil, true
+		}
+	}
+
+	nodePorts, err := r.getNodePorts(ctx, sliceGw)
+	if err != nil {
+		return ctrl.Result{}, err, true
+	}
+
+	err = r.HubClient.UpdateNodePortForSliceGwServer(ctx, nodePorts, sliceGwName)
+	if err != nil {
+		log.Error(err, "Failed to update NodePort for sliceGw in the hub")
+		utils.RecordEvent(ctx, r.EventRecorder, sliceGw, nil, ossEvents.EventSliceGWNodePortUpdateFailed, controllerName)
+		return ctrl.Result{}, err, true
+	}
+
+	return ctrl.Result{}, nil, false
 }
 
 func (r *SliceGwReconciler) ReconcileGatewayDeployments(ctx context.Context, sliceGw *kubeslicev1beta1.SliceGateway) (ctrl.Result, error, bool) {
@@ -1239,7 +1314,7 @@ func (r *SliceGwReconciler) ReconcileGatewayDeployments(ctx context.Context, sli
 
 	for gwInstance := 0; gwInstance < r.NumberOfGateways; gwInstance++ {
 		if !gwDeploymentIsPresent(sliceGwName, gwInstance, deployments) {
-			dep := r.deploymentForGateway(sliceGw, gwInstance, gwConfigKey)
+			dep := r.deploymentForGateway(sliceGw, sliceGwName+"-"+fmt.Sprint(gwInstance)+"-"+"0", gwInstance, gwConfigKey)
 			log.Info("Creating a new Deployment", "Namespace", dep.Namespace, "Name", dep.Name)
 			err = r.Create(ctx, dep)
 			if err != nil {
@@ -1255,11 +1330,36 @@ func (r *SliceGwReconciler) ReconcileGatewayDeployments(ctx context.Context, sli
 
 func gwDeploymentIsPresent(sliceGwName string, gwInstance int, deployments *appsv1.DeploymentList) bool {
 	for _, deployment := range deployments.Items {
-		if deployment.Name == sliceGwName+fmt.Sprint(gwInstance)+"-"+"0" ||
-			deployment.Name == sliceGwName+fmt.Sprint(gwInstance)+"-"+"1" {
+		if deployment.Name == sliceGwName+"-"+fmt.Sprint(gwInstance)+"-"+"0" ||
+			deployment.Name == sliceGwName+"-"+fmt.Sprint(gwInstance)+"-"+"1" {
 			return true
 		}
 	}
 
 	return false
+}
+
+func gwServiceIsPresent(sliceGwName string, gwInstance int, services *corev1.ServiceList) bool {
+	for _, service := range services.Items {
+		if service.Name == "svc"+"-"+sliceGwName+"-"+fmt.Sprint(gwInstance)+"-"+"0" ||
+			service.Name == "svc"+"-"+sliceGwName+"-"+fmt.Sprint(gwInstance)+"-"+"1" {
+			return true
+		}
+	}
+
+	return false
+}
+
+func checkIfNodePortIsAlreadyUsed(nodePort int) bool {
+	found := false
+	gwClientToRemotePortMap.Range(func(key, value interface{}) bool {
+		if value.(int) == nodePort {
+			found = true
+			return false
+		}
+
+		return true
+	})
+
+	return found
 }

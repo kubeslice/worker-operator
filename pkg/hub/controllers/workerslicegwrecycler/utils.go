@@ -12,7 +12,7 @@ import (
 	spokev1alpha1 "github.com/kubeslice/apis/pkg/worker/v1alpha1"
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
 	"github.com/kubeslice/worker-operator/controllers"
-	slicegwpkg "github.com/kubeslice/worker-operator/controllers/slicegateway"
+	//slicegwpkg "github.com/kubeslice/worker-operator/controllers/slicegateway"
 	"github.com/kubeslice/worker-operator/pkg/logger"
 	"github.com/kubeslice/worker-operator/pkg/router"
 	"github.com/looplab/fsm"
@@ -537,7 +537,7 @@ func (r *Reconciler) delete_old_gw_pods(e *fsm.Event) error {
 			return err
 		}
 		// once the deployment is deleted, update the global map GwMap to delete the deploy info.
-		delete(slicegwpkg.GwMap, deployToBeDeleted.Name)
+		//delete(slicegwpkg.GwMap, deployToBeDeleted.Name)
 
 		err = retry.Do(func() error {
 			if err := r.Get(ctx, types.NamespacedName{Namespace: req.Namespace, Name: req.Name}, workerslicegwrecycler); err != nil {
