@@ -23,10 +23,11 @@ import (
 
 	hubv1alpha1 "github.com/kubeslice/apis/pkg/controller/v1alpha1"
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
+	spokev1alpha1 "github.com/kubeslice/apis/pkg/worker/v1alpha1"
+	
 	"github.com/kubeslice/worker-operator/pkg/gwsidecar"
 	"github.com/kubeslice/worker-operator/pkg/netop"
 	"github.com/kubeslice/worker-operator/pkg/router"
-	corev1 "k8s.io/api/core/v1"
 )
 
 // NetOpPod contains details of NetOp Pod running in the cluster
@@ -35,12 +36,16 @@ type NetOpPod struct {
 	PodName string
 	Node    string
 }
+
 type HubClientProvider interface {
 	UpdateNodePortForSliceGwServer(ctx context.Context, sliceGwNodePort []int, sliceGwName string) error
 	GetClusterNodeIP(ctx context.Context, clusterName, namespace string) ([]string, error)
-	CreateWorkerSliceGwRecycler(ctx context.Context, gwRecyclerName, clientID, serverID, sliceGwServer, sliceGwClient, slice, redundancyNumber string) error
+	CreateWorkerSliceGwRecycler(ctx context.Context, gwRecyclerName, clientID, serverID, sliceGwServer, sliceGwClient, slice string) error
 	GetVPNKeyRotation(ctx context.Context, rotationName string) (*hubv1alpha1.VpnKeyRotation, error)
+	ListWorkerSliceGwRecycler(ctx context.Context, sliceGWName string) ([]spokev1alpha1.WorkerSliceGwRecycler, error)
+	DeleteWorkerSliceGwRecycler(ctx context.Context, recyclerName string) error
 }
+
 type WorkerGWSidecarClientProvider interface {
 	GetSliceGwRemotePodName(ctx context.Context, gwRemoteVpnIP string, serverAddr string) (string, error)
 	GetStatus(ctx context.Context, serverAddr string) (*gwsidecar.GwStatus, error)
@@ -53,6 +58,7 @@ type WorkerRouterClientProvider interface {
 	SendConnectionContext(ctx context.Context, serverAddr string, sliceRouterConnCtx *router.SliceRouterConnCtx) error
 	UpdateEcmpRoutes(ctx context.Context, serverAddr string, ecmpUpdateInfo *router.UpdateEcmpInfo) error
 }
+
 type WorkerNetOpClientProvider interface {
 	UpdateSliceQosProfile(ctx context.Context, addr string, slice *kubeslicev1beta1.Slice) error
 	SendSliceLifeCycleEventToNetOp(ctx context.Context, addr string, sliceName string, eventType netop.EventType) error
@@ -62,5 +68,5 @@ type WorkerNetOpClientProvider interface {
 type WorkerRecyclerClientProvider interface {
 	// triggers FSM to recycle gateway pair by passing server gateway pod
 	// numberOfGwSvc should be equal to number of new deploy that should come up
-	TriggerFSM(sliceGw *kubeslicev1beta1.SliceGateway, slice *kubeslicev1beta1.Slice, gatewayPod *corev1.Pod, controllerName, gwRecyclerName string, numberOfGwSvc int) error
+	TriggerFSM(sliceGw *kubeslicev1beta1.SliceGateway, slice *kubeslicev1beta1.Slice, serverID, clientID, controllerName string) error
 }

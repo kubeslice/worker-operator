@@ -72,6 +72,11 @@ spec:
                   sliceGatewayId:
                     description: UUID of the slice gateway.
                     type: string
+                  sliceGatewayIntermediateDeployments:
+                    description: Intermediate Slice Gw Deployments
+                    items:
+                      type: string
+                    type: array
                   sliceGatewayLocalVpnIp:
                     description: Local VPN IP
                     type: string

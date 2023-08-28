@@ -201,6 +201,14 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		sliceGwNodePorts = sliceGw.Status.Config.SliceGatewayRemoteNodePorts
 	}
 
+	res, err, requeue := r.ReconcileIntermediateGatewayDeployments(ctx, sliceGw)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+	if requeue {
+		return res, err
+	}
+
 	//fetch netop pods
 	err = r.getNetOpPods(ctx, sliceGw)
 	if err != nil {
@@ -208,7 +216,7 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		return ctrl.Result{}, err
 	}
 
-	res, err, requeue := r.ReconcileGwPodStatus(ctx, sliceGw)
+	res, err, requeue = r.ReconcileGwPodStatus(ctx, sliceGw)
 	if err != nil {
 		log.Error(err, "Failed to reconcile slice gw pod status")
 		//post event to slicegw
@@ -249,6 +257,17 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		utils.RecordEvent(ctx, r.EventRecorder, sliceGw, slice, ossEvents.EventSliceNetopQoSSyncFailed, controllerName)
 		return ctrl.Result{}, err
 	}
+
+	if isServer(sliceGw) {
+		// Check if placement of gw pods needs to be balanced
+		err = r.ReconcileGwPodPlacement(ctx, sliceGw)
+		if err != nil {
+			log.Error(err, "Unable to reconcile gw pod placement")
+			utils.RecordEvent(ctx, r.EventRecorder, sliceGw, slice, ossEvents.EventSliceGWRebalancingFailed, controllerName)
+			return ctrl.Result{}, err
+		}
+	}
+
 	// if isServer(sliceGw) {
 	// 	toRebalance, err := r.isRebalancingRequired(ctx, sliceGw)
 	// 	if err != nil {
@@ -273,33 +292,10 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	// 		}
 	// 	}
 	// }
-	return ctrl.Result{Requeue: true}, nil
-}
-
-func (r *SliceGwReconciler) getDeployments(ctx context.Context, sliceGw *kubeslicev1beta1.SliceGateway) (*appsv1.DeploymentList, error) {
-	listOpts := []client.ListOption{
-		client.MatchingLabels(map[string]string{
-			controllers.ApplicationNamespaceSelectorLabelKey: sliceGw.Spec.SliceName,
-			webhook.PodInjectLabelKey:                        "slicegateway",
-			"kubeslice.io/slicegw":                           sliceGw.Name,
-		}),
-		client.InNamespace(controllers.ControlPlaneNamespace),
-	}
-	deployList := appsv1.DeploymentList{}
-	if err := r.List(ctx, &deployList, listOpts...); err != nil {
-		return nil, err
-	}
-	return &deployList, nil
-}
-
-func isClient(sliceGw *kubeslicev1beta1.SliceGateway) bool {
-	return sliceGw.Status.Config.SliceGatewayHostType == "Client"
-}
-func isServer(sliceGw *kubeslicev1beta1.SliceGateway) bool {
-	return sliceGw.Status.Config.SliceGatewayHostType == "Server"
-}
-func canDeployGw(sliceGw *kubeslicev1beta1.SliceGateway) bool {
-	return sliceGw.Status.Config.SliceGatewayHostType == "Server" || readyToDeployGwClient(sliceGw)
+	
+	return ctrl.Result{
+		RequeueAfter: controllers.ReconcileInterval,
+	}, nil
 }
 
 func (r *SliceGwReconciler) getNumberOfGatewayNodePortServices(ctx context.Context, sliceGw *kubeslicev1beta1.SliceGateway) (int, error) {
@@ -366,22 +362,6 @@ func (r *SliceGwReconciler) handleSliceGwDeletion(sliceGw *kubeslicev1beta1.Slic
 		return true, ctrl.Result{}, nil
 	}
 	return false, reconcile.Result{}, nil
-}
-
-func getPodType(labels map[string]string) string {
-	podType, found := labels[webhook.PodInjectLabelKey]
-	if found {
-		return podType
-	}
-
-	nsmLabel, found := labels["app"]
-	if found {
-		if nsmLabel == "nsmgr-daemonset" || nsmLabel == "nsm-kernel-plane" {
-			return "nsm"
-		}
-	}
-
-	return ""
 }
 
 func (r *SliceGwReconciler) findSliceGwObjectsToReconcile(pod client.Object) []reconcile.Request {

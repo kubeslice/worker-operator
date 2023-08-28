@@ -65,6 +65,8 @@ type SliceGatewayConfig struct {
 	SliceGatewayRemoteGatewayID string `json:"sliceGatewayRemoteGatewayId,omitempty"`
 	// Remote Cluster ID
 	SliceGatewayRemoteClusterID string `json:"sliceGatewayRemoteClusterId,omitempty"`
+	// Intermediate Slice Gw Deployments
+	SliceGatewayIntermediateDeployments []string `json:"sliceGatewayIntermediateDeployments,omitempty"`
 }
 
 // SliceGatewayStatus defines the observed state of SliceGateway

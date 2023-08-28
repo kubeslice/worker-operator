@@ -116,7 +116,9 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req reconcile.Request
 			SliceGatewayLocalVpnIP:      sliceGw.Spec.LocalGatewayConfig.VpnIp,
 			SliceGatewayRemoteVpnIP:     sliceGw.Spec.RemoteGatewayConfig.VpnIp,
 			SliceGatewayName:            strconv.Itoa(sliceGw.Spec.GatewayNumber),
+			SliceGatewayIntermediateDeployments: meshSliceGw.Status.Config.SliceGatewayIntermediateDeployments,
 		}
+
 		err = r.MeshClient.Status().Update(ctx, meshSliceGw)
 		if err != nil {
 			utils.RecordEvent(ctx, r.EventRecorder, sliceGw, nil, ossEvents.EventSliceGWUpdateFailed, sliceGWController)
