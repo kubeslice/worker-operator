@@ -7,13 +7,13 @@ import (
 	"github.com/go-logr/logr"
 	spokev1alpha1 "github.com/kubeslice/apis/pkg/worker/v1alpha1"
 	"github.com/kubeslice/kubeslice-monitoring/pkg/events"
-	//ossEvents "github.com/kubeslice/worker-operator/events"
+	ossEvents "github.com/kubeslice/worker-operator/events"
 
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
 
-	"github.com/kubeslice/worker-operator/pkg/logger"
-	//"github.com/kubeslice/worker-operator/pkg/utils"
 	retry "github.com/avast/retry-go"
+	"github.com/kubeslice/worker-operator/pkg/logger"
+	"github.com/kubeslice/worker-operator/pkg/utils"
 	"github.com/looplab/fsm"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -27,8 +27,8 @@ const (
 	ST_init                   string = "init"
 	ST_new_deployment_created string = "new_deployment_created_state"
 	ST_slicerouter_updated    string = "slicerouter_updated_state"
-	ST_old_deployment_deleted         string = "old_deployment_deleted_state"
-	ST_error                 string = "error_state"
+	ST_old_deployment_deleted string = "old_deployment_deleted_state"
+	ST_error                  string = "error_state"
 	ST_end                    string = "end"
 )
 
@@ -36,15 +36,17 @@ const (
 const (
 	EV_verify_new_deployment_created string = "verify_new_deployment_created"
 	EV_update_routing_table          string = "update_routing_table"
-	EV_delete_old_gw_deployment            string = "delete_old_gw_deployment"
-	EV_on_error                       string = "on_error"
+	EV_delete_old_gw_deployment      string = "delete_old_gw_deployment"
+	EV_on_error                      string = "on_error"
 	EV_end                           string = "end"
 )
 
 // Operation Request names
 type Request int
+
 const (
-	REQ_none  Request = iota
+	REQ_invalid Request = -1
+	REQ_none    Request = iota
 	REQ_create_new_deployment
 	REQ_update_routing_table
 	REQ_delete_old_gw_deployment
@@ -52,15 +54,17 @@ const (
 
 // Operation Response names
 type Response int
+
 const (
-	RESP_none  Response = iota
+	RESP_invalid Response = -1
+	RESP_none    Response = iota
 	RESP_new_deployment_created
 	RESP_routing_table_updated
 	RESP_old_deployment_deleted
 )
 
 const (
-	controllerName                string = "workerSliceGWRecyclerController"
+	controllerName string = "workerSliceGWRecyclerController"
 )
 
 type Reconciler struct {
@@ -140,6 +144,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	isClient := slicegw.Status.Config.SliceGatewayHostType == "Client"
 	isServer := slicegw.Status.Config.SliceGatewayHostType == "Server"
 
+	// To handle operator restart
 	if isServer {
 		f.SetState(workerslicegwrecycler.Spec.State)
 	}
@@ -174,6 +179,8 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			if err != nil {
 				return ctrl.Result{}, err
 			}
+
+			utils.RecordEvent(ctx, r.EventRecorder, workerslicegwrecycler, nil, ossEvents.EventFSMNewGWSpawned, controllerName)
 
 			return ctrl.Result{}, nil
 
@@ -265,8 +272,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 				}, nil
 			}
 
-			
-
 			err = retry.Do(func() error {
 				workerslicegwrecycler := &spokev1alpha1.WorkerSliceGwRecycler{}
 				err := r.Get(ctx, req.NamespacedName, workerslicegwrecycler)
@@ -287,7 +292,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 				return ctrl.Result{}, err
 			}
 
-			// Route has been removed on both sides now. 
+			utils.RecordEvent(ctx, r.EventRecorder, workerslicegwrecycler, nil, ossEvents.EventFSMRoutingTableUpdated, controllerName)
+
+			// Route has been removed on both sides now.
 			// Wait for a few seconds before deleting the deployment to make sure there are no
 			// packets in transit or in the txqueue of the gw pod being removed.
 			return ctrl.Result{
@@ -295,7 +302,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			}, nil
 
 		case ST_old_deployment_deleted:
-			err := r.TriggerGwDeploymentDeletion(ctx, slicegw.Spec.SliceName, slicegw.Name, workerslicegwrecycler.Spec.GwPair.ServerID, 
+			err := r.TriggerGwDeploymentDeletion(ctx, slicegw.Spec.SliceName, slicegw.Name, workerslicegwrecycler.Spec.GwPair.ServerID,
 				getNewDeploymentName(workerslicegwrecycler.Spec.GwPair.ServerID))
 			if err != nil {
 				return ctrl.Result{
@@ -338,6 +345,8 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 				return ctrl.Result{}, err
 			}
 
+			utils.RecordEvent(ctx, r.EventRecorder, workerslicegwrecycler, nil, ossEvents.EventFSMDeleteOldGW, controllerName)
+
 			return ctrl.Result{}, nil
 
 		case ST_error:
@@ -345,7 +354,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			return ctrl.Result{
 				RequeueAfter: 30 * time.Second,
 			}, nil
-		
+
 		case ST_end:
 			log.Info("In end state")
 			// Wait for the slicegw recycler to clean the CR
@@ -407,10 +416,11 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 				return ctrl.Result{}, err
 			}
 
+			utils.RecordEvent(ctx, r.EventRecorder, workerslicegwrecycler, nil, ossEvents.EventFSMNewGWSpawned, controllerName)
+
 			return ctrl.Result{}, nil
 
 		case REQ_update_routing_table:
-			log.Info("In router updated state")
 			if getResponseIndex(workerslicegwrecycler.Status.Client.Response) >= RESP_routing_table_updated {
 				return ctrl.Result{}, nil
 			}
@@ -449,13 +459,15 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 				return ctrl.Result{}, err
 			}
 
+			utils.RecordEvent(ctx, r.EventRecorder, workerslicegwrecycler, nil, ossEvents.EventFSMRoutingTableUpdated, controllerName)
+
 			return ctrl.Result{RequeueAfter: 5 * time.Second}, nil
 
 		case REQ_delete_old_gw_deployment:
 			if getResponseIndex(workerslicegwrecycler.Status.Client.Response) >= RESP_old_deployment_deleted {
 				return ctrl.Result{}, nil
 			}
-			err := r.TriggerGwDeploymentDeletion(ctx, slicegw.Spec.SliceName, slicegw.Name, workerslicegwrecycler.Spec.GwPair.ClientID, 
+			err := r.TriggerGwDeploymentDeletion(ctx, slicegw.Spec.SliceName, slicegw.Name, workerslicegwrecycler.Spec.GwPair.ClientID,
 				getNewDeploymentName(workerslicegwrecycler.Spec.GwPair.ClientID))
 			if err != nil {
 				return ctrl.Result{
@@ -483,6 +495,8 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			if err != nil {
 				return ctrl.Result{}, err
 			}
+
+			utils.RecordEvent(ctx, r.EventRecorder, workerslicegwrecycler, nil, ossEvents.EventFSMDeleteOldGW, controllerName)
 
 			return ctrl.Result{}, nil
 
@@ -493,201 +507,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			}, nil
 		}
 	}
-
-		/*
-	if isClient {
-		switch getRequestIndex(workerslicegwrecycler.Spec.Request) {
-		case REQ_create_new_deployment:
-			if getResponseIndex(workerslicegwrecycler.Status.Client.Response) >= RESP_new_deployment_created {
-				return ctrl.Result{}, nil
-			}
-			depName := getNewDeploymentName(workerslicegwrecycler.Spec.GwPair.ClientID)
-			_, err, _ := r.CreateNewDeployment(ctx, depName, slicegw.Spec.SliceName, slicegw.Name)
-			if err != nil {
-				return ctrl.Result{}, err
-			}
-			err = f.Event(EV_verify_new_deployment_created)
-			if err != nil {
-				return ctrl.Result{}, err
-			}
-
-			err = retry.Do(func() error {
-				workerslicegwrecycler := &spokev1alpha1.WorkerSliceGwRecycler{}
-				err := r.Get(ctx, req.NamespacedName, workerslicegwrecycler)
-				if err != nil {
-					log.Error(err, "Failed to get workerslicegwrecycler")
-					return err
-				}
-				workerslicegwrecycler.Status.Client.Response = getResponseString(RESP_new_deployment_created)
-				return r.Status().Update(ctx, workerslicegwrecycler)
-			}, retry.Attempts(10))
-			if err != nil {
-				return ctrl.Result{}, err
-			}
-			return ctrl.Result{}, nil
-
-		case ST_new_deployment_created:
-			// Check if the new deployment was created on the client side
-			if !r.CheckIfDeploymentIsPresent(ctx, getNewDeploymentName(workerslicegwrecycler.Spec.GwPair.ClientID), slicegw.Spec.SliceName, slicegw.Name) {
-				return ctrl.Result{
-					RequeueAfter: 10 * time.Second,
-				}, nil
-			}
-
-			nsmIP, err := r.GetNsmIPForNewDeployment(ctx, &slicegw, getNewDeploymentName(workerslicegwrecycler.Spec.GwPair.ClientID))
-			if nsmIP == "" {
-				log.Info("Waiting for new deployment to get nsm IP")
-				return ctrl.Result{
-					RequeueAfter: 10 * time.Second,
-				}, nil
-			}
-			log.Info("Nsm IP obtained on new client deployment", "nsmIP", nsmIP)
-
-			// Check if the slice router installed a route to the remote cluster with the new gw pod as next hop
-			routeInstalled, err := r.CheckRouteInSliceRouter(ctx, &slicegw, nsmIP)
-			if !routeInstalled {
-				log.Info("Waiting for new route to be installed in the router")
-				return ctrl.Result{
-					RequeueAfter: 10 * time.Second,
-				}, nil
-			}
-			log.Info("Route installed in the slice router for the new server deployment")
-
-			err = retry.Do(func() error {
-				workerslicegwrecycler := &spokev1alpha1.WorkerSliceGwRecycler{}
-				err := r.Get(ctx, req.NamespacedName, workerslicegwrecycler)
-				if err != nil {
-					log.Error(err, "Failed to get workerslicegwrecycler")
-					return err
-				}
-				workerslicegwrecycler.Status.Client.Response = getResponseString(RESP_new_deployment_created)
-				return r.Status().Update(ctx, workerslicegwrecycler)
-			}, retry.Attempts(10))
-			if err != nil {
-				return ctrl.Result{}, err
-			}
-
-			if getRequestIndex(workerslicegwrecycler.Spec.Request) < REQ_update_routing_table {
-				return ctrl.Result{
-					RequeueAfter: 10 * time.Second,
-				}, nil
-			}
-
-			err = f.Event(EV_update_routing_table)
-			if err != nil {
-				return ctrl.Result{}, err
-			}
-
-			return ctrl.Result{}, nil
-
-		case ST_slicerouter_updated:
-			log.Info("In router updated state")
-			// Deployments are created on both the clusters. Update the routing table in the slice
-			// router to include the new deployment and remove the old.
-			err = r.MarkGwRouteForDeletion(ctx, &slicegw, workerslicegwrecycler.Spec.GwPair.ClientID)
-			if err != nil {
-				log.Error(err, "Failed to mark gw route for deletion")
-				return ctrl.Result{
-					RequeueAfter: 10 * time.Second,
-				}, err
-			}
-
-			nsmIP, err := r.GetNsmIPForNewDeployment(ctx, &slicegw, workerslicegwrecycler.Spec.GwPair.ClientID)
-			if nsmIP != "" {
-				routeExists, _ := r.CheckRouteInSliceRouter(ctx, &slicegw, nsmIP)
-				if routeExists {
-					log.Info("Waiting for the route to be removed", "depName", workerslicegwrecycler.Spec.GwPair.ClientID, "nsmIP", nsmIP)
-					return ctrl.Result{
-						RequeueAfter: 10 * time.Second,
-					}, nil
-				}
-			}
-
-			err = retry.Do(func() error {
-				workerslicegwrecycler := &spokev1alpha1.WorkerSliceGwRecycler{}
-				err := r.Get(ctx, req.NamespacedName, workerslicegwrecycler)
-				if err != nil {
-					log.Error(err, "Failed to get workerslicegwrecycler")
-					return err
-				}
-				workerslicegwrecycler.Status.Client.Response = getResponseString(RESP_routing_table_updated)
-				return r.Status().Update(ctx, workerslicegwrecycler)
-			}, retry.Attempts(10))
-			if err != nil {
-				return ctrl.Result{}, err
-			}
-
-			// Wait for the server to signal new deployment creation
-			if getRequestIndex(workerslicegwrecycler.Spec.Request) < REQ_delete_old_gw_deployment {
-				return ctrl.Result{
-					RequeueAfter: 10 * time.Second,
-				}, nil
-			}
-
-			err = f.Event(EV_delete_old_gw_deployment)
-			if err != nil {
-				return ctrl.Result{}, err
-			}
-
-			return ctrl.Result{RequeueAfter: 5 * time.Second}, nil
-
-		case ST_old_deployment_deleted:
-			err := r.TriggerGwDeploymentDeletion(ctx, slicegw.Spec.SliceName, slicegw.Name, workerslicegwrecycler.Spec.GwPair.ClientID, 
-				getNewDeploymentName(workerslicegwrecycler.Spec.GwPair.ClientID))
-			if err != nil {
-				return ctrl.Result{
-					RequeueAfter: 10 * time.Second,
-				}, nil
-			}
-
-			// Check if the deployment was deleted
-			if r.CheckIfDeploymentIsPresent(ctx, workerslicegwrecycler.Spec.GwPair.ClientID, slicegw.Spec.SliceName, slicegw.Name) {
-				return ctrl.Result{
-					RequeueAfter: 10 * time.Second,
-				}, nil
-			}
-
-			err = retry.Do(func() error {
-				workerslicegwrecycler := &spokev1alpha1.WorkerSliceGwRecycler{}
-				err := r.Get(ctx, req.NamespacedName, workerslicegwrecycler)
-				if err != nil {
-					log.Error(err, "Failed to get workerslicegwrecycler")
-					return err
-				}
-				workerslicegwrecycler.Status.Client.Response = getResponseString(RESP_old_deployment_deleted)
-				return r.Status().Update(ctx, workerslicegwrecycler)
-			}, retry.Attempts(10))
-			if err != nil {
-				return ctrl.Result{}, err
-			}
-
-			err = f.Event(EV_end)
-			if err != nil {
-				return ctrl.Result{}, err
-			}
-
-			return ctrl.Result{}, nil
-        
-		case ST_end:
-			log.Info("In end state")
-			return ctrl.Result{
-				RequeueAfter: 60 * time.Second,
-			}, nil
-
-		case ST_error:
-			log.Info("In Error state")
-			return ctrl.Result{
-				RequeueAfter: 30 * time.Second,
-			}, nil
-
-		default:
-			log.Info("In default state")
-			return ctrl.Result{
-				RequeueAfter: 30 * time.Second,
-			}, nil
-		}
-	}
-	*/
 
 	return ctrl.Result{}, nil
 }

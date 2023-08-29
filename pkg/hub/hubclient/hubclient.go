@@ -143,7 +143,6 @@ func (hubClient *HubClientConfig) DeleteWorkerSliceGwRecycler(ctx context.Contex
 	return hubClient.Delete(ctx, &workerslicegwrecycler)
 }
 
-
 func (hubClient *HubClientConfig) ListWorkerSliceGwRecycler(ctx context.Context, sliceGWName string) ([]spokev1alpha1.WorkerSliceGwRecycler, error) {
 	workerslicegwrecycler := spokev1alpha1.WorkerSliceGwRecyclerList{}
 	labels := map[string]string{"slicegw_name": sliceGWName}

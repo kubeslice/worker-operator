@@ -25,7 +25,6 @@ import (
 	"math"
 	"os"
 	"strconv"
-	"strings"
 	"sync"
 	"time"
 
@@ -404,23 +403,33 @@ func (r *SliceGwReconciler) deploymentForGatewayClient(g *kubeslicev1beta1.Slice
 
 	nsmAnnotation := fmt.Sprintf("kernel://vl3-service-%s/nsm0", g.Spec.SliceName)
 
+	remotePortNumber := 0
 	remotePortVal, found := gwClientToRemotePortMap.Load(depName)
-	if !found {
-	    for _, nodePort := range g.Status.Config.SliceGatewayRemoteNodePorts {
-		    if !checkIfNodePortIsAlreadyUsed(nodePort) {
-			    gwClientToRemotePortMap.Store(depName, nodePort)
-			    log.Info("Storing in map", "depName", depName, "port", nodePort)
-			    break
-		    }
-	    }
+	if found {
+		remotePortNumber = remotePortVal.(int)
+		// Check if cache is valid
+		if !checkIfNodePortIsValid(g.Status.Config.SliceGatewayRemoteNodePorts, remotePortNumber) {
+			log.Info("Port number mapping is invalid", "depName", depName, "port", remotePortNumber)
+			gwClientToRemotePortMap.Delete(depName)
+			remotePortNumber = 0
+		}
+	}
+
+	if !found || remotePortNumber == 0 {
+		for _, nodePort := range g.Status.Config.SliceGatewayRemoteNodePorts {
+			if !checkIfNodePortIsAlreadyUsed(nodePort) {
+				gwClientToRemotePortMap.Store(depName, nodePort)
+				log.Info("Storing in map", "depName", depName, "port", nodePort)
+				break
+			}
+		}
 		remotePortVal, found = gwClientToRemotePortMap.Load(depName)
 		if !found {
 			log.Error(errors.New("NodePort Unavailable"), "NodePort Unavailable for deployment", depName)
 			return nil
 		}
-    }
-
-	remotePortNumber := remotePortVal.(int)
+		remotePortNumber = remotePortVal.(int)
+	}
 
 	dep := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
@@ -666,7 +675,7 @@ func (r *SliceGwReconciler) ReconcileGwPodStatus(ctx context.Context, slicegatew
 		// this grpc call fails untill the openvpn tunnel connection is not established, so its better to do not reconcile in case of errors, hence the reconciler does not proceedes further
 		gwPod.PeerPodName, err = r.getRemoteGwPodName(ctx, slicegateway.Status.Config.SliceGatewayRemoteVpnIP, gwPod.PodIP)
 		if err != nil {
-			log.Error(err, "Error getting peer pod name %v,pod ip %v", gwPod.PodName, gwPod.PodIP)
+			log.Error(err, "Error getting peer pod name", "PodName", gwPod.PodName, "PodIP", gwPod.PodIP)
 		}
 		debugLog.Info("Got gw status", "result", status)
 		if isGatewayStatusChanged(slicegateway, gwPod) {
@@ -691,38 +700,6 @@ func (r *SliceGwReconciler) ReconcileGwPodStatus(ctx context.Context, slicegatew
 		return ctrl.Result{}, err, true
 	}
 	return ctrl.Result{}, nil, false
-}
-
-func (r *SliceGwReconciler) UpdateRoutesInRouter(ctx context.Context, slicegateway *kubeslicev1beta1.SliceGateway, NsmIP string) error {
-	log := logger.FromContext(ctx).WithValues("type", "SliceGw")
-
-	_, podIP, err := controllers.GetSliceRouterPodNameAndIP(ctx, r.Client, slicegateway.Spec.SliceName)
-	if err != nil {
-		log.Error(err, "Unable to get slice router pod info")
-		return err
-	}
-	if podIP == "" {
-		log.Info("Slice router podIP not available yet, requeuing")
-		return err
-	}
-
-	if slicegateway.Status.Config.SliceGatewayRemoteSubnet == "" ||
-		len(slicegateway.Status.GatewayPodStatus) == 0 {
-		log.Info("Waiting for remote subnet and local nsm IPs. Delaying conn ctx update to router")
-		return err
-	}
-
-	sidecarGrpcAddress := podIP + ":5000"
-	routeInfo := &router.UpdateEcmpInfo{
-		RemoteSliceGwNsmSubnet: slicegateway.Status.Config.SliceGatewayRemoteSubnet,
-		NsmIpToDelete:          NsmIP,
-	}
-	err = r.WorkerRouterClient.UpdateEcmpRoutes(ctx, sidecarGrpcAddress, routeInfo)
-	if err != nil {
-		log.Error(err, "Unable to update ecmp routes in the slice router")
-		return err
-	}
-	return nil
 }
 
 func (r *SliceGwReconciler) SendConnectionContextAndQosToGwPod(ctx context.Context, slice *kubeslicev1beta1.Slice, slicegateway *kubeslicev1beta1.SliceGateway, req reconcile.Request) (ctrl.Result, error, bool) {
@@ -797,8 +774,8 @@ func (r *SliceGwReconciler) SendConnectionContextToSliceRouter(ctx context.Conte
 	excludeRouteGwPodList := &corev1.PodList{}
 	listOpts := []client.ListOption{
 		client.InNamespace(slicegateway.Namespace),
-		client.MatchingLabels(map[string]string {
-			"kubeslice.io/exclude-gw-route":"true",
+		client.MatchingLabels(map[string]string{
+			"kubeslice.io/exclude-gw-route": "true",
 		}),
 	}
 	if err := r.List(ctx, excludeRouteGwPodList, listOpts...); err != nil {
@@ -866,11 +843,11 @@ func (r *SliceGwReconciler) getRemoteGwPodName(ctx context.Context, gwRemoteVpnI
 	r.Log.Info("calling gw sidecar to get PodName", "type", "slicegw")
 	sidecarGrpcAddress := podIP + ":5000"
 	remoteGwPodName, err := r.WorkerGWSidecarClient.GetSliceGwRemotePodName(ctx, gwRemoteVpnIP, sidecarGrpcAddress)
-	r.Log.Info("slicegw remote pod name", "slicegw", remoteGwPodName)
 	if err != nil {
-		r.Log.Error(err, "Failed to get slicegw remote pod name. PodIp: %v", podIP)
+		r.Log.Error(err, "Failed to get slicegw remote pod name", "PodIp", podIP)
 		return "", err
 	}
+	r.Log.Info("slicegw remote pod name", "RemotePodName", remoteGwPodName)
 	return remoteGwPodName, nil
 }
 
@@ -1020,15 +997,6 @@ func (r *SliceGwReconciler) restartGatewayPods(ctx context.Context, sliceGWName 
 
 }
 
-func (r *SliceGwReconciler) isRouteRemoved(slicegw *kubeslicev1beta1.SliceGateway, podName string) bool {
-	for _, gwPod := range slicegw.Status.GatewayPodStatus {
-		if gwPod.PodName == podName {
-			return gwPod.RouteRemoved == 1
-		}
-	}
-	return false
-}
-
 func getAddrSlice(nodeIPS []string) []corev1.EndpointAddress {
 	endpointSlice := make([]corev1.EndpointAddress, 0)
 	for _, ip := range nodeIPS {
@@ -1164,19 +1132,6 @@ func (r *SliceGwReconciler) ReconcileGwPodPlacement(ctx context.Context, sliceGw
 	}
 
 	return nil
-}
-
-func getDepNameFromPodName(sliceGwID, podName string) string {
-	after, found := strings.CutPrefix(podName, sliceGwID)
-	if !found {
-		return ""
-	}
-	l := strings.Split(after, "-")
-	if len(l) < len([]string{"emptyString", "gwInstance", "depInstance"}) {
-		return ""
-	}
-
-	return sliceGwID + "-" + l[1] + "-" + l[2]
 }
 
 func (r *SliceGwReconciler) handleSliceGwSvcCreation(ctx context.Context, sliceGw *kubeslicev1beta1.SliceGateway, svcName, depName string) (reconcile.Result, error, bool) {
@@ -1325,9 +1280,9 @@ func (r *SliceGwReconciler) ReconcileGatewayDeployments(ctx context.Context, sli
 		}
 	}
 
-	// Reconcile deployment to node port map for gw client deployments
+	// Reconcile deployment to node port mapping for gw client deployments
 	if isClient(sliceGw) {
-	    for _, deployment := range deployments.Items {
+		for _, deployment := range deployments.Items {
 			found, nodePortInUse := getClientGwRemotePortInUse(ctx, r.Client, sliceGw, deployment.Name)
 			if found {
 				_, foundInMap := gwClientToRemotePortMap.Load(deployment.Name)
@@ -1336,7 +1291,7 @@ func (r *SliceGwReconciler) ReconcileGatewayDeployments(ctx context.Context, sli
 				}
 				// TODO: Handle the case of the port number in the deployment and the one in the port map being different
 			}
-	    }
+		}
 	}
 
 	// Delete any deployments marked for deletion
@@ -1346,28 +1301,28 @@ func (r *SliceGwReconciler) ReconcileGatewayDeployments(ctx context.Context, sli
 	}
 
 	if deploymentsToDelete != nil {
-	    for _, depToDelete := range deploymentsToDelete.Items {
+		for _, depToDelete := range deploymentsToDelete.Items {
 			// Delete the gw svc associated with the deployment
 			err := r.handleSliceGwSvcDeletion(ctx, sliceGw, getGwSvcNameFromDepName(depToDelete.Name), depToDelete.Name)
 			if err != nil {
 				log.Error(err, "Failed to delete gw svc", "svcName", depToDelete.Name)
 				return ctrl.Result{}, err, true
 			}
-		    err = r.Delete(ctx, &depToDelete)
-		    if err != nil {
-			    log.Error(err, "Failed to delete deployment", "depName", depToDelete.Name)
+			err = r.Delete(ctx, &depToDelete)
+			if err != nil {
+				log.Error(err, "Failed to delete deployment", "depName", depToDelete.Name)
 				return ctrl.Result{}, err, true
-		    }
+			}
 
 			if isClient(sliceGw) {
 				value, loaded := gwClientToRemotePortMap.LoadAndDelete(depToDelete.Name)
 				if loaded {
-				    log.Info("Deleted port num map for gw deployment", "depName", depToDelete.Name, "port", value.(int))
+					log.Info("Deleted port num map for gw deployment", "depName", depToDelete.Name, "port", value.(int))
 				}
 			}
 
-	    }
-    }
+		}
+	}
 
 	return ctrl.Result{}, nil, false
 }
@@ -1481,4 +1436,3 @@ func (r *SliceGwReconciler) ReconcileIntermediateGatewayDeployments(ctx context.
 
 	return ctrl.Result{}, nil, false
 }
-

@@ -22,9 +22,9 @@ import (
 	"context"
 
 	hubv1alpha1 "github.com/kubeslice/apis/pkg/controller/v1alpha1"
-	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
 	spokev1alpha1 "github.com/kubeslice/apis/pkg/worker/v1alpha1"
-	
+	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
+
 	"github.com/kubeslice/worker-operator/pkg/gwsidecar"
 	"github.com/kubeslice/worker-operator/pkg/netop"
 	"github.com/kubeslice/worker-operator/pkg/router"

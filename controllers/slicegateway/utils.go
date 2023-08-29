@@ -33,8 +33,8 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 func isClient(sliceGw *kubeslicev1beta1.SliceGateway) bool {
@@ -92,6 +92,19 @@ func getPodNames(slicegateway *kubeslicev1beta1.SliceGateway) []string {
 	return podNames
 }
 
+func getDepNameFromPodName(sliceGwID, podName string) string {
+	after, found := strings.CutPrefix(podName, sliceGwID)
+	if !found {
+		return ""
+	}
+	l := strings.Split(after, "-")
+	if len(l) < len([]string{"emptyString", "gwInstance", "depInstance"}) {
+		return ""
+	}
+
+	return sliceGwID + "-" + l[1] + "-" + l[2]
+}
+
 func isGWPodStatusChanged(slicegateway *kubeslicev1beta1.SliceGateway, gwPod *kubeslicev1beta1.GwPodInfo) bool {
 	gwPodStatus := slicegateway.Status.GatewayPodStatus
 	for _, gw := range gwPodStatus {
@@ -137,7 +150,7 @@ func isPodPresentInPodList(podList *corev1.PodList, podName string) bool {
 		if pod.Name == podName {
 			return true
 		}
-	} 
+	}
 
 	return false
 }
@@ -153,7 +166,7 @@ func findGwPodInfo(gwPodStatus []*kubeslicev1beta1.GwPodInfo, podName string) *k
 }
 
 func getPodPairToRebalance(podsOnNode []corev1.Pod, sliceGw *kubeslicev1beta1.SliceGateway) (string, string) {
-    for _, pod := range podsOnNode {
+	for _, pod := range podsOnNode {
 		podInfo := findGwPodInfo(sliceGw.Status.GatewayPodStatus, pod.Name)
 		if podInfo == nil {
 			continue
@@ -227,6 +240,15 @@ func checkIfNodePortIsAlreadyUsed(nodePort int) bool {
 	return found
 }
 
+func checkIfNodePortIsValid(nodePortList []int, nodePort int) bool {
+	for _, nodePortVal := range nodePortList {
+		if nodePortVal == nodePort {
+			return true
+		}
+	}
+
+	return false
+}
 
 func GetDeployments(ctx context.Context, c client.Client, sliceName, sliceGwName string) (*appsv1.DeploymentList, error) {
 	listOpts := []client.ListOption{
@@ -330,7 +352,6 @@ func GetNsmIPsForGwDeployment(ctx context.Context, c client.Client, sliceGwName,
 	return nsmIPs, nil
 }
 
-
 func GetRemoteDepName(remoteGwID, localDepName string) string {
 	l := strings.Split(localDepName, "-")
 	return remoteGwID + "-" + l[len(l)-2] + "-" + l[len(l)-1]
@@ -360,5 +381,20 @@ func (r *SliceGwReconciler) cleanupSliceGwResources(ctx context.Context, slicegw
 			return err
 		}
 	}
+
+	// Delete deployment to node port map
+	deployments, err := GetDeployments(ctx, r.Client, slicegw.Spec.SliceName, slicegw.Name)
+	if err != nil {
+		r.Log.Error(err, "SliceGw Deletion: Failed to list deployments")
+		return err
+	}
+
+	for _, deployment := range deployments.Items {
+		port, found := gwClientToRemotePortMap.LoadAndDelete(deployment.Name)
+		if found {
+			r.Log.Info("SliceGw Deletion: Invalidated deployment to node port mapping", "depName", deployment.Name, "port", port)
+		}
+	}
+
 	return nil
 }

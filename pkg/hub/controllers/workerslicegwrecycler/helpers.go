@@ -2,21 +2,17 @@ package workerslicegwrecycler
 
 import (
 	"context"
-	//"fmt"
-	//"time"
 
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
-	"github.com/kubeslice/worker-operator/controllers/slicegateway"
 	"github.com/kubeslice/worker-operator/controllers"
+	"github.com/kubeslice/worker-operator/controllers/slicegateway"
 	"github.com/kubeslice/worker-operator/pkg/router"
-	//spokev1alpha1 "github.com/kubeslice/apis/pkg/worker/v1alpha1"
 
 	appsv1 "k8s.io/api/apps/v1"
-	"k8s.io/apimachinery/pkg/types"
-	ctrl "sigs.k8s.io/controller-runtime"
-	//retry "github.com/avast/retry-go"
-	"k8s.io/client-go/util/retry"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/util/retry"
+	ctrl "sigs.k8s.io/controller-runtime"
 )
 
 func (r *Reconciler) CreateNewDeployment(ctx context.Context, depName string, sliceName, sliceGwName string) (ctrl.Result, error, bool) {
@@ -76,23 +72,23 @@ func (r *Reconciler) CheckIfDeploymentIsPresent(ctx context.Context, depName str
 func (r *Reconciler) MarkGwRouteForDeletion(ctx context.Context, sliceGw *kubeslicev1beta1.SliceGateway, depName string) error {
 	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		pod, err := slicegateway.GetPodForGwDeployment(ctx, r.MeshClient, depName)
-	    if err != nil {
-		    if apierrors.IsNotFound(err) {
-			    return nil
-		    }
-		    return err
-	    }
-	    if pod == nil {
-		    return nil
-	    }
+		if err != nil {
+			if apierrors.IsNotFound(err) {
+				return nil
+			}
+			return err
+		}
+		if pod == nil {
+			return nil
+		}
 
-	    podLabels := pod.ObjectMeta.Labels
-	    if podLabels == nil {
-		    return err
-	    }
-	    podLabels["kubeslice.io/exclude-gw-route"] = "true"
-	    pod.ObjectMeta.Labels = podLabels
-		
+		podLabels := pod.ObjectMeta.Labels
+		if podLabels == nil {
+			return err
+		}
+		podLabels["kubeslice.io/exclude-gw-route"] = "true"
+		pod.ObjectMeta.Labels = podLabels
+
 		return r.MeshClient.Update(ctx, pod)
 	})
 	if err != nil {
@@ -112,7 +108,7 @@ func (r *Reconciler) GetNsmIPForNewDeployment(ctx context.Context, sliceGw *kube
 	}
 
 	return nsmIPs[0], nil
-} 
+}
 
 func (r *Reconciler) CheckRouteInSliceRouter(ctx context.Context, sliceGw *kubeslicev1beta1.SliceGateway, gwNsmIP string) (bool, error) {
 	_, podIP, err := controllers.GetSliceRouterPodNameAndIP(ctx, r.MeshClient, sliceGw.Spec.SliceName)
@@ -125,7 +121,7 @@ func (r *Reconciler) CheckRouteInSliceRouter(ctx context.Context, sliceGw *kubes
 		RemoteSliceGwNsmSubnet: sliceGw.Status.Config.SliceGatewayRemoteSubnet,
 		NsmIp:                  gwNsmIP,
 	}
-	
+
 	res, err := r.WorkerRouterClient.GetRouteInKernel(ctx, sidecarGrpcAddress, sliceRouterConnCtx)
 	if err != nil {
 		return false, err
@@ -142,10 +138,10 @@ func (r *Reconciler) TriggerGwDeploymentDeletion(ctx context.Context, sliceName,
 	log := r.Log
 	// Mark the deployment for deletion
 	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-	    deployments, err := slicegateway.GetDeployments(ctx, r.MeshClient, sliceName, sliceGwName)
-	    if err != nil {
-		    return nil
-	    }
+		deployments, err := slicegateway.GetDeployments(ctx, r.MeshClient, sliceName, sliceGwName)
+		if err != nil {
+			return nil
+		}
 		if deployments == nil {
 			return nil
 		}
@@ -169,7 +165,7 @@ func (r *Reconciler) TriggerGwDeploymentDeletion(ctx context.Context, sliceName,
 		depLabels["kubeslice.io/marked-for-deletion"] = "true"
 
 		depToDelete.ObjectMeta.Labels = depLabels
-			
+
 		return r.MeshClient.Update(ctx, depToDelete)
 	})
 	if err != nil {
@@ -186,10 +182,10 @@ func (r *Reconciler) TriggerGwDeploymentDeletion(ctx context.Context, sliceName,
 		intermediateDeployments := sliceGw.Status.Config.SliceGatewayIntermediateDeployments
 		for i, intrmDep := range sliceGw.Status.Config.SliceGatewayIntermediateDeployments {
 			if intrmDep == newDepName {
-				if i == len(sliceGw.Status.Config.SliceGatewayIntermediateDeployments) - 1 {
+				if i == len(sliceGw.Status.Config.SliceGatewayIntermediateDeployments)-1 {
 					intermediateDeployments = intermediateDeployments[:i]
 				} else {
-				    intermediateDeployments = append(intermediateDeployments[:i], intermediateDeployments[i+1:]...)
+					intermediateDeployments = append(intermediateDeployments[:i], intermediateDeployments[i+1:]...)
 				}
 				break
 			}
@@ -201,6 +197,6 @@ func (r *Reconciler) TriggerGwDeploymentDeletion(ctx context.Context, sliceName,
 	if err != nil {
 		return err
 	}
-	
+
 	return nil
 }

@@ -258,6 +258,7 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		return ctrl.Result{}, err
 	}
 
+	// TODO: This should be able to run for client type gw as well.
 	if isServer(sliceGw) {
 		// Check if placement of gw pods needs to be balanced
 		err = r.ReconcileGwPodPlacement(ctx, sliceGw)
@@ -268,31 +269,6 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		}
 	}
 
-	// if isServer(sliceGw) {
-	// 	toRebalance, err := r.isRebalancingRequired(ctx, sliceGw)
-	// 	if err != nil {
-	// 		log.Error(err, "Unable to rebalance gw pods")
-	// 		utils.RecordEvent(ctx, r.EventRecorder, sliceGw, slice, ossEvents.EventSliceGWRebalancingFailed, controllerName)
-	// 		return ctrl.Result{}, err
-	// 	}
-	// 	log.Info("Rebalancing required?", "toRebalance", toRebalance)
-	// 	if toRebalance {
-	// 		// start FSM for graceful termination of gateway pods
-	// 		// create workerslicegwrecycler on controller
-	// 		newestPod, err := r.getNewestPod(sliceGw)
-	// 		if err != nil {
-	// 			return ctrl.Result{}, err
-	// 		}
-	// 		err = r.WorkerRecyclerClient.TriggerFSM(sliceGw, slice, newestPod, controllerName, newestPod.Name, 1)
-	// 		// to maintain consistency with recycling we are creating this CR with zero as suffix in the name
-	// 		if err != nil {
-	// 			// TODO:add an event and log
-	// 			log.Error(err, "Error while recycling gateway pods")
-	// 			return ctrl.Result{}, err
-	// 		}
-	// 	}
-	// }
-	
 	return ctrl.Result{
 		RequeueAfter: controllers.ReconcileInterval,
 	}, nil
