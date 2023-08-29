@@ -78,9 +78,13 @@ func (hubClientEmulator *HubClientEmulator) GetClusterNodeIP(ctx context.Context
 	return []string{"35.235.10.1"}, nil
 }
 
-func (hubClientEmulator *HubClientEmulator) CreateWorkerSliceGwRecycler(ctx context.Context, gwRecyclerName, clientID, serverID, sliceGwServer, sliceGwClient, slice string, redundancyNumber string) error {
-	return nil
+func (hubClientEmulator *HubClientEmulator) CreateWorkerSliceGwRecycler(ctx context.Context, gwRecyclerName, clientID, serverID, sliceGwServer, sliceGwClient, slice string) error {
+       return nil
 }
+
+func (hubClientEmulator *HubClientEmulator) DeleteWorkerSliceGwRecycler(ctx context.Context, gwRecyclerName string) error {
+        return nil
+ }
 
 func (hubClientEmulator *HubClientEmulator) ListWorkerSliceGwRecycler(ctx context.Context, sliceGWName string) ([]spokev1alpha1.WorkerSliceGwRecycler, error) {
 	return nil, nil
