@@ -197,7 +197,7 @@ var _ = Describe("Worker SlicegwController", func() {
 			}, time.Second*30, time.Millisecond*250).Should(BeTrue())
 
 			foundsvc := &corev1.Service{}
-			svckey := types.NamespacedName{Name: "svc-test-slicegw-0", Namespace: CONTROL_PLANE_NS}
+			svckey := types.NamespacedName{Name: "svc-test-slicegw-0-0", Namespace: CONTROL_PLANE_NS}
 
 			Eventually(func() bool {
 				err := k8sClient.Get(ctx, svckey, foundsvc)
@@ -205,7 +205,7 @@ var _ = Describe("Worker SlicegwController", func() {
 			}, time.Second*30, time.Millisecond*250).Should(BeTrue())
 
 			foundsvc = &corev1.Service{}
-			svckey = types.NamespacedName{Name: "svc-test-slicegw-1", Namespace: CONTROL_PLANE_NS}
+			svckey = types.NamespacedName{Name: "svc-test-slicegw-1-0", Namespace: CONTROL_PLANE_NS}
 
 			Eventually(func() bool {
 				err := k8sClient.Get(ctx, svckey, foundsvc)
@@ -241,7 +241,7 @@ var _ = Describe("Worker SlicegwController", func() {
 			}, time.Second*10, time.Millisecond*250).Should(BeTrue())
 
 			foundsvc := &corev1.Service{}
-			svckey := types.NamespacedName{Name: "svc-test-slicegw-0", Namespace: CONTROL_PLANE_NS}
+			svckey := types.NamespacedName{Name: "svc-test-slicegw-0-0", Namespace: CONTROL_PLANE_NS}
 
 			Eventually(func() bool {
 				err := k8sClient.Get(ctx, svckey, foundsvc)
@@ -249,7 +249,7 @@ var _ = Describe("Worker SlicegwController", func() {
 			}, time.Second*30, time.Millisecond*250).Should(BeTrue())
 
 			foundsvc = &corev1.Service{}
-			svckey = types.NamespacedName{Name: "svc-test-slicegw-1", Namespace: CONTROL_PLANE_NS}
+			svckey = types.NamespacedName{Name: "svc-test-slicegw-1-0", Namespace: CONTROL_PLANE_NS}
 
 			Eventually(func() bool {
 				err := k8sClient.Get(ctx, svckey, foundsvc)
@@ -257,7 +257,7 @@ var _ = Describe("Worker SlicegwController", func() {
 			}, time.Second*30, time.Millisecond*250).Should(BeTrue())
 
 			founddepl := &appsv1.Deployment{}
-			deplKey := types.NamespacedName{Name: "test-slicegw-0", Namespace: CONTROL_PLANE_NS}
+			deplKey := types.NamespacedName{Name: "test-slicegw-0-0", Namespace: CONTROL_PLANE_NS}
 
 			Eventually(func() bool {
 				err := k8sClient.Get(ctx, deplKey, founddepl)
@@ -265,7 +265,7 @@ var _ = Describe("Worker SlicegwController", func() {
 			}, time.Second*40, time.Millisecond*250).Should(BeTrue())
 
 			founddepl = &appsv1.Deployment{}
-			deplKey = types.NamespacedName{Name: "test-slicegw-1", Namespace: CONTROL_PLANE_NS}
+			deplKey = types.NamespacedName{Name: "test-slicegw-1-0", Namespace: CONTROL_PLANE_NS}
 
 			Eventually(func() bool {
 				err := k8sClient.Get(ctx, deplKey, founddepl)
@@ -353,7 +353,7 @@ var _ = Describe("Worker SlicegwController", func() {
 			}, time.Second*10, time.Millisecond*250).Should(BeTrue())
 
 			founddepl := &appsv1.Deployment{}
-			deplKey := types.NamespacedName{Name: "test-slicegw-0", Namespace: CONTROL_PLANE_NS}
+			deplKey := types.NamespacedName{Name: "test-slicegw-0-0", Namespace: CONTROL_PLANE_NS}
 
 			Eventually(func() bool {
 				err := k8sClient.Get(ctx, deplKey, founddepl)
@@ -361,7 +361,7 @@ var _ = Describe("Worker SlicegwController", func() {
 			}, time.Second*40, time.Millisecond*250).Should(BeTrue())
 
 			founddepl = &appsv1.Deployment{}
-			deplKey = types.NamespacedName{Name: "test-slicegw-1", Namespace: CONTROL_PLANE_NS}
+			deplKey = types.NamespacedName{Name: "test-slicegw-1-0", Namespace: CONTROL_PLANE_NS}
 
 			Eventually(func() bool {
 				err := k8sClient.Get(ctx, deplKey, founddepl)
@@ -534,7 +534,7 @@ var _ = Describe("Worker SlicegwController", func() {
 			}, time.Second*10, time.Millisecond*250).Should(BeTrue())
 
 			founddepl := &appsv1.Deployment{}
-			deplKey := types.NamespacedName{Name: "test-slicegw-del", Namespace: CONTROL_PLANE_NS}
+			deplKey := types.NamespacedName{Name: "test-slicegw-del-0-0", Namespace: CONTROL_PLANE_NS}
 
 			Eventually(func() bool {
 				err := k8sClient.Get(ctx, deplKey, founddepl)
