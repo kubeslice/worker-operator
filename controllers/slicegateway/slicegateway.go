@@ -719,7 +719,7 @@ func (r *SliceGwReconciler) SendConnectionContextAndQosToGwPod(ctx context.Conte
 		RemoteSliceGwVpnIP:     slicegateway.Status.Config.SliceGatewayRemoteVpnIP,
 		RemoteSliceGwNsmSubnet: slicegateway.Status.Config.SliceGatewayRemoteSubnet,
 	}
-	for i, _ := range gwPodsInfo {
+	for i := range gwPodsInfo {
 		sidecarGrpcAddress := gwPodsInfo[i].PodIP + ":5000"
 
 		err := r.WorkerGWSidecarClient.SendConnectionContext(ctx, sidecarGrpcAddress, connCtx)
@@ -957,10 +957,18 @@ func (r *SliceGwReconciler) reconcileGatewayEndpoint(ctx context.Context, sliceG
 
 func checkEndpointSubset(subset corev1.EndpointSubset, remoteNodeIPs []string, requireMatch bool) bool {
 	addrSlice := subset.Addresses
+
+	if requireMatch {
+		if len(addrSlice) != len(remoteNodeIPs) {
+			return false
+		}
+	}
+
 	exists := make(map[string]bool)
 	for _, value := range addrSlice {
 		exists[value.IP] = true
 	}
+
 	for _, value := range remoteNodeIPs {
 		if requireMatch && !exists[value] {
 			// endpoints gettings used should match with SliceGatewayRemoteNodeIPs
@@ -1008,7 +1016,7 @@ func getAddrSlice(nodeIPS []string) []corev1.EndpointAddress {
 
 func UpdateGWPodStatus(gwPodStatus []*kubeslicev1beta1.GwPodInfo, podName string) []*kubeslicev1beta1.GwPodInfo {
 	index := -1
-	for i, _ := range gwPodStatus {
+	for i := range gwPodStatus {
 		if gwPodStatus[i].PodName == podName {
 			index = i
 			break
