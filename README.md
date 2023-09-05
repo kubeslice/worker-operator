@@ -8,6 +8,7 @@ The `kubeslice-worker` operator uses Kubebuilder, a framework for building Kuber
 It is strongly recommended that you use a released version.
 
 Please refer to our documentation on:
+- [Get Started on KubeSlice](https://kubeslice.io/documentation/open-source/1.1.0/category/get-started)
 - [Install KubeSlice](https://kubeslice.io/documentation/open-source/1.1.0/category/install-kubeslice)
 
 ## Install `kubeslice-worker` on a Kind Cluster
@@ -154,7 +155,7 @@ prefix-service-76bd89c44f-2p6dw          1/1     Running   0          48s
 
 ### Uninstall the Worker Operator
 
-For more information, see [deregister the worker cluster](https://kubeslice.io/documentation/open-source/1.1.0/uninstall-kubeslice/#deregistered-worker-clusters).
+For more information, see [deregister the worker cluster](https://kubeslice.io/documentation/open-source/1.1.0/uninstall-kubeslice/#deregister-worker-clusters).
 
 ```console
 helm uninstall kubeslice-worker -n kubeslice-system
