@@ -163,18 +163,15 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (ctrl
 							log.Error(err, "Failed to get Slice", "slice", sliceName)
 							return ctrl.Result{}, err
 						}
-						podLabels := v.ObjectMeta.Labels
-						if podLabels == nil {
-							log.Error(err, "Failed to get pod labels", "pod", v.Name)
+
+						peerPodName, err := slicegateway.GetPeerGwPodName(v.Name, sliceGw)
+						if err != nil {
+							log.Error(err, "Failed to get peer pod name for gw pod", "pod", v.Name)
 							return ctrl.Result{}, err
 						}
-						depName, ok := podLabels["kubeslice.io/slice-gw-dep"]
-						if !ok {
-							log.Error(err, "Failed to get deployment labels on the pod", "pod", v.Name)
-							return ctrl.Result{}, err
-						}
-						serverID := depName
-						clientID := slicegateway.GetRemoteDepName(sliceGw.Status.Config.SliceGatewayRemoteGatewayID, depName)
+
+						serverID := slicegateway.GetDepNameFromPodName(sliceGw.Status.Config.SliceGatewayID, v.Name)
+						clientID := slicegateway.GetDepNameFromPodName(sliceGw.Status.Config.SliceGatewayRemoteGatewayID, peerPodName)
 						// using pod name as a unique identifier
 						err = r.WorkerRecyclerClient.TriggerFSM(sliceGw, slice, serverID, clientID, controllerName)
 						if err != nil {

@@ -20,10 +20,12 @@ package slicegateway
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
 
+	gwsidecarpb "github.com/kubeslice/gateway-sidecar/pkg/sidecar/sidecarpb"
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
 	"github.com/kubeslice/worker-operator/controllers"
 	ossEvents "github.com/kubeslice/worker-operator/events"
@@ -78,7 +80,7 @@ func contains(s []string, e string) bool {
 
 func getPodIPs(slicegateway *kubeslicev1beta1.SliceGateway) []string {
 	podIPs := make([]string, 0)
-	for i, _ := range slicegateway.Status.GatewayPodStatus {
+	for i := range slicegateway.Status.GatewayPodStatus {
 		podIPs = append(podIPs, slicegateway.Status.GatewayPodStatus[i].PodIP)
 	}
 	return podIPs
@@ -86,13 +88,13 @@ func getPodIPs(slicegateway *kubeslicev1beta1.SliceGateway) []string {
 
 func getPodNames(slicegateway *kubeslicev1beta1.SliceGateway) []string {
 	podNames := make([]string, 0)
-	for i, _ := range slicegateway.Status.GatewayPodStatus {
+	for i := range slicegateway.Status.GatewayPodStatus {
 		podNames = append(podNames, slicegateway.Status.GatewayPodStatus[i].PodName)
 	}
 	return podNames
 }
 
-func getDepNameFromPodName(sliceGwID, podName string) string {
+func GetDepNameFromPodName(sliceGwID, podName string) string {
 	after, found := strings.CutPrefix(podName, sliceGwID)
 	if !found {
 		return ""
@@ -139,7 +141,7 @@ func getPodAntiAffinity(slice string) *corev1.PodAntiAffinity {
 
 func getLocalNSMIPs(slicegateway *kubeslicev1beta1.SliceGateway) []string {
 	nsmIPs := make([]string, 0)
-	for i, _ := range slicegateway.Status.GatewayPodStatus {
+	for i := range slicegateway.Status.GatewayPodStatus {
 		nsmIPs = append(nsmIPs, slicegateway.Status.GatewayPodStatus[i].LocalNsmIP)
 	}
 	return nsmIPs
@@ -171,12 +173,30 @@ func getPodPairToRebalance(podsOnNode []corev1.Pod, sliceGw *kubeslicev1beta1.Sl
 		if podInfo == nil {
 			continue
 		}
+		if podInfo.TunnelStatus.Status != int32(gwsidecarpb.TunnelStatusType_GW_TUNNEL_STATE_UP) {
+			continue
+		}
 		if podInfo.PeerPodName != "" {
 			return podInfo.PodName, podInfo.PeerPodName
 		}
 	}
 
 	return "", ""
+}
+
+func GetPeerGwPodName(gwPodName string, sliceGw *kubeslicev1beta1.SliceGateway) (string, error) {
+	podInfo := findGwPodInfo(sliceGw.Status.GatewayPodStatus, gwPodName)
+	if podInfo == nil {
+		return "", errors.New("Gw pod not found")
+	}
+	if podInfo.TunnelStatus.Status != int32(gwsidecarpb.TunnelStatusType_GW_TUNNEL_STATE_UP) {
+		return "", errors.New("Gw tunnel is down")
+	}
+	if podInfo.PeerPodName == "" {
+		return "", errors.New("Gw peer pod info unavailable")
+	}
+
+	return podInfo.PeerPodName, nil
 }
 
 func gwDeploymentIsPresent(sliceGwName string, gwInstance int, deployments *appsv1.DeploymentList) bool {
