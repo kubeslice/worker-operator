@@ -8,8 +8,8 @@ The `kubeslice-worker` operator uses Kubebuilder, a framework for building Kuber
 It is strongly recommended that you use a released version.
 
 Please refer to our documentation on:
-- [Install KubeSlice on cloud clusters](https://kubeslice.io/documentation/open-source/0.6.0/getting-started-with-cloud-clusters/installing-kubeslice/installing-the-kubeslice-controller)
-- [Install KubeSlice on kind clusters](https://kubeslice.io/documentation/open-source/0.6.0/tutorials/kind-install-kubeslice-controller)
+- [Get Started on KubeSlice](https://kubeslice.io/documentation/open-source/1.1.0/category/get-started)
+- [Install KubeSlice](https://kubeslice.io/documentation/open-source/1.1.0/category/install-kubeslice)
 
 ## Install `kubeslice-worker` on a Kind Cluster
 
@@ -19,7 +19,7 @@ Before you begin, make sure the following prerequisites are met:
 * Docker is installed and running on your local machine.
 * A running [`kind`](https://kind.sigs.k8s.io/) cluster.
 * [`kubectl`](https://kubernetes.io/docs/tasks/tools/) is installed and configured.
-* You have prepared the environment to install [`kubeslice-controller`](https://github.com/kubeslice/kubeslice-controller) on the controller cluster and [`worker-operator`](https://github.com/kubeslice/worker-operator) on the worker cluster. For more information, see [Prerequisites](https://kubeslice.io/documentation/open-source/0.6.0/getting-started-with-cloud-clusters/prerequisites/).
+* You have prepared the environment to install [`kubeslice-controller`](https://github.com/kubeslice/kubeslice-controller) on the controller cluster and [`worker-operator`](https://github.com/kubeslice/worker-operator) on the worker cluster. For more information, see [Prerequisites](https://kubeslice.io/documentation/open-source/1.1.0/category/prerequisites).
 
 ### Build and Deploy a Worker Operator on a Kind Cluster
 
@@ -155,7 +155,7 @@ prefix-service-76bd89c44f-2p6dw          1/1     Running   0          48s
 
 ### Uninstall the Worker Operator
 
-For more information, see [deregister the worker cluster](https://kubeslice.io/documentation/open-source/0.6.0/getting-started-with-cloud-clusters/uninstalling-kubeslice/deregistering-the-worker-cluster).
+For more information, see [deregister the worker cluster](https://kubeslice.io/documentation/open-source/1.1.0/uninstall-kubeslice/#deregister-worker-clusters).
 
 ```console
 helm uninstall kubeslice-worker -n kubeslice-system
