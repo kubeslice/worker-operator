@@ -71,21 +71,21 @@ func labelsForSliceGwDeployment(name, slice, depName string) map[string]string {
 		"networkservicemesh.io/app":                      name,
 		webhook.PodInjectLabelKey:                        "slicegateway",
 		controllers.ApplicationNamespaceSelectorLabelKey: slice,
-		"kubeslice.io/slice-gw":                          name,
+		controllers.SliceGatewaySelectorLabelKey:         name,
 		"kubeslice.io/slice-gw-dep":                      depName,
 	}
 }
 
 func labelsForSliceGwService(name, svcName, depName string) map[string]string {
 	return map[string]string{
-		"kubeslice.io/slice-gw":     name,
-		"kubeslice.io/slice-gw-dep": depName,
+		controllers.SliceGatewaySelectorLabelKey: name,
+		"kubeslice.io/slice-gw-dep":              depName,
 	}
 }
 
 func labelsForSliceGwStatus(name string) map[string]string {
 	return map[string]string{
-		"kubeslice.io/slice-gw": name,
+		controllers.SliceGatewaySelectorLabelKey: name,
 	}
 }
 
@@ -174,7 +174,7 @@ func (r *SliceGwReconciler) deploymentForGatewayServer(g *kubeslicev1beta1.Slice
 								}},
 							},
 						},
-						PodAntiAffinity: getPodAntiAffinity(g.Spec.SliceName),
+						PodAntiAffinity: getPodAntiAffinity(g.Spec.SliceName, g.Name),
 					},
 					Containers: []corev1.Container{{
 						Name:            "kubeslice-sidecar",
@@ -470,7 +470,7 @@ func (r *SliceGwReconciler) deploymentForGatewayClient(g *kubeslicev1beta1.Slice
 								}},
 							},
 						},
-						PodAntiAffinity: getPodAntiAffinity(g.Spec.SliceName),
+						PodAntiAffinity: getPodAntiAffinity(g.Spec.SliceName, g.Name),
 					},
 					Containers: []corev1.Container{{
 						Name:            "kubeslice-sidecar",

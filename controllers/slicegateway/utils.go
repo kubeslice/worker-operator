@@ -117,7 +117,7 @@ func isGWPodStatusChanged(slicegateway *kubeslicev1beta1.SliceGateway, gwPod *ku
 	return false
 }
 
-func getPodAntiAffinity(slice string) *corev1.PodAntiAffinity {
+func getPodAntiAffinity(slice, slicegateway string) *corev1.PodAntiAffinity {
 	return &corev1.PodAntiAffinity{
 		PreferredDuringSchedulingIgnoredDuringExecution: []corev1.WeightedPodAffinityTerm{{
 			Weight: 100,
@@ -125,9 +125,9 @@ func getPodAntiAffinity(slice string) *corev1.PodAntiAffinity {
 				TopologyKey: "kubernetes.io/hostname",
 				LabelSelector: &metav1.LabelSelector{
 					MatchExpressions: []metav1.LabelSelectorRequirement{{
-						Key:      controllers.PodTypeSelectorLabelKey,
+						Key:      controllers.SliceGatewaySelectorLabelKey,
 						Operator: metav1.LabelSelectorOpIn,
-						Values:   []string{"slicegateway"},
+						Values:   []string{slicegateway},
 					}, {
 						Key:      controllers.ApplicationNamespaceSelectorLabelKey,
 						Operator: metav1.LabelSelectorOpIn,
