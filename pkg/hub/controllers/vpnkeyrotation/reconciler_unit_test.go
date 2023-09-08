@@ -9,6 +9,8 @@ import (
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 
+	gwsidecarpb "github.com/kubeslice/gateway-sidecar/pkg/sidecar/sidecarpb"
+
 	hubv1alpha1 "github.com/kubeslice/apis/pkg/controller/v1alpha1"
 	spokev1alpha1 "github.com/kubeslice/apis/pkg/worker/v1alpha1"
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
@@ -111,6 +113,20 @@ var sliceGateway = &kubeslicev1beta1.SliceGateway{
 		Config: kubeslicev1beta1.SliceGatewayConfig{
 			SliceGatewayHostType:        "Server",
 			SliceGatewayRemoteGatewayID: "fire-worker-2-worker-3", // mocking client status
+		},
+		GatewayPodStatus: []*kubeslicev1beta1.GwPodInfo{
+			{
+				PodName: "pod-1",
+				TunnelStatus: kubeslicev1beta1.TunnelStatus{
+					Status: int32(gwsidecarpb.TunnelStatusType_GW_TUNNEL_STATE_UP),
+				},
+				PeerPodName: "fire-worker-3-worker-2",
+			},
+			{
+				PodName: "pod-2", TunnelStatus: kubeslicev1beta1.TunnelStatus{
+					Status: int32(gwsidecarpb.TunnelStatusType_GW_TUNNEL_STATE_UP),
+				},
+				PeerPodName: "fire-worker-3-worker-2"},
 		},
 	},
 }
