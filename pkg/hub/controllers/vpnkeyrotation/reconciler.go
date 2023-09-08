@@ -12,6 +12,7 @@ import (
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
 
 	"github.com/kubeslice/worker-operator/controllers"
+	"github.com/kubeslice/worker-operator/controllers/slicegateway"
 
 	"github.com/kubeslice/kubeslice-monitoring/pkg/events"
 	"github.com/kubeslice/kubeslice-monitoring/pkg/metrics"
@@ -162,8 +163,17 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (ctrl
 							log.Error(err, "Failed to get Slice", "slice", sliceName)
 							return ctrl.Result{}, err
 						}
+
+						peerPodName, err := slicegateway.GetPeerGwPodName(v.Name, sliceGw)
+						if err != nil {
+							log.Error(err, "Failed to get peer pod name for gw pod", "pod", v.Name)
+							return ctrl.Result{}, err
+						}
+
+						serverID := slicegateway.GetDepNameFromPodName(sliceGw.Status.Config.SliceGatewayID, v.Name)
+						clientID := slicegateway.GetDepNameFromPodName(sliceGw.Status.Config.SliceGatewayRemoteGatewayID, peerPodName)
 						// using pod name as a unique identifier
-						err = r.WorkerRecyclerClient.TriggerFSM(sliceGw, slice, &v, controllerName, v.Name, 2)
+						err = r.WorkerRecyclerClient.TriggerFSM(sliceGw, slice, serverID, clientID, controllerName)
 						if err != nil {
 							log.Error(err, "Err(): triggering FSM")
 							return ctrl.Result{}, err

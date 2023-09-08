@@ -23,7 +23,6 @@ import (
 	"fmt"
 	"os"
 	"reflect"
-	"strconv"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 
@@ -70,7 +69,8 @@ type HubClientRpc interface {
 	UpdateServiceExportEndpointForIngressGw(ctx context.Context, serviceexport *kubeslicev1beta1.ServiceExport,
 		ep *kubeslicev1beta1.ServicePod) error
 	UpdateAppNamespaces(ctx context.Context, sliceConfigName string, onboardedNamespaces []string) error
-	CreateWorkerSliceGwRecycler(ctx context.Context, gwRecyclerName, clientID, serverID, sliceGwServer, sliceGwClient, slice, redundancyNumber string) error
+	CreateWorkerSliceGwRecycler(ctx context.Context, gwRecyclerName, clientID, serverID, sliceGwServer, sliceGwClient, slice string) error
+	DeleteWorkerSliceGwRecycler(ctx context.Context, gwRecyclerName string) error
 }
 
 func NewHubClientConfig(er *monitoring.EventRecorder) (*HubClientConfig, error) {
@@ -91,9 +91,18 @@ func NewHubClientConfig(er *monitoring.EventRecorder) (*HubClientConfig, error) 
 	}, err
 }
 
-func (hubClient *HubClientConfig) CreateWorkerSliceGwRecycler(ctx context.Context, gwRecyclerName, clientID, serverID, sliceGwServer, sliceGwClient, slice, redundancyNumber string) error {
-	redundancyInt, _ := strconv.Atoi(redundancyNumber)
-	workerslicegwrecycler := spokev1alpha1.WorkerSliceGwRecycler{
+func (hubClient *HubClientConfig) CreateWorkerSliceGwRecycler(ctx context.Context, gwRecyclerName, clientID, serverID, sliceGwServer, sliceGwClient, slice string) error {
+	var workerslicegwrecycler spokev1alpha1.WorkerSliceGwRecycler
+	err := hubClient.Get(ctx, types.NamespacedName{
+		Name:      gwRecyclerName,
+		Namespace: ProjectNamespace,
+	}, &workerslicegwrecycler)
+	if err == nil {
+		// The object is already created. Return from here
+		return nil
+	}
+
+	workerslicegwrecycler = spokev1alpha1.WorkerSliceGwRecycler{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      gwRecyclerName,
 			Namespace: ProjectNamespace,
@@ -107,15 +116,31 @@ func (hubClient *HubClientConfig) CreateWorkerSliceGwRecycler(ctx context.Contex
 				ServerID: serverID,
 				ClientID: clientID,
 			},
-			ServerRedundancyNumber: redundancyInt,
-			State:                  "init",
-			Request:                "verify_new_deployment_created",
-			SliceGwServer:          sliceGwServer,
-			SliceGwClient:          sliceGwClient,
-			SliceName:              slice,
+			State:         "init",
+			Request:       "verify_new_deployment_created",
+			SliceGwServer: sliceGwServer,
+			SliceGwClient: sliceGwClient,
+			SliceName:     slice,
 		},
 	}
 	return hubClient.Create(ctx, &workerslicegwrecycler)
+}
+
+func (hubClient *HubClientConfig) DeleteWorkerSliceGwRecycler(ctx context.Context, gwRecyclerName string) error {
+	var workerslicegwrecycler spokev1alpha1.WorkerSliceGwRecycler
+	err := hubClient.Get(ctx, types.NamespacedName{
+		Name:      gwRecyclerName,
+		Namespace: ProjectNamespace,
+	}, &workerslicegwrecycler)
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			return nil
+		}
+		// The object is already created. Return from here
+		return err
+	}
+
+	return hubClient.Delete(ctx, &workerslicegwrecycler)
 }
 
 func (hubClient *HubClientConfig) ListWorkerSliceGwRecycler(ctx context.Context, sliceGWName string) ([]spokev1alpha1.WorkerSliceGwRecycler, error) {

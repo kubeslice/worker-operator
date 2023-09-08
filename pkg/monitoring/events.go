@@ -127,7 +127,7 @@ func (er *EventRecorder) RecordEvent(ctx context.Context, e *Event) error {
 	er.Logger.Info("raised event", "event", ev)
 
 	if err := er.Client.Create(ctx, ev); err != nil {
-		er.Logger.With("error", err, "event", ev).Error("Unable to create event")
+		er.Logger.With("error", err, "eventReason", ev.Reason).Error("Unable to create event")
 	}
 	return nil
 }

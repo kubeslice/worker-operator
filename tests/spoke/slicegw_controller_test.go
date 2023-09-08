@@ -20,6 +20,7 @@ package spoke_test
 
 import (
 	"context"
+	"fmt"
 	"reflect"
 	"time"
 
@@ -172,17 +173,37 @@ var _ = Describe("Worker SlicegwController", func() {
 
 		It("should create a gw nodeport service if gw type is Server", func() {
 			ctx := context.Background()
-
 			Expect(k8sClient.Create(ctx, svc)).Should(Succeed())
 			Expect(k8sClient.Create(ctx, slice)).Should(Succeed())
 			Expect(k8sClient.Create(ctx, vl3ServiceEndpoint)).Should(Succeed())
 			Expect(k8sClient.Create(ctx, sliceGw)).Should(Succeed())
 			Expect(k8sClient.Create(ctx, appPod)).Should(Succeed())
+
 			sliceKey := types.NamespacedName{Name: "test-slice-4", Namespace: CONTROL_PLANE_NS}
 			Eventually(func() bool {
 				err := k8sClient.Get(ctx, sliceKey, createdSlice)
 				return err == nil
 			}, time.Second*10, time.Millisecond*250).Should(BeTrue())
+
+			err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+				err := k8sClient.Get(ctx, sliceKey, createdSlice)
+				if err != nil {
+					return err
+				}
+				// Update the minimum required values in the slice cr status field
+				if createdSlice.Status.SliceConfig == nil {
+					createdSlice.Status.SliceConfig = &kubeslicev1beta1.SliceConfig{
+						SliceDisplayName: slice.Name,
+						SliceSubnet:      "192.168.0.0/16",
+					}
+				}
+				if err := k8sClient.Status().Update(ctx, createdSlice); err != nil {
+					return err
+				}
+				return nil
+			})
+			Expect(err).To(BeNil())
+			Expect(createdSlice.Status.SliceConfig).NotTo(BeNil())
 
 			slicegwkey := types.NamespacedName{Name: "test-slicegw", Namespace: CONTROL_PLANE_NS}
 			Eventually(func() bool {
@@ -197,7 +218,7 @@ var _ = Describe("Worker SlicegwController", func() {
 			}, time.Second*30, time.Millisecond*250).Should(BeTrue())
 
 			foundsvc := &corev1.Service{}
-			svckey := types.NamespacedName{Name: "svc-test-slicegw-0", Namespace: CONTROL_PLANE_NS}
+			svckey := types.NamespacedName{Name: "svc-test-slicegw-0-0", Namespace: CONTROL_PLANE_NS}
 
 			Eventually(func() bool {
 				err := k8sClient.Get(ctx, svckey, foundsvc)
@@ -205,7 +226,7 @@ var _ = Describe("Worker SlicegwController", func() {
 			}, time.Second*30, time.Millisecond*250).Should(BeTrue())
 
 			foundsvc = &corev1.Service{}
-			svckey = types.NamespacedName{Name: "svc-test-slicegw-1", Namespace: CONTROL_PLANE_NS}
+			svckey = types.NamespacedName{Name: "svc-test-slicegw-1-0", Namespace: CONTROL_PLANE_NS}
 
 			Eventually(func() bool {
 				err := k8sClient.Get(ctx, svckey, foundsvc)
@@ -228,6 +249,26 @@ var _ = Describe("Worker SlicegwController", func() {
 				return err == nil
 			}, time.Second*250, time.Millisecond*250).Should(BeTrue())
 
+			err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+				err := k8sClient.Get(ctx, sliceKey, createdSlice)
+				if err != nil {
+					return err
+				}
+				// Update the minimum required values in the slice cr status field
+				if createdSlice.Status.SliceConfig == nil {
+					createdSlice.Status.SliceConfig = &kubeslicev1beta1.SliceConfig{
+						SliceDisplayName: slice.Name,
+						SliceSubnet:      "192.168.0.0/16",
+					}
+				}
+				if err := k8sClient.Status().Update(ctx, createdSlice); err != nil {
+					return err
+				}
+				return nil
+			})
+			Expect(err).To(BeNil())
+			Expect(createdSlice.Status.SliceConfig).NotTo(BeNil())
+
 			slicegwkey := types.NamespacedName{Name: "test-slicegw", Namespace: CONTROL_PLANE_NS}
 			Eventually(func() bool {
 				err := k8sClient.Get(ctx, slicegwkey, createdSliceGw)
@@ -241,7 +282,7 @@ var _ = Describe("Worker SlicegwController", func() {
 			}, time.Second*10, time.Millisecond*250).Should(BeTrue())
 
 			foundsvc := &corev1.Service{}
-			svckey := types.NamespacedName{Name: "svc-test-slicegw-0", Namespace: CONTROL_PLANE_NS}
+			svckey := types.NamespacedName{Name: "svc-test-slicegw-0-0", Namespace: CONTROL_PLANE_NS}
 
 			Eventually(func() bool {
 				err := k8sClient.Get(ctx, svckey, foundsvc)
@@ -249,7 +290,7 @@ var _ = Describe("Worker SlicegwController", func() {
 			}, time.Second*30, time.Millisecond*250).Should(BeTrue())
 
 			foundsvc = &corev1.Service{}
-			svckey = types.NamespacedName{Name: "svc-test-slicegw-1", Namespace: CONTROL_PLANE_NS}
+			svckey = types.NamespacedName{Name: "svc-test-slicegw-1-0", Namespace: CONTROL_PLANE_NS}
 
 			Eventually(func() bool {
 				err := k8sClient.Get(ctx, svckey, foundsvc)
@@ -257,7 +298,7 @@ var _ = Describe("Worker SlicegwController", func() {
 			}, time.Second*30, time.Millisecond*250).Should(BeTrue())
 
 			founddepl := &appsv1.Deployment{}
-			deplKey := types.NamespacedName{Name: "test-slicegw-0", Namespace: CONTROL_PLANE_NS}
+			deplKey := types.NamespacedName{Name: "test-slicegw-0-0", Namespace: CONTROL_PLANE_NS}
 
 			Eventually(func() bool {
 				err := k8sClient.Get(ctx, deplKey, founddepl)
@@ -265,7 +306,7 @@ var _ = Describe("Worker SlicegwController", func() {
 			}, time.Second*40, time.Millisecond*250).Should(BeTrue())
 
 			founddepl = &appsv1.Deployment{}
-			deplKey = types.NamespacedName{Name: "test-slicegw-1", Namespace: CONTROL_PLANE_NS}
+			deplKey = types.NamespacedName{Name: "test-slicegw-1-0", Namespace: CONTROL_PLANE_NS}
 
 			Eventually(func() bool {
 				err := k8sClient.Get(ctx, deplKey, founddepl)
@@ -331,6 +372,26 @@ var _ = Describe("Worker SlicegwController", func() {
 				return err == nil
 			}, time.Second*250, time.Millisecond*250).Should(BeTrue())
 
+			err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+				err := k8sClient.Get(ctx, sliceKey, createdSlice)
+				if err != nil {
+					return err
+				}
+				// Update the minimum required values in the slice cr status field
+				if createdSlice.Status.SliceConfig == nil {
+					createdSlice.Status.SliceConfig = &kubeslicev1beta1.SliceConfig{
+						SliceDisplayName: slice.Name,
+						SliceSubnet:      "192.168.0.0/16",
+					}
+				}
+				if err := k8sClient.Status().Update(ctx, createdSlice); err != nil {
+					return err
+				}
+				return nil
+			})
+			Expect(err).To(BeNil())
+			Expect(createdSlice.Status.SliceConfig).NotTo(BeNil())
+
 			slicegwkey := types.NamespacedName{Name: "test-slicegw", Namespace: CONTROL_PLANE_NS}
 			Eventually(func() bool {
 				err := k8sClient.Get(ctx, slicegwkey, createdSliceGw)
@@ -353,7 +414,7 @@ var _ = Describe("Worker SlicegwController", func() {
 			}, time.Second*10, time.Millisecond*250).Should(BeTrue())
 
 			founddepl := &appsv1.Deployment{}
-			deplKey := types.NamespacedName{Name: "test-slicegw-0", Namespace: CONTROL_PLANE_NS}
+			deplKey := types.NamespacedName{Name: "test-slicegw-0-0", Namespace: CONTROL_PLANE_NS}
 
 			Eventually(func() bool {
 				err := k8sClient.Get(ctx, deplKey, founddepl)
@@ -361,7 +422,7 @@ var _ = Describe("Worker SlicegwController", func() {
 			}, time.Second*40, time.Millisecond*250).Should(BeTrue())
 
 			founddepl = &appsv1.Deployment{}
-			deplKey = types.NamespacedName{Name: "test-slicegw-1", Namespace: CONTROL_PLANE_NS}
+			deplKey = types.NamespacedName{Name: "test-slicegw-1-0", Namespace: CONTROL_PLANE_NS}
 
 			Eventually(func() bool {
 				err := k8sClient.Get(ctx, deplKey, founddepl)
@@ -383,8 +444,29 @@ var _ = Describe("Worker SlicegwController", func() {
 				return err == nil
 			}, time.Second*250, time.Millisecond*250).Should(BeTrue())
 
-			slicegwkey := types.NamespacedName{Name: "test-slicegw", Namespace: CONTROL_PLANE_NS}
 			err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+				err := k8sClient.Get(ctx, sliceKey, createdSlice)
+				if err != nil {
+					return err
+				}
+				// Update the minimum required values in the slice cr status field
+				if createdSlice.Status.SliceConfig == nil {
+					createdSlice.Status.SliceConfig = &kubeslicev1beta1.SliceConfig{
+						SliceDisplayName: slice.Name,
+						SliceSubnet:      "192.168.0.0/16",
+					}
+				}
+				if err := k8sClient.Status().Update(ctx, createdSlice); err != nil {
+					return err
+				}
+				fmt.Println(createdSlice.Status.SliceConfig, "=============================")
+				return nil
+			})
+			Expect(err).To(BeNil())
+			fmt.Println(createdSlice.Status.SliceConfig, "=============================")
+
+			slicegwkey := types.NamespacedName{Name: "test-slicegw", Namespace: CONTROL_PLANE_NS}
+			err = retry.RetryOnConflict(retry.DefaultRetry, func() error {
 				err := k8sClient.Get(ctx, slicegwkey, createdSliceGw)
 				if err != nil {
 					return err
@@ -427,8 +509,28 @@ var _ = Describe("Worker SlicegwController", func() {
 				return err == nil
 			}, time.Second*250, time.Millisecond*250).Should(BeTrue())
 
-			slicegwkey := types.NamespacedName{Name: "test-slicegw", Namespace: CONTROL_PLANE_NS}
 			err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+				err := k8sClient.Get(ctx, sliceKey, createdSlice)
+				if err != nil {
+					return err
+				}
+				// Update the minimum required values in the slice cr status field
+				if createdSlice.Status.SliceConfig == nil {
+					createdSlice.Status.SliceConfig = &kubeslicev1beta1.SliceConfig{
+						SliceDisplayName: slice.Name,
+						SliceSubnet:      "192.168.0.0/16",
+					}
+				}
+				if err := k8sClient.Status().Update(ctx, createdSlice); err != nil {
+					return err
+				}
+				return nil
+			})
+			Expect(err).To(BeNil())
+			Expect(createdSlice.Status.SliceConfig).NotTo(BeNil())
+
+			slicegwkey := types.NamespacedName{Name: "test-slicegw", Namespace: CONTROL_PLANE_NS}
+			err = retry.RetryOnConflict(retry.DefaultRetry, func() error {
 				err := k8sClient.Get(ctx, slicegwkey, createdSliceGw)
 				if err != nil {
 					return err
@@ -534,7 +636,7 @@ var _ = Describe("Worker SlicegwController", func() {
 			}, time.Second*10, time.Millisecond*250).Should(BeTrue())
 
 			founddepl := &appsv1.Deployment{}
-			deplKey := types.NamespacedName{Name: "test-slicegw-del", Namespace: CONTROL_PLANE_NS}
+			deplKey := types.NamespacedName{Name: "test-slicegw-del-0-0", Namespace: CONTROL_PLANE_NS}
 
 			Eventually(func() bool {
 				err := k8sClient.Get(ctx, deplKey, founddepl)
