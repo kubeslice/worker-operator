@@ -1231,6 +1231,18 @@ func (r *SliceGwReconciler) ReconcileGatewayServices(ctx context.Context, sliceG
 
 	sliceGwName := sliceGw.Name
 
+	// Cleanup gw services that do not match the naming convention: "svc-gwID-gwInstance-depInstance"
+	for _, gwService := range gwServices.Items {
+		if !isGwSvcNameValid(sliceGwName, gwService.Name) {
+			log.Info("Deleting spurious gw svc", "svcName", gwService.Name)
+			err := r.Delete(ctx, &gwService)
+			if err != nil {
+				log.Error(err, "Failed to delete gw svc", "Name", gwService.Name)
+				return ctrl.Result{}, err, true
+			}
+		}
+	}
+
 	for gwInstance := 0; gwInstance < r.NumberOfGateways; gwInstance++ {
 		if !gwServiceIsPresent(sliceGwName, gwInstance, gwServices) {
 			svcName := "svc-" + sliceGwName + "-" + fmt.Sprint(gwInstance) + "-" + "0"
@@ -1289,6 +1301,20 @@ func (r *SliceGwReconciler) ReconcileGatewayDeployments(ctx context.Context, sli
 
 	sliceName := sliceGw.Spec.SliceName
 	sliceGwName := sliceGw.Name
+
+	// Cleanup all the deployments that do not match the naming convention: "gwID-gwInstance-depInstance". This is
+	// needed to delete deployments created by previous versions of the operator.
+	for _, deployment := range deployments.Items {
+		if !isGwDepNameValid(sliceGwName, deployment.Name) {
+			log.Info("Deleting spurious gw deployment", "depName", deployment.Name)
+			// Delete the deployment
+			err = r.Delete(ctx, &deployment)
+			if err != nil {
+				log.Error(err, "Failed to delete spurious gw deployment", "depName", deployment.Name)
+				return ctrl.Result{}, err, true
+			}
+		}
+	}
 
 	vpnKeyRotation, err := r.HubClient.GetVPNKeyRotation(ctx, sliceName)
 	if err != nil {

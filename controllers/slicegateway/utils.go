@@ -107,6 +107,32 @@ func GetDepNameFromPodName(sliceGwID, podName string) string {
 	return sliceGwID + "-" + l[1] + "-" + l[2]
 }
 
+func isGwDepNameValid(sliceGwID, depName string) bool {
+	after, found := strings.CutPrefix(depName, sliceGwID)
+	if !found {
+		return false
+	}
+	l := strings.Split(after, "-")
+	if len(l) != len([]string{"emptyString", "gwInstance", "depInstance"}) {
+		return false
+	}
+
+	return true
+}
+
+func isGwSvcNameValid(sliceGwID, svcName string) bool {
+	after, found := strings.CutPrefix(svcName, "svc-"+sliceGwID)
+	if !found {
+		return false
+	}
+	l := strings.Split(after, "-")
+	if len(l) != len([]string{"emptyString", "gwInstance", "depInstance"}) {
+		return false
+	}
+
+	return true
+}
+
 func isGWPodStatusChanged(slicegateway *kubeslicev1beta1.SliceGateway, gwPod *kubeslicev1beta1.GwPodInfo) bool {
 	gwPodStatus := slicegateway.Status.GatewayPodStatus
 	for _, gw := range gwPodStatus {
