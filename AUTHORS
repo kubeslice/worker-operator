@@ -4,6 +4,6 @@
 
 # You can update this list using the following command:
 #
-#   $ (head -n10 AUTHORS && git shortlog -se | sed -E 's/^\s+[0-9]+\t//') | tee AUTHORS
+   $ (head -n10 AUTHORS && git shortlog -se | sed -E 's/^\s+[0-9]+\t//') | tee AUTHORS
 
 # Please keep the list sorted.
