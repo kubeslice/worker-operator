@@ -1,9 +1,51 @@
 # Names should be added to this file as
-#	Name or Organization <email address>
+# Name or Organization <email address>
 # The email address is not required for organizations.
 
 # You can update this list using the following command:
 #
-#   $ (head -n10 AUTHORS && git shortlog -se | sed -E 's/^\s+[0-9]+\t//') | tee AUTHORS
-
+# (head -n10 AUTHORS && git shortlog -se | sed -E 's/^\s+[0-9]+\t//') | tee AUTHORS
+#
 # Please keep the list sorted.
+Aakash <aakash.dokka@aveshasystems.com>
+Aakash <aakash.dokka@aveshasystems.com>
+Aakash <konemshad@gmail.com>
+Bharath Horatti <bharath@aveshasystems.com>
+Gourish Biradar <gourish@aveshasystems.com>
+Jayadeep KM <6793260+kmjayadeep@users.noreply.github.com>
+Jayadeep KM <jayadeep@aveshasystems.com>
+Jayadeep KM <kmjayadeep@gmail.com>
+Md Imran <imranaec@outlook.com>
+Mohammed Ahmed <mohammed.zee1000@gmail.com>
+Mridul Gain <mridulgain@gmail.com>
+Nishant Singh <89241026+NishantSingh10@users.noreply.github.com>
+Nishant Singh <nishantsinghnitc@gmail.com>
+Rahul <rahul.sawra@aveshasystems.com>
+Rahul Kumar <57394571+Rahul-D78@users.noreply.github.com>
+Rahul Kumar <rahul.kumar@aveshasystems.com>
+Rahul Sawra <rahul.sawra@aveshasystems.com>
+Rahul-D78 <rahul.kumar@aveshasystems.com>
+Richie Sebastian <104349170+richiesebastian@users.noreply.github.com>
+Venkatesh Poola <venkatesh@aveshasystems.com>
+Venkatesh2102 <103932891+Venkatesh2102@users.noreply.github.com>
+Yachika <36668209+YachikaRalhan@users.noreply.github.com>
+Yachika Ralhan <yachika.ralhan@aveshasystems.com>
+YachikaRalhan <yachika.ralhan@aveshasystems.com>
+YachikaRalhan <yachika@infracloud.io>
+YachikaRalhan <yachikaralhan49@gmail.com>
+bharath-avesha <99859949+bharath-avesha@users.noreply.github.com>
+gourishkb <104021126+gourishkb@users.noreply.github.com>
+gourishkb <gourish@aveshasystems.com>
+kon3m <aakash.dokka@aveshasystems.com>
+kumar.bavanasi <kumar.bavanasi@aveshasystems.com>
+nishantsingh <nishantsinghnitc@gmail.com>
+pnavali <75800004+pnavali@users.noreply.github.com>
+rahulii <r.sawra@gmail.com>
+rahulsawra98 <104886535+rahulsawra98@users.noreply.github.com>
+rahulsawra98 <rahul.sawra@aveshasystems.com>
+richiesebastian <104349170+richiesebastian@users.noreply.github.com>
+sai v <saivenkatesh@rackspace.com>
+saivenkatesh1909 <99859187+saivenkatesh1909@users.noreply.github.com>
+srinivas-avesha <99861290+srinivas-avesha@users.noreply.github.com>
+uma-kt <105046156+uma-kt@users.noreply.github.com>
+veenamj-avesha <104770800+veenamj-avesha@users.noreply.github.com>

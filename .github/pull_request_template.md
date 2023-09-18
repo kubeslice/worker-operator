@@ -1,5 +1,5 @@
 <!--
-Type of change: Title of the PR should clearly mention which type of PR is this, you can select any of the below mentioned types:
+Type of change: Title of the PR should clearly mention which type of PR is this, you can select any of the below-mentioned types:
 
 - docs() - The PR contains Documentation ONLY changes. 
 - feat() - The PR contains new feature/enhancements.
