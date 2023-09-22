@@ -154,13 +154,7 @@ var _ = BeforeSuite(func() {
 		ControllerManagedBy(k8sManager).
 		For(&hubv1alpha1.VpnKeyRotation{}).
 		WithEventFilter(predicate.NewPredicateFuncs(func(object client.Object) bool {
-			vpn := object.(*hubv1alpha1.VpnKeyRotation)
-			for _, v := range vpn.Spec.Clusters {
-				if v == CLUSTER_NAME {
-					return true
-				}
-			}
-			return false
+			return shouldProcessVpnKeyRotation(object)
 		})).
 		Complete(rotationReconciler)
 	if err != nil {
@@ -213,3 +207,13 @@ var _ = AfterSuite(func() {
 	err := testEnv.Stop()
 	Expect(err).NotTo(HaveOccurred())
 })
+
+func shouldProcessVpnKeyRotation(object client.Object) bool {
+	vpn := object.(*hubv1alpha1.VpnKeyRotation)
+	for _, v := range vpn.Spec.Clusters {
+		if v == ClusterName {
+			return true
+		}
+	}
+	return false
+}
