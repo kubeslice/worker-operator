@@ -25,7 +25,7 @@ jobs:
             owner: context.repo.owner,
             repo: context.repo.repo,
             pull_number: context.issue.number,
-            reviewers: ["narmidm","bharath-avesha","YachikaRalhan","Rahul-D78","rahulsawra98","gourishkb","mridulgain","richiesebastian"], // Replace "username" with the desired reviewer
+            reviewers: ["narmidm","bharath-avesha","YachikaRalhan","Rahul-D78","rahulsawra98","gourishkb","mridulgain"], // Replace "username" with the desired reviewer
             assignees: [creatorUsername]
           });
         token: ${{ secrets.GITHUB_TOKEN }}
