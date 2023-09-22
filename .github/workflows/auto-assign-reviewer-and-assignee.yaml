@@ -18,12 +18,14 @@ jobs:
             repo: context.repo.repo,
             pull_number: context.issue.number
           });
-          // Assign specific user as the reviewer and assignee
+
+          // Assign the person who raised the PR as the assignee
+          const creatorUsername = pullRequest.user.login;
           await github.pulls.createReviewRequest({
             owner: context.repo.owner,
             repo: context.repo.repo,
             pull_number: context.issue.number,
-            reviewers: ["username"],
-            assignees: ["username"]
+            reviewers: ["narmidm","bharath-avesha","YachikaRalhan","Rahul-D78","rahulsawra98","gourishkb","mridulgain","richiesebastian"], // Replace "username" with the desired reviewer
+            assignees: [creatorUsername]
           });
         token: ${{ secrets.GITHUB_TOKEN }}
