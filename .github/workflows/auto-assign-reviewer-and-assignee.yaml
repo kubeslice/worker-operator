@@ -1,0 +1,29 @@
+name: Auto Assign Reviewer and Assignee
+on:
+  pull_request:
+    types:
+      - opened
+
+jobs:
+  auto_assign:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Assign Reviewer and Assignee
+      uses: actions/github-script@v5
+      with:
+        script: |
+          const { data: pullRequest } = await github.pulls.get({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            pull_number: context.issue.number
+          });
+          // Assign specific user as the reviewer and assignee
+          await github.pulls.createReviewRequest({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            pull_number: context.issue.number,
+            reviewers: ["username"],
+            assignees: ["username"]
+          });
+        token: ${{ secrets.GITHUB_TOKEN }}
