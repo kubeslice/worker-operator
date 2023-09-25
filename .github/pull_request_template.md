@@ -30,6 +30,8 @@ test-cases
 * [ ] The title of the PR states what changed and the related issues number (used for the release note).
 * [ ] Does this PR requires documentation updates?
 * [ ] I've updated documentation as required by this PR.
+* [ ] I have ran `go fmt`
+* [ ] I have updated the helm chart as required by this PR.
 * [ ] I have performed a self-review of my own code.
 * [ ] I have commented my code, particularly in hard-to-understand areas.
 * [ ] I have tested it for all user roles.
