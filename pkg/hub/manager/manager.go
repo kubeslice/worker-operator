@@ -214,6 +214,9 @@ func Start(meshClient client.Client, hubClient client.Client, ctx context.Contex
 		ControllerManagedBy(mgr).
 		For(&hubv1alpha1.VpnKeyRotation{}).
 		WithEventFilter(predicate.GenerationChangedPredicate{}).
+		WithEventFilter(predicate.NewPredicateFuncs(func(object client.Object) bool {
+			return shouldProcessVpnKeyRotation(object)
+		})).
 		Complete(vpnKeyRotationReconciler)
 	if err != nil {
 		log.Error(err, "could not create vpn key rotation controller")
@@ -224,4 +227,14 @@ func Start(meshClient client.Client, hubClient client.Client, ctx context.Contex
 		log.Error(err, "could not start manager")
 		os.Exit(1)
 	}
+}
+
+func shouldProcessVpnKeyRotation(object client.Object) bool {
+	vpn := object.(*hubv1alpha1.VpnKeyRotation)
+	for _, v := range vpn.Spec.Clusters {
+		if v == ClusterName {
+			return true
+		}
+	}
+	return false
 }
