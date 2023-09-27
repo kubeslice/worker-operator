@@ -6,13 +6,19 @@ Thank you for your interest in the security of the KubeSlice Worker Operator pro
 
 If you discover a security vulnerability in the KubeSlice Worker Operator project, please follow these steps to report it:
 
-1. **Privately** disclose the vulnerability to the project maintainers by emailing us at [security@kubeslice.io](mailto:security@kubeslice.io). Please do **not** open a public GitHub issue.
+1. **Privately** disclose the vulnerability to the project maintainers. You have two options:
+    - Email us at [security@kubeslice.io](mailto:security@kubeslice.io).
+    - Create a new security advisory on the [Security Advisories](https://github.com/kubeslice/worker-operator/security/advisories) page.
 
 2. Provide a detailed description of the vulnerability, including information about the affected versions of the project.
 
-3. We will acknowledge your email within 48 hours, and we will work with you to verify and address the issue promptly.
+3. We will acknowledge your report within 48 hours, and we will work with you to verify and address the issue promptly.
 
 4. Once the vulnerability is confirmed and mitigated, we will work on releasing a fix. We will credit you for your responsible disclosure if you desire.
+
+## Security Advisories
+
+To view the latest security advisories for the KubeSlice Worker Operator project, please visit the [Security Advisories](https://github.com/kubeslice/worker-operator/security/advisories) page.
 
 ## Supported Versions
 
