@@ -61,6 +61,52 @@ func GetSlice(ctx context.Context, c client.Client, slice string) (*kubeslicev1b
 	return s, nil
 }
 
+// GetSlice returns slice object by slice name
+func GetSliceGatewayList(ctx context.Context, c client.Client, sliceName string) (*kubeslicev1beta1.SliceGatewayList, error) {
+	sliceGwList := &kubeslicev1beta1.SliceGatewayList{}
+	listOpts := []client.ListOption{
+		client.MatchingLabels(map[string]string{ApplicationNamespaceSelectorLabelKey: sliceName}),
+	}
+
+	err := c.List(ctx, sliceGwList, listOpts...)
+	if err != nil {
+		return nil, err
+	}
+
+	return sliceGwList, nil
+}
+
+// GetSlice returns slice object by slice name
+func GetSliceGatewayServers(ctx context.Context, c client.Client, sliceName string) ([]*kubeslicev1beta1.SliceGateway, error) {
+	sliceGwList, err := GetSliceGatewayList(ctx, c, sliceName)
+	if err != nil {
+		return nil, err
+	}
+
+	var sliceGwServerList []*kubeslicev1beta1.SliceGateway = nil
+	for _, sliceGw := range sliceGwList.Items {
+		if sliceGw.Status.Config.SliceGatewayHostType == "Server" {
+			sliceGwServerList = append(sliceGwServerList, &sliceGw)
+		}
+	}
+
+	return sliceGwServerList, nil
+}
+
+func GetSliceGwServices(ctx context.Context, c client.Client, sliceName string) (*corev1.ServiceList, error) {
+	sliceGwSvcList := &corev1.ServiceList{}
+	listOpts := []client.ListOption{
+		client.MatchingLabels(map[string]string{ApplicationNamespaceSelectorLabelKey: sliceName}),
+	}
+
+	err := c.List(ctx, sliceGwSvcList, listOpts...)
+	if err != nil {
+		return nil, err
+	}
+
+	return sliceGwSvcList, nil
+}
+
 // GetSliceIngressGwPod returns a bool to indicate if ingress gateway is enabled for the slice,  a struct of type AppPod that
 // contains info on the ingress gw pod and an error var to indicate if an error was encountered while executing the func.
 func GetSliceIngressGwPod(ctx context.Context, c client.Client, sliceName string) (bool, *kubeslicev1beta1.AppPod, error) {
@@ -152,9 +198,9 @@ func ContructNetworkPolicyObject(ctx context.Context, slice *kubeslicev1beta1.Sl
 				networkingv1.PolicyTypeEgress,
 			},
 			Ingress: []networkingv1.NetworkPolicyIngressRule{
-				networkingv1.NetworkPolicyIngressRule{
+				{
 					From: []networkingv1.NetworkPolicyPeer{
-						networkingv1.NetworkPolicyPeer{
+						{
 							NamespaceSelector: &metav1.LabelSelector{
 								MatchLabels: map[string]string{ApplicationNamespaceSelectorLabelKey: slice.Name},
 							},
@@ -163,9 +209,9 @@ func ContructNetworkPolicyObject(ctx context.Context, slice *kubeslicev1beta1.Sl
 				},
 			},
 			Egress: []networkingv1.NetworkPolicyEgressRule{
-				networkingv1.NetworkPolicyEgressRule{
+				{
 					To: []networkingv1.NetworkPolicyPeer{
-						networkingv1.NetworkPolicyPeer{
+						{
 							NamespaceSelector: &metav1.LabelSelector{
 								MatchLabels: map[string]string{ApplicationNamespaceSelectorLabelKey: slice.Name},
 							},
@@ -209,4 +255,18 @@ func exists(i []string, o string) bool {
 		}
 	}
 	return false
+}
+
+func GetSliceGatewayEdgeServices(ctx context.Context, c client.Client, sliceName string) (*corev1.ServiceList, error) {
+	listOpts := []client.ListOption{
+		client.MatchingLabels(map[string]string{
+			SliceGatewaySelectorLabelKey: sliceName,
+			SliceGatewayEdgeTypeLabelKey: "LoadBalancer"}),
+		client.InNamespace(ControlPlaneNamespace),
+	}
+	services := corev1.ServiceList{}
+	if err := c.List(ctx, &services, listOpts...); err != nil {
+		return nil, err
+	}
+	return &services, nil
 }

@@ -22,6 +22,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"strconv"
 	"strings"
 
@@ -47,6 +48,13 @@ func isServer(sliceGw *kubeslicev1beta1.SliceGateway) bool {
 }
 func canDeployGw(sliceGw *kubeslicev1beta1.SliceGateway) bool {
 	return sliceGw.Status.Config.SliceGatewayHostType == "Server" || readyToDeployGwClient(sliceGw)
+}
+func readyToDeployGwClient(sliceGw *kubeslicev1beta1.SliceGateway) bool {
+	if sliceGw.Status.Config.SliceGatewayConnectivityType == "LoadBalancer" || os.Getenv("ENABLE_GW_LB_EDGE") != "" {
+		return len(sliceGw.Status.Config.SliceGatewayServerLBIPs) > 0 || os.Getenv("GW_LB_IP") != ""
+	}
+
+	return len(sliceGw.Status.Config.SliceGatewayRemoteNodeIPs) > 0 && len(sliceGw.Status.Config.SliceGatewayRemoteNodePorts) != 0 && sliceGw.Status.Config.SliceGatewayRemoteGatewayID != ""
 }
 
 func getPodType(labels map[string]string) string {

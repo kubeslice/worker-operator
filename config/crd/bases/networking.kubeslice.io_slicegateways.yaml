@@ -110,6 +110,14 @@ spec:
                   sliceGatewayRemoteVpnIp:
                     description: Remote VPN IP
                     type: string
+                  sliceGatewayServerLBIps:
+                    description: Slice gateway server LB IPs
+                    items:
+                      type: string
+                    type: array
+                  sliceGatewayServiceType:
+                    description: SliceGateway Service Type
+                    type: string
                   sliceGatewayStatus:
                     description: SliceGateway status
                     type: string

@@ -29,22 +29,24 @@ type WorkerSliceGatewaySpec struct {
 	//+kubebuilder:default:=OpenVPN
 	GatewayType string `json:"gatewayType,omitempty"`
 	//+kubebuilder:validation:Enum:=Client;Server
-	GatewayHostType     string             `json:"gatewayHostType,omitempty"`
-	GatewayCredentials  GatewayCredentials `json:"gatewayCredentials,omitempty"`
-	LocalGatewayConfig  SliceGatewayConfig `json:"localGatewayConfig,omitempty"`
-	RemoteGatewayConfig SliceGatewayConfig `json:"remoteGatewayConfig,omitempty"`
-	GatewayNumber       int                `json:"gatewayNumber,omitempty"`
+	GatewayHostType         string             `json:"gatewayHostType,omitempty"`
+	GatewayCredentials      GatewayCredentials `json:"gatewayCredentials,omitempty"`
+	LocalGatewayConfig      SliceGatewayConfig `json:"localGatewayConfig,omitempty"`
+	RemoteGatewayConfig     SliceGatewayConfig `json:"remoteGatewayConfig,omitempty"`
+	GatewayNumber           int                `json:"gatewayNumber,omitempty"`
+	GatewayConnectivityType string             `json:"gatewayConnectivityType,omitempty"`
 }
 
 type SliceGatewayConfig struct {
-	NodeIp        string   `json:"nodeIp,omitempty"`
-	NodeIps       []string `json:"nodeIps,omitempty"`
-	NodePort      int      `json:"nodePort,omitempty"`
-	NodePorts     []int    `json:"nodePorts,omitempty"`
-	GatewayName   string   `json:"gatewayName,omitempty"`
-	ClusterName   string   `json:"clusterName,omitempty"`
-	VpnIp         string   `json:"vpnIp,omitempty"`
-	GatewaySubnet string   `json:"gatewaySubnet,omitempty"`
+	NodeIp          string   `json:"nodeIp,omitempty"`
+	NodeIps         []string `json:"nodeIps,omitempty"`
+	NodePort        int      `json:"nodePort,omitempty"`
+	NodePorts       []int    `json:"nodePorts,omitempty"`
+	GatewayName     string   `json:"gatewayName,omitempty"`
+	ClusterName     string   `json:"clusterName,omitempty"`
+	VpnIp           string   `json:"vpnIp,omitempty"`
+	GatewaySubnet   string   `json:"gatewaySubnet,omitempty"`
+	LoadBalancerIps []string `json:"loadBalancerIps,omitempty"`
 }
 
 type GatewayCredentials struct {

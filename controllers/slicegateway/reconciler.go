@@ -69,10 +69,6 @@ type SliceGwReconciler struct {
 	NumberOfGateways int
 }
 
-func readyToDeployGwClient(sliceGw *kubeslicev1beta1.SliceGateway) bool {
-	return len(sliceGw.Status.Config.SliceGatewayRemoteNodeIPs) > 0 && len(sliceGw.Status.Config.SliceGatewayRemoteNodePorts) != 0 && sliceGw.Status.Config.SliceGatewayRemoteGatewayID != ""
-}
-
 //+kubebuilder:rbac:groups=networking.kubeslice.io,resources=slicegateways,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=networking.kubeslice.io,resources=slicegateways/finalizers,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=networking.kubeslice.io,resources=slicegateways/status,verbs=get;update;patch

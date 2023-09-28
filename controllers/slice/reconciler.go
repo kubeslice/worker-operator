@@ -53,13 +53,14 @@ var controllerName = "sliceReconciler"
 // SliceReconciler reconciles a Slice object
 type SliceReconciler struct {
 	client.Client
-	EventRecorder      *events.EventRecorder
-	Scheme             *runtime.Scheme
-	Log                logr.Logger
-	NetOpPods          []NetOpPod
-	HubClient          HubClientProvider
-	WorkerRouterClient WorkerRouterClientProvider
-	WorkerNetOpClient  WorkerNetOpClientProvider
+	EventRecorder           *events.EventRecorder
+	Scheme                  *runtime.Scheme
+	Log                     logr.Logger
+	NetOpPods               []NetOpPod
+	HubClient               HubClientProvider
+	WorkerRouterClient      WorkerRouterClientProvider
+	WorkerNetOpClient       WorkerNetOpClientProvider
+	WorkerGatewayEdgeClient WorkerGatewayEdgeClientProvider
 
 	// metrics
 	gaugeAppPods *prometheus.GaugeVec
@@ -192,11 +193,24 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 	}
 
 	res, err, requeue = r.ReconcileSliceRouter(ctx, slice)
+	if err != nil {
+		log.Error(err, "Failed to reconcile slice router")
+	}
 	if requeue {
 		return res, err
 	}
 
-	debugLog.Info("fetching app pods")
+	res, err, requeue = r.ReconcileSliceGwEdge(ctx, slice)
+	if err != nil {
+		log.Error(err, "Slice Edge reconciliation failed")
+		return res, err
+	}
+	if requeue {
+		return ctrl.Result{
+			Requeue: true,
+		}, nil
+	}
+
 	appPods, err := r.getAppPods(ctx, slice)
 	debugLog.Info("app pods", "pods", appPods, "err", err)
 
@@ -210,15 +224,11 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 
 	debugLog.Info("reconciling app pods")
 	res, err, requeue = r.ReconcileAppPod(ctx, slice)
-
+	if err != nil {
+		log.Error(err, "App pod reconciliation failed")
+		return res, err
+	}
 	if requeue {
-		log.Info("app pods reconciled")
-
-		if err != nil {
-			// app pod reconciliation failed
-			return res, err
-		}
-
 		// reconciliation success, update the app pod list in controller
 		log.Info("updating app pod list in hub workersliceconfig status")
 		sliceConfigName := slice.Name + "-" + controllers.ClusterName
@@ -227,12 +237,11 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 			utils.RecordEvent(ctx, r.EventRecorder, slice, nil, ossEvents.EventSliceAppPodsListUpdateFailed, controllerName)
 			return ctrl.Result{}, err
 		}
-
 		return ctrl.Result{
 			Requeue: true,
 		}, nil
-
 	}
+
 	return ctrl.Result{
 		RequeueAfter: controllers.ReconcileInterval,
 	}, nil
