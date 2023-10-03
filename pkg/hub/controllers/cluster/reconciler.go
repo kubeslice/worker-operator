@@ -51,6 +51,7 @@ const (
 	GCP                                 string = "gcp"
 	AWS                                 string = "aws"
 	AZURE                               string = "azure"
+	LINODE                              string = "linode"
 	MAX_CLUSTER_DEREGISTRATION_ATTEMPTS        = 3
 )
 
@@ -311,7 +312,7 @@ func (r *Reconciler) updateClusterCloudProviderInfo(ctx context.Context, cr *hub
 		}
 		cloudProvider := clusterInfo.ClusterProperty.GeoLocation.CloudProvider
 		cloudRegion := clusterInfo.ClusterProperty.GeoLocation.CloudRegion
-		if cloudProvider == GCP || cloudProvider == AWS || cloudProvider == AZURE {
+		if cloudProvider == GCP || cloudProvider == AWS || cloudProvider == AZURE || cloudProvider == LINODE {
 			// compare the current cloud region and provider with values stored in cluster spec, if not same then update
 			if cloudRegion != cr.Spec.ClusterProperty.GeoLocation.CloudRegion || cloudProvider != cr.Spec.ClusterProperty.GeoLocation.CloudProvider {
 				log.Info("updating Cluster's cloud info", "cloudProvider", cloudProvider, "cloudRegion", cloudRegion)
