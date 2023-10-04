@@ -112,6 +112,25 @@ func addIpTablesRuleForSvc(svcName string, svcInfo serviceInfo) error {
 	return nil
 }
 
+func addIpTablesMasqRule() error {
+	ipt, err := iptables.NewWithProtocol(iptables.ProtocolIPv4)
+	if err != nil {
+		log.Error(err, "Failed to init iptables handle")
+		return err
+	}
+
+	// Be careful while drafting the rulespec. Even a single unwanted, benign
+	// space will result in failed iptables API call.
+	rulespec := fmt.Sprintf("-o %s -j MASQUERADE", "eth0")
+	err = ipt.AppendUnique("nat", "POSTROUTING", strings.Split(rulespec, " ")...)
+	if err != nil {
+		log.Error(err, "Failed to add iptables SNAT rule", "rulespec", rulespec)
+		return nil
+	}
+
+	return nil
+}
+
 func (s *GwEdgeService) UpdateSliceGwServiceMap(ctx context.Context, in *SliceGwServiceMap) (*GwEdgeResponse, error) {
 	log.Info("Received update from operator", "servicemap", in.SliceGwServiceList)
 

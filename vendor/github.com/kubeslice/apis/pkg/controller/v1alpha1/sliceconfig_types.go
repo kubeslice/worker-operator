@@ -38,10 +38,10 @@ type SliceConfigSpec struct {
 	QosProfileDetails         *QOSProfile               `json:"qosProfileDetails,omitempty"` // FIXME: Add OneOf StandardQosProfileName vs QosProfileDetails
 	NamespaceIsolationProfile NamespaceIsolationProfile `json:"namespaceIsolationProfile,omitempty"`
 	ExternalGatewayConfig     []ExternalGatewayConfig   `json:"externalGatewayConfig,omitempty"`
-	//+kubebuilder:default:=16
 	//+kubebuilder:validation:Minimum=2
 	//+kubebuilder:validation:Maximum=32
-	MaxClusters int `json:"maxClusters"`
+	//+kubebuilder:default:=16
+	MaxClusters int `json:"maxClusters,omitempty"`
 	//+kubebuilder:validation:Minimum=30
 	//+kubebuilder:validation:Maximum=90
 	//+kubebuilder:default:=30
@@ -74,6 +74,17 @@ type WorkerSliceGatewayProvider struct {
 	//+kubebuilder:default:=Local
 	// +kubebuilder:validation:Required
 	SliceCaType string `json:"sliceCaType"`
+
+	SliceGatewayServiceType []SliceGatewayServiceType `json:"sliceGatewayServiceType,omitempty"`
+}
+
+type SliceGatewayServiceType struct {
+	// +kubebuilder:validation:Required
+	Cluster string `json:"cluster"`
+	// +kubebuilder:validation:Required
+	//+kubebuilder:default:=NodePort
+	//+kubebuilder:validation:Enum:=NodePort;LoadBalancer
+	Type string `json:"type"`
 }
 
 // QOSProfile is the QOS Profile configuration from backend

@@ -271,6 +271,8 @@ func (r *SliceReconciler) updateSliceConfig(ctx context.Context, meshSlice *kube
 		meshSlice.Status.SliceConfig.ClusterSubnetCIDR = spokeSlice.Spec.ClusterSubnetCIDR
 	}
 
+	meshSlice.Status.SliceConfig.SliceGatewayServiceType = spokeSlice.Spec.SliceGatewayProvider.SliceGatewayType
+
 	meshSlice.Status.SliceConfig.QosProfileDetails = kubeslicev1beta1.QosProfileDetails{
 		QueueType:               spokeSlice.Spec.QosProfileDetails.QueueType,
 		BandwidthCeilingKbps:    spokeSlice.Spec.QosProfileDetails.BandwidthCeilingKbps,
