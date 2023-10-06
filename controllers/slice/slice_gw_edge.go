@@ -124,6 +124,7 @@ func allPortsAccountedInEdgeSvc(gwEdgeSvc *corev1.Service, portmap *map[string]i
 
 func (r *SliceReconciler) reconcileSliceGatewayEdgeService(ctx context.Context, slice *kubeslicev1beta1.Slice) (ctrl.Result, error, bool) {
 	log := r.Log.WithValues("slice", slice.Name)
+	debugLog := log.V(1)
 	sliceGwSvcList, err := controllers.GetSliceGwServices(ctx, r.Client, slice.Name)
 	if err != nil {
 		return ctrl.Result{}, err, true
@@ -139,7 +140,7 @@ func (r *SliceReconciler) reconcileSliceGatewayEdgeService(ctx context.Context, 
 		portmap[sliceGwSvc.Name] = sliceGwSvc.Spec.Ports[0].NodePort
 	}
 
-	log.Info("BBH: portmap from slicegw svcs", "portmap", portmap)
+	debugLog.Info("portmap from slicegw svcs", "portmap", portmap)
 
 	gwEdgeSvc, err := r.getSliceGatewayEdgeServices(ctx, slice)
 	if err != nil {
@@ -166,7 +167,7 @@ func (r *SliceReconciler) reconcileSliceGatewayEdgeService(ctx context.Context, 
 	// Check if update is needed
 	if !allPortsAccountedInEdgeSvc(&gwEdgeSvc.Items[0], &portmap) {
 		gwEdgeSvc.Items[0].Spec.Ports = *getPortListForEdgeSvc(&portmap)
-		log.Info("BBH: updating edge svc", "updated port list", gwEdgeSvc.Items[0].Spec.Ports)
+		log.Info("Updating edge svc", "updated port list", gwEdgeSvc.Items[0].Spec.Ports)
 		err := r.Update(ctx, &gwEdgeSvc.Items[0])
 		if err != nil {
 			return ctrl.Result{}, err, true
@@ -334,8 +335,6 @@ func (r *SliceReconciler) syncSliceGwServiceMap(ctx context.Context, slice *kube
 
 		svcmap.SliceGwServiceList = append(svcmap.SliceGwServiceList, &sliceGwSvcInstance.SliceGwServiceInfo)
 	}
-
-	log.Info("BBH: sending svcmap", "slicegwsvc", svcmap)
 
 	for _, edgePod := range *gwEdgePodList {
 		grpcAddress := edgePod.Status.PodIP + ":5000"
