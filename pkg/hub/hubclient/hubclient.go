@@ -215,6 +215,8 @@ func (hubClient *HubClientConfig) UpdateLBIPsForSliceGwServer(ctx context.Contex
 				break
 			}
 		}
+	} else {
+		updateNeeded = true
 	}
 
 	if updateNeeded {
