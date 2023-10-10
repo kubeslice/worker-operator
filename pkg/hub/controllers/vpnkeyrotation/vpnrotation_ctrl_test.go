@@ -75,6 +75,7 @@ var _ = Describe("Hub VPN Key Rotation", func() {
 					ClusterGatewayMapping: map[string][]string{
 						CLUSTER_NAME: {gws[0]},
 					},
+					Clusters:                []string{ClusterName},
 					CertificateCreationTime: &metav1.Time{Time: time.Now()},
 				},
 			}
@@ -177,6 +178,7 @@ var _ = Describe("Hub VPN Key Rotation", func() {
 					ClusterGatewayMapping: map[string][]string{
 						CLUSTER_NAME: gws,
 					},
+					Clusters:                []string{ClusterName},
 					CertificateCreationTime: &metav1.Time{Time: time.Now()},
 					CertificateExpiryTime:   &metav1.Time{Time: time.Now().AddDate(0, 0, 30)},
 					RotationInterval:        30,
@@ -515,6 +517,7 @@ var _ = Describe("Hub VPN Key Rotation", func() {
 					ClusterGatewayMapping: map[string][]string{
 						CLUSTER_NAME: {gws[0]},
 					},
+					Clusters:                []string{ClusterName},
 					CertificateCreationTime: &metav1.Time{Time: time.Now()},
 					CertificateExpiryTime:   &metav1.Time{Time: time.Now().AddDate(0, 0, 30)},
 					RotationInterval:        30,
@@ -742,6 +745,7 @@ var _ = Describe("Hub VPN Key Rotation", func() {
 					ClusterGatewayMapping: map[string][]string{
 						"worker-1": gws,
 					},
+					Clusters:                []string{ClusterName},
 					CertificateCreationTime: &metav1.Time{Time: time.Now()},
 				},
 			}

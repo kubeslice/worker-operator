@@ -412,9 +412,7 @@ func (r *Reconciler) syncCurrentRotationState(ctx context.Context,
 			}
 		}
 		if len(syncedRotationState) != len(vpnKeyRotation.Status.CurrentRotationState) || len(keysToDeleteFromStatus) > 0 {
-			log.Info("syncing current rotation state for the gateways",
-				"from", vpnKeyRotation.Status.CurrentRotationState,
-				"to", syncedRotationState)
+
 			// Merge the new syncedRotationState with the existing state
 			for gw, obj := range syncedRotationState {
 				currentRotationState[gw] = obj
@@ -425,7 +423,9 @@ func (r *Reconciler) syncCurrentRotationState(ctx context.Context,
 					delete(currentRotationState, key)
 				}
 			}
-
+			log.Info("syncing current rotation state for the gateways",
+				"from", vpnKeyRotation.Status.CurrentRotationState,
+				"to", currentRotationState)
 			vpnKeyRotation.Status.CurrentRotationState = currentRotationState
 			requeue = true
 			return r.Status().Update(ctx, vpnKeyRotation)

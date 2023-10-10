@@ -18,6 +18,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	hubv1alpha1 "github.com/kubeslice/apis/pkg/controller/v1alpha1"
 	spokev1alpha1 "github.com/kubeslice/apis/pkg/worker/v1alpha1"
@@ -152,6 +153,9 @@ var _ = BeforeSuite(func() {
 	err = builder.
 		ControllerManagedBy(k8sManager).
 		For(&hubv1alpha1.VpnKeyRotation{}).
+		WithEventFilter(predicate.NewPredicateFuncs(func(object client.Object) bool {
+			return shouldProcessVpnKeyRotation(object)
+		})).
 		Complete(rotationReconciler)
 	if err != nil {
 		os.Exit(1)
@@ -203,3 +207,13 @@ var _ = AfterSuite(func() {
 	err := testEnv.Stop()
 	Expect(err).NotTo(HaveOccurred())
 })
+
+func shouldProcessVpnKeyRotation(object client.Object) bool {
+	vpn := object.(*hubv1alpha1.VpnKeyRotation)
+	for _, v := range vpn.Spec.Clusters {
+		if v == ClusterName {
+			return true
+		}
+	}
+	return false
+}
