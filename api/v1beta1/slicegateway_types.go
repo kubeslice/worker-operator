@@ -68,9 +68,9 @@ type SliceGatewayConfig struct {
 	// Intermediate Slice Gw Deployments
 	SliceGatewayIntermediateDeployments []string `json:"sliceGatewayIntermediateDeployments,omitempty"`
 	// SliceGateway Service Type
-	SliceGatewayConnectivityType string `json:"sliceGatewayServiceType,omitempty"`
+	SliceGatewayConnectivityType string `json:"sliceGatewayConnectivityType,omitempty"`
 	// Slice gateway server LB IPs
-	SliceGatewayServerLBIPs []string `json:"sliceGatewayServerLBIps,omitempty"`
+	SliceGatewayServerLBIPs []string `json:"sliceGatewayServerLBIPs,omitempty"`
 }
 
 // SliceGatewayStatus defines the observed state of SliceGateway

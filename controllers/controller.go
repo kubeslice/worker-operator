@@ -61,7 +61,7 @@ func GetSlice(ctx context.Context, c client.Client, slice string) (*kubeslicev1b
 	return s, nil
 }
 
-// GetSlice returns slice object by slice name
+// GetSliceGatewayList returns a list of slice gateway objects by slice name
 func GetSliceGatewayList(ctx context.Context, c client.Client, sliceName string) (*kubeslicev1beta1.SliceGatewayList, error) {
 	sliceGwList := &kubeslicev1beta1.SliceGatewayList{}
 	listOpts := []client.ListOption{
@@ -76,7 +76,7 @@ func GetSliceGatewayList(ctx context.Context, c client.Client, sliceName string)
 	return sliceGwList, nil
 }
 
-// GetSlice returns slice object by slice name
+// GetSliceGatewayServers returns a list of slice gateways that run as VPN servers
 func GetSliceGatewayServers(ctx context.Context, c client.Client, sliceName string) ([]*kubeslicev1beta1.SliceGateway, error) {
 	sliceGwList, err := GetSliceGatewayList(ctx, c, sliceName)
 	if err != nil {
@@ -93,6 +93,7 @@ func GetSliceGatewayServers(ctx context.Context, c client.Client, sliceName stri
 	return sliceGwServerList, nil
 }
 
+// GetSliceGwServices returns a list of slice gateway service objects by slice name
 func GetSliceGwServices(ctx context.Context, c client.Client, sliceName string) (*corev1.ServiceList, error) {
 	sliceGwSvcList := &corev1.ServiceList{}
 	listOpts := []client.ListOption{
@@ -257,6 +258,8 @@ func exists(i []string, o string) bool {
 	return false
 }
 
+// Returns the list of slice gateway edge service objects. By default there will be only one service object. There could
+// be multiple in future enhancements.
 func GetSliceGatewayEdgeServices(ctx context.Context, c client.Client, sliceName string) (*corev1.ServiceList, error) {
 	listOpts := []client.ListOption{
 		client.MatchingLabels(map[string]string{

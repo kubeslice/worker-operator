@@ -870,6 +870,7 @@ func (r *SliceGwReconciler) createHeadlessServiceForGwServer(slicegateway *kubes
 
 func (r *SliceGwReconciler) createEndpointForGatewayServer(slicegateway *kubeslicev1beta1.SliceGateway) *corev1.Endpoints {
 	endpointIPs := slicegateway.Status.Config.SliceGatewayRemoteNodeIPs
+	// TODO: Remove the env var that overrides the slicegateway config coming from the controller
 	if slicegateway.Status.Config.SliceGatewayConnectivityType == "LoadBalancer" || os.Getenv("ENABLE_GW_LB_EDGE") != "" {
 		endpointIPs = slicegateway.Status.Config.SliceGatewayServerLBIPs
 		if os.Getenv("GW_LB_IP") != "" {

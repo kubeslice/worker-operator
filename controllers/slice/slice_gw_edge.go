@@ -1,3 +1,21 @@
+/*
+ *  Copyright (c) 2023 Avesha, Inc. All rights reserved.
+ *
+ *  SPDX-License-Identifier: Apache-2.0
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *  http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+
 package slice
 
 import (
@@ -164,7 +182,9 @@ func (r *SliceReconciler) reconcileSliceGatewayEdgeService(ctx context.Context, 
 		return ctrl.Result{Requeue: true}, nil, true
 	}
 
-	// Check if update is needed
+	// Check if an update is needed.
+	// An update is needed if there is a new slice gw pair added or an old one deleted.
+	// The port list in the LB service must include all the NodePorts of the slice gw servers.
 	if !allPortsAccountedInEdgeSvc(&gwEdgeSvc.Items[0], &portmap) {
 		gwEdgeSvc.Items[0].Spec.Ports = *getPortListForEdgeSvc(&portmap)
 		log.Info("Updating edge svc", "updated port list", gwEdgeSvc.Items[0].Spec.Ports)
@@ -181,7 +201,12 @@ func deploymentForSliceGatewayEdge(sliceName, depName string) *appsv1.Deployment
 	var replicas int32 = 1
 	var privileged = true
 
-	gwEdgeImg := "aveshatest/kubeslice-gateway-edge:1.0.0"
+	gwEdgeImg := os.Getenv("AVESHA_SLICE_GW_EDGE_IMAGE")
+	if gwEdgeImg == "" {
+		// TODO: Push the default image to aveshalabs nexus
+		gwEdgeImg = "aveshatest/kubeslice-gateway-edge:1.0.0"
+	}
+
 	imgPullPolicy := corev1.PullAlways
 
 	dep := &appsv1.Deployment{
@@ -293,6 +318,10 @@ func (r *SliceReconciler) getSliceGatewayEdgePods(ctx context.Context, sliceName
 	return &healthyGwEdgePods, nil
 }
 
+// Send the mapping between the NodePort number of the VPN service and the clusterIP of that service.
+// The inter-cluster traffic coming into the slice passes through the LB and goes to the edge pod. The edge
+// has to decide which VPN server pod the traffic needs to be forwarded to. The distinction is made using the
+// destination port number of the traffic. It would be the NodePort number of the recipient VPN server.
 func (r *SliceReconciler) syncSliceGwServiceMap(ctx context.Context, slice *kubeslicev1beta1.Slice) error {
 	log := r.Log.WithValues("slice", slice.Name)
 	gwEdgePodList, err := r.getSliceGatewayEdgePods(ctx, slice.Name)
@@ -310,7 +339,7 @@ func (r *SliceReconciler) syncSliceGwServiceMap(ctx context.Context, slice *kube
 		return err
 	}
 
-	// Construct the message structure
+	// Construct the grpc message
 	svcmap := gatewayedge.SliceGwServiceMap{}
 	svcmap.SliceName = slice.Name
 	for _, svc := range sliceGwSvcList.Items {
@@ -379,6 +408,11 @@ func (r *SliceReconciler) ReconcileSliceGwEdge(ctx context.Context, slice *kubes
 		return ctrl.Result{}, nil, false
 	}
 
+	// There would be one slice gateway edge deployment that would handle traffic for all the
+	// cluster pairs of a slice. It is only created on clusters that are marked to be VPN servers.
+	// The edge is a simple passthrough proxy that does not terminate any
+	// network connections, it merely applies NAT rules to redirect traffic to the right slice gateway
+	// server pods.
 	res, err, requeue := r.reconcileSliceGatewayEdgeDeployment(ctx, slice)
 	if err != nil {
 		return ctrl.Result{}, err, true
@@ -387,6 +421,8 @@ func (r *SliceReconciler) ReconcileSliceGwEdge(ctx context.Context, slice *kubes
 		return res, nil, true
 	}
 
+	// The edge needs to know the mapping of port numbers to the clusterIP of the VPN services. It needs this
+	// info to set up the NATing rules.
 	err = r.syncSliceGwServiceMap(ctx, slice)
 	if err != nil {
 		return ctrl.Result{}, err, true
