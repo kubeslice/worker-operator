@@ -25,6 +25,7 @@ import (
 	"github.com/kubeslice/slicegw-edge/pkg/edgeservice"
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
 	"github.com/kubeslice/worker-operator/controllers"
+	"github.com/kubeslice/worker-operator/pkg/cluster"
 	"github.com/kubeslice/worker-operator/pkg/gatewayedge"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -105,9 +106,31 @@ func serviceForSliceGatewayEdge(sliceName, svcName string, portmap *map[string]i
 	return svc
 }
 
+func getClusterProviderID(ctx context.Context, c client.Client) (string, error) {
+	cl := cluster.NewCluster(c, "local-cluster")
+	clusterInfo, err := cl.GetClusterInfo(ctx)
+	if err != nil {
+		return "", err
+	}
+
+	return clusterInfo.ClusterProperty.GeoLocation.CloudProvider, nil
+}
+
 func (r *SliceReconciler) createSliceGatewayEdgeService(ctx context.Context, slice *kubeslicev1beta1.Slice, portmap *map[string]int32) error {
 	log := r.Log.WithValues("slice", slice.Name)
 	svc := serviceForSliceGatewayEdge(slice.Name, "svc-"+slice.Name+"-gw-edge", portmap)
+
+	// Note: Special treatment for AWS EKS clusters. The LB is not provisioned unless we add AWS specific annotations
+	// to the service. This is needed only for EKS.
+	if clusterProvider, _ := getClusterProviderID(ctx, r.Client); clusterProvider == "aws" {
+		if svc.ObjectMeta.Annotations == nil {
+			svc.ObjectMeta.Annotations = make(map[string]string)
+		}
+		svc.ObjectMeta.Annotations["service.beta.kubernetes.io/aws-load-balancer-type"] = "external"
+		svc.ObjectMeta.Annotations["service.beta.kubernetes.io/aws-load-balancer-nlb-target-type"] = "ip"
+		svc.ObjectMeta.Annotations["service.beta.kubernetes.io/aws-load-balancer-scheme"] = "internet-facing"
+	}
+
 	ctrl.SetControllerReference(slice, svc, r.Scheme)
 
 	err := r.Create(ctx, svc)

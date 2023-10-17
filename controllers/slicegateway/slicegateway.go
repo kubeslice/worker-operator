@@ -23,11 +23,13 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"net"
 	"os"
 	"strconv"
 	"sync"
 	"time"
 
+	"github.com/go-logr/logr"
 	"github.com/kubeslice/worker-operator/controllers"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -884,7 +886,7 @@ func (r *SliceGwReconciler) createEndpointForGatewayServer(slicegateway *kubesli
 		},
 		Subsets: []corev1.EndpointSubset{
 			{
-				Addresses: getAddrSlice(endpointIPs),
+				Addresses: getAddrSlice(endpointIPs, r.Log),
 			},
 		},
 	}
@@ -947,7 +949,7 @@ func (r *SliceGwReconciler) reconcileGatewayEndpoint(ctx context.Context, sliceG
 
 	if !checkEndpointSubset(currentEndpointFound, endpointIPs, true) {
 		log.Info("Updating the Endpoint, since sliceGatewayRemoteNodeIp has changed", "from endpointFound", currentEndpointFound.Addresses[0].IP)
-		endpointFound.Subsets[0].Addresses = getAddrSlice(endpointIPs)
+		endpointFound.Subsets[0].Addresses = getAddrSlice(endpointIPs, r.Log)
 		toUpdate = true
 	}
 	// When "toUpdate" is set to true we update the endpoints addresses
@@ -1021,10 +1023,24 @@ func (r *SliceGwReconciler) restartGatewayPods(ctx context.Context, sliceGWName 
 
 }
 
-func getAddrSlice(endpointIPs []string) []corev1.EndpointAddress {
+func getAddrSlice(endpointIPs []string, log logr.Logger) []corev1.EndpointAddress {
 	endpointSlice := make([]corev1.EndpointAddress, 0)
 	for _, ip := range endpointIPs {
-		endpointSlice = append(endpointSlice, corev1.EndpointAddress{IP: ip})
+		if net.ParseIP(ip) == nil {
+			host := ip
+			resolver := net.Resolver{}
+			resolvedIps, err := resolver.LookupHost(context.Background(), host)
+			if err != nil {
+				log.Error(err, "Failed to resolve name", "hostname", host)
+				continue
+			}
+			log.Info("Resolved hostname", "IPs", resolvedIps)
+			for _, resolvedIp := range resolvedIps {
+				endpointSlice = append(endpointSlice, corev1.EndpointAddress{IP: resolvedIp})
+			}
+		} else {
+			endpointSlice = append(endpointSlice, corev1.EndpointAddress{IP: ip})
+		}
 	}
 	return endpointSlice
 }
