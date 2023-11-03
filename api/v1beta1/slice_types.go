@@ -71,6 +71,8 @@ type SliceConfig struct {
 	ClusterSubnetCIDR string `json:"clusterSubnetCIDR,omitempty"`
 	// SliceGateway Service Type
 	SliceGatewayServiceType string `json:"sliceGatewayServiceType,omitempty"`
+	// SliceGateway Protocol Type: UDP or TCP
+	SliceGatewayProtocol string `json:"sliceGatewayProtocol,omitempty"`
 }
 
 // NamespaceIsolationProfile defines the namespace isolation policy for the slice

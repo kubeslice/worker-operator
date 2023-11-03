@@ -26,6 +26,7 @@ import (
 	"net"
 	"os"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -344,6 +345,10 @@ func (r *SliceGwReconciler) deploymentForGatewayServer(g *kubeslicev1beta1.Slice
 }
 
 func (r *SliceGwReconciler) serviceForGateway(g *kubeslicev1beta1.SliceGateway, svcName, depName string) *corev1.Service {
+	proto := corev1.ProtocolUDP
+	if g.Status.Config.SliceGatewayProtocol == "TCP" {
+		proto = corev1.ProtocolTCP
+	}
 	svc := &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      svcName,
@@ -358,7 +363,7 @@ func (r *SliceGwReconciler) serviceForGateway(g *kubeslicev1beta1.SliceGateway, 
 			Selector: labelsForSliceGwService(g.Name, svcName, depName),
 			Ports: []corev1.ServicePort{{
 				Port:       11194,
-				Protocol:   corev1.ProtocolUDP,
+				Protocol:   proto,
 				TargetPort: intstr.FromInt(11194),
 			}},
 		},
@@ -552,7 +557,7 @@ func (r *SliceGwReconciler) deploymentForGatewayClient(g *kubeslicev1beta1.Slice
 							"--ping-restart",
 							"15",
 							"--proto",
-							"udp",
+							strings.ToLower(g.Status.Config.SliceGatewayProtocol),
 							"--txqueuelen",
 							"5000",
 							"--config",

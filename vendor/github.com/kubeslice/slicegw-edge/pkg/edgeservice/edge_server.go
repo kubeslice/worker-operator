@@ -1,3 +1,20 @@
+/*  Copyright (c) 2023 Avesha, Inc. All rights reserved.
+ *
+ *  SPDX-License-Identifier: Apache-2.0
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *  http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+
 package edgeservice
 
 import (
@@ -20,6 +37,7 @@ type GwEdgeService struct {
 
 type serviceInfo struct {
 	svcIP      string
+	protocol   string
 	nodePort   uint32
 	targetPort uint32
 }
@@ -36,6 +54,7 @@ func updateNeeded(svcList []*SliceGwServiceInfo) bool {
 		if updateNeededForSvc(svcInfo.GwSvcName,
 			serviceInfo{
 				svcIP:      svcInfo.GwSvcClusterIP,
+				protocol:   svcInfo.GwSvcProtocol,
 				nodePort:   svcInfo.GwSvcNodePort,
 				targetPort: svcInfo.GwSvcTargetPort,
 			}) {
@@ -52,7 +71,7 @@ func updateNeededForSvc(svcName string, svcInfo serviceInfo) bool {
 		return true
 	}
 
-	if cachedInfo.svcIP != svcInfo.svcIP || cachedInfo.nodePort != svcInfo.nodePort || cachedInfo.targetPort != svcInfo.targetPort {
+	if cachedInfo.svcIP != svcInfo.svcIP || cachedInfo.protocol != svcInfo.protocol || cachedInfo.nodePort != svcInfo.nodePort || cachedInfo.targetPort != svcInfo.targetPort {
 		return true
 	}
 
@@ -66,7 +85,7 @@ func deleteIpTablesRule(svcInfo serviceInfo) error {
 		return err
 	}
 
-	rulespec := fmt.Sprintf("-p udp --dport %d -j DNAT --to-destination %s:%d", svcInfo.nodePort, svcInfo.svcIP, svcInfo.targetPort)
+	rulespec := fmt.Sprintf("-p %s --dport %d -j DNAT --to-destination %s:%d", svcInfo.protocol, svcInfo.nodePort, svcInfo.svcIP, svcInfo.targetPort)
 	err = ipt.DeleteIfExists("nat", "PREROUTING", strings.Split(rulespec, " ")...)
 	if err != nil {
 		return err
@@ -98,9 +117,9 @@ func addIpTablesRuleForSvc(svcName string, svcInfo serviceInfo) error {
 		return err
 	}
 
-	// Be careful (learned it the hard way) while drafting the rulespec. Even a single unwanted, benign
+	// Be careful while drafting the rulespec. Even a single unwanted, benign
 	// space will result in failed iptables API call.
-	rulespec := fmt.Sprintf("-p udp --dport %d -j DNAT --to-destination %s:%d", svcInfo.nodePort, svcInfo.svcIP, svcInfo.targetPort)
+	rulespec := fmt.Sprintf("-p %s --dport %d -j DNAT --to-destination %s:%d", svcInfo.protocol, svcInfo.nodePort, svcInfo.svcIP, svcInfo.targetPort)
 	err = ipt.AppendUnique("nat", "PREROUTING", strings.Split(rulespec, " ")...)
 	if err != nil {
 		log.Error(err, "Failed to add iptables rule", "rulespec", rulespec)
@@ -136,6 +155,10 @@ func (s *GwEdgeService) UpdateSliceGwServiceMap(ctx context.Context, in *SliceGw
 
 	if serviceMap == nil {
 		serviceMap = make(map[string]serviceInfo)
+		err := addIpTablesMasqRule()
+		if err != nil {
+			return &GwEdgeResponse{StatusMsg: "Failed to add SNAT iptables"}, err
+		}
 	}
 
 	if !updateNeeded(in.SliceGwServiceList) {
@@ -165,10 +188,12 @@ func (s *GwEdgeService) UpdateSliceGwServiceMap(ctx context.Context, in *SliceGw
 		nodePort := sliceGwSvcInfo.GwSvcNodePort
 		targetPort := sliceGwSvcInfo.GwSvcTargetPort
 		svcIP := sliceGwSvcInfo.GwSvcClusterIP
+		protocol := sliceGwSvcInfo.GwSvcProtocol
 
 		// Check if an update is needed for this svc
 		if !updateNeededForSvc(sliceGwSvcInfo.GwSvcName, serviceInfo{
 			svcIP:      svcIP,
+			protocol:   protocol,
 			nodePort:   nodePort,
 			targetPort: targetPort,
 		}) {
@@ -184,6 +209,7 @@ func (s *GwEdgeService) UpdateSliceGwServiceMap(ctx context.Context, in *SliceGw
 
 		err = addIpTablesRuleForSvc(sliceGwSvcInfo.GwSvcName, serviceInfo{
 			svcIP:      svcIP,
+			protocol:   protocol,
 			nodePort:   nodePort,
 			targetPort: targetPort,
 		})

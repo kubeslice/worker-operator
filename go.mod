@@ -9,7 +9,7 @@ require (
 	github.com/go-logr/zapr v1.2.3
 	github.com/golang/protobuf v1.5.3
 	github.com/google/go-cmp v0.5.9
-	github.com/kubeslice/apis v0.2.0
+	github.com/kubeslice/apis v0.2.1
 	github.com/kubeslice/gateway-sidecar v0.2.0
 	github.com/kubeslice/kubeslice-monitoring v0.1.10
 	github.com/kubeslice/netops v0.1.3
@@ -100,6 +100,6 @@ require (
 	sigs.k8s.io/yaml v1.3.0 // indirect
 )
 
-//replace github.com/kubeslice/slicegw-edge => ../slicegw-edge/
+replace github.com/kubeslice/slicegw-edge => ../slicegw-edge/
 
 //replace github.com/kubeslice/apis => ../apis/

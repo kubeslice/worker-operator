@@ -32,6 +32,7 @@ message SliceGwServiceInfo {
     string    GwSvcClusterIP     = 3;
     uint32    GwSvcTargetPort    = 4;
     uint32    GwSvcNodePort      = 5;
+    string    GwSvcProtocol      = 6;
 }
 
 message SliceGwServiceMap {

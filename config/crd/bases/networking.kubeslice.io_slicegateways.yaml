@@ -91,6 +91,9 @@ spec:
                     items:
                       type: integer
                     type: array
+                  sliceGatewayProtocol:
+                    description: 'SliceGateway Protocol Type: UDP or TCP'
+                    type: string
                   sliceGatewayRemoteClusterId:
                     description: Remote Cluster ID
                     type: string

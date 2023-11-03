@@ -21,6 +21,7 @@ package slice
 import (
 	"context"
 	"os"
+	"strings"
 
 	"github.com/kubeslice/slicegw-edge/pkg/edgeservice"
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
@@ -76,12 +77,16 @@ func (r *SliceReconciler) getSliceGatewayEdgeDeployments(ctx context.Context, sl
 	return &deployments, nil
 }
 
-func getPortListForEdgeSvc(portmap *map[string]int32) *[]corev1.ServicePort {
+func getPortListForEdgeSvc(slice *kubeslicev1beta1.Slice, portmap *map[string]int32) *[]corev1.ServicePort {
 	ports := []corev1.ServicePort{}
+	proto := corev1.ProtocolUDP
+	if slice.Status.SliceConfig.SliceGatewayProtocol == "TCP" {
+		proto = corev1.ProtocolTCP
+	}
 	for sliceGwSvcName, sliceGwSvcPort := range *portmap {
 		ports = append(ports, corev1.ServicePort{
 			Name:     sliceGwSvcName,
-			Protocol: corev1.ProtocolUDP,
+			Protocol: proto,
 			Port:     int32(sliceGwSvcPort),
 		})
 	}
@@ -89,7 +94,7 @@ func getPortListForEdgeSvc(portmap *map[string]int32) *[]corev1.ServicePort {
 	return &ports
 }
 
-func serviceForSliceGatewayEdge(sliceName, svcName string, portmap *map[string]int32) *corev1.Service {
+func serviceForSliceGatewayEdge(slice *kubeslicev1beta1.Slice, sliceName, svcName string, portmap *map[string]int32) *corev1.Service {
 	svc := &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      svcName,
@@ -99,7 +104,7 @@ func serviceForSliceGatewayEdge(sliceName, svcName string, portmap *map[string]i
 		Spec: corev1.ServiceSpec{
 			Type:     "LoadBalancer",
 			Selector: labelsForSliceGatewayEdgeDeployment(sliceName),
-			Ports:    *getPortListForEdgeSvc(portmap),
+			Ports:    *getPortListForEdgeSvc(slice, portmap),
 		},
 	}
 
@@ -118,7 +123,7 @@ func getClusterProviderID(ctx context.Context, c client.Client) (string, error) 
 
 func (r *SliceReconciler) createSliceGatewayEdgeService(ctx context.Context, slice *kubeslicev1beta1.Slice, portmap *map[string]int32) error {
 	log := r.Log.WithValues("slice", slice.Name)
-	svc := serviceForSliceGatewayEdge(slice.Name, "svc-"+slice.Name+"-gw-edge", portmap)
+	svc := serviceForSliceGatewayEdge(slice, slice.Name, "svc-"+slice.Name+"-gw-edge", portmap)
 
 	// Note: Special treatment for AWS EKS clusters. The LB is not provisioned unless we add AWS specific annotations
 	// to the service. This is needed only for EKS.
@@ -209,7 +214,7 @@ func (r *SliceReconciler) reconcileSliceGatewayEdgeService(ctx context.Context, 
 	// An update is needed if there is a new slice gw pair added or an old one deleted.
 	// The port list in the LB service must include all the NodePorts of the slice gw servers.
 	if !allPortsAccountedInEdgeSvc(&gwEdgeSvc.Items[0], &portmap) {
-		gwEdgeSvc.Items[0].Spec.Ports = *getPortListForEdgeSvc(&portmap)
+		gwEdgeSvc.Items[0].Spec.Ports = *getPortListForEdgeSvc(slice, &portmap)
 		log.Info("Updating edge svc", "updated port list", gwEdgeSvc.Items[0].Spec.Ports)
 		err := r.Update(ctx, &gwEdgeSvc.Items[0])
 		if err != nil {
@@ -382,6 +387,7 @@ func (r *SliceReconciler) syncSliceGwServiceMap(ctx context.Context, slice *kube
 				GwSvcClusterIP:  svc.Spec.ClusterIP,
 				GwSvcNodePort:   uint32(svc.Spec.Ports[0].NodePort),
 				GwSvcTargetPort: uint32(svc.Spec.Ports[0].TargetPort.IntVal),
+				GwSvcProtocol:   strings.ToLower(string(svc.Spec.Ports[0].Protocol)),
 			},
 		}
 

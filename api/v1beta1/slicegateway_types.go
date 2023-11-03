@@ -69,6 +69,8 @@ type SliceGatewayConfig struct {
 	SliceGatewayIntermediateDeployments []string `json:"sliceGatewayIntermediateDeployments,omitempty"`
 	// SliceGateway Connectivity Type
 	SliceGatewayConnectivityType string `json:"sliceGatewayConnectivityType,omitempty"`
+	// SliceGateway Protocol Type: UDP or TCP
+	SliceGatewayProtocol string `json:"sliceGatewayProtocol,omitempty"`
 	// Slice gateway server LB IPs
 	SliceGatewayServerLBIPs []string `json:"sliceGatewayServerLBIps,omitempty"`
 }
