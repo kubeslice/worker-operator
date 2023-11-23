@@ -93,3 +93,8 @@ func (hubClientEmulator *HubClientEmulator) ListWorkerSliceGwRecycler(ctx contex
 func (hubClientEmulator *HubClientEmulator) GetVPNKeyRotation(ctx context.Context, rotationName string) (*hubv1alpha1.VpnKeyRotation, error) {
 	return nil, nil
 }
+
+func (hubClientEmulator *HubClientEmulator) UpdateLBIPsForSliceGwServer(
+	ctx context.Context, lbIPs []string, sliceGwName string) error {
+	return nil
+}

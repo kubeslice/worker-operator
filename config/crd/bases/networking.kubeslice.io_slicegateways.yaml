@@ -66,6 +66,9 @@ spec:
               config:
                 description: SliceGatewayConfig defines the config received from backend
                 properties:
+                  sliceGatewayConnectivityType:
+                    description: SliceGateway Connectivity Type
+                    type: string
                   sliceGatewayHostType:
                     description: 'Host Type : server or client'
                     type: string
@@ -88,6 +91,9 @@ spec:
                     items:
                       type: integer
                     type: array
+                  sliceGatewayProtocol:
+                    description: 'SliceGateway Protocol Type: UDP or TCP'
+                    type: string
                   sliceGatewayRemoteClusterId:
                     description: Remote Cluster ID
                     type: string
@@ -110,6 +116,11 @@ spec:
                   sliceGatewayRemoteVpnIp:
                     description: Remote VPN IP
                     type: string
+                  sliceGatewayServerLBIps:
+                    description: Slice gateway server LB IPs
+                    items:
+                      type: string
+                    type: array
                   sliceGatewayStatus:
                     description: SliceGateway status
                     type: string

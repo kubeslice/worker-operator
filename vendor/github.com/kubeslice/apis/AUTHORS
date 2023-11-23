@@ -1,0 +1,25 @@
+# Names should be added to this file as
+#	Name or Organization <email address>
+# The email address is not required for organizations.
+
+# You can update this list using the following command:
+#
+#   $ (head -n10 AUTHORS && git shortlog -se | sed -E 's/^\s+[0-9]+\t//') | tee AUTHORS
+
+# Please keep the list sorted.
+Bharath Horatti <bharath@aveshasystems.com>
+Jayadeep KM <kmjayadeep@gmail.com>
+MD IMRAN <imranaec@outlook.com>
+Md Imran <imranaec@outlook.com>
+Priyank Upadhyay <105195271+priyank-upadhyay@users.noreply.github.com>
+Priyank Upadhyay <priyank@aveshasystems.com>
+Puran Adhikari <7930721+PuranAdhikari@users.noreply.github.com>
+Puran Adhikari <puran.adhikari@aveshasystems.com>
+Rahul Kumar <57394571+Rahul-D78@users.noreply.github.com>
+Roshani Khairnar <104193365+roshanikk@users.noreply.github.com>
+bharath-avesha <99859949+bharath-avesha@users.noreply.github.com>
+pnavali <75800004+pnavali@users.noreply.github.com>
+rahulsawra98 <104886535+rahulsawra98@users.noreply.github.com>
+rahulsawra98 <r.sawra@gmail.com>
+saivenkatesh1909 <99859187+saivenkatesh1909@users.noreply.github.com>
+veenamj-avesha <104770800+veenamj-avesha@users.noreply.github.com>

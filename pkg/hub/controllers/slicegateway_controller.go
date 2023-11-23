@@ -117,6 +117,9 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req reconcile.Request
 			SliceGatewayRemoteVpnIP:             sliceGw.Spec.RemoteGatewayConfig.VpnIp,
 			SliceGatewayName:                    strconv.Itoa(sliceGw.Spec.GatewayNumber),
 			SliceGatewayIntermediateDeployments: meshSliceGw.Status.Config.SliceGatewayIntermediateDeployments,
+			SliceGatewayConnectivityType:        sliceGw.Spec.GatewayConnectivityType,
+			SliceGatewayProtocol:                sliceGw.Spec.GatewayProtocol,
+			SliceGatewayServerLBIPs:             sliceGw.Spec.RemoteGatewayConfig.LoadBalancerIps,
 		}
 
 		err = r.MeshClient.Status().Update(ctx, meshSliceGw)

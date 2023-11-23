@@ -44,6 +44,7 @@ type HubClientProvider interface {
 	GetVPNKeyRotation(ctx context.Context, rotationName string) (*hubv1alpha1.VpnKeyRotation, error)
 	ListWorkerSliceGwRecycler(ctx context.Context, sliceGWName string) ([]spokev1alpha1.WorkerSliceGwRecycler, error)
 	DeleteWorkerSliceGwRecycler(ctx context.Context, recyclerName string) error
+	UpdateLBIPsForSliceGwServer(ctx context.Context, lbIPs []string, sliceGwName string) error
 }
 
 type WorkerGWSidecarClientProvider interface {
