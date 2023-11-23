@@ -71,6 +71,7 @@ type HubClientRpc interface {
 	UpdateAppNamespaces(ctx context.Context, sliceConfigName string, onboardedNamespaces []string) error
 	CreateWorkerSliceGwRecycler(ctx context.Context, gwRecyclerName, clientID, serverID, sliceGwServer, sliceGwClient, slice string) error
 	DeleteWorkerSliceGwRecycler(ctx context.Context, gwRecyclerName string) error
+	UpdateLBIPsForSliceGwServer(ctx context.Context, lbIP []string, sliceGwName string) error
 }
 
 func NewHubClientConfig(er *monitoring.EventRecorder) (*HubClientConfig, error) {
@@ -185,6 +186,45 @@ func (hubClient *HubClientConfig) UpdateNodePortForSliceGwServer(ctx context.Con
 	})
 
 	return err
+}
+
+func contains(i []string, o string) bool {
+	for _, v := range i {
+		if v == o {
+			return true
+		}
+	}
+	return false
+}
+
+func (hubClient *HubClientConfig) UpdateLBIPsForSliceGwServer(ctx context.Context, lbIPs []string, sliceGwName string) error {
+	sliceGw := &spokev1alpha1.WorkerSliceGateway{}
+	err := hubClient.Get(ctx, types.NamespacedName{
+		Name:      sliceGwName,
+		Namespace: ProjectNamespace,
+	}, sliceGw)
+	if err != nil {
+		return err
+	}
+
+	updateNeeded := false
+	if len(sliceGw.Spec.LocalGatewayConfig.LoadBalancerIps) == len(lbIPs) {
+		for _, lbIP := range lbIPs {
+			if !contains(sliceGw.Spec.LocalGatewayConfig.LoadBalancerIps, lbIP) {
+				updateNeeded = true
+				break
+			}
+		}
+	} else {
+		updateNeeded = true
+	}
+
+	if updateNeeded {
+		sliceGw.Spec.LocalGatewayConfig.LoadBalancerIps = lbIPs
+		return hubClient.Update(ctx, sliceGw)
+	}
+
+	return nil
 }
 
 func (hubClient *HubClientConfig) GetClusterNodeIP(ctx context.Context, clusterName, namespace string) ([]string, error) {

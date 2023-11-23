@@ -243,7 +243,7 @@ func (r *SliceReconciler) reconcileAllowedNamespaces(ctx context.Context, slice 
 	}
 	// Sweep the existing namespaces again to unbind any namespace that was not found in the configured list
 	// Sweep the existing namespaces again to unbind any namespace that was not found in the configured list
-	for existingAllowedNs, _ := range existingAllowedNsMap {
+	for existingAllowedNs := range existingAllowedNsMap {
 		if !existingAllowedNsMap[existingAllowedNs].marked {
 			err := r.unbindAllowedNamespace(ctx, existingAllowedNs, slice.Name)
 			if err != nil {

@@ -67,6 +67,12 @@ type SliceGatewayConfig struct {
 	SliceGatewayRemoteClusterID string `json:"sliceGatewayRemoteClusterId,omitempty"`
 	// Intermediate Slice Gw Deployments
 	SliceGatewayIntermediateDeployments []string `json:"sliceGatewayIntermediateDeployments,omitempty"`
+	// SliceGateway Connectivity Type
+	SliceGatewayConnectivityType string `json:"sliceGatewayConnectivityType,omitempty"`
+	// SliceGateway Protocol Type: UDP or TCP
+	SliceGatewayProtocol string `json:"sliceGatewayProtocol,omitempty"`
+	// Slice gateway server LB IPs
+	SliceGatewayServerLBIPs []string `json:"sliceGatewayServerLBIps,omitempty"`
 }
 
 // SliceGatewayStatus defines the observed state of SliceGateway

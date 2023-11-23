@@ -23,8 +23,10 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"net"
 	"os"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -343,6 +345,10 @@ func (r *SliceGwReconciler) deploymentForGatewayServer(g *kubeslicev1beta1.Slice
 }
 
 func (r *SliceGwReconciler) serviceForGateway(g *kubeslicev1beta1.SliceGateway, svcName, depName string) *corev1.Service {
+	proto := corev1.ProtocolUDP
+	if g.Status.Config.SliceGatewayProtocol == "TCP" {
+		proto = corev1.ProtocolTCP
+	}
 	svc := &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      svcName,
@@ -357,7 +363,7 @@ func (r *SliceGwReconciler) serviceForGateway(g *kubeslicev1beta1.SliceGateway, 
 			Selector: labelsForSliceGwService(g.Name, svcName, depName),
 			Ports: []corev1.ServicePort{{
 				Port:       11194,
-				Protocol:   corev1.ProtocolUDP,
+				Protocol:   proto,
 				TargetPort: intstr.FromInt(11194),
 			}},
 		},
@@ -551,7 +557,7 @@ func (r *SliceGwReconciler) deploymentForGatewayClient(g *kubeslicev1beta1.Slice
 							"--ping-restart",
 							"15",
 							"--proto",
-							"udp",
+							strings.ToLower(g.Status.Config.SliceGatewayProtocol),
 							"--txqueuelen",
 							"5000",
 							"--config",
@@ -869,6 +875,14 @@ func (r *SliceGwReconciler) createHeadlessServiceForGwServer(slicegateway *kubes
 }
 
 func (r *SliceGwReconciler) createEndpointForGatewayServer(slicegateway *kubeslicev1beta1.SliceGateway) *corev1.Endpoints {
+	endpointIPs := slicegateway.Status.Config.SliceGatewayRemoteNodeIPs
+	// TODO: Remove the env var that overrides the slicegateway config coming from the controller
+	if slicegateway.Status.Config.SliceGatewayConnectivityType == "LoadBalancer" || os.Getenv("ENABLE_GW_LB_EDGE") != "" {
+		endpointIPs = slicegateway.Status.Config.SliceGatewayServerLBIPs
+		if os.Getenv("GW_LB_IP") != "" {
+			endpointIPs = []string{os.Getenv("GW_LB_IP")}
+		}
+	}
 	e := &corev1.Endpoints{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      slicegateway.Status.Config.SliceGatewayRemoteGatewayID,
@@ -876,7 +890,7 @@ func (r *SliceGwReconciler) createEndpointForGatewayServer(slicegateway *kubesli
 		},
 		Subsets: []corev1.EndpointSubset{
 			{
-				Addresses: getAddrSlice(slicegateway.Status.Config.SliceGatewayRemoteNodeIPs),
+				Addresses: getAddrSlice(endpointIPs),
 			},
 		},
 	}
@@ -926,13 +940,20 @@ func (r *SliceGwReconciler) reconcileGatewayEndpoint(ctx context.Context, sliceG
 	}
 	// endpoint already exists, check if sliceGatewayRemoteNodeIp is changed then update the endpoint
 	toUpdate := false
-	remoteNodeIPs := sliceGw.Status.Config.SliceGatewayRemoteNodeIPs
+	//remoteNodeIPs := sliceGw.Status.Config.SliceGatewayRemoteNodeIPs
+	endpointIPs := sliceGw.Status.Config.SliceGatewayRemoteNodeIPs
+	if sliceGw.Status.Config.SliceGatewayConnectivityType == "LoadBalancer" || os.Getenv("ENABLE_GW_LB_EDGE") != "" {
+		endpointIPs = sliceGw.Status.Config.SliceGatewayServerLBIPs
+		if os.Getenv("GW_LB_IP") != "" {
+			endpointIPs = []string{os.Getenv("GW_LB_IP")}
+		}
+	}
 	currentEndpointFound := endpointFound.Subsets[0]
-	debugLog.Info("SliceGatewayRemoteNodeIP", "SliceGatewayRemoteNodeIP", remoteNodeIPs)
+	debugLog.Info("SliceGatewayRemoteNodeIP", "SliceGatewayRemoteNodeIP", endpointIPs)
 
-	if !checkEndpointSubset(currentEndpointFound, remoteNodeIPs, true) {
+	if !checkEndpointSubset(currentEndpointFound, endpointIPs, true) {
 		log.Info("Updating the Endpoint, since sliceGatewayRemoteNodeIp has changed", "from endpointFound", currentEndpointFound.Addresses[0].IP)
-		endpointFound.Subsets[0].Addresses = getAddrSlice(remoteNodeIPs)
+		endpointFound.Subsets[0].Addresses = getAddrSlice(endpointIPs)
 		toUpdate = true
 	}
 	// When "toUpdate" is set to true we update the endpoints addresses
@@ -942,7 +963,7 @@ func (r *SliceGwReconciler) reconcileGatewayEndpoint(ctx context.Context, sliceG
 			log.Error(err, "Error updating Endpoint")
 			return true, ctrl.Result{}, err
 		}
-		if checkEndpointSubset(currentEndpointFound, remoteNodeIPs, false) {
+		if checkEndpointSubset(currentEndpointFound, endpointIPs, false) {
 			// refresh the connections by restarting the gateway pods when the new node IPs are completely distinct
 			log.Info("mismatch in node ips so restarting gateway pods")
 			if r.restartGatewayPods(ctx, sliceGw.Name) != nil {
@@ -1006,9 +1027,9 @@ func (r *SliceGwReconciler) restartGatewayPods(ctx context.Context, sliceGWName 
 
 }
 
-func getAddrSlice(nodeIPS []string) []corev1.EndpointAddress {
+func getAddrSlice(endpointIPs []string) []corev1.EndpointAddress {
 	endpointSlice := make([]corev1.EndpointAddress, 0)
-	for _, ip := range nodeIPS {
+	for _, ip := range endpointIPs {
 		endpointSlice = append(endpointSlice, corev1.EndpointAddress{IP: ip})
 	}
 	return endpointSlice
@@ -1253,6 +1274,40 @@ func (r *SliceGwReconciler) ReconcileGatewayServices(ctx context.Context, sliceG
 		log.Error(err, "Failed to update NodePort for sliceGw in the hub")
 		utils.RecordEvent(ctx, r.EventRecorder, sliceGw, nil, ossEvents.EventSliceGWNodePortUpdateFailed, controllerName)
 		return ctrl.Result{}, err, true
+	}
+
+	// Update LB IP if service type is LoadBalancer
+	if sliceGw.Status.Config.SliceGatewayConnectivityType == "LoadBalancer" {
+		lbSvcList, err := controllers.GetSliceGatewayEdgeServices(ctx, r.Client, sliceGw.Spec.SliceName)
+		if err != nil {
+			log.Error(err, "Failed to get LB IP service info")
+			return ctrl.Result{}, err, true
+		}
+		lbIPs := []string{}
+		for _, lbSvc := range lbSvcList.Items {
+			for _, lbIngress := range lbSvc.Status.LoadBalancer.Ingress {
+				if lbIngress.IP != "" {
+					lbIPs = append(lbIPs, lbIngress.IP)
+					continue
+				}
+				if lbIngress.Hostname != "" {
+					resolver := net.Resolver{}
+					resolvedIps, err := resolver.LookupHost(context.Background(), lbIngress.Hostname)
+					if err != nil {
+						log.Error(err, "Failed to resolve name", "hostname", lbIngress.Hostname)
+						return ctrl.Result{}, err, true
+					}
+					log.Info("Resolved hostname", "IPs", resolvedIps)
+					lbIPs = append(lbIPs, resolvedIps...)
+					continue
+				}
+			}
+		}
+		err = r.HubClient.UpdateLBIPsForSliceGwServer(ctx, lbIPs, sliceGwName)
+		if err != nil {
+			log.Error(err, "Failed to update LB IP for gw server")
+			return ctrl.Result{}, err, true
+		}
 	}
 
 	return ctrl.Result{}, nil, false

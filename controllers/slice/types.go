@@ -22,8 +22,8 @@ import (
 	"context"
 
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
+	"github.com/kubeslice/worker-operator/pkg/gatewayedge"
 	"github.com/kubeslice/worker-operator/pkg/netop"
-
 	"github.com/kubeslice/worker-operator/pkg/router"
 )
 
@@ -43,8 +43,13 @@ type WorkerRouterClientProvider interface {
 	GetClientConnectionInfo(ctx context.Context, addr string) ([]kubeslicev1beta1.AppPod, error)
 	SendConnectionContext(ctx context.Context, serverAddr string, sliceRouterConnCtx *router.SliceRouterConnCtx) error
 }
+
 type WorkerNetOpClientProvider interface {
 	UpdateSliceQosProfile(ctx context.Context, addr string, slice *kubeslicev1beta1.Slice) error
 	SendSliceLifeCycleEventToNetOp(ctx context.Context, addr string, sliceName string, eventType netop.EventType) error
 	SendConnectionContext(ctx context.Context, serverAddr string, gw *kubeslicev1beta1.SliceGateway, sliceGwNodePorts []int) error
+}
+
+type WorkerGatewayEdgeClientProvider interface {
+	UpdateSliceGwServiceMap(ctx context.Context, serverAddr string, gwSvcMap *gatewayedge.SliceGwServiceMap) (*gatewayedge.GwEdgeResponse, error)
 }
