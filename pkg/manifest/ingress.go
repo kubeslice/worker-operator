@@ -42,39 +42,40 @@ import (
 //	service (type clusterip)
 func InstallIngress(ctx context.Context, c client.Client, slice *kubeslicev1beta1.Slice) error {
 	sliceName := slice.Name
+	templates := map[string]string{"SLICE": sliceName}
 
 	deploy := &appsv1.Deployment{}
-	err := NewManifest("ingress-deploy", sliceName).Parse(deploy)
+	err := NewManifest("ingress-deploy", templates).Parse(deploy)
 	if err != nil {
 		return err
 	}
 
 	svc := &corev1.Service{}
-	err = NewManifest("ingress-svc", sliceName).Parse(svc)
+	err = NewManifest("ingress-svc", templates).Parse(svc)
 	if err != nil {
 		return err
 	}
 
 	role := &rbacv1.Role{}
-	err = NewManifest("ingress-role", sliceName).Parse(role)
+	err = NewManifest("ingress-role", templates).Parse(role)
 	if err != nil {
 		return err
 	}
 
 	sa := &corev1.ServiceAccount{}
-	err = NewManifest("ingress-sa", sliceName).Parse(sa)
+	err = NewManifest("ingress-sa", templates).Parse(sa)
 	if err != nil {
 		return err
 	}
 
 	rb := &rbacv1.RoleBinding{}
-	err = NewManifest("ingress-rolebinding", sliceName).Parse(rb)
+	err = NewManifest("ingress-rolebinding", templates).Parse(rb)
 	if err != nil {
 		return err
 	}
 
 	gw := &istiov1beta1.Gateway{}
-	err = NewManifest("ingress-gw", sliceName).Parse(gw)
+	err = NewManifest("ingress-gw", templates).Parse(gw)
 	if err != nil {
 		return err
 	}
