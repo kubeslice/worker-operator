@@ -124,10 +124,11 @@ func getClusterProviderID(ctx context.Context, c client.Client) (string, error) 
 func (r *SliceReconciler) createSliceGatewayEdgeService(ctx context.Context, slice *kubeslicev1beta1.Slice, portmap *map[string]int32) error {
 	log := r.Log.WithValues("slice", slice.Name)
 	svc := serviceForSliceGatewayEdge(slice, slice.Name, "svc-"+slice.Name+"-gw-edge", portmap)
+	gwProto := slice.Status.SliceConfig.SliceGatewayProtocol
 
-	// Note: Special treatment for AWS EKS clusters. The LB is not provisioned unless we add AWS specific annotations
+	// Note: Special treatment for AWS EKS clusters. The NLB is not provisioned unless we add AWS specific annotations
 	// to the service. This is needed only for EKS.
-	if clusterProvider, _ := getClusterProviderID(ctx, r.Client); clusterProvider == "aws" {
+	if clusterProvider, _ := getClusterProviderID(ctx, r.Client); clusterProvider == "aws" && gwProto == "UDP" {
 		if svc.ObjectMeta.Annotations == nil {
 			svc.ObjectMeta.Annotations = make(map[string]string)
 		}
