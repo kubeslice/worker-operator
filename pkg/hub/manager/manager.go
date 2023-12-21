@@ -33,6 +33,7 @@ import (
 	log "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	ctrlmetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
+	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
@@ -89,10 +90,15 @@ func Start(meshClient client.Client, hubClient client.Client, ctx context.Contex
 		},
 	}
 
+	metricsServer := metricsserver.Options{
+		BindAddress: "0",
+	}
+
 	mgr, err := manager.New(config, manager.Options{
 		Scheme:        scheme,
 		WebhookServer: webhookServer,
 		Cache:         cacheOptions,
+		Metrics:       metricsServer,
 	})
 	if err != nil {
 		log.Error(err, "Could not create manager")

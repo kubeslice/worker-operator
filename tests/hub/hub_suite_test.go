@@ -37,6 +37,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
 	hubv1alpha1 "github.com/kubeslice/apis/pkg/controller/v1alpha1"
 	spokev1alpha1 "github.com/kubeslice/apis/pkg/worker/v1alpha1"
@@ -124,10 +125,14 @@ var _ = BeforeSuite(func() {
 			PROJECT_NS: {},
 		},
 	}
+	metricsServer := metricsserver.Options{
+		BindAddress: "0",
+	}
 
 	k8sManager, err := ctrl.NewManager(cfg, ctrl.Options{
-		Scheme: scheme.Scheme,
-		Cache:  cacheOptions,
+		Scheme:  scheme.Scheme,
+		Cache:   cacheOptions,
+		Metrics: metricsServer,
 	})
 	Expect(err).ToNot(HaveOccurred())
 
