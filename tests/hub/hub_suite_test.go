@@ -32,6 +32,7 @@ import (
 	"k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
+	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
@@ -118,10 +119,15 @@ var _ = BeforeSuite(func() {
 	}
 	Expect(k8sClient.Create(ctx, ns)).Should(Succeed())
 
+	cacheOptions := cache.Options{
+		DefaultNamespaces: map[string]cache.Config{
+			PROJECT_NS: {},
+		},
+	}
+
 	k8sManager, err := ctrl.NewManager(cfg, ctrl.Options{
-		Scheme:             scheme.Scheme,
-		Namespace:          PROJECT_NS,
-		MetricsBindAddress: "0",
+		Scheme: scheme.Scheme,
+		Cache:  cacheOptions,
 	})
 	Expect(err).ToNot(HaveOccurred())
 
@@ -187,7 +193,7 @@ var _ = BeforeSuite(func() {
 		ControllerManagedBy(k8sManager).
 		For(&spokev1alpha1.WorkerServiceImport{}).
 		WithEventFilter(predicate.NewPredicateFuncs(func(object client.Object) bool {
-			return object.GetLabels()["worker-cluster"] == ns.ClusterName
+			return object.GetLabels()["worker-cluster"] == CLUSTER_NAME
 		})).
 		Complete(serviceImportReconciler)
 	Expect(err).ToNot(HaveOccurred())

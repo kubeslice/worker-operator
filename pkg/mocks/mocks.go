@@ -52,7 +52,7 @@ func (c *MockClient) Status() client.StatusWriter {
 }
 
 // Reader interface
-func (c *MockClient) Get(ctx context.Context, key types.NamespacedName, obj client.Object) error {
+func (c *MockClient) Get(ctx context.Context, key types.NamespacedName, obj client.Object, opts ...client.GetOption) error {
 	args := c.Called(ctx, key, obj)
 	return args.Error(0)
 }
@@ -112,14 +112,19 @@ type StatusClient struct {
 
 var _ client.StatusWriter = &StatusClient{}
 
+func (c *StatusClient) Create(ctx context.Context, obj1 client.Object, obj2 client.Object, opts ...client.SubResourceCreateOption) error {
+	args := c.Called(ctx, obj1, obj2, opts)
+	return args.Error(0)
+}
+
 func (c *StatusClient) Update(
-	ctx context.Context, obj client.Object, opts ...client.UpdateOption) error {
+	ctx context.Context, obj client.Object, opts ...client.SubResourceUpdateOption) error {
 	args := c.Called(ctx, obj, opts)
 	return args.Error(0)
 }
 
 func (c *StatusClient) Patch(
-	ctx context.Context, obj client.Object, patch client.Patch, opts ...client.PatchOption) error {
+	ctx context.Context, obj client.Object, patch client.Patch, opts ...client.SubResourcePatchOption) error {
 	args := c.Called(ctx, obj, patch, opts)
 	return args.Error(0)
 }
