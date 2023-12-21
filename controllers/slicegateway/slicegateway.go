@@ -260,6 +260,7 @@ func (r *SliceGwReconciler) deploymentForGatewayServer(g *kubeslicev1beta1.Slice
 							"/etc/openvpn/openvpn.conf",
 							"90",
 							"ovpn_run",
+							"--proto " + strings.ToLower(g.Status.Config.SliceGatewayProtocol),
 						},
 						SecurityContext: &corev1.SecurityContext{
 							Privileged:               &privileged,
@@ -1369,6 +1370,20 @@ func (r *SliceGwReconciler) ReconcileGatewayDeployments(ctx context.Context, sli
 			err = r.Create(ctx, dep)
 			if err != nil {
 				log.Error(err, "Failed to create new Deployment", "Namespace", dep.Namespace, "Name", dep.Name)
+				return ctrl.Result{}, err, true
+			}
+			return ctrl.Result{Requeue: true}, nil, true
+		}
+	}
+
+	// Check if any gw deployment needs to be updated
+	for _, deployment := range deployments.Items {
+		// Check if the gw protocol needs to be updated
+		if gwProtocolInUse(sliceGw, &deployment) != strings.ToLower(sliceGw.Status.Config.SliceGatewayProtocol) {
+			newDep := setProtoInGwDeployment(sliceGw, &deployment, strings.ToLower(sliceGw.Status.Config.SliceGatewayProtocol))
+			err := r.Update(ctx, newDep)
+			if err != nil {
+				log.Error(err, "Failed to update Deployment with proto", "Name", newDep.Name, "NewProto", strings.ToLower(sliceGw.Status.Config.SliceGatewayProtocol))
 				return ctrl.Result{}, err, true
 			}
 			return ctrl.Result{Requeue: true}, nil, true

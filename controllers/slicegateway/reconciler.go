@@ -41,7 +41,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
 	"github.com/kubeslice/worker-operator/controllers"
@@ -341,7 +340,7 @@ func (r *SliceGwReconciler) handleSliceGwDeletion(sliceGw *kubeslicev1beta1.Slic
 	return false, reconcile.Result{}, nil
 }
 
-func (r *SliceGwReconciler) findSliceGwObjectsToReconcile(pod client.Object) []reconcile.Request {
+func (r *SliceGwReconciler) findSliceGwObjectsToReconcile(ctx context.Context, pod client.Object) []reconcile.Request {
 	podLabels := pod.GetLabels()
 	if podLabels == nil {
 		return []reconcile.Request{}
@@ -389,7 +388,7 @@ func (r *SliceGwReconciler) findSliceGwObjectsToReconcile(pod client.Object) []r
 	return requests
 }
 
-func (r *SliceGwReconciler) sliceGwObjectsToReconcileForNodeRestart(node client.Object) []reconcile.Request {
+func (r *SliceGwReconciler) sliceGwObjectsToReconcileForNodeRestart(ctx context.Context, node client.Object) []reconcile.Request {
 	sliceGwList, err := r.findAllSliceGwObjects()
 	if err != nil {
 		return []reconcile.Request{}
@@ -491,11 +490,12 @@ func (r *SliceGwReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		For(&kubeslicev1beta1.SliceGateway{}).
 		Owns(&appsv1.Deployment{}).
 		Owns(&corev1.Service{}).
-		Watches(&source.Kind{Type: &corev1.Pod{}},
+		Watches(
+			&corev1.Pod{},
 			handler.EnqueueRequestsFromMapFunc(r.findSliceGwObjectsToReconcile),
 			builder.WithPredicates(sliceGwUpdPredicate),
 		).
-		Watches(&source.Kind{Type: &corev1.Node{}},
+		Watches(&corev1.Node{},
 			handler.EnqueueRequestsFromMapFunc(r.sliceGwObjectsToReconcileForNodeRestart),
 			builder.WithPredicates(nodePredicate),
 		).

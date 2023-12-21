@@ -218,6 +218,34 @@ func gwDeploymentIsPresent(sliceGwName string, gwInstance int, deployments *apps
 	return false
 }
 
+func gwProtocolInUse(gw *kubeslicev1beta1.SliceGateway, deployment *appsv1.Deployment) string {
+	if gw.Status.Config.SliceGatewayHostType == "Server" {
+		for _, container := range deployment.Spec.Template.Spec.Containers {
+			if container.Name == "kubeslice-openvpn-server" {
+				protoStr := container.Args[len(container.Args)-1]
+				if len(strings.Split(protoStr, " ")) == len([]string{"--proto", "protocol"}) {
+					return strings.Split(protoStr, " ")[1]
+				}
+			}
+		}
+	}
+
+	return ""
+}
+
+func setProtoInGwDeployment(gw *kubeslicev1beta1.SliceGateway, deployment *appsv1.Deployment, proto string) *appsv1.Deployment {
+	if gw.Status.Config.SliceGatewayHostType == "Server" {
+		for _, container := range deployment.Spec.Template.Spec.Containers {
+			if container.Name == "kubeslice-openvpn-server" {
+				container.Args[len(container.Args)-1] = "--proto " + proto
+				return deployment
+			}
+		}
+	}
+
+	return nil
+}
+
 func getGwDeployment(ctx context.Context, c client.Client, sliceGw *kubeslicev1beta1.SliceGateway, depName string) *appsv1.Deployment {
 	deployments, err := GetDeployments(ctx, c, sliceGw.Spec.SliceName, sliceGw.Name)
 	if err != nil {
