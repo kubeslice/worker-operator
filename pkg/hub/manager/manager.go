@@ -125,6 +125,7 @@ func Start(meshClient client.Client, hubClient client.Client, ctx context.Contex
 	})
 
 	sliceReconciler := controllers.NewSliceReconciler(
+                mgr.GetClient(),
 		meshClient,
 		&workerSliceEventRecorder,
 		mf,
@@ -199,6 +200,7 @@ func Start(meshClient client.Client, hubClient client.Client, ctx context.Contex
 	}
 
 	clusterReconciler := hubCluster.NewReconciler(
+                mgr.GetClient(),
 		meshClient,
 		&workerSliceEventRecorder,
 		mf,

@@ -60,9 +60,9 @@ func (m *Manifest) Parse(v interface{}) error {
 		return err
 	}
 
-	f := ""
+	f := string(jsonFile)
 	for templateKey, templateVal := range m.Templates {
-		f = strings.ReplaceAll(string(jsonFile), templateKey, templateVal)
+		f = strings.ReplaceAll(f, templateKey, templateVal)
 	}
 
 	err = json.Unmarshal([]byte(f), v)
