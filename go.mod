@@ -24,7 +24,7 @@ require (
 	github.com/stretchr/testify v1.8.1
 	go.opencensus.io v0.24.0
 	go.uber.org/zap v1.25.0
-	golang.org/x/net v0.12.0
+	golang.org/x/net v0.17.0
 	google.golang.org/grpc v1.58.0
 	google.golang.org/protobuf v1.31.0
 	gopkg.in/yaml.v2 v2.4.0
