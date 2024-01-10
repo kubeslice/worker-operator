@@ -129,6 +129,7 @@ var _ = BeforeSuite(func() {
 	})
 	clusterReconciler := NewReconciler(
 		k8sClient,
+		k8sClient,
 		&spokeClusterEventRecorder,
 		mf,
 	)

@@ -64,7 +64,7 @@ func TestReconcileToReturnErrorWhileFetchingControllerCluster(t *testing.T) {
 	).Return(errors.New("object not found"))
 
 	mf, _ := metrics.NewMetricsFactory(prometheus.NewRegistry(), metrics.MetricsFactoryOptions{})
-	reconciler := NewReconciler(client, nil, mf)
+	reconciler := NewReconciler(client, client, nil, mf)
 	reconciler.InjectClient(client)
 	result, err := reconciler.Reconcile(expected.ctx, expected.req)
 	if expected.res != result {
@@ -105,7 +105,7 @@ func TestReconcileToCallHandleClusterDeletion(t *testing.T) {
 	).Return(errors.New("failed to update cluster CR"))
 
 	mf, _ := metrics.NewMetricsFactory(prometheus.NewRegistry(), metrics.MetricsFactoryOptions{})
-	reconciler := NewReconciler(client, nil, mf)
+	reconciler := NewReconciler(client, client, nil, mf)
 	reconciler.InjectClient(client)
 	result, err := reconciler.Reconcile(expected.ctx, expected.req)
 	if expected.res != result {
@@ -132,7 +132,7 @@ func TestReconcilerHandleClusterDeletion(t *testing.T) {
 	client := utilmock.NewClient()
 
 	mf, _ := metrics.NewMetricsFactory(prometheus.NewRegistry(), metrics.MetricsFactoryOptions{})
-	reconciler := NewReconciler(client, nil, mf)
+	reconciler := NewReconciler(client, client, nil, mf)
 	reconciler.InjectClient(client)
 	ctx := context.WithValue(context.Background(), types.NamespacedName{Name: testClusterName, Namespace: testProjectNamespace}, testClusterObj)
 
@@ -165,7 +165,7 @@ func TestReconcilerHandleExternalDependency(t *testing.T) {
 	client := utilmock.NewClient()
 
 	mf, _ := metrics.NewMetricsFactory(prometheus.NewRegistry(), metrics.MetricsFactoryOptions{})
-	reconciler := NewReconciler(client, nil, mf)
+	reconciler := NewReconciler(client, client, nil, mf)
 	reconciler.InjectClient(client)
 	ctx := context.WithValue(context.Background(), types.NamespacedName{Name: testClusterName, Namespace: testProjectNamespace}, testClusterObjWithFinalizer)
 	clusterKey := types.NamespacedName{Namespace: testProjectNamespace, Name: testClusterName}
@@ -282,7 +282,7 @@ func TestReconcilerToFailWhileCallingCreateDeregisterJob(t *testing.T) {
 		Namespace: controllers.ControlPlaneNamespace,
 	})
 	mf, _ := metrics.NewMetricsFactory(prometheus.NewRegistry(), metrics.MetricsFactoryOptions{})
-	reconciler := NewReconciler(client, &testClusterEventRecorder, mf)
+	reconciler := NewReconciler(client, client, &testClusterEventRecorder, mf)
 	reconciler.InjectClient(client)
 	ctx := context.WithValue(context.Background(), types.NamespacedName{Name: testClusterName, Namespace: testProjectNamespace}, testClusterObjWithFinalizer)
 	clusterKey := types.NamespacedName{Namespace: testProjectNamespace, Name: testClusterName}

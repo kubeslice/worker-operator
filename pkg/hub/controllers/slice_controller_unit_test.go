@@ -101,7 +101,7 @@ func TestReconcileToReturnErrorWhileFetchingControllerSlice(t *testing.T) {
 	eventRecorder := mevents.NewEventRecorder(client, nil, ossEvents.EventsMap, mevents.EventRecorderOptions{
 		Cluster: clusterName,
 	})
-	reconciler := NewSliceReconciler(client, &eventRecorder, mf)
+	reconciler := NewSliceReconciler(client, client, &eventRecorder, mf)
 	reconciler.InjectClient(client)
 	result, err := reconciler.Reconcile(expected.ctx, expected.req)
 	if expected.res != result {
@@ -151,7 +151,7 @@ func TestReconcileToReturnErrorWhileFetchingWorkerSlice(t *testing.T) {
 	eventRecorder := mevents.NewEventRecorder(client, &runtime.Scheme{}, ossEvents.EventsMap, mevents.EventRecorderOptions{
 		Cluster: clusterName,
 	})
-	reconciler := NewSliceReconciler(client, &eventRecorder, mf)
+	reconciler := NewSliceReconciler(client, client, &eventRecorder, mf)
 	reconciler.InjectClient(client)
 	result, err := reconciler.Reconcile(expected.ctx, expected.req)
 	if expected.res != result {
@@ -224,7 +224,7 @@ func TestReconcileToUpdateWorkerSlice(t *testing.T) {
 	eventRecorder := mevents.NewEventRecorder(client, &runtime.Scheme{}, ossEvents.EventsMap, mevents.EventRecorderOptions{
 		Cluster: clusterName,
 	})
-	reconciler := NewSliceReconciler(client, &eventRecorder, mf)
+	reconciler := NewSliceReconciler(client, client, &eventRecorder, mf)
 	reconciler.InjectClient(client)
 	result, err := reconciler.Reconcile(expected.ctx, expected.req)
 	if expected.res != result {
@@ -284,7 +284,7 @@ func TestUpdateSliceHealth(t *testing.T) {
 	eventRecorder := mevents.NewEventRecorder(client, &runtime.Scheme{}, ossEvents.EventsMap, mevents.EventRecorderOptions{
 		Cluster: clusterName,
 	})
-	reconciler := NewSliceReconciler(client, &eventRecorder, mf)
+	reconciler := NewSliceReconciler(client, client, &eventRecorder, mf)
 	reconciler.InjectClient(client)
 	ctx := context.WithValue(context.Background(), types.NamespacedName{Name: "test-slice", Namespace: "kubeslice-system"}, controllerSlice)
 
@@ -336,7 +336,7 @@ func TestUpdateSliceConfigByModyfingSubnetOfControllerSlice(t *testing.T) {
 	eventRecorder := mevents.NewEventRecorder(client, &runtime.Scheme{}, ossEvents.EventsMap, mevents.EventRecorderOptions{
 		Cluster: clusterName,
 	})
-	reconciler := NewSliceReconciler(client, &eventRecorder, mf)
+	reconciler := NewSliceReconciler(client, client, &eventRecorder, mf)
 	reconciler.InjectClient(client)
 	ctx := context.WithValue(context.Background(), types.NamespacedName{Name: "test-slice", Namespace: "kubeslice-system"}, controllerSlice)
 
@@ -374,7 +374,7 @@ func TestDeleteSliceResourceOnWorker(t *testing.T) {
 	eventRecorder := mevents.NewEventRecorder(client, &runtime.Scheme{}, ossEvents.EventsMap, mevents.EventRecorderOptions{
 		Cluster: clusterName,
 	})
-	reconciler := NewSliceReconciler(client, &eventRecorder, mf)
+	reconciler := NewSliceReconciler(client, client, &eventRecorder, mf)
 	reconciler.InjectClient(client)
 
 	client.On("Delete",

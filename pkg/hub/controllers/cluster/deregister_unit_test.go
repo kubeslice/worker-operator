@@ -76,7 +76,7 @@ func TestGetOperatorClusterRole(t *testing.T) {
 	client := utilmock.NewClient()
 
 	mf, _ := metrics.NewMetricsFactory(prometheus.NewRegistry(), metrics.MetricsFactoryOptions{})
-	reconciler := NewReconciler(client, nil, mf)
+	reconciler := NewReconciler(client, client, nil, mf)
 	reconciler.InjectClient(client)
 	ctx := context.WithValue(context.Background(), types.NamespacedName{Name: testClusterName, Namespace: testProjectNamespace}, testClusterObj)
 	clusterRoleKey := types.NamespacedName{Name: operatorClusterRoleName}
@@ -108,7 +108,7 @@ func TestCreateDeregisterJobPositiveScenarios(t *testing.T) {
 	client := utilmock.NewClient()
 
 	mf, _ := metrics.NewMetricsFactory(prometheus.NewRegistry(), metrics.MetricsFactoryOptions{})
-	reconciler := NewReconciler(client, nil, mf)
+	reconciler := NewReconciler(client, client, nil, mf)
 	reconciler.InjectClient(client)
 	ctx := context.WithValue(context.Background(), types.NamespacedName{Name: testClusterName, Namespace: testProjectNamespace}, testClusterObj)
 	clusterKey := types.NamespacedName{Namespace: testProjectNamespace, Name: testClusterName}
@@ -210,7 +210,7 @@ func TestReconcilerFailToUpdateClusterRegistrationStatus(t *testing.T) {
 	client := utilmock.NewClient()
 
 	mf, _ := metrics.NewMetricsFactory(prometheus.NewRegistry(), metrics.MetricsFactoryOptions{})
-	reconciler := NewReconciler(client, nil, mf)
+	reconciler := NewReconciler(client, client, nil, mf)
 	reconciler.InjectClient(client)
 	ctx := context.WithValue(context.Background(), types.NamespacedName{Name: testClusterName, Namespace: testProjectNamespace}, testClusterObj)
 	clusterKey := types.NamespacedName{Namespace: testProjectNamespace, Name: testClusterName}
@@ -248,7 +248,7 @@ func TestReconcilerFailToCreateServiceAccount(t *testing.T) {
 	client := utilmock.NewClient()
 
 	mf, _ := metrics.NewMetricsFactory(prometheus.NewRegistry(), metrics.MetricsFactoryOptions{})
-	reconciler := NewReconciler(client, nil, mf)
+	reconciler := NewReconciler(client, client, nil, mf)
 	reconciler.InjectClient(client)
 	ctx := context.WithValue(context.Background(), types.NamespacedName{Name: testClusterName, Namespace: testProjectNamespace}, testClusterObj)
 	clusterKey := types.NamespacedName{Namespace: testProjectNamespace, Name: testClusterName}
@@ -301,7 +301,7 @@ func TestReconcilerFailToFetchOperatorClusterRole(t *testing.T) {
 	client := utilmock.NewClient()
 
 	mf, _ := metrics.NewMetricsFactory(prometheus.NewRegistry(), metrics.MetricsFactoryOptions{})
-	reconciler := NewReconciler(client, nil, mf)
+	reconciler := NewReconciler(client, client, nil, mf)
 	reconciler.InjectClient(client)
 	ctx := context.WithValue(context.Background(), types.NamespacedName{Name: testClusterName, Namespace: testProjectNamespace}, testClusterObj)
 	clusterKey := types.NamespacedName{Namespace: testProjectNamespace, Name: testClusterName}
@@ -364,7 +364,7 @@ func TestReconcilerFailToCreateClusterRole(t *testing.T) {
 	client := utilmock.NewClient()
 
 	mf, _ := metrics.NewMetricsFactory(prometheus.NewRegistry(), metrics.MetricsFactoryOptions{})
-	reconciler := NewReconciler(client, nil, mf)
+	reconciler := NewReconciler(client, client, nil, mf)
 	reconciler.InjectClient(client)
 	ctx := context.WithValue(context.Background(), types.NamespacedName{Name: testClusterName, Namespace: testProjectNamespace}, testClusterObj)
 	clusterKey := types.NamespacedName{Namespace: testProjectNamespace, Name: testClusterName}
@@ -437,7 +437,7 @@ func TestReconcilerFailToCreateClusterRoleBinding(t *testing.T) {
 	client := utilmock.NewClient()
 
 	mf, _ := metrics.NewMetricsFactory(prometheus.NewRegistry(), metrics.MetricsFactoryOptions{})
-	reconciler := NewReconciler(client, nil, mf)
+	reconciler := NewReconciler(client, client, nil, mf)
 	reconciler.InjectClient(client)
 	ctx := context.WithValue(context.Background(), types.NamespacedName{Name: testClusterName, Namespace: testProjectNamespace}, testClusterObj)
 	clusterKey := types.NamespacedName{Namespace: testProjectNamespace, Name: testClusterName}
@@ -515,7 +515,7 @@ func TestReconcilerFailToCreateConfigmap(t *testing.T) {
 	client := utilmock.NewClient()
 
 	mf, _ := metrics.NewMetricsFactory(prometheus.NewRegistry(), metrics.MetricsFactoryOptions{})
-	reconciler := NewReconciler(client, nil, mf)
+	reconciler := NewReconciler(client, client, nil, mf)
 	reconciler.InjectClient(client)
 	ctx := context.WithValue(context.Background(), types.NamespacedName{Name: testClusterName, Namespace: testProjectNamespace}, testClusterObj)
 	clusterKey := types.NamespacedName{Namespace: testProjectNamespace, Name: testClusterName}
@@ -607,7 +607,7 @@ func TestReconcilerFailToDeleteJob(t *testing.T) {
 	client := utilmock.NewClient()
 
 	mf, _ := metrics.NewMetricsFactory(prometheus.NewRegistry(), metrics.MetricsFactoryOptions{})
-	reconciler := NewReconciler(client, nil, mf)
+	reconciler := NewReconciler(client, client, nil, mf)
 	reconciler.InjectClient(client)
 	ctx := context.WithValue(context.Background(), types.NamespacedName{Name: testClusterName, Namespace: testProjectNamespace}, testClusterObj)
 	clusterKey := types.NamespacedName{Namespace: testProjectNamespace, Name: testClusterName}
@@ -710,7 +710,7 @@ func TestReconcilerFailToCreateDeregisterJob(t *testing.T) {
 	client := utilmock.NewClient()
 
 	mf, _ := metrics.NewMetricsFactory(prometheus.NewRegistry(), metrics.MetricsFactoryOptions{})
-	reconciler := NewReconciler(client, nil, mf)
+	reconciler := NewReconciler(client, client, nil, mf)
 	reconciler.InjectClient(client)
 	ctx := context.WithValue(context.Background(), types.NamespacedName{Name: testClusterName, Namespace: testProjectNamespace}, testClusterObj)
 	clusterKey := types.NamespacedName{Namespace: testProjectNamespace, Name: testClusterName}

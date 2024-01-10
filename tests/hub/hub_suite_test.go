@@ -159,6 +159,7 @@ var _ = BeforeSuite(func() {
 	})
 	sr := controllers.NewSliceReconciler(
 		k8sClient,
+		k8sClient,
 		&testSliceEventRecorder,
 		mf,
 	)
@@ -216,6 +217,7 @@ var _ = BeforeSuite(func() {
 	}
 
 	clusterReconciler := cluster.NewReconciler(
+		k8sClient,
 		k8sClient,
 		&testSliceEventRecorder,
 		mf,
