@@ -73,7 +73,7 @@ func NewReconciler(c client.Client, mc client.Client, er *events.EventRecorder, 
 	gaugeComponentUp := mf.NewGauge("cluster_component_up", "Kubeslice cluster component health status", []string{"slice_cluster_component"})
 
 	return &Reconciler{
-                Client: c,
+		Client:        c,
 		MeshClient:    mc,
 		EventRecorder: er,
 

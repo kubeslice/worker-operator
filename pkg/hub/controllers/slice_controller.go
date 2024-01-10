@@ -53,7 +53,7 @@ type component struct {
 
 func NewSliceReconciler(hubclient client.Client, mc client.Client, er *events.EventRecorder, mf metrics.MetricsFactory) *SliceReconciler {
 	return &SliceReconciler{
-                Client: hubclient,
+		Client:            hubclient,
 		MeshClient:        mc,
 		EventRecorder:     er,
 		Log:               ctrl.Log.WithName("hub").WithName("controllers").WithName("SliceConfig"),

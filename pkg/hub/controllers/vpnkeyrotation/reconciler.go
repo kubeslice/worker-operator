@@ -34,7 +34,7 @@ import (
 
 func NewReconciler(mc client.Client, hc client.Client, er *events.EventRecorder, mf metrics.MetricsFactory, workerRecyclerClient WorkerRecyclerClientProvider) *Reconciler {
 	return &Reconciler{
-                Client: hc,
+		Client:               hc,
 		WorkerClient:         mc,
 		ControllerClient:     hc,
 		EventRecorder:        er,
