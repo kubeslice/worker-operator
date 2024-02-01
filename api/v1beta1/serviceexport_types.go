@@ -21,6 +21,7 @@ package v1beta1
 import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	gatewayapi "sigs.k8s.io/gateway-api/apis/v1"
 )
 
 // ServicePort is the port exposed by ServicePod
@@ -32,6 +33,10 @@ type ServicePort struct {
 	// Protocol for port. Must be UDP, TCP, or SCTP.
 	// Defaults to "TCP".
 	Protocol corev1.Protocol `json:"protocol,omitempty"`
+	// The protocol being used by the exported service (for multinet slice)
+	ServiceProtocol gatewayapi.ProtocolType `json:"serviceProtocol,omitempty"`
+	// Port number of the exported service
+	ServicePort int32 `json:"servicePort,omitempty"`
 }
 
 // ServicePod contains pod information which offers a service
