@@ -32,6 +32,11 @@ type ServicePort struct {
 	// Protocol for port. Must be UDP, TCP, or SCTP.
 	// Defaults to "TCP".
 	Protocol corev1.Protocol `json:"protocol,omitempty"`
+	// The protocol being used by the service for multinet sliceOverlayNetworkDeploymentMode
+	//+kubebuilder:validation:Enum:=HTTP;HTTPS;TCP;UDP
+	ServiceProtocol string `json:"serviceProtocol,omitempty"`
+	// Port number of the service
+	ServicePort int32 `json:"servicePort,omitempty"`
 }
 
 // ServicePod contains pod information which offers a service

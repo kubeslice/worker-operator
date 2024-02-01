@@ -84,6 +84,19 @@ spec:
                       description: Protocol for port. Must be UDP, TCP, or SCTP. Defaults
                         to "TCP".
                       type: string
+                    servicePort:
+                      description: Port number of the service
+                      format: int32
+                      type: integer
+                    serviceProtocol:
+                      description: The protocol being used by the service for multinet
+                        sliceOverlayNetworkDeploymentMode
+                      enum:
+                      - HTTP
+                      - HTTPS
+                      - TCP
+                      - UDP
+                      type: string
                   required:
                   - containerPort
                   type: object
