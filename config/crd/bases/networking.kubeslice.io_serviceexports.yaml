@@ -91,6 +91,9 @@ spec:
                     serviceProtocol:
                       description: The protocol being used by the exported service
                         (for multinet slice)
+                      enum:
+                      - HTTP
+                      - HTTPS
                       maxLength: 255
                       minLength: 1
                       pattern: ^[a-zA-Z0-9]([-a-zSA-Z0-9]*[a-zA-Z0-9])?$|[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*\/[A-Za-z0-9]+$

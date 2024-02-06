@@ -34,6 +34,7 @@ type ServicePort struct {
 	// Defaults to "TCP".
 	Protocol corev1.Protocol `json:"protocol,omitempty"`
 	// The protocol being used by the exported service (for multinet slice)
+	//+kubebuilder:validation:Enum:=HTTP;HTTPS
 	ServiceProtocol gatewayapi.ProtocolType `json:"serviceProtocol,omitempty"`
 	// Port number of the exported service
 	ServicePort int32 `json:"servicePort,omitempty"`
