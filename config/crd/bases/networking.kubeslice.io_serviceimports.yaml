@@ -85,6 +85,7 @@ spec:
                       format: int32
                       type: integer
                     serviceProtocol:
+                      default: HTTP
                       description: The protocol being used by the exported service
                         (for multinet slice)
                       enum:
