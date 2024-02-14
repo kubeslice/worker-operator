@@ -222,6 +222,10 @@ spec:
                   - podIp
                   type: object
                 type: array
+              servicePorts:
+                description: ServicePorts shows a one line representation of service
+                  ports and protocols
+                type: string
             type: object
         type: object
     served: true

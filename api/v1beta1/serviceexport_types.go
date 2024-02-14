@@ -113,6 +113,8 @@ type ServiceExportStatus struct {
 	// ExposedPorts shows a one line representation of ports and protocols exposed
 	// only used to show as a printercolumn
 	ExposedPorts string `json:"exposedPorts,omitempty"`
+	// ServicePorts shows a one line representation of service ports and protocols
+	ServicePorts string `json:"servicePorts,omitempty"`
 	// AvailableEndpoints shows the number of available endpoints
 	AvailableEndpoints int `json:"availableEndpoints,omitempty"`
 	// IngressGwEnabled denotes ingress gw is enabled for the serviceexport
