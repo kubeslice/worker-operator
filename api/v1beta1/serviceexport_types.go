@@ -130,6 +130,7 @@ type ServiceExportStatus struct {
 // +kubebuilder:subresource:status
 // +kubebuilder:printcolumn:name="Slice",type=string,JSONPath=`.spec.slice`
 // +kubebuilder:printcolumn:name="Ingress",type=boolean,JSONPath=`.spec.ingressEnabled`
+// +kubebuilder:printcolumn:name="ServicePort(s)",type=string,JSONPath=`.status.servicePorts`
 // +kubebuilder:printcolumn:name="Port(s)",type=string,JSONPath=`.status.exposedPorts`
 // +kubebuilder:printcolumn:name="Endpoints",type=integer,JSONPath=`.status.availableEndpoints`
 // +kubebuilder:printcolumn:name="Status",type=string,JSONPath=`.status.exportStatus`

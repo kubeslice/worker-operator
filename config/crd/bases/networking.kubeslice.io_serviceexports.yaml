@@ -25,6 +25,9 @@ spec:
     - jsonPath: .spec.ingressEnabled
       name: Ingress
       type: boolean
+    - jsonPath: .status.servicePorts
+      name: ServicePort(s)
+      type: string
     - jsonPath: .status.exposedPorts
       name: Port(s)
       type: string
