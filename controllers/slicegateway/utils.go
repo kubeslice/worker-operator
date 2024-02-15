@@ -426,3 +426,24 @@ func (r *SliceGwReconciler) cleanupSliceGwResources(ctx context.Context, slicegw
 
 	return nil
 }
+
+func getOVPNClientContainerArgs(remotePortNumber int, g *kubeslicev1beta1.SliceGateway) []string {
+	args := []string{
+		"/vpnclient/" + certFileName,
+		"90",
+		"openvpn",
+		"--remote",
+		g.Status.Config.SliceGatewayRemoteGatewayID,
+		"--port",
+		strconv.Itoa(remotePortNumber),
+		"--ping-restart",
+		"15",
+		"--proto",
+		strings.ToLower(g.Status.Config.SliceGatewayProtocol),
+		"--txqueuelen",
+		"5000",
+		"--config",
+		"/vpnclient/" + certFileName,
+	}
+	return args
+}

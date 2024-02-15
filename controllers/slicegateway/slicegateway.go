@@ -25,12 +25,21 @@ import (
 	"math"
 	"net"
 	"os"
+	"slices"
 	"strconv"
-	"strings"
 	"sync"
 	"time"
 
+	gwsidecarpb "github.com/kubeslice/gateway-sidecar/pkg/sidecar/sidecarpb"
+	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
 	"github.com/kubeslice/worker-operator/controllers"
+	ossEvents "github.com/kubeslice/worker-operator/events"
+	"github.com/kubeslice/worker-operator/pkg/cluster"
+	"github.com/kubeslice/worker-operator/pkg/gwsidecar"
+	"github.com/kubeslice/worker-operator/pkg/logger"
+	"github.com/kubeslice/worker-operator/pkg/router"
+	"github.com/kubeslice/worker-operator/pkg/utils"
+	webhook "github.com/kubeslice/worker-operator/pkg/webhook/pod"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -42,19 +51,10 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-
-	gwsidecarpb "github.com/kubeslice/gateway-sidecar/pkg/sidecar/sidecarpb"
-	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
-	ossEvents "github.com/kubeslice/worker-operator/events"
-	"github.com/kubeslice/worker-operator/pkg/cluster"
-	"github.com/kubeslice/worker-operator/pkg/gwsidecar"
-	"github.com/kubeslice/worker-operator/pkg/logger"
-	"github.com/kubeslice/worker-operator/pkg/router"
-	"github.com/kubeslice/worker-operator/pkg/utils"
-	webhook "github.com/kubeslice/worker-operator/pkg/webhook/pod"
 )
 
 var (
+	certFileName             = "openvpn_client.ovpn"
 	gwSidecarImage           = os.Getenv("AVESHA_GW_SIDECAR_IMAGE")
 	gwSidecarImagePullPolicy = os.Getenv("AVESHA_GW_SIDECAR_IMAGE_PULLPOLICY")
 
@@ -382,8 +382,6 @@ func (r *SliceGwReconciler) deploymentForGatewayClient(g *kubeslicev1beta1.Slice
 	var privileged = true
 
 	var vpnSecretDefaultMode int32 = 0644
-
-	certFileName := "openvpn_client.ovpn"
 	sidecarImg := "nexus.dev.aveshalabs.io/kubeslice/gw-sidecar:1.0.0"
 	sidecarPullPolicy := corev1.PullAlways
 
@@ -546,23 +544,7 @@ func (r *SliceGwReconciler) deploymentForGatewayClient(g *kubeslicev1beta1.Slice
 						Command: []string{
 							"/usr/local/bin/waitForConfigToRunCmd.sh",
 						},
-						Args: []string{
-							"/vpnclient/" + certFileName,
-							"90",
-							"openvpn",
-							"--remote",
-							g.Status.Config.SliceGatewayRemoteGatewayID,
-							"--port",
-							strconv.Itoa(remotePortNumber),
-							"--ping-restart",
-							"15",
-							"--proto",
-							strings.ToLower(g.Status.Config.SliceGatewayProtocol),
-							"--txqueuelen",
-							"5000",
-							"--config",
-							"/vpnclient/" + certFileName,
-						},
+						Args: getOVPNClientContainerArgs(remotePortNumber, g),
 						SecurityContext: &corev1.SecurityContext{
 							Privileged:               &privileged,
 							AllowPrivilegeEscalation: &privileged,
@@ -1389,7 +1371,7 @@ func (r *SliceGwReconciler) ReconcileGatewayDeployments(ctx context.Context, sli
 
 	// Reconcile deployment to node port mapping for gw client deployments
 	if isClient(sliceGw) {
-		for _, deployment := range deployments.Items {
+		for index, deployment := range deployments.Items {
 			found, nodePortInUse := getClientGwRemotePortInUse(ctx, r.Client, sliceGw, deployment.Name)
 			if found {
 				_, foundInMap := gwClientToRemotePortMap.Load(deployment.Name)
@@ -1397,6 +1379,9 @@ func (r *SliceGwReconciler) ReconcileGatewayDeployments(ctx context.Context, sli
 					gwClientToRemotePortMap.Store(deployment.Name, nodePortInUse)
 				}
 				// TODO: Handle the case of the port number in the deployment and the one in the port map being different
+				if !slices.Contains(sliceGw.Status.Config.SliceGatewayRemoteNodePorts, nodePortInUse) {
+					r.updateGatewayDeployment(ctx, r.Client, sliceGw, &deployment, sliceGw.Status.Config.SliceGatewayRemoteNodePorts[index])
+				}
 			}
 		}
 	}
@@ -1596,6 +1581,32 @@ func (r *SliceGwReconciler) createPodDisruptionBudgetForSliceGatewayPods(ctx con
 
 	// PDB created successfully
 	log.Info("PodDisruptionBudget for slice gateway pods created successfully")
+	return nil
+}
 
+// updateGatewayDeployment updates the gateway client deployments with the relevant updated ports
+// from the workersliceconfig
+func (r *SliceGwReconciler) updateGatewayDeployment(ctx context.Context, c client.Client, g *kubeslicev1beta1.SliceGateway, deployment *appsv1.Deployment, nodePort int) error {
+	containers := deployment.Spec.Template.Spec.Containers
+	for contIndex, cont := range containers {
+		if cont.Name == "kubeslice-sidecar" {
+			for index, key := range cont.Env {
+				if key.Name == "NODE_PORT" {
+					upEnvVar := corev1.EnvVar{
+						Name:  "NODE_PORT",
+						Value: strconv.Itoa(nodePort),
+					}
+					cont.Env[index] = upEnvVar
+				}
+			}
+		} else if cont.Name == "kubeslice-openvpn-client" {
+			containers[contIndex].Args = getOVPNClientContainerArgs(nodePort, g)
+		}
+	}
+	deployment.Spec.Template.Spec.Containers = containers
+	err := r.Update(ctx, deployment)
+	if err != nil {
+		return err
+	}
 	return nil
 }
