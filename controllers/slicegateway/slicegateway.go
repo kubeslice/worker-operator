@@ -25,6 +25,7 @@ import (
 	"math"
 	"net"
 	"os"
+	"slices"
 	"strconv"
 	"sync"
 	"time"
@@ -1370,7 +1371,7 @@ func (r *SliceGwReconciler) ReconcileGatewayDeployments(ctx context.Context, sli
 
 	// Reconcile deployment to node port mapping for gw client deployments
 	if isClient(sliceGw) {
-		for _, deployment := range deployments.Items {
+		for index, deployment := range deployments.Items {
 			found, nodePortInUse := getClientGwRemotePortInUse(ctx, r.Client, sliceGw, deployment.Name)
 			if found {
 				// Check if the portInUse is valid.
