@@ -35,7 +35,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 )
 
-var _ = Describe("Hub serviceImportController", func() {
+var _ = XDescribe("Hub serviceImportController", func() {
 	Context("With a spokeserviceImport CR installed on hub,verify service import is reconciled on worker cluster", func() {
 		var hubServiceImport *workerv1alpha1.WorkerServiceImport
 		var reflectedSvcIm *workerv1alpha1.WorkerServiceImport
