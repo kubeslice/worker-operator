@@ -1,6 +1,6 @@
 apiVersion: v1
 data:
-  .dockerconfigjson: eyJhdXRocyI6eyJuZXh1cy5kZXYuYXZlc2hhbGFicy5pbyI6eyJ1c2VybmFtZSI6ImF2ZXNoYS1kb2NrZXItcHVsbCIsInBhc3N3b3JkIjoiYFdUUGs5OCtLbmg5flMlQCIsImVtYWlsIjoiYWRtaW5AYXZlc2hhc3lzdGVtcy5jb20iLCJhdXRoIjoiWVhabGMyaGhMV1J2WTJ0bGNpMXdkV3hzT21CWFZGQnJPVGdyUzI1b09YNVRKVUE9In19fQ==
+  .dockerconfigjson: 
 kind: Secret
 metadata:
   name: avesha-nexus

@@ -9,7 +9,7 @@ require (
 	github.com/go-logr/zapr v1.2.4
 	//github.com/golang/protobuf v1.5.3
 	github.com/google/go-cmp v0.6.0
-	github.com/kubeslice/apis v0.2.2-0.20240205082036-1b02c88cd0bc
+	github.com/kubeslice/apis v0.2.2
 	github.com/kubeslice/gateway-sidecar v0.2.0
 	github.com/kubeslice/kubeslice-monitoring v0.1.10
 	github.com/kubeslice/netops v0.1.3
@@ -25,7 +25,7 @@ require (
 	go.opencensus.io v0.24.0
 	go.uber.org/zap v1.26.0
 	golang.org/x/net v0.17.0
-	google.golang.org/grpc v1.58.0
+	google.golang.org/grpc v1.58.3
 	google.golang.org/protobuf v1.31.0
 	gopkg.in/yaml.v2 v2.4.0
 	istio.io/api v0.0.0-20210226184957-53be27d8195b
