@@ -55,6 +55,7 @@ import (
 
 	ocprom "contrib.go.opencensus.io/exporter/prometheus"
 	ctrlmetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
+	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
 	monitoringEvents "github.com/kubeslice/kubeslice-monitoring/pkg/events"
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
@@ -102,14 +103,23 @@ func main() {
 	flag.Parse()
 
 	ctrl.SetLogger(logger.NewWrappedLogger())
+
+	mgrMetrics := metricsserver.Options{
+		BindAddress: metricsAddr,
+	}
+
+	webhookServer := webhook.NewServer(webhook.Options{
+		Port:    9443,
+		CertDir: utils.GetEnvOrDefault("WEBHOOK_CERTS_DIR", "/etc/webhook/certs"),
+	})
+
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Scheme:                 scheme,
-		MetricsBindAddress:     metricsAddr,
-		Port:                   9443,
+		Metrics:                mgrMetrics,
+		WebhookServer:          webhookServer,
 		HealthProbeBindAddress: probeAddr,
 		LeaderElection:         enableLeaderElection,
 		LeaderElectionID:       "f7425d89.kubeslice.io",
-		CertDir:                utils.GetEnvOrDefault("WEBHOOK_CERTS_DIR", "/etc/webhook/certs"),
 	})
 
 	er := &monitoring.EventRecorder{

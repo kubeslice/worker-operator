@@ -31,3 +31,7 @@ func (w *webhookClient) GetNamespaceLabels(ctx context.Context, client client.Cl
 	nsLabels := nS.ObjectMeta.GetLabels()
 	return nsLabels, nil
 }
+
+func (w *webhookClient) GetSliceOverlayNetworkType(ctx context.Context, client client.Client, sliceName string) (string, error) {
+	return controllers.GetSliceOverlayNetworkType(ctx, client, sliceName)
+}

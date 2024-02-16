@@ -183,6 +183,10 @@ spec:
                     required:
                     - sliceIpamType
                     type: object
+                  sliceOverlayNetworkDeploymentMode:
+                    description: 'Slice overlay network deployment mode: single-network
+                      or multi-network'
+                    type: string
                   sliceSubnet:
                     description: IP subnet range of the slice.
                     type: string

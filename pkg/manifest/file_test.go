@@ -31,10 +31,11 @@ var _ = Describe("Manifest File", func() {
 	Context("With k8s deployment manifest", func() {
 
 		f := "egress-deploy"
+		templates := map[string]string{"SLICE": "green"}
 
 		It("Should parse file into k8s deployment in the slice", func() {
 
-			m := manifest.NewManifest(f, "green")
+			m := manifest.NewManifest(f, templates)
 
 			Expect(m).ToNot(BeNil())
 

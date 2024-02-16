@@ -68,11 +68,12 @@ type Reconciler struct {
 	ReconcileInterval time.Duration
 }
 
-func NewReconciler(mc client.Client, er *events.EventRecorder, mf metrics.MetricsFactory) *Reconciler {
+func NewReconciler(c client.Client, mc client.Client, er *events.EventRecorder, mf metrics.MetricsFactory) *Reconciler {
 	gaugeClusterUp := mf.NewGauge("cluster_up", "Kubeslice cluster health status", []string{})
 	gaugeComponentUp := mf.NewGauge("cluster_component_up", "Kubeslice cluster component health status", []string{"slice_cluster_component"})
 
 	return &Reconciler{
+		Client:        c,
 		MeshClient:    mc,
 		EventRecorder: er,
 

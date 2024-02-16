@@ -27,7 +27,6 @@ import (
 	workerv1alpha1 "github.com/kubeslice/apis/pkg/worker/v1alpha1"
 	mevents "github.com/kubeslice/kubeslice-monitoring/pkg/events"
 	"github.com/kubeslice/kubeslice-monitoring/pkg/metrics"
-	"github.com/kubeslice/worker-operator/api/v1beta1"
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
 	ossEvents "github.com/kubeslice/worker-operator/events"
 	"github.com/prometheus/client_golang/prometheus"
@@ -101,7 +100,7 @@ func TestReconcileToReturnErrorWhileFetchingControllerSlice(t *testing.T) {
 	eventRecorder := mevents.NewEventRecorder(client, nil, ossEvents.EventsMap, mevents.EventRecorderOptions{
 		Cluster: clusterName,
 	})
-	reconciler := NewSliceReconciler(client, &eventRecorder, mf)
+	reconciler := NewSliceReconciler(client, client, &eventRecorder, mf)
 	reconciler.InjectClient(client)
 	result, err := reconciler.Reconcile(expected.ctx, expected.req)
 	if expected.res != result {
@@ -151,7 +150,7 @@ func TestReconcileToReturnErrorWhileFetchingWorkerSlice(t *testing.T) {
 	eventRecorder := mevents.NewEventRecorder(client, &runtime.Scheme{}, ossEvents.EventsMap, mevents.EventRecorderOptions{
 		Cluster: clusterName,
 	})
-	reconciler := NewSliceReconciler(client, &eventRecorder, mf)
+	reconciler := NewSliceReconciler(client, client, &eventRecorder, mf)
 	reconciler.InjectClient(client)
 	result, err := reconciler.Reconcile(expected.ctx, expected.req)
 	if expected.res != result {
@@ -211,7 +210,7 @@ func TestReconcileToUpdateWorkerSlice(t *testing.T) {
 	).Return(nil)
 	client.On("List",
 		mock.IsType(ctx),
-		mock.IsType(&v1beta1.SliceGatewayList{}),
+		mock.IsType(&kubeslicev1beta1.SliceGatewayList{}),
 		mock.IsType([]k8sclient.ListOption{}),
 	).Return(nil)
 	client.StatusMock.On("Update",
@@ -219,12 +218,22 @@ func TestReconcileToUpdateWorkerSlice(t *testing.T) {
 		mock.IsType(&workerv1alpha1.WorkerSliceConfig{}),
 		mock.IsType([]k8sclient.UpdateOption(nil)),
 	).Return(nil)
+	client.StatusMock.On("Update",
+		mock.IsType(ctx),
+		mock.IsType(&workerv1alpha1.WorkerSliceConfig{}),
+		mock.IsType([]k8sclient.SubResourceUpdateOption(nil)),
+	).Return(nil)
+	client.StatusMock.On("Update",
+		mock.IsType(ctx),
+		mock.IsType(&kubeslicev1beta1.Slice{}),
+		mock.IsType([]k8sclient.SubResourceUpdateOption(nil)),
+	).Return(nil)
 
 	mf, _ := metrics.NewMetricsFactory(prometheus.NewRegistry(), metrics.MetricsFactoryOptions{})
 	eventRecorder := mevents.NewEventRecorder(client, &runtime.Scheme{}, ossEvents.EventsMap, mevents.EventRecorderOptions{
 		Cluster: clusterName,
 	})
-	reconciler := NewSliceReconciler(client, &eventRecorder, mf)
+	reconciler := NewSliceReconciler(client, client, &eventRecorder, mf)
 	reconciler.InjectClient(client)
 	result, err := reconciler.Reconcile(expected.ctx, expected.req)
 	if expected.res != result {
@@ -261,6 +270,16 @@ func TestUpdateSliceConfig(t *testing.T) {
 		mock.IsType(&kubeslicev1beta1.Slice{}),
 		mock.IsType([]k8sclient.UpdateOption(nil)),
 	).Return(nil)
+	client.StatusMock.On("Update",
+		mock.IsType(ctx),
+		mock.IsType(&kubeslicev1beta1.Slice{}),
+		mock.IsType([]k8sclient.SubResourceUpdateOption(nil)),
+	).Return(nil)
+	client.StatusMock.On("Update",
+		mock.IsType(ctx),
+		mock.IsType(&workerv1alpha1.WorkerSliceConfig{}),
+		mock.IsType([]k8sclient.SubResourceUpdateOption(nil)),
+	).Return(nil)
 	err := reconciler.updateSliceConfig(expected.ctx, workerslice, controllerSlice)
 	if expected.err != err {
 		t.Error("Expected error:", expected.err, " but got ", err)
@@ -284,7 +303,7 @@ func TestUpdateSliceHealth(t *testing.T) {
 	eventRecorder := mevents.NewEventRecorder(client, &runtime.Scheme{}, ossEvents.EventsMap, mevents.EventRecorderOptions{
 		Cluster: clusterName,
 	})
-	reconciler := NewSliceReconciler(client, &eventRecorder, mf)
+	reconciler := NewSliceReconciler(client, client, &eventRecorder, mf)
 	reconciler.InjectClient(client)
 	ctx := context.WithValue(context.Background(), types.NamespacedName{Name: "test-slice", Namespace: "kubeslice-system"}, controllerSlice)
 
@@ -304,7 +323,7 @@ func TestUpdateSliceHealth(t *testing.T) {
 	).Return(nil)
 	client.On("List",
 		mock.IsType(ctx),
-		mock.IsType(&v1beta1.SliceGatewayList{}),
+		mock.IsType(&kubeslicev1beta1.SliceGatewayList{}),
 		mock.IsType([]k8sclient.ListOption{}),
 	).Return(nil)
 	client.On("List",
@@ -336,7 +355,7 @@ func TestUpdateSliceConfigByModyfingSubnetOfControllerSlice(t *testing.T) {
 	eventRecorder := mevents.NewEventRecorder(client, &runtime.Scheme{}, ossEvents.EventsMap, mevents.EventRecorderOptions{
 		Cluster: clusterName,
 	})
-	reconciler := NewSliceReconciler(client, &eventRecorder, mf)
+	reconciler := NewSliceReconciler(client, client, &eventRecorder, mf)
 	reconciler.InjectClient(client)
 	ctx := context.WithValue(context.Background(), types.NamespacedName{Name: "test-slice", Namespace: "kubeslice-system"}, controllerSlice)
 
@@ -344,6 +363,16 @@ func TestUpdateSliceConfigByModyfingSubnetOfControllerSlice(t *testing.T) {
 		mock.IsType(ctx),
 		mock.IsType(workerslice),
 		mock.IsType([]k8sclient.UpdateOption(nil)),
+	).Return(nil)
+	client.StatusMock.On("Update",
+		mock.IsType(ctx),
+		mock.IsType(&workerv1alpha1.WorkerSliceConfig{}),
+		mock.IsType([]k8sclient.SubResourceUpdateOption(nil)),
+	).Return(nil)
+	client.StatusMock.On("Update",
+		mock.IsType(ctx),
+		mock.IsType(&kubeslicev1beta1.Slice{}),
+		mock.IsType([]k8sclient.SubResourceUpdateOption(nil)),
 	).Return(nil)
 	controllerSlice.Spec.SliceSubnet = "10.0.0.2/16"
 	workerslice.Status = kubeslicev1beta1.SliceStatus{}
@@ -374,7 +403,7 @@ func TestDeleteSliceResourceOnWorker(t *testing.T) {
 	eventRecorder := mevents.NewEventRecorder(client, &runtime.Scheme{}, ossEvents.EventsMap, mevents.EventRecorderOptions{
 		Cluster: clusterName,
 	})
-	reconciler := NewSliceReconciler(client, &eventRecorder, mf)
+	reconciler := NewSliceReconciler(client, client, &eventRecorder, mf)
 	reconciler.InjectClient(client)
 
 	client.On("Delete",

@@ -32,10 +32,12 @@ import (
 	"k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
+	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
 	hubv1alpha1 "github.com/kubeslice/apis/pkg/controller/v1alpha1"
 	spokev1alpha1 "github.com/kubeslice/apis/pkg/worker/v1alpha1"
@@ -118,10 +120,19 @@ var _ = BeforeSuite(func() {
 	}
 	Expect(k8sClient.Create(ctx, ns)).Should(Succeed())
 
+	cacheOptions := cache.Options{
+		DefaultNamespaces: map[string]cache.Config{
+			PROJECT_NS: {},
+		},
+	}
+	metricsServer := metricsserver.Options{
+		BindAddress: "0",
+	}
+
 	k8sManager, err := ctrl.NewManager(cfg, ctrl.Options{
-		Scheme:             scheme.Scheme,
-		Namespace:          PROJECT_NS,
-		MetricsBindAddress: "0",
+		Scheme:  scheme.Scheme,
+		Cache:   cacheOptions,
+		Metrics: metricsServer,
 	})
 	Expect(err).ToNot(HaveOccurred())
 
@@ -148,12 +159,14 @@ var _ = BeforeSuite(func() {
 	})
 	sr := controllers.NewSliceReconciler(
 		k8sClient,
+		k8sClient,
 		&testSliceEventRecorder,
 		mf,
 	)
 	sr.ReconcileInterval = 5 * time.Second
 
 	sgwr := &controllers.SliceGwReconciler{
+		Client:        k8sClient,
 		MeshClient:    k8sClient,
 		EventRecorder: &testSliceEventRecorder,
 		ClusterName:   CLUSTER_NAME,
@@ -187,7 +200,7 @@ var _ = BeforeSuite(func() {
 		ControllerManagedBy(k8sManager).
 		For(&spokev1alpha1.WorkerServiceImport{}).
 		WithEventFilter(predicate.NewPredicateFuncs(func(object client.Object) bool {
-			return object.GetLabels()["worker-cluster"] == ns.ClusterName
+			return object.GetLabels()["worker-cluster"] == CLUSTER_NAME
 		})).
 		Complete(serviceImportReconciler)
 	Expect(err).ToNot(HaveOccurred())
@@ -205,6 +218,7 @@ var _ = BeforeSuite(func() {
 	}
 
 	clusterReconciler := cluster.NewReconciler(
+		k8sClient,
 		k8sClient,
 		&testSliceEventRecorder,
 		mf,

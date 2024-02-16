@@ -39,8 +39,13 @@ func (f fakeWebhookClient) UpdateSliceApplicationNamespaces(ctx context.Context,
 func (f fakeWebhookClient) SliceAppNamespaceConfigured(ctx context.Context, slice string, namespace string) (bool, error) {
 	return true, nil
 }
+
 func (f fakeWebhookClient) GetNamespaceLabels(ctx context.Context, client client.Client, namespace string) (map[string]string, error) {
 	return map[string]string{controllers.ApplicationNamespaceSelectorLabelKey: "green"}, nil
+}
+
+func (f fakeWebhookClient) GetSliceOverlayNetworkType(ctx context.Context, client client.Client, sliceName string) (string, error) {
+	return "", nil
 }
 
 var _ = Describe("Deploy Webhook", func() {

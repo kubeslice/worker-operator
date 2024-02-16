@@ -21,6 +21,7 @@ package v1beta1
 import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	gatewayapi "sigs.k8s.io/gateway-api/apis/v1"
 )
 
 // ServicePort is the port exposed by ServicePod
@@ -32,6 +33,12 @@ type ServicePort struct {
 	// Protocol for port. Must be UDP, TCP, or SCTP.
 	// Defaults to "TCP".
 	Protocol corev1.Protocol `json:"protocol,omitempty"`
+	// The protocol being used by the exported service (for multinet slice)
+	//+kubebuilder:validation:Enum:=HTTP;HTTPS
+	//+kubebuilder:default:=HTTP
+	ServiceProtocol gatewayapi.ProtocolType `json:"serviceProtocol,omitempty"`
+	// Port number of the exported service
+	ServicePort int32 `json:"servicePort,omitempty"`
 }
 
 // ServicePod contains pod information which offers a service
@@ -106,6 +113,8 @@ type ServiceExportStatus struct {
 	// ExposedPorts shows a one line representation of ports and protocols exposed
 	// only used to show as a printercolumn
 	ExposedPorts string `json:"exposedPorts,omitempty"`
+	// ServicePorts shows a one line representation of service ports and protocols
+	ServicePorts string `json:"servicePorts,omitempty"`
 	// AvailableEndpoints shows the number of available endpoints
 	AvailableEndpoints int `json:"availableEndpoints,omitempty"`
 	// IngressGwEnabled denotes ingress gw is enabled for the serviceexport
@@ -121,6 +130,7 @@ type ServiceExportStatus struct {
 // +kubebuilder:subresource:status
 // +kubebuilder:printcolumn:name="Slice",type=string,JSONPath=`.spec.slice`
 // +kubebuilder:printcolumn:name="Ingress",type=boolean,JSONPath=`.spec.ingressEnabled`
+// +kubebuilder:printcolumn:name="ServicePort(s)",type=string,JSONPath=`.status.servicePorts`
 // +kubebuilder:printcolumn:name="Port(s)",type=string,JSONPath=`.status.exposedPorts`
 // +kubebuilder:printcolumn:name="Endpoints",type=integer,JSONPath=`.status.availableEndpoints`
 // +kubebuilder:printcolumn:name="Status",type=string,JSONPath=`.status.exportStatus`

@@ -14,10 +14,12 @@ import (
 	"k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
+	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
 	hubv1alpha1 "github.com/kubeslice/apis/pkg/controller/v1alpha1"
 	spokev1alpha1 "github.com/kubeslice/apis/pkg/worker/v1alpha1"
@@ -94,10 +96,19 @@ var _ = BeforeSuite(func() {
 	}
 	Expect(k8sClient.Create(ctx, ns)).Should(Succeed())
 
+	cacheOptions := cache.Options{
+		DefaultNamespaces: map[string]cache.Config{
+			PROJECT_NS: {},
+		},
+	}
+	metricsServer := metricsserver.Options{
+		BindAddress: "0",
+	}
+
 	k8sManager, err := ctrl.NewManager(cfg, ctrl.Options{
-		Scheme:             scheme.Scheme,
-		Namespace:          PROJECT_NS,
-		MetricsBindAddress: "0",
+		Scheme:  scheme.Scheme,
+		Cache:   cacheOptions,
+		Metrics: metricsServer,
 	})
 	Expect(err).ToNot(HaveOccurred())
 
@@ -117,6 +128,7 @@ var _ = BeforeSuite(func() {
 		Namespace: CONTROL_PLANE_NS,
 	})
 	clusterReconciler := NewReconciler(
+		k8sClient,
 		k8sClient,
 		&spokeClusterEventRecorder,
 		mf,

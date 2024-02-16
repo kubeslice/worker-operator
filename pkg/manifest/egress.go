@@ -43,39 +43,40 @@ import (
 //	gateway
 func InstallEgress(ctx context.Context, c client.Client, slice *kubeslicev1beta1.Slice) error {
 	sliceName := slice.Name
+	templates := map[string]string{"SLICE": sliceName}
 
 	deploy := &appsv1.Deployment{}
-	err := NewManifest("egress-deploy", sliceName).Parse(deploy)
+	err := NewManifest("egress-deploy", templates).Parse(deploy)
 	if err != nil {
 		return err
 	}
 
 	svc := &corev1.Service{}
-	err = NewManifest("egress-svc", sliceName).Parse(svc)
+	err = NewManifest("egress-svc", templates).Parse(svc)
 	if err != nil {
 		return err
 	}
 
 	role := &rbacv1.Role{}
-	err = NewManifest("egress-role", sliceName).Parse(role)
+	err = NewManifest("egress-role", templates).Parse(role)
 	if err != nil {
 		return err
 	}
 
 	sa := &corev1.ServiceAccount{}
-	err = NewManifest("egress-sa", sliceName).Parse(sa)
+	err = NewManifest("egress-sa", templates).Parse(sa)
 	if err != nil {
 		return err
 	}
 
 	rb := &rbacv1.RoleBinding{}
-	err = NewManifest("egress-rolebinding", sliceName).Parse(rb)
+	err = NewManifest("egress-rolebinding", templates).Parse(rb)
 	if err != nil {
 		return err
 	}
 
 	gw := &istiov1beta1.Gateway{}
-	err = NewManifest("egress-gw", sliceName).Parse(gw)
+	err = NewManifest("egress-gw", templates).Parse(gw)
 	if err != nil {
 		return err
 	}

@@ -42,14 +42,14 @@ func GetManifestPath(file string) string {
 }
 
 type Manifest struct {
-	Slice string
-	Path  string
+	Path      string
+	Templates map[string]string
 }
 
-func NewManifest(f string, slice string) *Manifest {
+func NewManifest(f string, templates map[string]string) *Manifest {
 	return &Manifest{
-		Path:  GetManifestPath(f),
-		Slice: slice,
+		Path:      GetManifestPath(f),
+		Templates: templates,
 	}
 }
 
@@ -60,7 +60,10 @@ func (m *Manifest) Parse(v interface{}) error {
 		return err
 	}
 
-	f := strings.ReplaceAll(string(jsonFile), "SLICE", m.Slice)
+	f := string(jsonFile)
+	for templateKey, templateVal := range m.Templates {
+		f = strings.ReplaceAll(f, templateKey, templateVal)
+	}
 
 	err = json.Unmarshal([]byte(f), v)
 	if err != nil {

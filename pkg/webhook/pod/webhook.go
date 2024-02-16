@@ -24,8 +24,6 @@ import (
 	"fmt"
 	"net/http"
 
-	//	"github.com/kubeslice/worker-operator/controllers"
-
 	"github.com/kubeslice/worker-operator/controllers"
 	"github.com/kubeslice/worker-operator/pkg/logger"
 	v1 "k8s.io/api/admission/v1"
@@ -53,7 +51,9 @@ var (
 type SliceInfoProvider interface {
 	SliceAppNamespaceConfigured(ctx context.Context, slice string, namespace string) (bool, error)
 	GetNamespaceLabels(ctx context.Context, client client.Client, namespace string) (map[string]string, error)
+	GetSliceOverlayNetworkType(ctx context.Context, client client.Client, sliceName string) (string, error)
 }
+
 type WebhookServer struct {
 	Client          client.Client
 	decoder         *admission.Decoder
@@ -264,12 +264,14 @@ func MutateDaemonSet(ds *appsv1.DaemonSet, sliceName string) *appsv1.DaemonSet {
 func (wh *WebhookServer) MutationRequired(metadata metav1.ObjectMeta, ctx context.Context, kind string) (bool, string) {
 	log := logger.FromContext(ctx)
 	annotations := metadata.GetAnnotations()
+
 	//early exit if metadata in nil
 	//we allow empty annotation, but namespace should not be empty
 	if metadata.GetNamespace() == "" {
 		log.Info("namespace is empty")
 		return false, ""
 	}
+
 	// do not inject if it is already injected
 	//TODO(rahulsawra): need better way to define injected status
 	if annotations[AdmissionWebhookAnnotationStatusKey] == "injected" {
@@ -296,6 +298,16 @@ func (wh *WebhookServer) MutationRequired(metadata metav1.ObjectMeta, ctx contex
 	sliceNameInNs, sliceLabelPresent := nsLabels[admissionWebhookSliceNamespaceSelectorKey]
 	if !sliceLabelPresent {
 		log.Info("Namespace has no slice labels")
+		return false, ""
+	}
+
+	sliceNetworkType, err := wh.SliceInfoClient.GetSliceOverlayNetworkType(context.Background(), wh.Client, sliceNameInNs)
+	if err != nil {
+		log.Error(err, "Error getting slice overlay network type")
+		return false, ""
+	}
+	if sliceNetworkType != "" && sliceNetworkType != "single-network" {
+		log.Info("Slice overlay type is not single-network. Skip pod mutation...")
 		return false, ""
 	}
 

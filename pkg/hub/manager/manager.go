@@ -28,11 +28,14 @@ import (
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
+	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	log "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	ctrlmetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
+	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
+	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
 	hubv1alpha1 "github.com/kubeslice/apis/pkg/controller/v1alpha1"
 	workerv1alpha1 "github.com/kubeslice/apis/pkg/worker/v1alpha1"
@@ -76,11 +79,26 @@ func Start(meshClient client.Client, hubClient client.Client, ctx context.Contex
 
 	log.Info("Connecting to hub cluster", "endpoint", HubEndpoint, "ns", ProjectNamespace)
 
+	webhookServer := webhook.NewServer(webhook.Options{
+		Host: HubEndpoint,
+		Port: 9443,
+	})
+
+	cacheOptions := cache.Options{
+		DefaultNamespaces: map[string]cache.Config{
+			ProjectNamespace: {},
+		},
+	}
+
+	metricsServer := metricsserver.Options{
+		BindAddress: "0",
+	}
+
 	mgr, err := manager.New(config, manager.Options{
-		Host:               HubEndpoint,
-		Namespace:          ProjectNamespace,
-		Scheme:             scheme,
-		MetricsBindAddress: "0", // disable metrics for now
+		Scheme:        scheme,
+		WebhookServer: webhookServer,
+		Cache:         cacheOptions,
+		Metrics:       metricsServer,
 	})
 	if err != nil {
 		log.Error(err, "Could not create manager")
@@ -107,6 +125,7 @@ func Start(meshClient client.Client, hubClient client.Client, ctx context.Contex
 	})
 
 	sliceReconciler := controllers.NewSliceReconciler(
+		mgr.GetClient(),
 		meshClient,
 		&workerSliceEventRecorder,
 		mf,
@@ -181,6 +200,7 @@ func Start(meshClient client.Client, hubClient client.Client, ctx context.Contex
 	}
 
 	clusterReconciler := hubCluster.NewReconciler(
+		mgr.GetClient(),
 		meshClient,
 		&workerSliceEventRecorder,
 		mf,

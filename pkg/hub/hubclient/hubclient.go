@@ -355,9 +355,11 @@ func getHubServiceDiscoveryPorts(serviceexport *kubeslicev1beta1.ServiceExport) 
 	portList := []hubv1alpha1.ServiceDiscoveryPort{}
 	for _, port := range serviceexport.Spec.Ports {
 		portList = append(portList, hubv1alpha1.ServiceDiscoveryPort{
-			Name:     port.Name,
-			Port:     port.ContainerPort,
-			Protocol: string(port.Protocol),
+			Name:            port.Name,
+			Port:            port.ContainerPort,
+			Protocol:        string(port.Protocol),
+			ServicePort:     port.ServicePort,
+			ServiceProtocol: string(port.ServiceProtocol),
 		})
 	}
 

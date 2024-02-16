@@ -76,7 +76,7 @@ func TestGetOperatorClusterRole(t *testing.T) {
 	client := utilmock.NewClient()
 
 	mf, _ := metrics.NewMetricsFactory(prometheus.NewRegistry(), metrics.MetricsFactoryOptions{})
-	reconciler := NewReconciler(client, nil, mf)
+	reconciler := NewReconciler(client, client, nil, mf)
 	reconciler.InjectClient(client)
 	ctx := context.WithValue(context.Background(), types.NamespacedName{Name: testClusterName, Namespace: testProjectNamespace}, testClusterObj)
 	clusterRoleKey := types.NamespacedName{Name: operatorClusterRoleName}
@@ -108,7 +108,7 @@ func TestCreateDeregisterJobPositiveScenarios(t *testing.T) {
 	client := utilmock.NewClient()
 
 	mf, _ := metrics.NewMetricsFactory(prometheus.NewRegistry(), metrics.MetricsFactoryOptions{})
-	reconciler := NewReconciler(client, nil, mf)
+	reconciler := NewReconciler(client, client, nil, mf)
 	reconciler.InjectClient(client)
 	ctx := context.WithValue(context.Background(), types.NamespacedName{Name: testClusterName, Namespace: testProjectNamespace}, testClusterObj)
 	clusterKey := types.NamespacedName{Namespace: testProjectNamespace, Name: testClusterName}
@@ -122,6 +122,11 @@ func TestCreateDeregisterJobPositiveScenarios(t *testing.T) {
 		mock.IsType(ctx),
 		mock.IsType(&hubv1alpha1.Cluster{}),
 		mock.IsType([]k8sclient.UpdateOption(nil)),
+	).Return(nil)
+	client.StatusMock.On("Update",
+		mock.IsType(ctx),
+		mock.IsType(&hubv1alpha1.Cluster{}),
+		mock.IsType([]k8sclient.SubResourceUpdateOption(nil)),
 	).Return(nil)
 	client.On("List",
 		mock.IsType(ctx),
@@ -210,7 +215,7 @@ func TestReconcilerFailToUpdateClusterRegistrationStatus(t *testing.T) {
 	client := utilmock.NewClient()
 
 	mf, _ := metrics.NewMetricsFactory(prometheus.NewRegistry(), metrics.MetricsFactoryOptions{})
-	reconciler := NewReconciler(client, nil, mf)
+	reconciler := NewReconciler(client, client, nil, mf)
 	reconciler.InjectClient(client)
 	ctx := context.WithValue(context.Background(), types.NamespacedName{Name: testClusterName, Namespace: testProjectNamespace}, testClusterObj)
 	clusterKey := types.NamespacedName{Namespace: testProjectNamespace, Name: testClusterName}
@@ -224,6 +229,11 @@ func TestReconcilerFailToUpdateClusterRegistrationStatus(t *testing.T) {
 		mock.IsType(ctx),
 		mock.IsType(&hubv1alpha1.Cluster{}),
 		mock.IsType([]k8sclient.UpdateOption(nil)),
+	).Return(errors.New("error updating status of deregistration on the controller"))
+	client.StatusMock.On("Update",
+		mock.IsType(ctx),
+		mock.IsType(&hubv1alpha1.Cluster{}),
+		mock.IsType([]k8sclient.SubResourceUpdateOption(nil)),
 	).Return(errors.New("error updating status of deregistration on the controller"))
 
 	err := reconciler.createDeregisterJob(ctx, testClusterObj)
@@ -248,7 +258,7 @@ func TestReconcilerFailToCreateServiceAccount(t *testing.T) {
 	client := utilmock.NewClient()
 
 	mf, _ := metrics.NewMetricsFactory(prometheus.NewRegistry(), metrics.MetricsFactoryOptions{})
-	reconciler := NewReconciler(client, nil, mf)
+	reconciler := NewReconciler(client, client, nil, mf)
 	reconciler.InjectClient(client)
 	ctx := context.WithValue(context.Background(), types.NamespacedName{Name: testClusterName, Namespace: testProjectNamespace}, testClusterObj)
 	clusterKey := types.NamespacedName{Namespace: testProjectNamespace, Name: testClusterName}
@@ -262,6 +272,11 @@ func TestReconcilerFailToCreateServiceAccount(t *testing.T) {
 		mock.IsType(ctx),
 		mock.IsType(&hubv1alpha1.Cluster{}),
 		mock.IsType([]k8sclient.UpdateOption(nil)),
+	).Return(nil)
+	client.StatusMock.On("Update",
+		mock.IsType(ctx),
+		mock.IsType(&hubv1alpha1.Cluster{}),
+		mock.IsType([]k8sclient.SubResourceUpdateOption(nil)),
 	).Return(nil)
 	client.On("List",
 		mock.IsType(ctx),
@@ -301,7 +316,7 @@ func TestReconcilerFailToFetchOperatorClusterRole(t *testing.T) {
 	client := utilmock.NewClient()
 
 	mf, _ := metrics.NewMetricsFactory(prometheus.NewRegistry(), metrics.MetricsFactoryOptions{})
-	reconciler := NewReconciler(client, nil, mf)
+	reconciler := NewReconciler(client, client, nil, mf)
 	reconciler.InjectClient(client)
 	ctx := context.WithValue(context.Background(), types.NamespacedName{Name: testClusterName, Namespace: testProjectNamespace}, testClusterObj)
 	clusterKey := types.NamespacedName{Namespace: testProjectNamespace, Name: testClusterName}
@@ -315,6 +330,11 @@ func TestReconcilerFailToFetchOperatorClusterRole(t *testing.T) {
 		mock.IsType(ctx),
 		mock.IsType(&hubv1alpha1.Cluster{}),
 		mock.IsType([]k8sclient.UpdateOption(nil)),
+	).Return(nil)
+	client.StatusMock.On("Update",
+		mock.IsType(ctx),
+		mock.IsType(&hubv1alpha1.Cluster{}),
+		mock.IsType([]k8sclient.SubResourceUpdateOption(nil)),
 	).Return(nil)
 	client.On("List",
 		mock.IsType(ctx),
@@ -364,7 +384,7 @@ func TestReconcilerFailToCreateClusterRole(t *testing.T) {
 	client := utilmock.NewClient()
 
 	mf, _ := metrics.NewMetricsFactory(prometheus.NewRegistry(), metrics.MetricsFactoryOptions{})
-	reconciler := NewReconciler(client, nil, mf)
+	reconciler := NewReconciler(client, client, nil, mf)
 	reconciler.InjectClient(client)
 	ctx := context.WithValue(context.Background(), types.NamespacedName{Name: testClusterName, Namespace: testProjectNamespace}, testClusterObj)
 	clusterKey := types.NamespacedName{Namespace: testProjectNamespace, Name: testClusterName}
@@ -378,6 +398,11 @@ func TestReconcilerFailToCreateClusterRole(t *testing.T) {
 		mock.IsType(ctx),
 		mock.IsType(&hubv1alpha1.Cluster{}),
 		mock.IsType([]k8sclient.UpdateOption(nil)),
+	).Return(nil)
+	client.StatusMock.On("Update",
+		mock.IsType(ctx),
+		mock.IsType(&hubv1alpha1.Cluster{}),
+		mock.IsType([]k8sclient.SubResourceUpdateOption(nil)),
 	).Return(nil)
 	client.On("List",
 		mock.IsType(ctx),
@@ -437,7 +462,7 @@ func TestReconcilerFailToCreateClusterRoleBinding(t *testing.T) {
 	client := utilmock.NewClient()
 
 	mf, _ := metrics.NewMetricsFactory(prometheus.NewRegistry(), metrics.MetricsFactoryOptions{})
-	reconciler := NewReconciler(client, nil, mf)
+	reconciler := NewReconciler(client, client, nil, mf)
 	reconciler.InjectClient(client)
 	ctx := context.WithValue(context.Background(), types.NamespacedName{Name: testClusterName, Namespace: testProjectNamespace}, testClusterObj)
 	clusterKey := types.NamespacedName{Namespace: testProjectNamespace, Name: testClusterName}
@@ -451,6 +476,11 @@ func TestReconcilerFailToCreateClusterRoleBinding(t *testing.T) {
 		mock.IsType(ctx),
 		mock.IsType(&hubv1alpha1.Cluster{}),
 		mock.IsType([]k8sclient.UpdateOption(nil)),
+	).Return(nil)
+	client.StatusMock.On("Update",
+		mock.IsType(ctx),
+		mock.IsType(&hubv1alpha1.Cluster{}),
+		mock.IsType([]k8sclient.SubResourceUpdateOption(nil)),
 	).Return(nil)
 	client.On("List",
 		mock.IsType(ctx),
@@ -515,7 +545,7 @@ func TestReconcilerFailToCreateConfigmap(t *testing.T) {
 	client := utilmock.NewClient()
 
 	mf, _ := metrics.NewMetricsFactory(prometheus.NewRegistry(), metrics.MetricsFactoryOptions{})
-	reconciler := NewReconciler(client, nil, mf)
+	reconciler := NewReconciler(client, client, nil, mf)
 	reconciler.InjectClient(client)
 	ctx := context.WithValue(context.Background(), types.NamespacedName{Name: testClusterName, Namespace: testProjectNamespace}, testClusterObj)
 	clusterKey := types.NamespacedName{Namespace: testProjectNamespace, Name: testClusterName}
@@ -529,6 +559,11 @@ func TestReconcilerFailToCreateConfigmap(t *testing.T) {
 		mock.IsType(ctx),
 		mock.IsType(&hubv1alpha1.Cluster{}),
 		mock.IsType([]k8sclient.UpdateOption(nil)),
+	).Return(nil)
+	client.StatusMock.On("Update",
+		mock.IsType(ctx),
+		mock.IsType(&hubv1alpha1.Cluster{}),
+		mock.IsType([]k8sclient.SubResourceUpdateOption(nil)),
 	).Return(nil)
 	client.On("List",
 		mock.IsType(ctx),
@@ -607,7 +642,7 @@ func TestReconcilerFailToDeleteJob(t *testing.T) {
 	client := utilmock.NewClient()
 
 	mf, _ := metrics.NewMetricsFactory(prometheus.NewRegistry(), metrics.MetricsFactoryOptions{})
-	reconciler := NewReconciler(client, nil, mf)
+	reconciler := NewReconciler(client, client, nil, mf)
 	reconciler.InjectClient(client)
 	ctx := context.WithValue(context.Background(), types.NamespacedName{Name: testClusterName, Namespace: testProjectNamespace}, testClusterObj)
 	clusterKey := types.NamespacedName{Namespace: testProjectNamespace, Name: testClusterName}
@@ -621,6 +656,11 @@ func TestReconcilerFailToDeleteJob(t *testing.T) {
 		mock.IsType(ctx),
 		mock.IsType(&hubv1alpha1.Cluster{}),
 		mock.IsType([]k8sclient.UpdateOption(nil)),
+	).Return(nil)
+	client.StatusMock.On("Update",
+		mock.IsType(ctx),
+		mock.IsType(&hubv1alpha1.Cluster{}),
+		mock.IsType([]k8sclient.SubResourceUpdateOption(nil)),
 	).Return(nil)
 	client.On("List",
 		mock.IsType(ctx),
@@ -710,7 +750,7 @@ func TestReconcilerFailToCreateDeregisterJob(t *testing.T) {
 	client := utilmock.NewClient()
 
 	mf, _ := metrics.NewMetricsFactory(prometheus.NewRegistry(), metrics.MetricsFactoryOptions{})
-	reconciler := NewReconciler(client, nil, mf)
+	reconciler := NewReconciler(client, client, nil, mf)
 	reconciler.InjectClient(client)
 	ctx := context.WithValue(context.Background(), types.NamespacedName{Name: testClusterName, Namespace: testProjectNamespace}, testClusterObj)
 	clusterKey := types.NamespacedName{Namespace: testProjectNamespace, Name: testClusterName}
@@ -724,6 +764,11 @@ func TestReconcilerFailToCreateDeregisterJob(t *testing.T) {
 		mock.IsType(ctx),
 		mock.IsType(&hubv1alpha1.Cluster{}),
 		mock.IsType([]k8sclient.UpdateOption(nil)),
+	).Return(nil)
+	client.StatusMock.On("Update",
+		mock.IsType(ctx),
+		mock.IsType(&hubv1alpha1.Cluster{}),
+		mock.IsType([]k8sclient.SubResourceUpdateOption(nil)),
 	).Return(nil)
 	client.On("List",
 		mock.IsType(ctx),

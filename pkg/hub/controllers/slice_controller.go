@@ -51,8 +51,9 @@ type component struct {
 	ignoreMissing bool
 }
 
-func NewSliceReconciler(mc client.Client, er *events.EventRecorder, mf metrics.MetricsFactory) *SliceReconciler {
+func NewSliceReconciler(hubclient client.Client, mc client.Client, er *events.EventRecorder, mf metrics.MetricsFactory) *SliceReconciler {
 	return &SliceReconciler{
+		Client:            hubclient,
 		MeshClient:        mc,
 		EventRecorder:     er,
 		Log:               ctrl.Log.WithName("hub").WithName("controllers").WithName("SliceConfig"),
@@ -273,6 +274,8 @@ func (r *SliceReconciler) updateSliceConfig(ctx context.Context, meshSlice *kube
 
 	meshSlice.Status.SliceConfig.SliceGatewayServiceType = spokeSlice.Spec.SliceGatewayProvider.SliceGatewayServiceType
 	meshSlice.Status.SliceConfig.SliceGatewayProtocol = spokeSlice.Spec.SliceGatewayProvider.SliceGatewayProtocol
+
+	meshSlice.Status.SliceConfig.SliceOverlayNetworkDeploymentMode = spokeSlice.Spec.OverlayNetworkDeploymentMode
 
 	meshSlice.Status.SliceConfig.QosProfileDetails = kubeslicev1beta1.QosProfileDetails{
 		QueueType:               spokeSlice.Spec.QosProfileDetails.QueueType,

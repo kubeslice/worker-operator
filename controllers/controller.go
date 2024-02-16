@@ -186,6 +186,15 @@ func SliceAppNamespaceConfigured(ctx context.Context, slice string, namespace st
 	return false, nil
 }
 
+func GetSliceOverlayNetworkType(ctx context.Context, c client.Client, sliceName string) (string, error) {
+	slice, err := GetSlice(ctx, c, sliceName)
+	if err != nil {
+		return "", err
+	}
+
+	return slice.Status.SliceConfig.SliceOverlayNetworkDeploymentMode, nil
+}
+
 func ContructNetworkPolicyObject(ctx context.Context, slice *kubeslicev1beta1.Slice, appNs string) *networkingv1.NetworkPolicy {
 	netPolicy := &networkingv1.NetworkPolicy{
 		ObjectMeta: metav1.ObjectMeta{

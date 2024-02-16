@@ -35,6 +35,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	gwapiv1 "sigs.k8s.io/gateway-api/apis/v1"
 )
 
 type ServiceImportReconciler struct {
@@ -63,9 +64,11 @@ func getMeshServiceImportPortList(svcim *spokev1alpha1.WorkerServiceImport) []ku
 	portList := []kubeslicev1beta1.ServicePort{}
 	for _, port := range svcim.Spec.ServiceDiscoveryPorts {
 		portList = append(portList, kubeslicev1beta1.ServicePort{
-			Name:          port.Name,
-			ContainerPort: port.Port,
-			Protocol:      getProtocol(port.Protocol),
+			Name:            port.Name,
+			ContainerPort:   port.Port,
+			Protocol:        getProtocol(port.Protocol),
+			ServiceProtocol: gwapiv1.ProtocolType(port.ServiceProtocol),
+			ServicePort:     port.ServicePort,
 		})
 	}
 
