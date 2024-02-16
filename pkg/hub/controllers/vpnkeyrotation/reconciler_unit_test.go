@@ -54,26 +54,26 @@ var testVPNKeyRotationObject = &hubv1alpha1.VpnKeyRotation{
 	Status: hubv1alpha1.VpnKeyRotationStatus{},
 }
 
-var testVPNKeyRotationObjectWithInProgressStatus = &hubv1alpha1.VpnKeyRotation{
-	ObjectMeta: metav1.ObjectMeta{
-		Name:      testVPNKeyRotationName,
-		Namespace: testProjectNamespace,
-	},
-	Spec: hubv1alpha1.VpnKeyRotationSpec{
-		ClusterGatewayMapping: map[string][]string{
-			"cluster1": {"fire-worker-2-worker-1", "fire-worker-2-worker-3", "fire-worker-2-worker-4"},
-		},
-		CertificateCreationTime: &metav1.Time{Time: time.Now()},
-	},
-	Status: hubv1alpha1.VpnKeyRotationStatus{
-		CurrentRotationState: map[string]hubv1alpha1.StatusOfKeyRotation{
-			"fire-worker-2-worker-1": {
-				Status:               hubv1alpha1.InProgress,
-				LastUpdatedTimestamp: metav1.Time{Time: time.Now()},
-			},
-		},
-	},
-}
+// var testVPNKeyRotationObjectWithInProgressStatus = &hubv1alpha1.VpnKeyRotation{
+// 	ObjectMeta: metav1.ObjectMeta{
+// 		Name:      testVPNKeyRotationName,
+// 		Namespace: testProjectNamespace,
+// 	},
+// 	Spec: hubv1alpha1.VpnKeyRotationSpec{
+// 		ClusterGatewayMapping: map[string][]string{
+// 			"cluster1": {"fire-worker-2-worker-1", "fire-worker-2-worker-3", "fire-worker-2-worker-4"},
+// 		},
+// 		CertificateCreationTime: &metav1.Time{Time: time.Now()},
+// 	},
+// 	Status: hubv1alpha1.VpnKeyRotationStatus{
+// 		CurrentRotationState: map[string]hubv1alpha1.StatusOfKeyRotation{
+// 			"fire-worker-2-worker-1": {
+// 				Status:               hubv1alpha1.InProgress,
+// 				LastUpdatedTimestamp: metav1.Time{Time: time.Now()},
+// 			},
+// 		},
+// 	},
+// }
 
 var testVPNKeyRotationObjectWithIntervalTest = &hubv1alpha1.VpnKeyRotation{
 	ObjectMeta: metav1.ObjectMeta{
@@ -323,6 +323,11 @@ func TestReconcilerVPNRotationReconcilerCompletionAsSuccess(t *testing.T) {
 		mock.IsType(&hubv1alpha1.VpnKeyRotation{}),
 		mock.IsType([]k8sclient.UpdateOption(nil)),
 	).Return(nil)
+	client.StatusMock.On("Update",
+		mock.IsType(ctx),
+		mock.IsType(&hubv1alpha1.VpnKeyRotation{}),
+		mock.IsType([]k8sclient.SubResourceUpdateOption(nil)),
+	).Return(nil)
 	client.On("Create",
 		mock.IsType(ctx),
 		mock.IsType(&corev1.Event{}),
@@ -396,6 +401,11 @@ func TestReconcilerVPNRotationReconcilerIntervalTestNegative(t *testing.T) {
 		mock.IsType(ctx),
 		mock.IsType(&hubv1alpha1.VpnKeyRotation{}),
 		mock.IsType([]k8sclient.UpdateOption(nil)),
+	).Return(nil)
+	client.StatusMock.On("Update",
+		mock.IsType(ctx),
+		mock.IsType(&hubv1alpha1.VpnKeyRotation{}),
+		mock.IsType([]k8sclient.SubResourceUpdateOption(nil)),
 	).Return(nil)
 	client.On("Get",
 		mock.IsType(ctx),
@@ -476,6 +486,11 @@ func TestReconcilerVPNRotationReconcilerIntervalTest(t *testing.T) {
 		mock.IsType(&hubv1alpha1.VpnKeyRotation{}),
 		mock.IsType([]k8sclient.UpdateOption(nil)),
 	).Return(nil)
+	client.StatusMock.On("Update",
+		mock.IsType(ctx),
+		mock.IsType(&hubv1alpha1.VpnKeyRotation{}),
+		mock.IsType([]k8sclient.SubResourceUpdateOption(nil)),
+	).Return(nil)
 	client.On("Get",
 		mock.IsType(ctx),
 		mock.IsType(types.NamespacedName{Name: "fire-worker-2-worker-1-0"}),
@@ -490,6 +505,11 @@ func TestReconcilerVPNRotationReconcilerIntervalTest(t *testing.T) {
 		mock.IsType(ctx),
 		mock.IsType(&hubv1alpha1.VpnKeyRotation{}),
 		mock.IsType([]k8sclient.UpdateOption(nil)),
+	).Return(nil)
+	client.StatusMock.On("Update",
+		mock.IsType(ctx),
+		mock.IsType(&hubv1alpha1.VpnKeyRotation{}),
+		mock.IsType([]k8sclient.SubResourceUpdateOption(nil)),
 	).Return(nil)
 	client.On("Get",
 		mock.IsType(ctx),
@@ -516,6 +536,11 @@ func TestReconcilerVPNRotationReconcilerIntervalTest(t *testing.T) {
 		mock.IsType(ctx),
 		mock.IsType(&hubv1alpha1.VpnKeyRotation{}),
 		mock.IsType([]k8sclient.UpdateOption(nil)),
+	).Return(nil)
+	client.StatusMock.On("Update",
+		mock.IsType(ctx),
+		mock.IsType(&hubv1alpha1.VpnKeyRotation{}),
+		mock.IsType([]k8sclient.SubResourceUpdateOption(nil)),
 	).Return(nil)
 	client.On("Get",
 		mock.IsType(ctx),
@@ -602,6 +627,11 @@ func TestReconcilerVPNRotationReconcilerTriggerFSM(t *testing.T) {
 		mock.IsType(&hubv1alpha1.VpnKeyRotation{}),
 		mock.IsType([]k8sclient.UpdateOption(nil)),
 	).Return(nil)
+	client.StatusMock.On("Update",
+		mock.IsType(ctx),
+		mock.IsType(&hubv1alpha1.VpnKeyRotation{}),
+		mock.IsType([]k8sclient.SubResourceUpdateOption(nil)),
+	).Return(nil)
 	client.On("Get",
 		mock.IsType(ctx),
 		mock.IsType(types.NamespacedName{Name: "fire-worker-2-worker-1-0"}),
@@ -642,6 +672,11 @@ func TestReconcilerVPNRotationReconcilerTriggerFSM(t *testing.T) {
 		mock.IsType(ctx),
 		mock.IsType(&hubv1alpha1.VpnKeyRotation{}),
 		mock.IsType([]k8sclient.UpdateOption(nil)),
+	).Return(nil)
+	client.StatusMock.On("Update",
+		mock.IsType(ctx),
+		mock.IsType(&hubv1alpha1.VpnKeyRotation{}),
+		mock.IsType([]k8sclient.SubResourceUpdateOption(nil)),
 	).Return(nil)
 	client.On("Get",
 		mock.IsType(ctx),
@@ -759,6 +794,11 @@ func TestReconcilerSecretCreationError(t *testing.T) {
 		mock.IsType(ctx),
 		mock.IsType(&hubv1alpha1.VpnKeyRotation{}),
 		mock.IsType([]k8sclient.UpdateOption(nil)),
+	).Return(nil)
+	client.StatusMock.On("Update",
+		mock.IsType(ctx),
+		mock.IsType(&hubv1alpha1.VpnKeyRotation{}),
+		mock.IsType([]k8sclient.SubResourceUpdateOption(nil)),
 	).Return(nil)
 	client.On("Get",
 		mock.IsType(ctx),
@@ -879,6 +919,11 @@ func TestReconcilerControllerSecretNotFound(t *testing.T) {
 		mock.IsType(&hubv1alpha1.VpnKeyRotation{}),
 		mock.IsType([]k8sclient.UpdateOption(nil)),
 	).Return(nil)
+	client.StatusMock.On("Update",
+		mock.IsType(ctx),
+		mock.IsType(&hubv1alpha1.VpnKeyRotation{}),
+		mock.IsType([]k8sclient.SubResourceUpdateOption(nil)),
+	).Return(nil)
 	client.On("Get",
 		mock.IsType(ctx),
 		mock.IsType(types.NamespacedName{Name: "fire-worker-2-worker-1-0", Namespace: ControlPlaneNamespace}),
@@ -990,6 +1035,11 @@ func TestReconcilerSecretCreationAndRequeue(t *testing.T) {
 		mock.IsType(&hubv1alpha1.VpnKeyRotation{}),
 		mock.IsType([]k8sclient.UpdateOption(nil)),
 	).Return(nil)
+	client.StatusMock.On("Update",
+		mock.IsType(ctx),
+		mock.IsType(&hubv1alpha1.VpnKeyRotation{}),
+		mock.IsType([]k8sclient.SubResourceUpdateOption(nil)),
+	).Return(nil)
 	client.On("Get",
 		mock.IsType(ctx),
 		mock.IsType(types.NamespacedName{Name: "fire-worker-2-worker-1-0", Namespace: ControlPlaneNamespace}),
@@ -1045,6 +1095,11 @@ func TestReconcilerSecretCreationAndRequeue(t *testing.T) {
 		mock.IsType(ctx),
 		mock.IsType(&hubv1alpha1.VpnKeyRotation{}),
 		mock.IsType([]k8sclient.UpdateOption(nil)),
+	).Return(nil)
+	client.StatusMock.On("Update",
+		mock.IsType(ctx),
+		mock.IsType(&hubv1alpha1.VpnKeyRotation{}),
+		mock.IsType([]k8sclient.SubResourceUpdateOption(nil)),
 	).Return(nil)
 	client.On("Get",
 		mock.IsType(ctx),
@@ -1110,6 +1165,11 @@ func TestReconcileRotationSyncingClusterAttach(t *testing.T) {
 		mock.IsType(ctx),
 		mock.IsType(&hubv1alpha1.VpnKeyRotation{}),
 		mock.IsType([]k8sclient.UpdateOption(nil)),
+	).Return(nil)
+	client.StatusMock.On("Update",
+		mock.IsType(ctx),
+		mock.IsType(&hubv1alpha1.VpnKeyRotation{}),
+		mock.IsType([]k8sclient.SubResourceUpdateOption(nil)),
 	).Return(nil)
 	client.On("List",
 		mock.IsType(ctx),
@@ -1211,6 +1271,11 @@ func TestReconcileRotationSyncingClusterDetach(t *testing.T) {
 		mock.IsType(ctx),
 		mock.IsType(&hubv1alpha1.VpnKeyRotation{}),
 		mock.IsType([]k8sclient.UpdateOption(nil)),
+	).Return(nil)
+	client.StatusMock.On("Update",
+		mock.IsType(ctx),
+		mock.IsType(&hubv1alpha1.VpnKeyRotation{}),
+		mock.IsType([]k8sclient.SubResourceUpdateOption(nil)),
 	).Return(nil)
 
 	os.Setenv("CLUSTER_NAME", "worker-2")
