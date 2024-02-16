@@ -27,7 +27,6 @@ import (
 	workerv1alpha1 "github.com/kubeslice/apis/pkg/worker/v1alpha1"
 	mevents "github.com/kubeslice/kubeslice-monitoring/pkg/events"
 	"github.com/kubeslice/kubeslice-monitoring/pkg/metrics"
-	"github.com/kubeslice/worker-operator/api/v1beta1"
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
 	ossEvents "github.com/kubeslice/worker-operator/events"
 	"github.com/prometheus/client_golang/prometheus"
@@ -211,13 +210,23 @@ func TestReconcileToUpdateWorkerSlice(t *testing.T) {
 	).Return(nil)
 	client.On("List",
 		mock.IsType(ctx),
-		mock.IsType(&v1beta1.SliceGatewayList{}),
+		mock.IsType(&kubeslicev1beta1.SliceGatewayList{}),
 		mock.IsType([]k8sclient.ListOption{}),
 	).Return(nil)
 	client.StatusMock.On("Update",
 		mock.IsType(ctx),
 		mock.IsType(&workerv1alpha1.WorkerSliceConfig{}),
 		mock.IsType([]k8sclient.UpdateOption(nil)),
+	).Return(nil)
+	client.StatusMock.On("Update",
+		mock.IsType(ctx),
+		mock.IsType(&workerv1alpha1.WorkerSliceConfig{}),
+		mock.IsType([]k8sclient.SubResourceUpdateOption(nil)),
+	).Return(nil)
+	client.StatusMock.On("Update",
+		mock.IsType(ctx),
+		mock.IsType(&kubeslicev1beta1.Slice{}),
+		mock.IsType([]k8sclient.SubResourceUpdateOption(nil)),
 	).Return(nil)
 
 	mf, _ := metrics.NewMetricsFactory(prometheus.NewRegistry(), metrics.MetricsFactoryOptions{})
@@ -260,6 +269,16 @@ func TestUpdateSliceConfig(t *testing.T) {
 		mock.IsType(ctx),
 		mock.IsType(&kubeslicev1beta1.Slice{}),
 		mock.IsType([]k8sclient.UpdateOption(nil)),
+	).Return(nil)
+	client.StatusMock.On("Update",
+		mock.IsType(ctx),
+		mock.IsType(&kubeslicev1beta1.Slice{}),
+		mock.IsType([]k8sclient.SubResourceUpdateOption(nil)),
+	).Return(nil)
+	client.StatusMock.On("Update",
+		mock.IsType(ctx),
+		mock.IsType(&workerv1alpha1.WorkerSliceConfig{}),
+		mock.IsType([]k8sclient.SubResourceUpdateOption(nil)),
 	).Return(nil)
 	err := reconciler.updateSliceConfig(expected.ctx, workerslice, controllerSlice)
 	if expected.err != err {
@@ -304,7 +323,7 @@ func TestUpdateSliceHealth(t *testing.T) {
 	).Return(nil)
 	client.On("List",
 		mock.IsType(ctx),
-		mock.IsType(&v1beta1.SliceGatewayList{}),
+		mock.IsType(&kubeslicev1beta1.SliceGatewayList{}),
 		mock.IsType([]k8sclient.ListOption{}),
 	).Return(nil)
 	client.On("List",
@@ -344,6 +363,16 @@ func TestUpdateSliceConfigByModyfingSubnetOfControllerSlice(t *testing.T) {
 		mock.IsType(ctx),
 		mock.IsType(workerslice),
 		mock.IsType([]k8sclient.UpdateOption(nil)),
+	).Return(nil)
+	client.StatusMock.On("Update",
+		mock.IsType(ctx),
+		mock.IsType(&workerv1alpha1.WorkerSliceConfig{}),
+		mock.IsType([]k8sclient.SubResourceUpdateOption(nil)),
+	).Return(nil)
+	client.StatusMock.On("Update",
+		mock.IsType(ctx),
+		mock.IsType(&kubeslicev1beta1.Slice{}),
+		mock.IsType([]k8sclient.SubResourceUpdateOption(nil)),
 	).Return(nil)
 	controllerSlice.Spec.SliceSubnet = "10.0.0.2/16"
 	workerslice.Status = kubeslicev1beta1.SliceStatus{}

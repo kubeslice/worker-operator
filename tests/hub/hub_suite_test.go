@@ -166,6 +166,7 @@ var _ = BeforeSuite(func() {
 	sr.ReconcileInterval = 5 * time.Second
 
 	sgwr := &controllers.SliceGwReconciler{
+		Client:        k8sClient,
 		MeshClient:    k8sClient,
 		EventRecorder: &testSliceEventRecorder,
 		ClusterName:   CLUSTER_NAME,
