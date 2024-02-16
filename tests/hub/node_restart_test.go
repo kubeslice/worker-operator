@@ -26,7 +26,6 @@ import (
 	hubv1alpha1 "github.com/kubeslice/apis/pkg/controller/v1alpha1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -35,15 +34,15 @@ import (
 )
 
 var _ = Describe("NodeRestart Test Suite", func() {
-	var node1, node2, internalNode1, internalNode2 *corev1.Node
-	var ns *corev1.Namespace
+	var node1, node2, internalNode1, internalNode2 *v1.Node
+	var ns *v1.Namespace
 	var cluster *hubv1alpha1.Cluster
-	var nsmconfig *corev1.ConfigMap
+	var nsmconfig *v1.ConfigMap
 
 	Context("With kubeslice node restarting", func() {
 		BeforeEach(func() {
 			//create 2 kubeslice gateway nodes
-			node1 = &corev1.Node{
+			node1 = &v1.Node{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "kubeslice-gw-node-1",
 					Labels: map[string]string{
@@ -51,26 +50,26 @@ var _ = Describe("NodeRestart Test Suite", func() {
 						"kubeslice.io/node-type":        "gateway",
 					},
 				},
-				Spec: corev1.NodeSpec{
+				Spec: v1.NodeSpec{
 					ProviderID: "gce://demo",
 				},
-				Status: corev1.NodeStatus{
-					Addresses: []corev1.NodeAddress{
+				Status: v1.NodeStatus{
+					Addresses: []v1.NodeAddress{
 						{
-							Type:    corev1.NodeExternalIP,
+							Type:    v1.NodeExternalIP,
 							Address: "35.235.10.1",
 						},
 					},
-					Conditions: []corev1.NodeCondition{
+					Conditions: []v1.NodeCondition{
 						{
-							Type:   corev1.NodeReady,
-							Status: corev1.ConditionTrue,
+							Type:   v1.NodeReady,
+							Status: v1.ConditionTrue,
 						},
 					},
 				},
 			}
 			Expect(k8sClient.Create(ctx, node1)).Should(Succeed())
-			node2 = &corev1.Node{
+			node2 = &v1.Node{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "kubeslice-gw-node-2",
 					Labels: map[string]string{
@@ -78,26 +77,26 @@ var _ = Describe("NodeRestart Test Suite", func() {
 						"kubeslice.io/node-type":        "gateway",
 					},
 				},
-				Spec: corev1.NodeSpec{
+				Spec: v1.NodeSpec{
 					ProviderID: "gce://demo",
 				},
-				Status: corev1.NodeStatus{
-					Addresses: []corev1.NodeAddress{
+				Status: v1.NodeStatus{
+					Addresses: []v1.NodeAddress{
 						{
-							Type:    corev1.NodeExternalIP,
+							Type:    v1.NodeExternalIP,
 							Address: "35.235.10.2",
 						},
 					},
-					Conditions: []corev1.NodeCondition{
+					Conditions: []v1.NodeCondition{
 						{
-							Type:   corev1.NodeReady,
-							Status: corev1.ConditionTrue,
+							Type:   v1.NodeReady,
+							Status: v1.ConditionTrue,
 						},
 					},
 				},
 			}
 
-			internalNode1 = &corev1.Node{
+			internalNode1 = &v1.Node{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "kubeslice-int-node-1",
 					Labels: map[string]string{
@@ -105,25 +104,25 @@ var _ = Describe("NodeRestart Test Suite", func() {
 						"kubeslice.io/node-type":        "gateway",
 					},
 				},
-				Spec: corev1.NodeSpec{
+				Spec: v1.NodeSpec{
 					ProviderID: "gce://demo",
 				},
-				Status: corev1.NodeStatus{
-					Addresses: []corev1.NodeAddress{
+				Status: v1.NodeStatus{
+					Addresses: []v1.NodeAddress{
 						{
-							Type:    corev1.NodeExternalIP,
+							Type:    v1.NodeExternalIP,
 							Address: "35.235.10.3",
 						},
 					},
-					Conditions: []corev1.NodeCondition{
+					Conditions: []v1.NodeCondition{
 						{
-							Type:   corev1.NodeReady,
-							Status: corev1.ConditionTrue,
+							Type:   v1.NodeReady,
+							Status: v1.ConditionTrue,
 						},
 					},
 				},
 			}
-			internalNode2 = &corev1.Node{
+			internalNode2 = &v1.Node{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "kubeslice-int-node-2",
 					Labels: map[string]string{
@@ -131,26 +130,26 @@ var _ = Describe("NodeRestart Test Suite", func() {
 						"kubeslice.io/node-type":        "gateway",
 					},
 				},
-				Spec: corev1.NodeSpec{
+				Spec: v1.NodeSpec{
 					ProviderID: "gce://demo",
 				},
-				Status: corev1.NodeStatus{
-					Addresses: []corev1.NodeAddress{
+				Status: v1.NodeStatus{
+					Addresses: []v1.NodeAddress{
 						{
-							Type:    corev1.NodeExternalIP,
+							Type:    v1.NodeExternalIP,
 							Address: "35.235.10.4",
 						},
 					},
-					Conditions: []corev1.NodeCondition{
+					Conditions: []v1.NodeCondition{
 						{
-							Type:   corev1.NodeReady,
-							Status: corev1.ConditionTrue,
+							Type:   v1.NodeReady,
+							Status: v1.ConditionTrue,
 						},
 					},
 				},
 			}
 			// create project namespace (simulate controller cluster behaviour)
-			ns = &corev1.Namespace{
+			ns = &v1.Namespace{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: PROJECT_NS,
 				},

@@ -54,27 +54,6 @@ var testVPNKeyRotationObject = &hubv1alpha1.VpnKeyRotation{
 	Status: hubv1alpha1.VpnKeyRotationStatus{},
 }
 
-// var testVPNKeyRotationObjectWithInProgressStatus = &hubv1alpha1.VpnKeyRotation{
-// 	ObjectMeta: metav1.ObjectMeta{
-// 		Name:      testVPNKeyRotationName,
-// 		Namespace: testProjectNamespace,
-// 	},
-// 	Spec: hubv1alpha1.VpnKeyRotationSpec{
-// 		ClusterGatewayMapping: map[string][]string{
-// 			"cluster1": {"fire-worker-2-worker-1", "fire-worker-2-worker-3", "fire-worker-2-worker-4"},
-// 		},
-// 		CertificateCreationTime: &metav1.Time{Time: time.Now()},
-// 	},
-// 	Status: hubv1alpha1.VpnKeyRotationStatus{
-// 		CurrentRotationState: map[string]hubv1alpha1.StatusOfKeyRotation{
-// 			"fire-worker-2-worker-1": {
-// 				Status:               hubv1alpha1.InProgress,
-// 				LastUpdatedTimestamp: metav1.Time{Time: time.Now()},
-// 			},
-// 		},
-// 	},
-// }
-
 var testVPNKeyRotationObjectWithIntervalTest = &hubv1alpha1.VpnKeyRotation{
 	ObjectMeta: metav1.ObjectMeta{
 		Name:      testVPNKeyRotationName,
