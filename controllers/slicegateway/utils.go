@@ -427,6 +427,7 @@ func (r *SliceGwReconciler) cleanupSliceGwResources(ctx context.Context, slicegw
 	return nil
 }
 
+// getOVPNClientContainerArgs returns the args needed for the ovpn client deployment container
 func getOVPNClientContainerArgs(remotePortNumber int, g *kubeslicev1beta1.SliceGateway) []string {
 	args := []string{
 		"/vpnclient/" + certFileName,
