@@ -27,10 +27,14 @@ import (
 	nsmv1 "github.com/networkservicemesh/sdk-k8s/pkg/tools/k8s/apis/networkservicemesh.io/v1"
 
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
+	"github.com/kubeslice/worker-operator/controllers"
+	slicegatewaycontroller "github.com/kubeslice/worker-operator/controllers/slicegateway"
+	webhook "github.com/kubeslice/worker-operator/pkg/webhook/pod"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	policyv1 "k8s.io/api/policy/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -50,6 +54,9 @@ var _ = Describe("Worker SlicegwController", func() {
 	var createdSlice *kubeslicev1beta1.Slice
 	var vl3ServiceEndpoint *nsmv1.NetworkServiceEndpoint
 	var appPod *corev1.Pod
+	var podDisruptionBudget *policyv1.PodDisruptionBudget
+	var createdPodDisruptionBudget *policyv1.PodDisruptionBudget
+
 	Context("With SliceGW CR created", func() {
 
 		BeforeEach(func() {
@@ -132,8 +139,30 @@ var _ = Describe("Worker SlicegwController", func() {
 				},
 			}
 
+			podDisruptionBudget = &policyv1.PodDisruptionBudget{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      fmt.Sprintf("%s-pdb", sliceGw.Name),
+					Namespace: CONTROL_PLANE_NS,
+					Labels: map[string]string{
+						controllers.ApplicationNamespaceSelectorLabelKey: slice.Name,
+						controllers.SliceGatewaySelectorLabelKey:         sliceGw.Name,
+					},
+				},
+				Spec: policyv1.PodDisruptionBudgetSpec{
+					MinAvailable: &slicegatewaycontroller.DefaultMinAvailablePodsInPDB,
+					Selector: &metav1.LabelSelector{
+						MatchLabels: map[string]string{
+							controllers.ApplicationNamespaceSelectorLabelKey: slice.Name,
+							webhook.PodInjectLabelKey:                        "slicegateway",
+							"kubeslice.io/slicegw":                           sliceGw.Name,
+						},
+					},
+				},
+			}
+
 			createdSlice = &kubeslicev1beta1.Slice{}
 			createdSliceGw = &kubeslicev1beta1.SliceGateway{}
+			createdPodDisruptionBudget = &policyv1.PodDisruptionBudget{}
 			founddepl := &appsv1.Deployment{}
 			deplKey := types.NamespacedName{Name: "test-slicegw", Namespace: CONTROL_PLANE_NS}
 
@@ -167,6 +196,19 @@ var _ = Describe("Worker SlicegwController", func() {
 				Eventually(func() bool {
 					err := k8sClient.Get(ctx, types.NamespacedName{Name: svc.Name, Namespace: svc.Namespace}, svc)
 					return errors.IsNotFound(err)
+				}, time.Second*30, time.Millisecond*250).Should(BeTrue())
+
+				Eventually(func() bool {
+					err := k8sClient.Get(ctx, types.NamespacedName{
+						Name:      podDisruptionBudget.Name,
+						Namespace: podDisruptionBudget.Namespace},
+						createdPodDisruptionBudget,
+					)
+					if err != nil {
+						return errors.IsNotFound(err)
+					}
+					Expect(k8sClient.Delete(ctx, createdPodDisruptionBudget)).Should(Succeed())
+					return true
 				}, time.Second*30, time.Millisecond*250).Should(BeTrue())
 			})
 		})
@@ -315,6 +357,94 @@ var _ = Describe("Worker SlicegwController", func() {
 
 		})
 
+		It("Should create a PodDisruptionBudget for gateway server's pods", func() {
+			ctx := context.Background()
+			Expect(k8sClient.Create(ctx, svc)).Should(Succeed())
+			Expect(k8sClient.Create(ctx, slice)).Should(Succeed())
+			Expect(k8sClient.Create(ctx, vl3ServiceEndpoint)).Should(Succeed())
+			Expect(k8sClient.Create(ctx, sliceGw)).Should(Succeed())
+			Expect(k8sClient.Create(ctx, appPod)).Should(Succeed())
+
+			sliceKey := types.NamespacedName{Name: "test-slice-4", Namespace: CONTROL_PLANE_NS}
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, sliceKey, createdSlice)
+				return err == nil
+			}, time.Second*250, time.Millisecond*250).Should(BeTrue())
+
+			err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+				err := k8sClient.Get(ctx, sliceKey, createdSlice)
+				if err != nil {
+					return err
+				}
+				// Update the minimum required values in the slice cr status field
+				if createdSlice.Status.SliceConfig == nil {
+					createdSlice.Status.SliceConfig = &kubeslicev1beta1.SliceConfig{
+						SliceDisplayName: slice.Name,
+						SliceSubnet:      "192.168.0.0/16",
+					}
+				}
+				if err := k8sClient.Status().Update(ctx, createdSlice); err != nil {
+					return err
+				}
+				return nil
+			})
+			Expect(err).To(BeNil())
+			Expect(createdSlice.Status.SliceConfig).NotTo(BeNil())
+
+			slicegwkey := types.NamespacedName{Name: "test-slicegw", Namespace: CONTROL_PLANE_NS}
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, slicegwkey, createdSliceGw)
+				return err == nil
+			}, time.Second*250, time.Millisecond*250).Should(BeTrue())
+
+			createdSliceGw.Status.Config.SliceGatewayHostType = "Server"
+			Eventually(func() bool {
+				err := k8sClient.Status().Update(ctx, createdSliceGw)
+				return err == nil
+			}, time.Second*10, time.Millisecond*250).Should(BeTrue())
+
+			foundsvc := &corev1.Service{}
+			svckey := types.NamespacedName{Name: "svc-test-slicegw-0-0", Namespace: CONTROL_PLANE_NS}
+
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, svckey, foundsvc)
+				return err == nil
+			}, time.Second*30, time.Millisecond*250).Should(BeTrue())
+
+			foundsvc = &corev1.Service{}
+			svckey = types.NamespacedName{Name: "svc-test-slicegw-1-0", Namespace: CONTROL_PLANE_NS}
+
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, svckey, foundsvc)
+				return err == nil
+			}, time.Second*30, time.Millisecond*250).Should(BeTrue())
+
+			founddepl := &appsv1.Deployment{}
+			deplKey := types.NamespacedName{Name: "test-slicegw-0-0", Namespace: CONTROL_PLANE_NS}
+
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, deplKey, founddepl)
+				return err == nil
+			}, time.Second*40, time.Millisecond*250).Should(BeTrue())
+
+			founddepl = &appsv1.Deployment{}
+			deplKey = types.NamespacedName{Name: "test-slicegw-1-0", Namespace: CONTROL_PLANE_NS}
+
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, deplKey, founddepl)
+				return err == nil
+			}, time.Second*40, time.Millisecond*250).Should(BeTrue())
+
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, types.NamespacedName{
+					Name:      podDisruptionBudget.Name,
+					Namespace: podDisruptionBudget.Namespace,
+				}, createdPodDisruptionBudget)
+
+				return err == nil
+			}, time.Second*40, time.Millisecond*250).Should(BeTrue())
+		})
+
 		It("Should create a finalizer for the slicegw cr created", func() {
 			ctx := context.Background()
 
@@ -430,6 +560,88 @@ var _ = Describe("Worker SlicegwController", func() {
 			}, time.Second*40, time.Millisecond*250).Should(BeTrue())
 
 		})
+
+		It("Should create a PodDisruptionBudget for gateway client's pods", func() {
+			ctx := context.Background()
+			Expect(k8sClient.Create(ctx, svc)).Should(Succeed())
+			Expect(k8sClient.Create(ctx, slice)).Should(Succeed())
+			Expect(k8sClient.Create(ctx, vl3ServiceEndpoint)).Should(Succeed())
+			Expect(k8sClient.Create(ctx, sliceGw)).Should(Succeed())
+			Expect(k8sClient.Create(ctx, appPod)).Should(Succeed())
+
+			sliceKey := types.NamespacedName{Name: "test-slice-4", Namespace: CONTROL_PLANE_NS}
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, sliceKey, createdSlice)
+				return err == nil
+			}, time.Second*250, time.Millisecond*250).Should(BeTrue())
+
+			err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+				err := k8sClient.Get(ctx, sliceKey, createdSlice)
+				if err != nil {
+					return err
+				}
+				// Update the minimum required values in the slice cr status field
+				if createdSlice.Status.SliceConfig == nil {
+					createdSlice.Status.SliceConfig = &kubeslicev1beta1.SliceConfig{
+						SliceDisplayName: slice.Name,
+						SliceSubnet:      "192.168.0.0/16",
+					}
+				}
+				if err := k8sClient.Status().Update(ctx, createdSlice); err != nil {
+					return err
+				}
+				return nil
+			})
+			Expect(err).To(BeNil())
+			Expect(createdSlice.Status.SliceConfig).NotTo(BeNil())
+
+			slicegwkey := types.NamespacedName{Name: "test-slicegw", Namespace: CONTROL_PLANE_NS}
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, slicegwkey, createdSliceGw)
+				return err == nil
+			}, time.Second*250, time.Millisecond*250).Should(BeTrue())
+
+			createdSliceGw.Status.Config.SliceGatewayHostType = "Client"
+			createdSliceGw.Status.Config.SliceGatewayRemoteGatewayID = "remote-gateway-id"
+			createdSliceGw.Status.Config.SliceGatewayRemoteNodeIPs = []string{"192.168.1.1"}
+			createdSliceGw.Status.Config.SliceGatewayRemoteNodePorts = []int{8080, 8090}
+
+			Eventually(func() bool {
+				err := k8sClient.Status().Update(ctx, createdSliceGw)
+				return err == nil
+			}, time.Second*30, time.Millisecond*250).Should(BeTrue())
+
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, slicegwkey, createdSliceGw)
+				return err == nil
+			}, time.Second*10, time.Millisecond*250).Should(BeTrue())
+
+			founddepl := &appsv1.Deployment{}
+			deplKey := types.NamespacedName{Name: "test-slicegw-0-0", Namespace: CONTROL_PLANE_NS}
+
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, deplKey, founddepl)
+				return err == nil
+			}, time.Second*40, time.Millisecond*250).Should(BeTrue())
+
+			founddepl = &appsv1.Deployment{}
+			deplKey = types.NamespacedName{Name: "test-slicegw-1-0", Namespace: CONTROL_PLANE_NS}
+
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, deplKey, founddepl)
+				return err == nil
+			}, time.Second*40, time.Millisecond*250).Should(BeTrue())
+
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, types.NamespacedName{
+					Name:      podDisruptionBudget.Name,
+					Namespace: podDisruptionBudget.Namespace,
+				}, createdPodDisruptionBudget)
+
+				return err == nil
+			}, time.Second*40, time.Millisecond*250).Should(BeTrue())
+		})
+
 		It("Should create create headless service for gw client", func() {
 			ctx := context.Background()
 			Expect(k8sClient.Create(ctx, svc)).Should(Succeed())
@@ -647,6 +859,16 @@ var _ = Describe("Worker SlicegwController", func() {
 
 			Eventually(func() bool {
 				err := k8sClient.Get(ctx, slicegwkey, createdSliceGw)
+				return errors.IsNotFound(err)
+			}, time.Second*10, time.Millisecond*250).Should(BeTrue())
+
+			createdPodDisruptionBudget = &policyv1.PodDisruptionBudget{}
+
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, types.NamespacedName{
+					Name:      podDisruptionBudget.Name,
+					Namespace: podDisruptionBudget.Namespace,
+				}, createdPodDisruptionBudget)
 				return errors.IsNotFound(err)
 			}, time.Second*10, time.Millisecond*250).Should(BeTrue())
 		})
