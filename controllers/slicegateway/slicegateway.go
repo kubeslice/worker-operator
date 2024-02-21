@@ -25,7 +25,6 @@ import (
 	"math"
 	"net"
 	"os"
-	"slices"
 	"strconv"
 	"sync"
 	"time"
@@ -1379,7 +1378,7 @@ func (r *SliceGwReconciler) ReconcileGatewayDeployments(ctx context.Context, sli
 					gwClientToRemotePortMap.Store(deployment.Name, nodePortInUse)
 				}
 				// TODO: Handle the case of the port number in the deployment and the one in the port map being different
-				if !slices.Contains(sliceGw.Status.Config.SliceGatewayRemoteNodePorts, nodePortInUse) {
+				if contains(sliceGw.Status.Config.SliceGatewayRemoteNodePorts, nodePortInUse) {
 					r.updateGatewayDeployment(ctx, r.Client, sliceGw, &deployment, sliceGw.Status.Config.SliceGatewayRemoteNodePorts[index])
 				}
 			}

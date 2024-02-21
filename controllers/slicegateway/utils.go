@@ -77,14 +77,14 @@ func getGwSvcNameFromDepName(depName string) string {
 	return "svc-" + depName
 }
 
-func contains(s []string, e string) bool {
-	for _, a := range s {
-		if a == e {
-			return true
-		}
-	}
-	return false
-}
+// func contains(s []string, e string) bool {
+// 	for _, a := range s {
+// 		if a == e {
+// 			return true
+// 		}
+// 	}
+// 	return false
+// }
 
 func getPodIPs(slicegateway *kubeslicev1beta1.SliceGateway) []string {
 	podIPs := make([]string, 0)
@@ -447,4 +447,13 @@ func getOVPNClientContainerArgs(remotePortNumber int, g *kubeslicev1beta1.SliceG
 		"/vpnclient/" + certFileName,
 	}
 	return args
+}
+
+func contains[T comparable](s []T, e T) bool {
+	for _, element := range s {
+		if element == e {
+			return true
+		}
+	}
+	return false
 }
