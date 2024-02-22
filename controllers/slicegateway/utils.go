@@ -77,15 +77,6 @@ func getGwSvcNameFromDepName(depName string) string {
 	return "svc-" + depName
 }
 
-// func contains(s []string, e string) bool {
-// 	for _, a := range s {
-// 		if a == e {
-// 			return true
-// 		}
-// 	}
-// 	return false
-// }
-
 func getPodIPs(slicegateway *kubeslicev1beta1.SliceGateway) []string {
 	podIPs := make([]string, 0)
 	for i := range slicegateway.Status.GatewayPodStatus {
