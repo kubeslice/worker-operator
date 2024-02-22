@@ -165,8 +165,8 @@ var _ = Describe("Worker SlicegwController", func() {
 			createdSliceGw = &kubeslicev1beta1.SliceGateway{}
 			createdPodDisruptionBudget = &policyv1.PodDisruptionBudget{}
 			founddepl := &appsv1.Deployment{}
-			deplKey := types.NamespacedName{Name: "test-slicegw", Namespace: CONTROL_PLANE_NS}
-
+			deplKey1 := types.NamespacedName{Name: "test-slicegw-0-0", Namespace: CONTROL_PLANE_NS}
+			deplKey2 := types.NamespacedName{Name: "test-slicegw-1-0", Namespace: CONTROL_PLANE_NS}
 			DeferCleanup(func() {
 				ctx := context.Background()
 				Expect(k8sClient.Delete(ctx, slice)).Should(Succeed())
@@ -186,13 +186,18 @@ var _ = Describe("Worker SlicegwController", func() {
 				}, time.Second*40, time.Millisecond*250).Should(BeTrue())
 				Expect(k8sClient.Delete(ctx, appPod)).Should(Succeed())
 				Eventually(func() bool {
-					err := k8sClient.Get(ctx, deplKey, founddepl)
+					err := k8sClient.Get(ctx, deplKey1, founddepl)
+					if err != nil {
+						return errors.IsNotFound(err)
+					}
+					Expect(k8sClient.Delete(ctx, founddepl)).Should(Succeed())
+					err = k8sClient.Get(ctx, deplKey2, founddepl)
 					if err != nil {
 						return errors.IsNotFound(err)
 					}
 					Expect(k8sClient.Delete(ctx, founddepl)).Should(Succeed())
 					return true
-				}, time.Second*40, time.Millisecond*250).Should(BeTrue())
+				}, time.Second*50, time.Millisecond*250).Should(BeTrue())
 				Expect(k8sClient.Delete(ctx, svc)).Should(Succeed())
 				Eventually(func() bool {
 					err := k8sClient.Get(ctx, types.NamespacedName{Name: svc.Name, Namespace: svc.Namespace}, svc)
@@ -775,7 +780,7 @@ var _ = Describe("Worker SlicegwController", func() {
 			Expect(endpointFound.Subsets[0].Addresses[0].IP).To(Equal(createdSliceGw.Status.Config.SliceGatewayRemoteNodeIPs[0]))
 		})
 
-		FIt("Should restart the gw client deployment if there is mismatch in the nodePorts", func() {
+		It("Should restart the gw client deployment if there is mismatch in the nodePorts", func() {
 			ctx := context.Background()
 			Expect(k8sClient.Create(ctx, svc)).Should(Succeed())
 			Expect(k8sClient.Create(ctx, slice)).Should(Succeed())
@@ -871,7 +876,6 @@ var _ = Describe("Worker SlicegwController", func() {
 				}
 				return createdSliceGw.Status.Config.SliceGatewayRemoteNodePorts
 			}(&portFromDep), time.Second*120, time.Millisecond*250).Should(ContainElement(portFromDep))
-
 		})
 	})
 
