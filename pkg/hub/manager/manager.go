@@ -143,6 +143,7 @@ func Start(meshClient client.Client, hubClient client.Client, ctx context.Contex
 	}
 
 	sliceGwReconciler := &controllers.SliceGwReconciler{
+		Client:        mgr.GetClient(),
 		MeshClient:    meshClient,
 		EventRecorder: &workerSliceEventRecorder,
 		ClusterName:   ClusterName,
@@ -160,6 +161,7 @@ func Start(meshClient client.Client, hubClient client.Client, ctx context.Contex
 	}
 
 	serviceImportReconciler := &controllers.ServiceImportReconciler{
+		Client:        mgr.GetClient(),
 		MeshClient:    meshClient,
 		EventRecorder: &workerSliceEventRecorder,
 	}
