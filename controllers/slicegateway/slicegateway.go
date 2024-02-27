@@ -1379,7 +1379,7 @@ func (r *SliceGwReconciler) ReconcileGatewayDeployments(ctx context.Context, sli
 				}
 				// TODO: Handle the case of the port number in the deployment and the one in the port map being different
 				if !contains(sliceGw.Status.Config.SliceGatewayRemoteNodePorts, nodePortInUse) {
-					r.updateGatewayDeployment(ctx, r.Client, sliceGw, &deployment, sliceGw.Status.Config.SliceGatewayRemoteNodePorts[index])
+					r.updateGatewayDeploymentNodePort(ctx, r.Client, sliceGw, &deployment, sliceGw.Status.Config.SliceGatewayRemoteNodePorts[index])
 				}
 			}
 		}
@@ -1585,17 +1585,17 @@ func (r *SliceGwReconciler) createPodDisruptionBudgetForSliceGatewayPods(ctx con
 
 // updateGatewayDeployment updates the gateway client deployments with the relevant updated ports
 // from the workersliceconfig
-func (r *SliceGwReconciler) updateGatewayDeployment(ctx context.Context, c client.Client, g *kubeslicev1beta1.SliceGateway, deployment *appsv1.Deployment, nodePort int) error {
+func (r *SliceGwReconciler) updateGatewayDeploymentNodePort(ctx context.Context, c client.Client, g *kubeslicev1beta1.SliceGateway, deployment *appsv1.Deployment, nodePort int) error {
 	containers := deployment.Spec.Template.Spec.Containers
 	for contIndex, cont := range containers {
 		if cont.Name == "kubeslice-sidecar" {
 			for index, key := range cont.Env {
 				if key.Name == "NODE_PORT" {
-					upEnvVar := corev1.EnvVar{
+					updatedEnvVar := corev1.EnvVar{
 						Name:  "NODE_PORT",
 						Value: strconv.Itoa(nodePort),
 					}
-					cont.Env[index] = upEnvVar
+					cont.Env[index] = updatedEnvVar
 				}
 			}
 		} else if cont.Name == "kubeslice-openvpn-client" {
