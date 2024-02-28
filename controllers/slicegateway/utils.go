@@ -25,6 +25,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 
 	gwsidecarpb "github.com/kubeslice/gateway-sidecar/pkg/sidecar/sidecarpb"
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
@@ -447,4 +448,36 @@ func contains[T comparable](s []T, e T) bool {
 		}
 	}
 	return false
+}
+
+func containsWithIndex[T comparable](s []T, e T) (bool, int) {
+	for index, element := range s {
+		if element == e {
+			return true, index
+		}
+	}
+	return false, 0
+}
+
+// a helper to assign distinct port to each client deployment
+func allocateNodePortToClient(correctNodePorts []int, nodePortsMap sync.Map) int {
+	nodePortsMap.Range(func(k, v interface{}) bool {
+		if ok, index := containsWithIndex(correctNodePorts, v.(int)); ok {
+			correctNodePorts = append(correctNodePorts[:index], correctNodePorts[index+1:]...)
+		}
+		return true
+	})
+	if len(correctNodePorts) > 0 {
+		return correctNodePorts[0]
+	}
+	return 0
+}
+
+func hasSameValues[T comparable](s []T) bool {
+	for _, v := range s {
+		if v != s[0] {
+			return false
+		}
+	}
+	return true
 }

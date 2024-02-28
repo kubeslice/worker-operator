@@ -1370,19 +1370,35 @@ func (r *SliceGwReconciler) ReconcileGatewayDeployments(ctx context.Context, sli
 
 	// Reconcile deployment to node port mapping for gw client deployments
 	if isClient(sliceGw) {
-		for index, deployment := range deployments.Items {
+		UpdateDeploymentSlice := make([]appsv1.Deployment, 0)
+		toUpdate := false
+		for _, deployment := range deployments.Items {
 			found, nodePortInUse := getClientGwRemotePortInUse(ctx, r.Client, sliceGw, deployment.Name)
 			if found {
-				_, foundInMap := gwClientToRemotePortMap.Load(deployment.Name)
-				if !foundInMap {
+				portInMap, foundInMap := gwClientToRemotePortMap.Load(deployment.Name)
+				if portInMap != nodePortInUse || !foundInMap {
 					gwClientToRemotePortMap.Store(deployment.Name, nodePortInUse)
 				}
 				// TODO: Handle the case of the port number in the deployment and the one in the port map being different
 				if !contains(sliceGw.Status.Config.SliceGatewayRemoteNodePorts, nodePortInUse) {
-					r.updateGatewayDeploymentNodePort(ctx, r.Client, sliceGw, &deployment, sliceGw.Status.Config.SliceGatewayRemoteNodePorts[index])
+					if !hasSameValues(sliceGw.Status.Config.SliceGatewayRemoteNodePorts) {
+						UpdateDeploymentSlice = append(UpdateDeploymentSlice, deployment)
+						toUpdate = true
+					}
 				}
 			}
 		}
+		if toUpdate {
+			for _, dep := range UpdateDeploymentSlice {
+				portToUpdate := allocateNodePortToClient(sliceGw.Status.Config.SliceGatewayRemoteNodePorts, gwClientToRemotePortMap)
+				if portToUpdate != 0 {
+					gwClientToRemotePortMap.Store(dep.Name, portToUpdate)
+					r.updateGatewayDeploymentNodePort(ctx, r.Client, sliceGw, &dep, portToUpdate)
+				}
+
+			}
+		}
+
 	}
 
 	// Delete any deployments marked for deletion. We could have an external orchestrator (like the workerslicegatewayrecycler) request
