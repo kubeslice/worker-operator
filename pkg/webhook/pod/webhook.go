@@ -56,14 +56,14 @@ type SliceInfoProvider interface {
 
 type WebhookServer struct {
 	Client          client.Client
-	decoder         *admission.Decoder
+	Decoder         *admission.Decoder
 	SliceInfoClient SliceInfoProvider
 }
 
 func (wh *WebhookServer) Handle(ctx context.Context, req admission.Request) admission.Response {
 	if req.Kind.Kind == "Pod" {
 		pod := &corev1.Pod{}
-		err := wh.decoder.Decode(req, pod)
+		err := wh.Decoder.Decode(req, pod)
 		if err != nil {
 			return admission.Errored(http.StatusBadRequest, err)
 		}
@@ -90,7 +90,7 @@ func (wh *WebhookServer) Handle(ctx context.Context, req admission.Request) admi
 	} else if req.Kind.Kind == "Deployment" {
 		deploy := &appsv1.Deployment{}
 		log := logger.FromContext(ctx)
-		err := wh.decoder.Decode(req, deploy)
+		err := wh.Decoder.Decode(req, deploy)
 		if err != nil {
 			return admission.Errored(http.StatusBadRequest, err)
 		}
@@ -110,7 +110,7 @@ func (wh *WebhookServer) Handle(ctx context.Context, req admission.Request) admi
 		return admission.PatchResponseFromRaw(req.Object.Raw, marshaled)
 	} else if req.Kind.Kind == "StatefulSet" {
 		statefulset := &appsv1.StatefulSet{}
-		err := wh.decoder.Decode(req, statefulset)
+		err := wh.Decoder.Decode(req, statefulset)
 		if err != nil {
 			return admission.Errored(http.StatusBadRequest, err)
 		}
@@ -131,7 +131,7 @@ func (wh *WebhookServer) Handle(ctx context.Context, req admission.Request) admi
 		return admission.PatchResponseFromRaw(req.Object.Raw, marshaled)
 	} else if req.Kind.Kind == "DaemonSet" {
 		daemonset := &appsv1.DaemonSet{}
-		err := wh.decoder.Decode(req, daemonset)
+		err := wh.Decoder.Decode(req, daemonset)
 		if err != nil {
 			return admission.Errored(http.StatusBadRequest, err)
 		}
@@ -157,11 +157,6 @@ func (wh *WebhookServer) Handle(ctx context.Context, req admission.Request) admi
 			Message: "Invalid Kind",
 		},
 	}}
-}
-
-func (wh *WebhookServer) InjectDecoder(d *admission.Decoder) error {
-	wh.decoder = d
-	return nil
 }
 
 func MutatePod(pod *corev1.Pod, sliceName string) *corev1.Pod {

@@ -49,6 +49,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
+	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
 	nsmv1 "github.com/networkservicemesh/sdk-k8s/pkg/tools/k8s/apis/networkservicemesh.io/v1"
 	istiov1beta1 "istio.io/client-go/pkg/apis/networking/v1beta1"
@@ -136,6 +137,7 @@ func main() {
 			Handler: &podwh.WebhookServer{
 				Client:          mgr.GetClient(),
 				SliceInfoClient: podwh.NewWebhookClient(),
+				Decoder:         admission.NewDecoder(mgr.GetScheme()),
 			},
 		})
 	}
