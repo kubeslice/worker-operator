@@ -460,7 +460,7 @@ func containsWithIndex[T comparable](s []T, e T) (bool, int) {
 }
 
 // a helper to assign distinct port to each client deployment
-func allocateNodePortToClient(correctNodePorts []int, nodePortsMap sync.Map) int {
+func allocateNodePortToClient(correctNodePorts []int, nodePortsMap *sync.Map) int {
 	nodePortsMap.Range(func(k, v interface{}) bool {
 		if ok, index := containsWithIndex(correctNodePorts, v.(int)); ok {
 			correctNodePorts = append(correctNodePorts[:index], correctNodePorts[index+1:]...)
