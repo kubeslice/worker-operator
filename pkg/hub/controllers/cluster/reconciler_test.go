@@ -178,7 +178,7 @@ func TestReconcilerHandleExternalDependency(t *testing.T) {
 	client.StatusMock.On("Update",
 		mock.IsType(ctx),
 		mock.IsType(&hubv1alpha1.Cluster{}),
-		mock.IsType([]k8sclient.UpdateOption(nil)),
+		mock.IsType([]k8sclient.SubResourceUpdateOption(nil)),
 	).Return(nil)
 	client.On("List",
 		mock.IsType(ctx),
@@ -295,7 +295,7 @@ func TestReconcilerToFailWhileCallingCreateDeregisterJob(t *testing.T) {
 	client.StatusMock.On("Update",
 		mock.IsType(ctx),
 		mock.IsType(&hubv1alpha1.Cluster{}),
-		mock.IsType([]k8sclient.UpdateOption(nil)),
+		mock.IsType([]k8sclient.SubResourceUpdateOption(nil)),
 	).Return(errors.New("error updating status of deregistration on the controller"))
 	client.On("Create",
 		mock.IsType(ctx),

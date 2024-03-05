@@ -20,16 +20,22 @@ package pod_test
 
 import (
 	"context"
-
-	. "github.com/onsi/ginkgo/v2"
-	. "github.com/onsi/gomega"
-	"sigs.k8s.io/controller-runtime/pkg/client"
+	"testing"
 
 	"github.com/kubeslice/apis/pkg/controller/v1alpha1"
 	"github.com/kubeslice/worker-operator/controllers"
 	"github.com/kubeslice/worker-operator/pkg/webhook/pod"
+
+	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
+
+func TestDeploy(t *testing.T) {
+	RegisterFailHandler(Fail)
+	RunSpecs(t, "Deploy Webhook Suite")
+}
 
 type fakeWebhookClient struct{}
 
