@@ -28,6 +28,7 @@ import (
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
 	ossEvents "github.com/kubeslice/worker-operator/events"
 	"github.com/kubeslice/worker-operator/pkg/hub/controllers"
+	"github.com/kubeslice/worker-operator/pkg/hub/controllers/cluster"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
@@ -54,7 +55,7 @@ var _ = BeforeSuite(func() {
 	By("bootstrapping test environment")
 	testEnv = &envtest.Environment{
 		CRDDirectoryPaths: []string{
-			filepath.Join("../../../..", "config", "crd", "bases"),
+			filepath.Join("../../../", "config", "crd", "bases"),
 			filepath.Join("./crds"),
 		},
 		ErrorIfCRDPathMissing: true,
@@ -127,7 +128,7 @@ var _ = BeforeSuite(func() {
 		Component: "worker-operator",
 		Namespace: CONTROL_PLANE_NS,
 	})
-	clusterReconciler := NewReconciler(
+	clusterReconciler := cluster.NewReconciler(
 		k8sClient,
 		k8sClient,
 		&spokeClusterEventRecorder,

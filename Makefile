@@ -83,24 +83,33 @@ manifests: controller-gen ## Generate WebhookConfiguration, ClusterRole and Cust
 generate: controller-gen ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
 	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
 
+##@ Test
+
 .PHONY: fmt
-fmt: ## Run go fmt against code.
+fmt: ##  Run go fmt against code.
 	go fmt ./...
 
 .PHONY: vet
-vet: ## Run go vet against code.
+vet: ##  Run go vet against code.
 	go vet ./...
 
-.PHONY: test
-test:   fmt vet envtest ## Run tests. 
-	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) -p path)" go test -v -coverprofile=coverage.out -coverpkg ./... ./...
+.PHONY: test-unit
+test-unit: ##  Run unit tests.
+	go test -v -coverprofile=coverage.out  `go list ./controllers/... ./pkg/... | grep -v ./pkg/mocks`
 
-.PHONY: unit-test-coverage
-unit-test-coverage: test
+.PHONY: test-coverage
+test-coverage: test-unit ##  Run unit tests and print code coverage.
 	go tool cover -func coverage.out
 
+.PHONY: test-integration
+test-integration: ## Run integration tests.
+	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) -p path)" go test -v -tags=integration ./...
+
+.PHONY: test
+test: fmt vet envtest test-unit test-integration ##  Run all tests (fmt, vet, envtest, unit & integration).
+
 .PHONY: test-docker
-test-docker:
+test-docker: ##  Run all tests (fmt, vet, envtest, unit & integration) inside a Docker container.
 	docker build -t test -f test.Dockerfile . && docker run test
 
 ##@ Build
