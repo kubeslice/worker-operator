@@ -14,10 +14,25 @@ jobs:
     if: ${{ github.event.label.name == 'ready-to-test' }}
     runs-on: ubuntu-20.04
     steps:
+    - name: Check disk space
+      run: df . -h
+      
+    - name: Free disk space
+      run: |
+        sudo rm -rf /usr/share/dotnet
+        sudo rm -rf "$AGENT_TOOLSDIRECTORY"
+        
+    - name: Check disk space
+      run: |
+        df . -h
+          
     - name: checkout the repo
       uses: actions/checkout@v3
       with:
         ref: ${{ github.event.pull_request.head.sha }}
+
+    - name: Check working space directory
+      run: du ${GITHUB_WORKSPACE} -h -d 1
    
     - name: Set outputs
       id: vars
@@ -81,6 +96,12 @@ jobs:
         bash .github/workflows/scripts/start-kind.sh
       env: 
          GITHUB_HEAD_COMMIT: ${{ steps.vars.outputs.sha_commit }}
+        
+    - name: Delete huge unnecessary tools folder
+      run: rm -rf /opt/hostedtoolcache
+          
+    - name: Check disk space
+      run: df . -h
 
     - name: Docker Run Action
       uses: addnab/docker-run-action@v3
