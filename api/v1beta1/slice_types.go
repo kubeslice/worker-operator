@@ -19,6 +19,7 @@
 package v1beta1
 
 import (
+	controllerv1alpha1 "github.com/kubeslice/apis/pkg/controller/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -73,8 +74,8 @@ type SliceConfig struct {
 	SliceGatewayServiceType string `json:"sliceGatewayServiceType,omitempty"`
 	// SliceGateway Protocol Type: UDP or TCP
 	SliceGatewayProtocol string `json:"sliceGatewayProtocol,omitempty"`
-	// Slice overlay network deployment mode: single-network or multi-network
-	SliceOverlayNetworkDeploymentMode string `json:"sliceOverlayNetworkDeploymentMode,omitempty"`
+	// Slice overlay network deployment mode: single-network, multi-network or no-network
+	SliceOverlayNetworkDeploymentMode controllerv1alpha1.NetworkType `json:"sliceOverlayNetworkDeploymentMode,omitempty"`
 }
 
 // NamespaceIsolationProfile defines the namespace isolation policy for the slice
