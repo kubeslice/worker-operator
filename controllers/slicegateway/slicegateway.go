@@ -1375,6 +1375,18 @@ func (r *SliceGwReconciler) ReconcileGatewayDeployments(ctx context.Context, sli
 		}
 	}
 
+	// Create PodDisruptionBudget for slice gateway's pod to at least have 1 instance of pods on each worker
+	// when disruption has occurred.
+	//
+	// Note: This should run an attempt to create PDB regardless of whether current reconciliation creating deployments
+	// as the request could've been requeued due to failure at the creation of PDB.
+	if err = r.createPodDisruptionBudgetForSliceGatewayPods(ctx, sliceName, sliceGw); err != nil {
+		log.Error(err, "Failed to create PodDisruptionBudget for SliceGW deployments",
+			"SliceName", sliceName, "SliceGwName", sliceGwName)
+
+		return ctrl.Result{}, err, true
+	}
+
 	// Reconcile deployment to node port mapping for gw client deployments
 	if isClient(sliceGw) {
 		for _, deployment := range deployments.Items {
@@ -1533,4 +1545,57 @@ func (r *SliceGwReconciler) ReconcileIntermediateGatewayDeployments(ctx context.
 	}
 
 	return ctrl.Result{}, nil, false
+}
+
+// createPodDisruptionBudgetForSliceGatewayPods checks for PodDisruptionBudget objects in the cluster that match the
+// slice gateway pods, and if missing, it creates a PDB with minimum availability of 1 so at least one pod remains in
+// case of a disruption.
+func (r *SliceGwReconciler) createPodDisruptionBudgetForSliceGatewayPods(ctx context.Context,
+	sliceName string, sliceGateway *kubeslicev1beta1.SliceGateway) error {
+	log := r.Log.WithValues("sliceName", sliceName, "sliceGwName", sliceGateway.Name)
+
+	// List PDBs in cluster that match the slice gateway pods
+	pdbs, err := listPodDisruptionBudgetForSliceGateway(ctx, r.Client, sliceName, sliceGateway.Name)
+	if err != nil && !apierrors.IsNotFound(err) {
+		log.Error(err, "failed to list PodDisruptionBudgets that match the slice gateway")
+
+		// When some unexpected error occurred, return the error for requeuing the request
+		return err
+	}
+
+	// Check if PDB already exists that matches the current slice gateway
+	if len(pdbs) > 0 {
+		// PodDisruptionBudget matching the slice gateway already exists. Skipping creation.
+		return nil
+	}
+
+	// Create PDB manifest with minimum availability of 1 pod
+	pdb := constructPodDisruptionBudget(sliceName, sliceGateway.Name, DefaultMinAvailablePodsInPDB)
+
+	// Set SliceGateway instance as the owner and controller for PDB
+	if err = ctrl.SetControllerReference(sliceGateway, pdb, r.Scheme); err != nil {
+		log.Error(err, "Failed to set slice gateway as owner to PodDisruptionBudget",
+			"pdb", pdb.Name)
+
+		return fmt.Errorf("failed to set slice gateway %q as owner to PodDisruptionBudget %q: %v",
+			sliceGateway.Name, pdb.Name, err)
+	}
+
+	// Create PDB for slice gateway's pod to have at least 1 pod on each worker when disruption occurs
+	if err = r.Create(ctx, pdb); err != nil {
+		if apierrors.IsAlreadyExists(err) {
+			// PDB is already exists. So, ignoring the current request.
+			return nil
+		}
+
+		log.Error(err, "PodDisruptionBudget creation failed", "pdb", pdb.Name)
+
+		// When any other unexpected error occurred when attempting to create PDB, fail the request
+		return fmt.Errorf("failed to create PodDisruptionBudget for SliceGW pods: %v", err)
+	}
+
+	// PDB created successfully
+	log.Info("PodDisruptionBudget for slice gateway pods created successfully")
+
+	return nil
 }

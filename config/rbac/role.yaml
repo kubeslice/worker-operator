@@ -290,6 +290,14 @@ rules:
   - update
   - watch
 - apiGroups:
+  - policy
+  resources:
+  - poddisruptionbudgets
+  verbs:
+  - create
+  - delete
+  - list
+- apiGroups:
   - rbac.authorization.k8s.io
   resources:
   - rolebindings
