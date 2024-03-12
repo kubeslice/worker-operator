@@ -53,7 +53,7 @@ import (
 )
 
 var (
-	certFileName             = "openvpn_client.ovpn"
+	vpnClientFileName        = "openvpn_client.ovpn"
 	gwSidecarImage           = os.Getenv("AVESHA_GW_SIDECAR_IMAGE")
 	gwSidecarImagePullPolicy = os.Getenv("AVESHA_GW_SIDECAR_IMAGE_PULLPOLICY")
 
@@ -1370,29 +1370,40 @@ func (r *SliceGwReconciler) ReconcileGatewayDeployments(ctx context.Context, sli
 
 	// Reconcile deployment to node port mapping for gw client deployments
 	if isClient(sliceGw) {
-		UpdateDeploymentSlice := make([]appsv1.Deployment, 0)
-		toUpdate := false
 		for _, deployment := range deployments.Items {
 			found, nodePortInUse := getClientGwRemotePortInUse(ctx, r.Client, sliceGw, deployment.Name)
 			if found {
+				// Check if the portInUse is valid.
+				// It is valid only if the list of remoteNodePorts in the slicegw object contains the portInUse.
+				if !checkIfNodePortIsValid(sliceGw.Status.Config.SliceGatewayRemoteNodePorts, nodePortInUse) {
+					// Get a valid port number for this deployment
+					portNumToUpdate := allocateNodePortToClient(sliceGw.Status.Config.SliceGatewayRemoteNodePorts, &gwClientToRemotePortMap)
+					// Update the port map
+					gwClientToRemotePortMap.Store(deployment.Name, portNumToUpdate)
+					err := r.updateGatewayDeploymentNodePort(ctx, r.Client, sliceGw, &deployment, portNumToUpdate)
+					if err != nil {
+						return ctrl.Result{}, err, true
+					}
+					// Requeue if the update was successful
+					return ctrl.Result{}, nil, true
+				}
+				// At this point, the node port in use is valid. Check if the port map is populated. Only case
+				// where it is not populated is if the operator restarts. The populated value must match the
+				// port in use. If not, the deploy needs to be updated to match the state stored in the operator.
 				portInMap, foundInMap := gwClientToRemotePortMap.Load(deployment.Name)
-				if portInMap != nodePortInUse || !foundInMap {
+				if foundInMap {
+					if portInMap != nodePortInUse {
+						// Update the deployment since the port numbers do not match
+						err := r.updateGatewayDeploymentNodePort(ctx, r.Client, sliceGw, &deployment, portInMap.(int))
+						if err != nil {
+							return ctrl.Result{}, err, true
+						}
+						// Requeue if the update was successful
+						return ctrl.Result{}, nil, true
+					}
+				} else {
 					gwClientToRemotePortMap.Store(deployment.Name, nodePortInUse)
 				}
-				// TODO: Handle the case of the port number in the deployment and the one in the port map being different
-				if !contains(sliceGw.Status.Config.SliceGatewayRemoteNodePorts, nodePortInUse) && !hasSameValues(sliceGw.Status.Config.SliceGatewayRemoteNodePorts) {
-					UpdateDeploymentSlice = append(UpdateDeploymentSlice, deployment)
-					toUpdate = true
-				}
-			}
-		}
-		if toUpdate {
-			for _, dep := range UpdateDeploymentSlice {
-				portToUpdate := allocateNodePortToClient(sliceGw.Status.Config.SliceGatewayRemoteNodePorts, &gwClientToRemotePortMap)
-				if portToUpdate != 0 {
-					r.updateGatewayDeploymentNodePort(ctx, r.Client, sliceGw, &dep, portToUpdate)
-				}
-
 			}
 		}
 
