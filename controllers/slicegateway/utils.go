@@ -472,12 +472,3 @@ func allocateNodePortToClient(correctNodePorts []int, nodePortsMap *sync.Map) in
 	}
 	return 0
 }
-
-func hasSameValues[T comparable](s []T) bool {
-	for _, v := range s {
-		if v != s[0] {
-			return false
-		}
-	}
-	return true
-}
