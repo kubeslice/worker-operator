@@ -24,6 +24,7 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/kubeslice/apis/pkg/controller/v1alpha1"
 	"github.com/kubeslice/worker-operator/controllers"
 	"github.com/kubeslice/worker-operator/pkg/logger"
 	v1 "k8s.io/api/admission/v1"
@@ -51,7 +52,7 @@ var (
 type SliceInfoProvider interface {
 	SliceAppNamespaceConfigured(ctx context.Context, slice string, namespace string) (bool, error)
 	GetNamespaceLabels(ctx context.Context, client client.Client, namespace string) (map[string]string, error)
-	GetSliceOverlayNetworkType(ctx context.Context, client client.Client, sliceName string) (string, error)
+	GetSliceOverlayNetworkType(ctx context.Context, client client.Client, sliceName string) (v1alpha1.NetworkType, error)
 }
 
 type WebhookServer struct {
@@ -306,7 +307,7 @@ func (wh *WebhookServer) MutationRequired(metadata metav1.ObjectMeta, ctx contex
 		log.Error(err, "Error getting slice overlay network type")
 		return false, ""
 	}
-	if sliceNetworkType != "" && sliceNetworkType != "single-network" {
+	if sliceNetworkType != "" && sliceNetworkType != v1alpha1.SINGLENET {
 		log.Info("Slice overlay type is not single-network. Skip pod mutation...")
 		return false, ""
 	}

@@ -34,6 +34,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
+	"github.com/kubeslice/apis/pkg/controller/v1alpha1"
 	"github.com/kubeslice/kubeslice-monitoring/pkg/events"
 	"github.com/kubeslice/kubeslice-monitoring/pkg/metrics"
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
@@ -152,6 +153,11 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 	if slice.Status.SliceConfig == nil {
 		err := fmt.Errorf("slice not reconciled from hub")
 		log.Error(err, "Slice is not reconciled from hub yet, skipping reconciliation")
+		return ctrl.Result{}, err
+	}
+
+	if slice.Status.SliceConfig.SliceOverlayNetworkDeploymentMode == v1alpha1.NONET {
+		log.Info("No communication slice, skipping reconciliation of appns, qos, netop, egw, router etc.")
 		return ctrl.Result{}, err
 	}
 
