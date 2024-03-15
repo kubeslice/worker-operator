@@ -89,10 +89,14 @@ var clusterDeregisterFinalizer = "worker.kubeslice.io/cluster-deregister-finaliz
 
 func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
 	log := logger.FromContext(ctx).WithName("cluster-reconciler")
+	debuglog := log.V(1)
 	ctx = logger.WithLogger(ctx, log)
 	cr, err := r.getCluster(ctx, req)
 	if cr == nil {
 		return reconcile.Result{}, err
+	}
+	if cr.Status.RegistrationStatus == "" {
+		cr.Status.RegistrationStatus = hubv1alpha1.RegistrationStatusInProgress
 	}
 	log.Info("got cluster CR from hub", "cluster", cr)
 	requeue, result, err := r.handleClusterDeletion(cr, ctx, req)
@@ -110,15 +114,27 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return res, err
 	}
 	utils.RecordEvent(ctx, r.EventRecorder, cr, nil, ossEvents.EventClusterProviderUpdateInfoSuccesful, controllerName)
-	res, err, requeue = r.updateCNISubnetConfig(ctx, cr, cl)
-	if err != nil {
-		utils.RecordEvent(ctx, r.EventRecorder, cr, nil, ossEvents.EventClusterCNISubnetUpdateFailed, controllerName)
-		log.Error(err, "unable to update cni subnet config to cluster")
+	// if cr.Status.NetworkPresent {
+	if os.Getenv("NETWORK_PRESENT") == "true" { // to be fetched from cluster status
+		res, err, requeue = r.updateCNISubnetConfig(ctx, cr, cl)
+		if err != nil {
+			utils.RecordEvent(ctx, r.EventRecorder, cr, nil, ossEvents.EventClusterCNISubnetUpdateFailed, controllerName)
+			log.Error(err, "unable to update cni subnet config to cluster")
+		}
+		if requeue {
+			return res, err
+		}
+		// Update registration status to registered when slice networking enabled & cluster staus has CNI Subnet list
+		// if cluster.Status.NetworkPresent
+		if len(cr.Status.CniSubnet) == 0 {
+			debuglog.Info("registration status: pending, as cni subnet list not populated")
+			if err = r.updateRegistrationStatus(ctx, cr, hubv1alpha1.RegistrationStatusPending); err != nil {
+				log.Error(err, "unable to update registration status")
+			}
+			return reconcile.Result{Requeue: true}, nil
+		}
 	}
-	if requeue {
-		return res, err
-	}
-	// Update registration status to registered
+	debuglog.Info("cluster registration status set as registered")
 	if err = r.updateRegistrationStatus(ctx, cr, hubv1alpha1.RegistrationStatusRegistered); err != nil {
 		log.Error(err, "unable to update registration status")
 	}
@@ -171,8 +187,17 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 func (r *Reconciler) updateClusterHealthStatus(ctx context.Context, cr *hubv1alpha1.Cluster) error {
 	log := logger.FromContext(ctx)
+	debuglog := log.V(1)
 	csList := []hubv1alpha1.ComponentStatus{}
 	var chs hubv1alpha1.ClusterHealthStatus = hubv1alpha1.ClusterHealthStatusNormal
+
+	// if !cr.Status.NetworkPresent{
+	if os.Getenv("NETWORK_PRESENT") == "false" {
+		debuglog.Info("Worker installation without network component, nothing to check")
+		cr.Status.ClusterHealth.ComponentStatuses = csList
+		cr.Status.ClusterHealth.ClusterHealthStatus = chs
+		return nil
+	}
 
 	for _, c := range components {
 		cs, err := r.getComponentStatus(ctx, &c, cr)
@@ -183,7 +208,7 @@ func (r *Reconciler) updateClusterHealthStatus(ctx context.Context, cr *hubv1alp
 			csList = append(csList, *cs)
 			if cs.ComponentHealthStatus != hubv1alpha1.ComponentHealthStatusNormal {
 				chs = hubv1alpha1.ClusterHealthStatusWarning
-				log.Info("Component unhealthy", "component", c.name)
+				debuglog.Info("Component unhealthy", "component", c.name)
 			}
 		}
 	}
@@ -237,6 +262,7 @@ func (r *Reconciler) getComponentStatus(ctx context.Context, c *component, cr *h
 		}
 		return cs, nil
 	}
+
 	if c.name == "cni-subnets" {
 		if cr == nil {
 			return nil, nil
@@ -354,9 +380,6 @@ func (r *Reconciler) updateCNISubnetConfig(ctx context.Context, cr *hubv1alpha1.
 		}
 		if !reflect.DeepEqual(cr.Status.CniSubnet, cniSubnet) {
 			cr.Status.CniSubnet = cniSubnet
-			// TODO: move this status declaration to outside this function when health check is implemented
-			// for CNI subnet and Node IP address.
-			cr.Status.RegistrationStatus = hubv1alpha1.RegistrationStatusRegistered
 			toUpdate = true
 			return r.Status().Update(ctx, cr)
 		}
