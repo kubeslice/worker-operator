@@ -140,6 +140,13 @@ func main() {
 				Decoder:         admission.NewDecoder(mgr.GetScheme()),
 			},
 		})
+		mgr.GetWebhookServer().Register("/validate-webhook", &webhook.Admission{
+			Handler: &podwh.WebhookServer{
+				Client:          mgr.GetClient(),
+				SliceInfoClient: podwh.NewWebhookClient(),
+				Decoder:         admission.NewDecoder(mgr.GetScheme()),
+			},
+		})
 	}
 	if err != nil {
 		setupLog.With("error", err).Error("unable to start manager")
