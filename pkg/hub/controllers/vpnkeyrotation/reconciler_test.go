@@ -40,6 +40,8 @@ var (
 	testWorkerNamespace    = "kubeslice-system"
 )
 
+var k8sClient k8sclient.Client
+
 var testVPNKeyRotationObject = &hubv1alpha1.VpnKeyRotation{
 	ObjectMeta: metav1.ObjectMeta{
 		Name:      testVPNKeyRotationName,

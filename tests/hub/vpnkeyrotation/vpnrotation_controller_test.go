@@ -11,6 +11,7 @@ import (
 
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
 	ossEvents "github.com/kubeslice/worker-operator/events"
+	"github.com/kubeslice/worker-operator/pkg/hub/controllers/vpnkeyrotation"
 	nsmv1 "github.com/networkservicemesh/sdk-k8s/pkg/tools/k8s/apis/networkservicemesh.io/v1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -75,7 +76,7 @@ var _ = Describe("Hub VPN Key Rotation", func() {
 					ClusterGatewayMapping: map[string][]string{
 						CLUSTER_NAME: {gws[0]},
 					},
-					Clusters:                []string{ClusterName},
+					Clusters:                []string{vpnkeyrotation.ClusterName},
 					CertificateCreationTime: &metav1.Time{Time: time.Now()},
 				},
 			}
@@ -178,7 +179,7 @@ var _ = Describe("Hub VPN Key Rotation", func() {
 					ClusterGatewayMapping: map[string][]string{
 						CLUSTER_NAME: gws,
 					},
-					Clusters:                []string{ClusterName},
+					Clusters:                []string{vpnkeyrotation.ClusterName},
 					CertificateCreationTime: &metav1.Time{Time: time.Now()},
 					CertificateExpiryTime:   &metav1.Time{Time: time.Now().AddDate(0, 0, 30)},
 					RotationInterval:        30,
@@ -517,7 +518,7 @@ var _ = Describe("Hub VPN Key Rotation", func() {
 					ClusterGatewayMapping: map[string][]string{
 						CLUSTER_NAME: {gws[0]},
 					},
-					Clusters:                []string{ClusterName},
+					Clusters:                []string{vpnkeyrotation.ClusterName},
 					CertificateCreationTime: &metav1.Time{Time: time.Now()},
 					CertificateExpiryTime:   &metav1.Time{Time: time.Now().AddDate(0, 0, 30)},
 					RotationInterval:        30,
@@ -745,7 +746,7 @@ var _ = Describe("Hub VPN Key Rotation", func() {
 					ClusterGatewayMapping: map[string][]string{
 						"worker-1": gws,
 					},
-					Clusters:                []string{ClusterName},
+					Clusters:                []string{vpnkeyrotation.ClusterName},
 					CertificateCreationTime: &metav1.Time{Time: time.Now()},
 				},
 			}
