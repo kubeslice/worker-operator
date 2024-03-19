@@ -26,6 +26,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/kubeslice/apis/pkg/controller/v1alpha1"
+	"github.com/kubeslice/worker-operator/api/v1beta1"
 	"github.com/kubeslice/worker-operator/controllers"
 	"github.com/kubeslice/worker-operator/pkg/webhook/pod"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -43,6 +44,33 @@ func (f fakeWebhookClient) SliceAppNamespaceConfigured(ctx context.Context, slic
 
 func (f fakeWebhookClient) GetNamespaceLabels(ctx context.Context, client client.Client, namespace string) (map[string]string, error) {
 	return map[string]string{controllers.ApplicationNamespaceSelectorLabelKey: "green"}, nil
+}
+
+func (f fakeWebhookClient) GetAllServiceExports(ctx context.Context, client client.Client, slice string) (*v1beta1.ServiceExportList, error) {
+	return &v1beta1.ServiceExportList{
+		Items: []v1beta1.ServiceExport{
+			{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "svcex-1",
+					Namespace: "test-ns-1",
+				},
+				Spec: v1beta1.ServiceExportSpec{
+					Slice:   "test-slice",
+					Aliases: []string{"server.com"},
+				},
+			},
+			{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "svcex-2",
+					Namespace: "test-ns-2",
+				},
+				Spec: v1beta1.ServiceExportSpec{
+					Slice:   "test-slice",
+					Aliases: []string{"traffic.com"},
+				},
+			},
+		},
+	}, nil
 }
 
 func (f fakeWebhookClient) GetSliceOverlayNetworkType(ctx context.Context, client client.Client, sliceName string) (v1alpha1.NetworkType, error) {
@@ -124,6 +152,114 @@ var _ = Describe("Deploy Webhook", func() {
 					is, _ := webhookServer.MutationRequired(meta, context.Background(), "Deployment")
 					Expect(is).To(BeTrue())
 				}
+			})
+		})
+	})
+})
+
+var _ = Describe("Validating Webhook", func() {
+	fakeWhClient := new(fakeWebhookClient)
+	webhookServer := pod.WebhookServer{
+		SliceInfoClient: fakeWhClient,
+	}
+	Describe("ValidateServiceExport", func() {
+		Context("ServiceExport Object with no alias conflict", func() {
+			serviceExportList := &v1beta1.ServiceExportList{
+				Items: []v1beta1.ServiceExport{
+					{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "svcex-3",
+							Namespace: "test-ns-1",
+						},
+						Spec: v1beta1.ServiceExportSpec{
+							Slice:   "test-slice",
+							Aliases: []string{"hello.com"},
+						},
+					},
+					{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "svcex-4",
+							Namespace: "test-ns-2",
+						},
+						Spec: v1beta1.ServiceExportSpec{
+							Slice:   "test-slice",
+							Aliases: []string{"connect.com"},
+						},
+					},
+				},
+			}
+			It("should be created", func() {
+				for _, serviceExport := range serviceExportList.Items {
+					is, _, _ := webhookServer.ValidateServiceExport(&serviceExport, context.Background())
+					Expect(is).To(BeTrue())
+				}
+			})
+		})
+
+		Context("Alias already exist", func() {
+			serviceExportList := &v1beta1.ServiceExportList{
+				Items: []v1beta1.ServiceExport{
+					{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "svcex-3",
+							Namespace: "test-ns-1",
+						},
+						Spec: v1beta1.ServiceExportSpec{
+							Slice:   "test-slice",
+							Aliases: []string{"Server.com"},
+						},
+					},
+					{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "svcex-4",
+							Namespace: "test-ns-2",
+						},
+						Spec: v1beta1.ServiceExportSpec{
+							Slice:   "test-slice",
+							Aliases: []string{"traffic.com"},
+						},
+					},
+				},
+			}
+			It("should be rejected", func() {
+				for _, serviceExport := range serviceExportList.Items {
+					is, _, _ := webhookServer.ValidateServiceExport(&serviceExport, context.Background())
+					Expect(is).To(BeFalse())
+				}
+			})
+		})
+
+		Context("Update ServiceExport aliases", func() {
+			serviceExport := &v1beta1.ServiceExport{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "svcex-2",
+					Namespace: "test-ns-2",
+				},
+				Spec: v1beta1.ServiceExportSpec{
+					Slice:   "test-slice",
+					Aliases: []string{"Traffic.com", "connect.com"},
+				},
+			}
+			It("should be updated", func() {
+				is, _, _ := webhookServer.ValidateServiceExport(serviceExport, context.Background())
+				Expect(is).To(BeTrue())
+			})
+		})
+
+		Context("Update ServiceExport with conflicting alias", func() {
+			serviceExport := &v1beta1.ServiceExport{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "svcex-1",
+					Namespace: "test-ns-1",
+				},
+				Spec: v1beta1.ServiceExportSpec{
+					Slice:   "test-slice",
+					Aliases: []string{"traffic.com"},
+				},
+			}
+			It("should be rejected", func() {
+				is, _, _ := webhookServer.ValidateServiceExport(serviceExport, context.Background())
+				Expect(is).To(BeFalse())
 			})
 		})
 	})

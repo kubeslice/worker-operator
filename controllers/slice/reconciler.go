@@ -81,6 +81,7 @@ type SliceReconciler struct {
 //+kubebuilder:rbac:groups=networking.istio.io,resources=serviceentries,verbs=get;list;create;update;watch;delete
 //+kubebuilder:rbac:groups=networking.istio.io,resources=virtualservices,verbs=get;list;create;update;watch;delete
 //+kubebuilder:webhook:path=/mutate-webhook,mutating=true,failurePolicy=fail,groups="";apps,resources=pods;deployments;statefulsets;daemonsets,verbs=create;update,versions=v1,name=webhook.kubeslice.io,admissionReviewVersions=v1,sideEffects=NoneOnDryRun
+//+kubebuilder:webhook:path=/validate-webhook,mutating=false,failurePolicy=fail,groups="networking.kubeslice.io",resources=serviceexports,verbs=create;update,versions=v1beta1,name=webhook.kubeslice.io,admissionReviewVersions=v1,sideEffects=NoneOnDryRun
 //+kubebuilder:rbac:groups=core,resources=nodes,verbs=get;list;watch
 //+kubebuilder:rbac:groups=core,resources=namespaces,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=networking.k8s.io,resources=networkpolicies,verbs=get;list;watch;create;update;patch;delete

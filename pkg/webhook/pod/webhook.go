@@ -25,6 +25,7 @@ import (
 	"net/http"
 
 	"github.com/kubeslice/apis/pkg/controller/v1alpha1"
+	"github.com/kubeslice/worker-operator/api/v1beta1"
 	"github.com/kubeslice/worker-operator/controllers"
 	"github.com/kubeslice/worker-operator/pkg/logger"
 	v1 "k8s.io/api/admission/v1"
@@ -53,6 +54,7 @@ type SliceInfoProvider interface {
 	SliceAppNamespaceConfigured(ctx context.Context, slice string, namespace string) (bool, error)
 	GetNamespaceLabels(ctx context.Context, client client.Client, namespace string) (map[string]string, error)
 	GetSliceOverlayNetworkType(ctx context.Context, client client.Client, sliceName string) (v1alpha1.NetworkType, error)
+	GetAllServiceExports(ctx context.Context, client client.Client, slice string) (*v1beta1.ServiceExportList, error)
 }
 
 type WebhookServer struct {
@@ -151,6 +153,24 @@ func (wh *WebhookServer) Handle(ctx context.Context, req admission.Request) admi
 			return admission.Errored(http.StatusInternalServerError, err)
 		}
 		return admission.PatchResponseFromRaw(req.Object.Raw, marshaled)
+	} else if req.Kind.Kind == "ServiceExport" {
+		serviceexport := &v1beta1.ServiceExport{}
+		err := wh.Decoder.Decode(req, serviceexport)
+		if err != nil {
+			return admission.Errored(http.StatusBadRequest, err)
+		}
+		log := logger.FromContext(ctx)
+
+		log.Info("validating serviceexport", "serviceexport spec", serviceexport.Spec)
+		validation, conflictingAlias, err := wh.ValidateServiceExport(serviceexport, ctx)
+		if err != nil {
+			return admission.Errored(http.StatusInternalServerError, err)
+		}
+		if !validation {
+			log.Info("serviceexport validation failed: alias already exist", "serviceexport-name", serviceexport.ObjectMeta.Name)
+			return admission.Denied(fmt.Sprintf("Alias %s already exist", conflictingAlias))
+		}
+		return admission.Allowed("")
 	}
 
 	return admission.Response{AdmissionResponse: v1.AdmissionResponse{
@@ -255,6 +275,33 @@ func MutateDaemonSet(ds *appsv1.DaemonSet, sliceName string) *appsv1.DaemonSet {
 	labels[admissionWebhookAnnotationInjectKey] = sliceName
 
 	return ds
+}
+
+func (wh *WebhookServer) ValidateServiceExport(svcex *v1beta1.ServiceExport, ctx context.Context) (bool, string, error) {
+
+	log := logger.FromContext(ctx)
+	log.Info("fetching all serviceexport objects belonging to the slice", "slice", svcex.Spec.Slice)
+	serviceExportList, err := wh.SliceInfoClient.GetAllServiceExports(context.Background(), wh.Client, svcex.Spec.Slice)
+	if err != nil {
+		return false, "", err
+	}
+
+	newAliases := svcex.Spec.Aliases
+
+	for _, serviceExport := range serviceExportList.Items {
+		// In case we are updating an existing ServiceExport resource
+		if svcex.ObjectMeta.Name == serviceExport.ObjectMeta.Name &&
+			svcex.ObjectMeta.Namespace == serviceExport.ObjectMeta.Namespace {
+			continue
+		}
+		existingAliases := serviceExport.Spec.Aliases
+		for _, newAlias := range newAliases {
+			if aliasExist(existingAliases, newAlias) {
+				return false, newAlias, nil
+			}
+		}
+	}
+	return true, "", nil
 }
 
 func (wh *WebhookServer) MutationRequired(metadata metav1.ObjectMeta, ctx context.Context, kind string) (bool, string) {
