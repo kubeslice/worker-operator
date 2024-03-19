@@ -25,6 +25,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 
 	gwsidecarpb "github.com/kubeslice/gateway-sidecar/pkg/sidecar/sidecarpb"
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
@@ -75,15 +76,6 @@ func getPodType(labels map[string]string) string {
 
 func getGwSvcNameFromDepName(depName string) string {
 	return "svc-" + depName
-}
-
-func contains(s []string, e string) bool {
-	for _, a := range s {
-		if a == e {
-			return true
-		}
-	}
-	return false
 }
 
 func getPodIPs(slicegateway *kubeslicev1beta1.SliceGateway) []string {
@@ -425,4 +417,63 @@ func (r *SliceGwReconciler) cleanupSliceGwResources(ctx context.Context, slicegw
 	}
 
 	return nil
+}
+
+// getOVPNClientContainerArgs returns the args needed for the ovpn client deployment container
+func getOVPNClientContainerArgs(remotePortNumber int, g *kubeslicev1beta1.SliceGateway) []string {
+	args := []string{
+		"/vpnclient/" + vpnClientFileName,
+		"90",
+		"openvpn",
+		"--remote",
+		g.Status.Config.SliceGatewayRemoteGatewayID,
+		"--port",
+		strconv.Itoa(remotePortNumber),
+		"--ping-restart",
+		"15",
+		"--proto",
+		strings.ToLower(g.Status.Config.SliceGatewayProtocol),
+		"--txqueuelen",
+		"5000",
+		"--config",
+		"/vpnclient/" + vpnClientFileName,
+	}
+	return args
+}
+
+func contains[T comparable](s []T, e T) bool {
+	for _, element := range s {
+		if element == e {
+			return true
+		}
+	}
+	return false
+}
+
+func containsWithIndex[T comparable](s []T, e T) (bool, int) {
+	for index, element := range s {
+		if element == e {
+			return true, index
+		}
+	}
+	return false, 0
+}
+
+// a helper to assign distinct port to each client deployment
+func allocateNodePortToClient(correctNodePorts []int, depName string, nodePortsMap *sync.Map) (int, error) {
+	nodePortsMap.Range(func(k, v interface{}) bool {
+		if ok, index := containsWithIndex(correctNodePorts, v.(int)); ok {
+			correctNodePorts = append(correctNodePorts[:index], correctNodePorts[index+1:]...)
+		}
+		return true
+	})
+	if len(correctNodePorts) > 0 {
+		return correctNodePorts[0], nil
+	} else {
+		port, ok := nodePortsMap.Load(depName)
+		if ok {
+			return port.(int), nil
+		}
+		return 0, errors.New("could not allocate a port")
+	}
 }
