@@ -1377,10 +1377,13 @@ func (r *SliceGwReconciler) ReconcileGatewayDeployments(ctx context.Context, sli
 				// It is valid only if the list of remoteNodePorts in the slicegw object contains the portInUse.
 				if !checkIfNodePortIsValid(sliceGw.Status.Config.SliceGatewayRemoteNodePorts, nodePortInUse) {
 					// Get a valid port number for this deployment
-					portNumToUpdate := allocateNodePortToClient(sliceGw.Status.Config.SliceGatewayRemoteNodePorts, &gwClientToRemotePortMap)
+					portNumToUpdate, err := allocateNodePortToClient(sliceGw.Status.Config.SliceGatewayRemoteNodePorts, deployment.Name, &gwClientToRemotePortMap)
+					if err != nil {
+						return ctrl.Result{}, err, true
+					}
 					// Update the port map
 					gwClientToRemotePortMap.Store(deployment.Name, portNumToUpdate)
-					err := r.updateGatewayDeploymentNodePort(ctx, r.Client, sliceGw, &deployment, portNumToUpdate)
+					err = r.updateGatewayDeploymentNodePort(ctx, r.Client, sliceGw, &deployment, portNumToUpdate)
 					if err != nil {
 						return ctrl.Result{}, err, true
 					}
