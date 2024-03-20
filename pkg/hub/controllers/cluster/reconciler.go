@@ -34,8 +34,9 @@ import (
 	"github.com/kubeslice/worker-operator/pkg/logger"
 	"github.com/kubeslice/worker-operator/pkg/utils"
 	"github.com/prometheus/client_golang/prometheus"
-	corev1 "k8s.io/api/core/v1"
 
+	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -114,8 +115,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return res, err
 	}
 	utils.RecordEvent(ctx, r.EventRecorder, cr, nil, ossEvents.EventClusterProviderUpdateInfoSuccesful, controllerName)
-	// if cr.Status.NetworkPresent {
-	if os.Getenv("NETWORK_PRESENT") == "true" { // to be fetched from cluster status
+	debuglog.Info("cr.Status.NetworkPresent", "isNsmInstalled", r.isNsmInstalled(ctx))
+	// cr.Status.NetworkPresent  = r.isNsmInstalled(ctx)
+	if r.isNsmInstalled(ctx) {
 		res, err, requeue = r.updateCNISubnetConfig(ctx, cr, cl)
 		if err != nil {
 			utils.RecordEvent(ctx, r.EventRecorder, cr, nil, ossEvents.EventClusterCNISubnetUpdateFailed, controllerName)
@@ -134,7 +136,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			return reconcile.Result{Requeue: true}, nil
 		}
 	}
-	debuglog.Info("cluster registration status set as registered")
+	debuglog.Info("Update registration status to registered")
 	if err = r.updateRegistrationStatus(ctx, cr, hubv1alpha1.RegistrationStatusRegistered); err != nil {
 		log.Error(err, "unable to update registration status")
 	}
@@ -185,45 +187,60 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	return reconcile.Result{RequeueAfter: r.ReconcileInterval}, nil
 }
 
+// if nsm core compoent is not found in a cluster, it's assumed that
+// the kubeslice network dependencies have not been installed in it
+func (r *Reconciler) isNsmInstalled(ctx context.Context) bool {
+	log := logger.FromContext(ctx)
+	debuglog := log.V(1)
+	dsList := &appsv1.DaemonSetList{}
+	listOpts := []client.ListOption{
+		client.MatchingLabels(map[string]string{"app": "nsmgr"}),
+		client.InNamespace(ControlPlaneNamespace),
+	}
+	if err := r.MeshClient.List(ctx, dsList, listOpts...); err != nil {
+		log.Error(err, "Failed to list nsmgr ds")
+		return false
+	}
+	debuglog.Info("isNsmInstalled", "nsmgr ds", len(dsList.Items))
+	return len(dsList.Items) != 0
+}
+
 func (r *Reconciler) updateClusterHealthStatus(ctx context.Context, cr *hubv1alpha1.Cluster) error {
 	log := logger.FromContext(ctx)
 	debuglog := log.V(1)
 	csList := []hubv1alpha1.ComponentStatus{}
 	var chs hubv1alpha1.ClusterHealthStatus = hubv1alpha1.ClusterHealthStatusNormal
 
-	// if !cr.Status.NetworkPresent{
-	if os.Getenv("NETWORK_PRESENT") == "false" {
-		debuglog.Info("Worker installation without network component, nothing to check")
-		cr.Status.ClusterHealth.ComponentStatuses = csList
-		cr.Status.ClusterHealth.ClusterHealthStatus = chs
-		return nil
-	}
+	// if cr.Status.NetworkPresent{
+	if r.isNsmInstalled(ctx) {
+		debuglog.Info("Worker installation with network component, continue health check")
 
-	for _, c := range components {
-		cs, err := r.getComponentStatus(ctx, &c, cr)
-		if err != nil {
-			log.Error(err, "unable to fetch component status")
-		}
-		if cs != nil {
-			csList = append(csList, *cs)
-			if cs.ComponentHealthStatus != hubv1alpha1.ComponentHealthStatusNormal {
-				chs = hubv1alpha1.ClusterHealthStatusWarning
-				debuglog.Info("Component unhealthy", "component", c.name)
+		for _, c := range components {
+			cs, err := r.getComponentStatus(ctx, &c, cr)
+			if err != nil {
+				log.Error(err, "unable to fetch component status")
+			}
+			if cs != nil {
+				csList = append(csList, *cs)
+				if cs.ComponentHealthStatus != hubv1alpha1.ComponentHealthStatusNormal {
+					chs = hubv1alpha1.ClusterHealthStatusWarning
+					debuglog.Info("Component unhealthy", "component", c.name)
+				}
 			}
 		}
-	}
 
-	// Cluster health changed, raise event
-	if cr.Status.ClusterHealth.ClusterHealthStatus != chs {
-		if chs == hubv1alpha1.ClusterHealthStatusNormal {
-			log.Info("cluster health is back to normal")
-			utils.RecordEvent(ctx, r.EventRecorder, cr, nil, ossEvents.EventClusterHealthy, controllerName)
-		} else if chs == hubv1alpha1.ClusterHealthStatusWarning {
-			log.Info("cluster health is in warning state")
-			utils.RecordEvent(ctx, r.EventRecorder, cr, nil, ossEvents.EventClusterUnhealthy, controllerName)
+		// Cluster health changed, raise event
+		if cr.Status.ClusterHealth.ClusterHealthStatus != chs {
+			if chs == hubv1alpha1.ClusterHealthStatusNormal {
+				log.Info("cluster health is back to normal")
+				utils.RecordEvent(ctx, r.EventRecorder, cr, nil, ossEvents.EventClusterHealthy, controllerName)
+			} else if chs == hubv1alpha1.ClusterHealthStatusWarning {
+				log.Info("cluster health is in warning state")
+				utils.RecordEvent(ctx, r.EventRecorder, cr, nil, ossEvents.EventClusterUnhealthy, controllerName)
+			}
 		}
-	}
 
+	}
 	cr.Status.ClusterHealth.ComponentStatuses = csList
 	cr.Status.ClusterHealth.ClusterHealthStatus = chs
 
