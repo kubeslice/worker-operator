@@ -156,15 +156,15 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 		return ctrl.Result{}, err
 	}
 
-	if slice.Status.SliceConfig.SliceOverlayNetworkDeploymentMode == v1alpha1.NONET {
-		log.Info("No communication slice, skipping reconciliation of appns, qos, netop, egw, router etc.")
-		return ctrl.Result{}, nil
-	}
-
 	res, err, requeue := r.ReconcileSliceNamespaces(ctx, slice)
 	if requeue {
 		debugLog.Info("Reconciling SliceNamespaces", "res", res, "err", err)
 		return res, err
+	}
+
+	if slice.Status.SliceConfig.SliceOverlayNetworkDeploymentMode == v1alpha1.NONET {
+		debugLog.Info("No communication slice, skipping reconciliation of appns, qos, netop, egw, router etc.")
+		return ctrl.Result{}, nil
 	}
 
 	debugLog.Info("Syncing slice QoS config with NetOp pods")
