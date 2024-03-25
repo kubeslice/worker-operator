@@ -22,7 +22,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/kubeslice/apis/pkg/controller/v1alpha1"
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
 	"github.com/kubeslice/worker-operator/controllers"
 	ossEvents "github.com/kubeslice/worker-operator/events"
@@ -50,15 +49,9 @@ var (
 )
 
 func (r *SliceReconciler) ReconcileSliceNamespaces(ctx context.Context, slice *kubeslicev1beta1.Slice) (ctrl.Result, error, bool) {
-	log := logger.FromContext(ctx)
-	debuglog := log.V(1)
 	res, err, reconcile := r.reconcileAppNamespaces(ctx, slice)
 	if reconcile {
 		return res, err, true
-	}
-	if slice.Status.SliceConfig.SliceOverlayNetworkDeploymentMode == v1alpha1.NONET {
-		debuglog.Info("No communication slice, skipping reconciliation of AllowedNamespaces, SliceNetworkPolicy etc.")
-		return ctrl.Result{}, nil, false
 	}
 	err = r.reconcileAllowedNamespaces(ctx, slice)
 	if err != nil {

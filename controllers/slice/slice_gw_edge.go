@@ -23,11 +23,13 @@ import (
 	"os"
 	"strings"
 
+	"github.com/kubeslice/kubeslice-monitoring/pkg/logger"
 	"github.com/kubeslice/slicegw-edge/pkg/edgeservice"
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
 	"github.com/kubeslice/worker-operator/controllers"
 	"github.com/kubeslice/worker-operator/pkg/cluster"
 	"github.com/kubeslice/worker-operator/pkg/gatewayedge"
+	"k8s.io/apimachinery/pkg/api/errors"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -459,4 +461,58 @@ func (r *SliceReconciler) ReconcileSliceGwEdge(ctx context.Context, slice *kubes
 	}
 
 	return r.reconcileSliceGatewayEdgeService(ctx, slice)
+}
+
+func (r *SliceReconciler) deleteSliceGwEdgeIfPresent(ctx context.Context, slice *kubeslicev1beta1.Slice) error {
+	log := logger.FromContext(ctx)
+	debug := log.V(1)
+	// remove slice gateway edge deployments if present.
+	// currently there's just one, but there could be multiple gateways in future
+	sge := &appsv1.DeploymentList{}
+	listOpts := []client.ListOption{
+		client.MatchingLabels(labelsForSliceGatewayEdgeDeployment(slice.Name)),
+	}
+	err := r.List(ctx, sge, listOpts...)
+	if err != nil {
+		log.Error(err, "failed to list gateway edges")
+		return err
+	}
+	if len(sge.Items) != 0 {
+		for i := range sge.Items {
+			debug.Info("Attempting SGE deploy cleanup", "SGE name", sge.Items[i].Name)
+			if err := r.Delete(ctx, &sge.Items[i]); err != nil {
+				if !errors.IsNotFound(err) {
+					log.Error(err, "Failed to delete Slice Gateway edge deployment")
+					return err
+				}
+			}
+		}
+	} else {
+		debug.Info("no sge deploy found to delete")
+	}
+	// remove slice gateway edge services if present.
+	// currently there's just one, but there could be multiple gateways in future
+	sge_svc := &corev1.ServiceList{}
+	listOpts = []client.ListOption{
+		client.MatchingLabels(labelsForSliceGatewayEdgeSvc(slice.Name)),
+	}
+	err = r.List(ctx, sge_svc, listOpts...)
+	if err != nil {
+		log.Error(err, "failed to list gateway edge svcs")
+		return err
+	}
+	if len(sge.Items) != 0 {
+		for i := range sge_svc.Items {
+			debug.Info("Attempting SGE svc cleanup", "SGE name", sge_svc.Items[i].Name)
+			if err := r.Delete(ctx, &sge.Items[i]); err != nil {
+				if !errors.IsNotFound(err) {
+					log.Error(err, "Failed to delete Slice Gateway edge svc")
+					return err
+				}
+			}
+		}
+	} else {
+		debug.Info("no sge svc found to delete")
+	}
+	return nil
 }

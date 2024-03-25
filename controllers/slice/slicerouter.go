@@ -460,7 +460,7 @@ func newDeploymentSliceRouter(r *SliceReconciler, ctx context.Context, slice *ku
 func sliceConfigDefined(slice *kubeslicev1beta1.Slice) bool {
 	return slice.Status.SliceConfig != nil && slice.Status.SliceConfig.SliceSubnet != "" && slice.Status.SliceConfig.ClusterSubnetCIDR != ""
 }
-func (r *SliceReconciler) cleanupSliceRouter(ctx context.Context, sliceName string) error {
+func (r *SliceReconciler) cleanupVl3NSE(ctx context.Context, sliceName string) error {
 	log := logger.FromContext(ctx)
 
 	vl3Nse := &nsmv1.NetworkService{}
@@ -478,5 +478,44 @@ func (r *SliceReconciler) cleanupSliceRouter(ctx context.Context, sliceName stri
 		log.Error(err, "Slice router cleanup: Failed to delete vl3 nse")
 		return err
 	}
+	return nil
+}
+
+func (r *SliceReconciler) deleteSliceRouterComponentsIfPresent(ctx context.Context, slice *kubeslicev1beta1.Slice) error {
+	log := logger.FromContext(ctx)
+	// debug := log.V(1)
+	// delete router deployment if present
+	dep := &appsv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      sliceRouterDeploymentNamePrefix + slice.Name,
+			Namespace: slice.Namespace,
+		},
+	}
+	if err := r.Delete(ctx, dep); err != nil {
+		if !errors.IsNotFound(err) {
+			log.Error(err, "Failed to delete Slice router deployment")
+			return err
+		}
+	}
+
+	// delete router service if present
+	svc := &corev1.Service{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      sliceRouterDeploymentNamePrefix + slice.Name,
+			Namespace: controllers.ControlPlaneNamespace,
+		},
+	}
+	if err := r.Delete(ctx, svc); err != nil {
+		if !errors.IsNotFound(err) {
+			log.Error(err, "Failed to delete Slice router service")
+			return err
+		}
+	}
+
+	// cleanup slice router network service if present
+	if err := r.cleanupVl3NSE(ctx, slice.Name); err != nil {
+		return err
+	}
+
 	return nil
 }
