@@ -57,13 +57,13 @@ type SliceConfig struct {
 	// display name of the slice.
 	SliceDisplayName string `json:"sliceDisplayName"`
 	// IP subnet range of the slice.
-	SliceSubnet string `json:"sliceSubnet"`
+	SliceSubnet string `json:"sliceSubnet,omitempty"`
 	// Type of the slice.
 	SliceType string `json:"sliceType"`
 	// QOS profile details
-	QosProfileDetails QosProfileDetails `json:"qosProfileDetails"`
+	QosProfileDetails QosProfileDetails `json:"qosProfileDetails,omitempty"`
 	// IPAM configuration for the slice
-	SliceIpam SliceIpamConfig `json:"sliceIpam"`
+	SliceIpam SliceIpamConfig `json:"sliceIpam,omitempty"`
 	// ExternalGatewayConfig determines istio ingress/egress configuration
 	ExternalGatewayConfig *ExternalGatewayConfig `json:"externalGatewayConfig,omitempty"`
 	// Namespace Isolation profile contains fields related to namespace binding to slice

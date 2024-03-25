@@ -198,11 +198,8 @@ spec:
                     description: Type of the slice.
                     type: string
                 required:
-                - qosProfileDetails
                 - sliceDisplayName
                 - sliceId
-                - sliceIpam
-                - sliceSubnet
                 - sliceType
                 type: object
             type: object
