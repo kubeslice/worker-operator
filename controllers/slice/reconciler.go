@@ -117,17 +117,20 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 	// A namespace might not have any labels attached to it. Directly accessing the label map
 	// leads to a crash for such namespaces.
 	// If the label map is nil, create one and use the setter api to attach it to the namespace.
-	nsLabels := namespace.ObjectMeta.GetLabels()
-	if nsLabels == nil {
-		nsLabels = make(map[string]string)
-	}
-	if _, ok := nsLabels[InjectSidecarKey]; !ok {
-		nsLabels[InjectSidecarKey] = "true"
-		namespace.ObjectMeta.SetLabels(nsLabels)
+	if slice.Status.SliceConfig.SliceOverlayNetworkDeploymentMode != v1alpha1.NONET {
+		// add the level only when network components are involved
+		nsLabels := namespace.ObjectMeta.GetLabels()
+		if nsLabels == nil {
+			nsLabels = make(map[string]string)
+		}
+		if _, ok := nsLabels[InjectSidecarKey]; !ok {
+			nsLabels[InjectSidecarKey] = "true"
+			namespace.ObjectMeta.SetLabels(nsLabels)
 
-		err = r.Update(ctx, namespace)
-		if err != nil {
-			return ctrl.Result{}, err
+			err = r.Update(ctx, namespace)
+			if err != nil {
+				return ctrl.Result{}, err
+			}
 		}
 	}
 	// Examine DeletionTimestamp to determine if object is under deletion

@@ -115,9 +115,12 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return res, err
 	}
 	utils.RecordEvent(ctx, r.EventRecorder, cr, nil, ossEvents.EventClusterProviderUpdateInfoSuccesful, controllerName)
-	debuglog.Info("cr.Status.NetworkPresent", "isNsmInstalled", r.isNsmInstalled(ctx))
-	// cr.Status.NetworkPresent  = r.isNsmInstalled(ctx)
-	if r.isNsmInstalled(ctx) {
+	debuglog.Info("cluster status", "cr.Status.NetworkPresent", cr.Status.NetworkPresent)
+	if err = r.updateNetworkStatus(ctx, cr); err != nil {
+		log.Error(err, "unable to update networkPresent status")
+	}
+	if cr.Status.NetworkPresent {
+		debuglog.Info("cr.Status.NetworkPresent=true")
 		res, err, requeue = r.updateCNISubnetConfig(ctx, cr, cl)
 		if err != nil {
 			utils.RecordEvent(ctx, r.EventRecorder, cr, nil, ossEvents.EventClusterCNISubnetUpdateFailed, controllerName)
@@ -201,7 +204,7 @@ func (r *Reconciler) isNsmInstalled(ctx context.Context) bool {
 		log.Error(err, "Failed to list nsmgr ds")
 		return false
 	}
-	debuglog.Info("isNsmInstalled", "nsmgr ds", len(dsList.Items))
+	debuglog.Info("isNsmInstalled", "nsmgr ds count", len(dsList.Items))
 	return len(dsList.Items) != 0
 }
 
@@ -336,6 +339,27 @@ func (r *Reconciler) getComponentStatus(ctx context.Context, c *component, cr *h
 	log.Info("health status normal", "component", c.name)
 	cs.ComponentHealthStatus = hubv1alpha1.ComponentHealthStatusNormal
 	return cs, nil
+}
+
+func (r *Reconciler) updateNetworkStatus(ctx context.Context, cluster *hubv1alpha1.Cluster) error {
+	log := logger.FromContext(ctx)
+	debuglog := log.V(1)
+	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		err := r.Get(ctx, types.NamespacedName{
+			Name:      cluster.Name,
+			Namespace: cluster.Namespace,
+		}, cluster)
+		if err != nil {
+			return err
+		}
+		cluster.Status.NetworkPresent = r.isNsmInstalled(ctx)
+		debuglog.Info("checked nsm deploy", "isNsmInstalled", cluster.Status.NetworkPresent)
+		return r.Status().Update(ctx, cluster)
+	})
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (r *Reconciler) updateClusterCloudProviderInfo(ctx context.Context, cr *hubv1alpha1.Cluster, cl cluster.ClusterInterface) (ctrl.Result, error, bool) {
