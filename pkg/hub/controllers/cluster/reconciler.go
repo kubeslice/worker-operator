@@ -119,26 +119,24 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	if err = r.updateNetworkStatus(ctx, cr); err != nil {
 		log.Error(err, "unable to update networkPresent status")
 	}
-	if cr.Status.NetworkPresent {
-		debuglog.Info("cr.Status.NetworkPresent=true")
-		res, err, requeue = r.updateCNISubnetConfig(ctx, cr, cl)
-		if err != nil {
-			utils.RecordEvent(ctx, r.EventRecorder, cr, nil, ossEvents.EventClusterCNISubnetUpdateFailed, controllerName)
-			log.Error(err, "unable to update cni subnet config to cluster")
-		}
-		if requeue {
-			return res, err
-		}
-		// Update registration status to registered when slice networking enabled & cluster staus has CNI Subnet list
-		// if cluster.Status.NetworkPresent
-		if len(cr.Status.CniSubnet) == 0 {
-			debuglog.Info("registration status: pending, as cni subnet list not populated")
-			if err = r.updateRegistrationStatus(ctx, cr, hubv1alpha1.RegistrationStatusPending); err != nil {
-				log.Error(err, "unable to update registration status")
-			}
-			return reconcile.Result{Requeue: true}, nil
-		}
+	res, err, requeue = r.updateCNISubnetConfig(ctx, cr, cl)
+	if err != nil {
+		utils.RecordEvent(ctx, r.EventRecorder, cr, nil, ossEvents.EventClusterCNISubnetUpdateFailed, controllerName)
+		log.Error(err, "unable to update cni subnet config to cluster")
 	}
+	if requeue {
+		return res, err
+	}
+	// Update registration status to registered when slice networking enabled & cluster staus has CNI Subnet list
+	// if cluster.Status.NetworkPresent
+	if cr.Status.NetworkPresent && len(cr.Status.CniSubnet) == 0 {
+		debuglog.Info("registration status: pending, as cni subnet list not populated")
+		if err = r.updateRegistrationStatus(ctx, cr, hubv1alpha1.RegistrationStatusPending); err != nil {
+			log.Error(err, "unable to update registration status")
+		}
+		return reconcile.Result{Requeue: true}, nil
+	}
+
 	debuglog.Info("Update registration status to registered")
 	if err = r.updateRegistrationStatus(ctx, cr, hubv1alpha1.RegistrationStatusRegistered); err != nil {
 		log.Error(err, "unable to update registration status")
@@ -214,8 +212,7 @@ func (r *Reconciler) updateClusterHealthStatus(ctx context.Context, cr *hubv1alp
 	csList := []hubv1alpha1.ComponentStatus{}
 	var chs hubv1alpha1.ClusterHealthStatus = hubv1alpha1.ClusterHealthStatusNormal
 
-	// if cr.Status.NetworkPresent{
-	if r.isNsmInstalled(ctx) {
+	if cr.Status.NetworkPresent {
 		debuglog.Info("Worker installation with network component, continue health check")
 
 		for _, c := range components {
@@ -405,6 +402,7 @@ func (r *Reconciler) updateClusterCloudProviderInfo(ctx context.Context, cr *hub
 
 func (r *Reconciler) updateCNISubnetConfig(ctx context.Context, cr *hubv1alpha1.Cluster, cl cluster.ClusterInterface) (ctrl.Result, error, bool) {
 	log := logger.FromContext(ctx)
+	debuglog := log.V(1)
 	toUpdate := false
 	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		err := r.Get(ctx, types.NamespacedName{
@@ -414,10 +412,15 @@ func (r *Reconciler) updateCNISubnetConfig(ctx context.Context, cr *hubv1alpha1.
 		if err != nil {
 			return err
 		}
-		cniSubnet, err := cl.GetNsmExcludedPrefix(ctx, "nsm-config", "kubeslice-system")
-		if err != nil {
-			log.Error(err, "Failed to get nsm config")
-			return err
+		cniSubnet := []string{}
+		// nsm-config is present only when operator is installed with networking enabled
+		if cr.Status.NetworkPresent {
+			debuglog.Info("try to get cni subnets from nsm-config cm")
+			cniSubnet, err = cl.GetNsmExcludedPrefix(ctx, "nsm-config", "kubeslice-system")
+			if err != nil {
+				log.Error(err, "Failed to get nsm config")
+				return err
+			}
 		}
 		if !reflect.DeepEqual(cr.Status.CniSubnet, cniSubnet) {
 			cr.Status.CniSubnet = cniSubnet
