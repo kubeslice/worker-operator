@@ -117,22 +117,20 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 	// A namespace might not have any labels attached to it. Directly accessing the label map
 	// leads to a crash for such namespaces.
 	// If the label map is nil, create one and use the setter api to attach it to the namespace.
-	if slice.Status.SliceConfig.SliceOverlayNetworkDeploymentMode != v1alpha1.NONET {
-		// add the level only when network components are involved
-		nsLabels := namespace.ObjectMeta.GetLabels()
-		if nsLabels == nil {
-			nsLabels = make(map[string]string)
-		}
-		if _, ok := nsLabels[InjectSidecarKey]; !ok {
-			nsLabels[InjectSidecarKey] = "true"
-			namespace.ObjectMeta.SetLabels(nsLabels)
+	nsLabels := namespace.ObjectMeta.GetLabels()
+	if nsLabels == nil {
+		nsLabels = make(map[string]string)
+	}
+	if _, ok := nsLabels[InjectSidecarKey]; !ok {
+		nsLabels[InjectSidecarKey] = "true"
+		namespace.ObjectMeta.SetLabels(nsLabels)
 
-			err = r.Update(ctx, namespace)
-			if err != nil {
-				return ctrl.Result{}, err
-			}
+		err = r.Update(ctx, namespace)
+		if err != nil {
+			return ctrl.Result{}, err
 		}
 	}
+
 	// Examine DeletionTimestamp to determine if object is under deletion
 	// The object is not being deleted, so if it does not have our finalizer,
 	// then lets add the finalizer and update the object. This is equivalent
@@ -166,13 +164,8 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 	}
 
 	if slice.Status.SliceConfig.SliceOverlayNetworkDeploymentMode == v1alpha1.NONET {
-		debugLog.Info("No communication slice, skipping reconciliation of qos, netop, egw, router etc & cleaning up the same if present")
-		// delete network components if present
-		res, err, requeue := r.cleanupNetworkComponentsIfPresent(ctx, slice)
-		if requeue {
-			debugLog.Info("Retry removing SliceNetworkComponents for no-net slice", "res", res, "err", err)
-			return res, err
-		}
+		debugLog.Info("No communication slice, skipping reconciliation of qos, netop, egw, router etc")
+		// to support net to no-net switching write a function to delete network components if present
 	} else {
 		debugLog.Info("Slice with network, continue reconciliation of qos, netop, egw, router etc")
 		// syncQoStoNetop, reconcile slice router, slicegw edge, ext gateways
@@ -217,23 +210,6 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 	return ctrl.Result{
 		RequeueAfter: controllers.ReconcileInterval,
 	}, nil
-}
-
-func (r *SliceReconciler) cleanupNetworkComponentsIfPresent(ctx context.Context, slice *kubeslicev1beta1.Slice) (reconcile.Result, error, bool) {
-	// cleanup slice router
-	if err := r.deleteSliceRouterComponentsIfPresent(ctx, slice); err != nil {
-		return ctrl.Result{}, err, true
-	}
-	// Q: should we cleanup Service Discovery objects ?- serviceimport and export
-	// cleanup gw edge if present
-	if err := r.deleteSliceGwEdgeIfPresent(ctx, slice); err != nil {
-		return ctrl.Result{}, err, true
-	}
-	// cleanup ext gateways if present
-	if err := r.deleteSliceExternalGatewaysIfPresent(ctx, slice); err != nil {
-		return ctrl.Result{}, err, true
-	}
-	return ctrl.Result{}, nil, false
 }
 
 func (r *SliceReconciler) reconcileNetworkComponents(ctx context.Context, slice *kubeslicev1beta1.Slice) (reconcile.Result, error, bool) {
@@ -326,21 +302,6 @@ func (r *SliceReconciler) handleAppPodStatusChange(appPods []kubeslicev1beta1.Ap
 	utils.RecordEvent(ctx, r.EventRecorder, slice, nil, ossEvents.EventSliceUpdated, controllerName)
 
 	return ctrl.Result{Requeue: true}, nil
-}
-
-func (r *SliceReconciler) deleteSliceExternalGatewaysIfPresent(ctx context.Context, slice *kubeslicev1beta1.Slice) error {
-	log := logger.FromContext(ctx)
-	err := manifest.UninstallEgress(ctx, r.Client, slice.Name)
-	if err != nil {
-		log.Error(err, "unable to uninstall egress")
-		return err
-	}
-	err = manifest.UninstallIngress(ctx, r.Client, slice.Name)
-	if err != nil {
-		log.Error(err, "unable to uninstall ingress")
-		return err
-	}
-	return nil
 }
 
 func isEgressConfigured(slice *kubeslicev1beta1.Slice) bool {
