@@ -460,7 +460,7 @@ func newDeploymentSliceRouter(r *SliceReconciler, ctx context.Context, slice *ku
 func sliceConfigDefined(slice *kubeslicev1beta1.Slice) bool {
 	return slice.Status.SliceConfig != nil && slice.Status.SliceConfig.SliceSubnet != "" && slice.Status.SliceConfig.ClusterSubnetCIDR != ""
 }
-func (r *SliceReconciler) cleanupSliceRouter(ctx context.Context, sliceName string) error {
+func (r *SliceReconciler) cleanupVl3NSE(ctx context.Context, sliceName string) error {
 	log := logger.FromContext(ctx)
 
 	vl3Nse := &nsmv1.NetworkService{}

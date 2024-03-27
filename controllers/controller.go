@@ -24,6 +24,7 @@ import (
 	"strings"
 
 	"github.com/go-logr/logr"
+	"github.com/kubeslice/apis/pkg/controller/v1alpha1"
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
 	"github.com/kubeslice/worker-operator/pkg/logger"
 	corev1 "k8s.io/api/core/v1"
@@ -186,7 +187,7 @@ func SliceAppNamespaceConfigured(ctx context.Context, slice string, namespace st
 	return false, nil
 }
 
-func GetSliceOverlayNetworkType(ctx context.Context, c client.Client, sliceName string) (string, error) {
+func GetSliceOverlayNetworkType(ctx context.Context, c client.Client, sliceName string) (v1alpha1.NetworkType, error) {
 	slice, err := GetSlice(ctx, c, sliceName)
 	if err != nil {
 		return "", err

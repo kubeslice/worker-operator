@@ -34,8 +34,9 @@ import (
 	"github.com/kubeslice/worker-operator/pkg/logger"
 	"github.com/kubeslice/worker-operator/pkg/utils"
 	"github.com/prometheus/client_golang/prometheus"
-	corev1 "k8s.io/api/core/v1"
 
+	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -89,10 +90,14 @@ var clusterDeregisterFinalizer = "worker.kubeslice.io/cluster-deregister-finaliz
 
 func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
 	log := logger.FromContext(ctx).WithName("cluster-reconciler")
+	debuglog := log.V(1)
 	ctx = logger.WithLogger(ctx, log)
 	cr, err := r.getCluster(ctx, req)
 	if cr == nil {
 		return reconcile.Result{}, err
+	}
+	if cr.Status.RegistrationStatus == "" {
+		cr.Status.RegistrationStatus = hubv1alpha1.RegistrationStatusInProgress
 	}
 	log.Info("got cluster CR from hub", "cluster", cr)
 	requeue, result, err := r.handleClusterDeletion(cr, ctx, req)
@@ -110,6 +115,10 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return res, err
 	}
 	utils.RecordEvent(ctx, r.EventRecorder, cr, nil, ossEvents.EventClusterProviderUpdateInfoSuccesful, controllerName)
+	debuglog.Info("cluster status", "cr.Status.NetworkPresent", cr.Status.NetworkPresent)
+	if err = r.updateNetworkStatus(ctx, cr); err != nil {
+		log.Error(err, "unable to update networkPresent status")
+	}
 	res, err, requeue = r.updateCNISubnetConfig(ctx, cr, cl)
 	if err != nil {
 		utils.RecordEvent(ctx, r.EventRecorder, cr, nil, ossEvents.EventClusterCNISubnetUpdateFailed, controllerName)
@@ -118,7 +127,17 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	if requeue {
 		return res, err
 	}
-	// Update registration status to registered
+	// Update registration status to registered when slice networking enabled & cluster staus has CNI Subnet list
+	// if cluster.Status.NetworkPresent
+	if cr.Status.NetworkPresent && len(cr.Status.CniSubnet) == 0 {
+		debuglog.Info("registration status: pending, as cni subnet list not populated")
+		if err = r.updateRegistrationStatus(ctx, cr, hubv1alpha1.RegistrationStatusPending); err != nil {
+			log.Error(err, "unable to update registration status")
+		}
+		return reconcile.Result{Requeue: true}, nil
+	}
+
+	debuglog.Info("Update registration status to registered")
 	if err = r.updateRegistrationStatus(ctx, cr, hubv1alpha1.RegistrationStatusRegistered); err != nil {
 		log.Error(err, "unable to update registration status")
 	}
@@ -169,36 +188,59 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	return reconcile.Result{RequeueAfter: r.ReconcileInterval}, nil
 }
 
+// if nsm core compoent is not found in a cluster, it's assumed that
+// the kubeslice network dependencies have not been installed in it
+func (r *Reconciler) isNsmInstalled(ctx context.Context) bool {
+	log := logger.FromContext(ctx)
+	debuglog := log.V(1)
+	dsList := &appsv1.DaemonSetList{}
+	listOpts := []client.ListOption{
+		client.MatchingLabels(map[string]string{"app": "nsmgr"}),
+		client.InNamespace(ControlPlaneNamespace),
+	}
+	if err := r.MeshClient.List(ctx, dsList, listOpts...); err != nil {
+		log.Error(err, "Failed to list nsmgr ds")
+		return false
+	}
+	debuglog.Info("isNsmInstalled", "nsmgr ds count", len(dsList.Items))
+	return len(dsList.Items) != 0
+}
+
 func (r *Reconciler) updateClusterHealthStatus(ctx context.Context, cr *hubv1alpha1.Cluster) error {
 	log := logger.FromContext(ctx)
+	debuglog := log.V(1)
 	csList := []hubv1alpha1.ComponentStatus{}
 	var chs hubv1alpha1.ClusterHealthStatus = hubv1alpha1.ClusterHealthStatusNormal
 
-	for _, c := range components {
-		cs, err := r.getComponentStatus(ctx, &c, cr)
-		if err != nil {
-			log.Error(err, "unable to fetch component status")
-		}
-		if cs != nil {
-			csList = append(csList, *cs)
-			if cs.ComponentHealthStatus != hubv1alpha1.ComponentHealthStatusNormal {
-				chs = hubv1alpha1.ClusterHealthStatusWarning
-				log.Info("Component unhealthy", "component", c.name)
+	if cr.Status.NetworkPresent {
+		debuglog.Info("Worker installation with network component, continue health check")
+
+		for _, c := range components {
+			cs, err := r.getComponentStatus(ctx, &c, cr)
+			if err != nil {
+				log.Error(err, "unable to fetch component status")
+			}
+			if cs != nil {
+				csList = append(csList, *cs)
+				if cs.ComponentHealthStatus != hubv1alpha1.ComponentHealthStatusNormal {
+					chs = hubv1alpha1.ClusterHealthStatusWarning
+					debuglog.Info("Component unhealthy", "component", c.name)
+				}
 			}
 		}
-	}
 
-	// Cluster health changed, raise event
-	if cr.Status.ClusterHealth.ClusterHealthStatus != chs {
-		if chs == hubv1alpha1.ClusterHealthStatusNormal {
-			log.Info("cluster health is back to normal")
-			utils.RecordEvent(ctx, r.EventRecorder, cr, nil, ossEvents.EventClusterHealthy, controllerName)
-		} else if chs == hubv1alpha1.ClusterHealthStatusWarning {
-			log.Info("cluster health is in warning state")
-			utils.RecordEvent(ctx, r.EventRecorder, cr, nil, ossEvents.EventClusterUnhealthy, controllerName)
+		// Cluster health changed, raise event
+		if cr.Status.ClusterHealth.ClusterHealthStatus != chs {
+			if chs == hubv1alpha1.ClusterHealthStatusNormal {
+				log.Info("cluster health is back to normal")
+				utils.RecordEvent(ctx, r.EventRecorder, cr, nil, ossEvents.EventClusterHealthy, controllerName)
+			} else if chs == hubv1alpha1.ClusterHealthStatusWarning {
+				log.Info("cluster health is in warning state")
+				utils.RecordEvent(ctx, r.EventRecorder, cr, nil, ossEvents.EventClusterUnhealthy, controllerName)
+			}
 		}
-	}
 
+	}
 	cr.Status.ClusterHealth.ComponentStatuses = csList
 	cr.Status.ClusterHealth.ClusterHealthStatus = chs
 
@@ -237,6 +279,7 @@ func (r *Reconciler) getComponentStatus(ctx context.Context, c *component, cr *h
 		}
 		return cs, nil
 	}
+
 	if c.name == "cni-subnets" {
 		if cr == nil {
 			return nil, nil
@@ -295,6 +338,27 @@ func (r *Reconciler) getComponentStatus(ctx context.Context, c *component, cr *h
 	return cs, nil
 }
 
+func (r *Reconciler) updateNetworkStatus(ctx context.Context, cluster *hubv1alpha1.Cluster) error {
+	log := logger.FromContext(ctx)
+	debuglog := log.V(1)
+	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		err := r.Get(ctx, types.NamespacedName{
+			Name:      cluster.Name,
+			Namespace: cluster.Namespace,
+		}, cluster)
+		if err != nil {
+			return err
+		}
+		cluster.Status.NetworkPresent = r.isNsmInstalled(ctx)
+		debuglog.Info("checked nsm deploy", "isNsmInstalled", cluster.Status.NetworkPresent)
+		return r.Status().Update(ctx, cluster)
+	})
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 func (r *Reconciler) updateClusterCloudProviderInfo(ctx context.Context, cr *hubv1alpha1.Cluster, cl cluster.ClusterInterface) (ctrl.Result, error, bool) {
 	log := logger.FromContext(ctx)
 	clusterInfo, err := cl.GetClusterInfo(ctx)
@@ -338,6 +402,7 @@ func (r *Reconciler) updateClusterCloudProviderInfo(ctx context.Context, cr *hub
 
 func (r *Reconciler) updateCNISubnetConfig(ctx context.Context, cr *hubv1alpha1.Cluster, cl cluster.ClusterInterface) (ctrl.Result, error, bool) {
 	log := logger.FromContext(ctx)
+	debuglog := log.V(1)
 	toUpdate := false
 	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		err := r.Get(ctx, types.NamespacedName{
@@ -347,16 +412,18 @@ func (r *Reconciler) updateCNISubnetConfig(ctx context.Context, cr *hubv1alpha1.
 		if err != nil {
 			return err
 		}
-		cniSubnet, err := cl.GetNsmExcludedPrefix(ctx, "nsm-config", "kubeslice-system")
-		if err != nil {
-			log.Error(err, "Failed to get nsm config")
-			return err
+		cniSubnet := []string{}
+		// nsm-config is present only when operator is installed with networking enabled
+		if cr.Status.NetworkPresent {
+			debuglog.Info("try to get cni subnets from nsm-config cm")
+			cniSubnet, err = cl.GetNsmExcludedPrefix(ctx, "nsm-config", "kubeslice-system")
+			if err != nil {
+				log.Error(err, "Failed to get nsm config")
+				return err
+			}
 		}
 		if !reflect.DeepEqual(cr.Status.CniSubnet, cniSubnet) {
 			cr.Status.CniSubnet = cniSubnet
-			// TODO: move this status declaration to outside this function when health check is implemented
-			// for CNI subnet and Node IP address.
-			cr.Status.RegistrationStatus = hubv1alpha1.RegistrationStatusRegistered
 			toUpdate = true
 			return r.Status().Update(ctx, cr)
 		}

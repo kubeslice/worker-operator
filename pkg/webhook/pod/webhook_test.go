@@ -25,6 +25,7 @@ import (
 	. "github.com/onsi/gomega"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/kubeslice/apis/pkg/controller/v1alpha1"
 	"github.com/kubeslice/worker-operator/controllers"
 	"github.com/kubeslice/worker-operator/pkg/webhook/pod"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -44,7 +45,7 @@ func (f fakeWebhookClient) GetNamespaceLabels(ctx context.Context, client client
 	return map[string]string{controllers.ApplicationNamespaceSelectorLabelKey: "green"}, nil
 }
 
-func (f fakeWebhookClient) GetSliceOverlayNetworkType(ctx context.Context, client client.Client, sliceName string) (string, error) {
+func (f fakeWebhookClient) GetSliceOverlayNetworkType(ctx context.Context, client client.Client, sliceName string) (v1alpha1.NetworkType, error) {
 	return "", nil
 }
 

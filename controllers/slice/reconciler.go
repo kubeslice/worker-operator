@@ -34,6 +34,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
+	"github.com/kubeslice/apis/pkg/controller/v1alpha1"
 	"github.com/kubeslice/kubeslice-monitoring/pkg/events"
 	"github.com/kubeslice/kubeslice-monitoring/pkg/metrics"
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
@@ -129,6 +130,7 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 			return ctrl.Result{}, err
 		}
 	}
+
 	// Examine DeletionTimestamp to determine if object is under deletion
 	// The object is not being deleted, so if it does not have our finalizer,
 	// then lets add the finalizer and update the object. This is equivalent
@@ -161,54 +163,17 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 		return res, err
 	}
 
-	debugLog.Info("Syncing slice QoS config with NetOp pods")
-	err = r.SyncSliceQosProfileWithNetOp(ctx, slice)
-	if err != nil {
-		log.Error(err, "Failed to sync QoS profile with netop pods")
-		utils.RecordEvent(ctx, r.EventRecorder, slice, nil, ossEvents.EventSliceQoSProfileWithNetOpsSync, controllerName)
+	if slice.Status.SliceConfig.SliceOverlayNetworkDeploymentMode == v1alpha1.NONET {
+		debugLog.Info("No communication slice, skipping reconciliation of qos, netop, egw, router etc")
+		// to support net to no-net switching write a function to delete network components if present
 	} else {
-		utils.RecordEvent(ctx, r.EventRecorder, slice, nil, ossEvents.EventSliceUpdated, controllerName)
-	}
-
-	log.Info("ExternalGatewayConfig", "egw", slice.Status.SliceConfig)
-
-	if isEgressConfigured(slice) {
-		debugLog.Info("Installing egress")
-		err = manifest.InstallEgress(ctx, r.Client, slice)
-		if err != nil {
-			log.Error(err, "unable to install egress")
-			utils.RecordEvent(ctx, r.EventRecorder, slice, nil, ossEvents.EventSliceEgressInstallFailed, controllerName)
-			return ctrl.Result{}, nil
+		debugLog.Info("Slice with network, continue reconciliation of qos, netop, egw, router etc")
+		// syncQoStoNetop, reconcile slice router, slicegw edge, ext gateways
+		res, err, requeue := r.reconcileNetworkComponents(ctx, slice)
+		if requeue {
+			debugLog.Info("Retry reconciling SliceNetworkComponents", "res", res, "err", err)
+			return res, err
 		}
-	}
-
-	if isIngressConfigured(slice) {
-		debugLog.Info("Installing ingress")
-		err = manifest.InstallIngress(ctx, r.Client, slice)
-		if err != nil {
-			log.Error(err, "unable to install ingress")
-			utils.RecordEvent(ctx, r.EventRecorder, slice, nil, ossEvents.EventSliceIngressInstallFailed, controllerName)
-			return ctrl.Result{}, nil
-		}
-	}
-
-	res, err, requeue = r.ReconcileSliceRouter(ctx, slice)
-	if err != nil {
-		log.Error(err, "Failed to reconcile slice router")
-	}
-	if requeue {
-		return res, err
-	}
-
-	res, err, requeue = r.ReconcileSliceGwEdge(ctx, slice)
-	if err != nil {
-		log.Error(err, "Slice Edge reconciliation failed")
-		return res, err
-	}
-	if requeue {
-		return ctrl.Result{
-			Requeue: true,
-		}, nil
 	}
 
 	appPods, err := r.getAppPods(ctx, slice)
@@ -245,6 +210,63 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 	return ctrl.Result{
 		RequeueAfter: controllers.ReconcileInterval,
 	}, nil
+}
+
+func (r *SliceReconciler) reconcileNetworkComponents(ctx context.Context, slice *kubeslicev1beta1.Slice) (reconcile.Result, error, bool) {
+	log := logger.FromContext(ctx)
+	debugLog := log.V(1)
+
+	debugLog.Info("Syncing slice QoS config with NetOp pods")
+	err := r.SyncSliceQosProfileWithNetOp(ctx, slice)
+	if err != nil {
+		log.Error(err, "Failed to sync QoS profile with netop pods")
+		utils.RecordEvent(ctx, r.EventRecorder, slice, nil, ossEvents.EventSliceQoSProfileWithNetOpsSync, controllerName)
+	} else {
+		utils.RecordEvent(ctx, r.EventRecorder, slice, nil, ossEvents.EventSliceUpdated, controllerName)
+	}
+
+	debugLog.Info("reconciling SliceRouter")
+	res, err, requeue := r.ReconcileSliceRouter(ctx, slice)
+	if err != nil {
+		log.Error(err, "Failed to reconcile slice router")
+		return res, err, true
+	}
+	if requeue {
+		return res, nil, true
+	}
+
+	debugLog.Info("reconciling SliceGwEdge")
+	res, err, requeue = r.ReconcileSliceGwEdge(ctx, slice)
+	if err != nil {
+		log.Error(err, "Slice Edge reconciliation failed")
+		return res, err, true
+	}
+	if requeue {
+		return res, nil, true
+	}
+
+	debugLog.Info("ExternalGatewayConfig", "egw", slice.Status.SliceConfig)
+	if isEgressConfigured(slice) {
+		debugLog.Info("Installing egress")
+		err = manifest.InstallEgress(ctx, r.Client, slice)
+		if err != nil {
+			log.Error(err, "unable to install egress")
+			utils.RecordEvent(ctx, r.EventRecorder, slice, nil, ossEvents.EventSliceEgressInstallFailed, controllerName)
+			return ctrl.Result{}, err, false
+		}
+	}
+
+	if isIngressConfigured(slice) {
+		debugLog.Info("Installing ingress")
+		err = manifest.InstallIngress(ctx, r.Client, slice)
+		if err != nil {
+			log.Error(err, "unable to install ingress")
+			utils.RecordEvent(ctx, r.EventRecorder, slice, nil, ossEvents.EventSliceIngressInstallFailed, controllerName)
+			return ctrl.Result{}, err, false
+		}
+	}
+
+	return ctrl.Result{}, nil, false
 }
 
 func (r *SliceReconciler) exposeMetric(appPods []kubeslicev1beta1.AppPod, slice *kubeslicev1beta1.Slice) {
@@ -300,10 +322,9 @@ func (r *SliceReconciler) handleDnsSvc(ctx context.Context, slice *kubeslicev1be
 
 	if err != nil {
 		if errors.IsNotFound(err) {
-			log.Error(err, "dns not found")
-			log.Info("DNS service not found in the cluster, probably coredns is not deployed; continuing")
+			debugLog.Info("DNS service not found in the cluster, probably coredns is not deployed for no-net slice; continuing")
 		} else {
-			log.Error(err, "Unable to find DNS Service")
+			log.Error(err, "Failed to get DNS Service")
 			return true, ctrl.Result{}, err
 		}
 	} else {

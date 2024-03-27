@@ -20,6 +20,7 @@ package slice
 
 import (
 	"context"
+
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
 	"github.com/kubeslice/worker-operator/controllers"
 	corev1 "k8s.io/api/core/v1"
@@ -35,7 +36,7 @@ func (r *SliceReconciler) cleanupSliceResources(ctx context.Context, slice *kube
 		return err
 	}
 	//cleanup slice router network service
-	if err := r.cleanupSliceRouter(ctx, slice.Name); err != nil {
+	if err := r.cleanupVl3NSE(ctx, slice.Name); err != nil {
 		return err
 	}
 	//cleanup Service Discovery objects - serviceimport and export objects that belong to this slice

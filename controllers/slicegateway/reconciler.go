@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
+	"github.com/kubeslice/apis/pkg/controller/v1alpha1"
 	"github.com/kubeslice/kubeslice-monitoring/pkg/events"
 	ossEvents "github.com/kubeslice/worker-operator/events"
 	"github.com/kubeslice/worker-operator/pkg/utils"
@@ -127,6 +128,12 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		return ctrl.Result{
 			RequeueAfter: 10 * time.Second,
 		}, nil
+	}
+
+	if slice.Status.SliceConfig != nil &&
+		slice.Status.SliceConfig.SliceOverlayNetworkDeploymentMode == v1alpha1.NONET {
+		log.Info("No communication slice. Skipping slicegw reconcilation")
+		return ctrl.Result{}, err
 	}
 
 	// Check if slice router network service endpoint (NSE) is present before spawning slice gateway pod.
