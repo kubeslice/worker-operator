@@ -89,6 +89,9 @@ jobs:
       with:
           name: trivy-scan
           path: scan.txt
+        
+    - name: Delete huge unnecessary tools folder
+      run: rm -rf /opt/hostedtoolcache
     
     - name: build kind clusters
       run: |
@@ -105,12 +108,6 @@ jobs:
          
     - name: Build the e2e image
       run: sudo docker build . -t aveshadev/kubeslice-e2e:latest
-        
-    - name: Delete huge unnecessary tools folder
-      run: rm -rf /opt/hostedtoolcache
-          
-    - name: Check disk space
-      run: df . -h
 
     - name: Docker Run Action
       uses: addnab/docker-run-action@v3
@@ -118,7 +115,7 @@ jobs:
         image: aveshadev/kubeslice-e2e:latest
         options: -v ${{ github.workspace }}/reports:/e2e/reports -v /home/runner/.kube:/e2e/assets/kubeconfig -v ${{ github.workspace }}/profile:/e2e/profile --network kind
         run: |
-          sh run.sh kind
+          bash run.sh kind
           
     - name: Check disk space
       run: |
