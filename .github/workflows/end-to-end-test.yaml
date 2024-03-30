@@ -104,7 +104,7 @@ jobs:
         password: ${{ secrets.DOCKER_TOKEN }}
          
     - name: Build the e2e image
-      run: docker build . -t aveshadev/kubeslice-e2e:latest
+      run: sudo docker build . -t aveshadev/kubeslice-e2e:latest
         
     - name: Delete huge unnecessary tools folder
       run: rm -rf /opt/hostedtoolcache
@@ -118,7 +118,7 @@ jobs:
         image: aveshadev/kubeslice-e2e:latest
         options: -v ${{ github.workspace }}/reports:/e2e/reports -v /home/runner/.kube:/e2e/assets/kubeconfig -v ${{ github.workspace }}/profile:/e2e/profile --network kind
         run: |
-          bash run.sh kind
+          sh run.sh kind
           
     - name: Check disk space
       run: |
