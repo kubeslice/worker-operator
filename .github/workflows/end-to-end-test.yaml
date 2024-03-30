@@ -104,7 +104,7 @@ jobs:
         password: ${{ secrets.DOCKER_TOKEN }}
          
     - name: Build the e2e image
-      run: sudo docker build . -t aveshadev/kubeslice-e2e-ent:latest
+      run: sudo docker build . -t aveshadev/kubeslice-e2e:latest
         
     - name: Delete huge unnecessary tools folder
       run: rm -rf /opt/hostedtoolcache
