@@ -109,6 +109,7 @@ jobs:
         username: ${{ secrets.DOCKER_USERNAME }}
         password: ${{ secrets.DOCKER_TOKEN }}
         registry: docker.io
+        logout: false
 
     - name: Docker Run Action
       uses: addnab/docker-run-action@v3
