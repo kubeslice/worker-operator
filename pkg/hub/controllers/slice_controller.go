@@ -177,10 +177,20 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req reconcile.Request) 
 		if errors.IsNotFound(err) {
 			// Request object not found, create it in the spoke cluster
 			log.Info("Slice resource not found in spoke cluster, creating")
+
+			// Fetch project namespace label
+			var projectNs string
+			if metav1.HasLabel(slice.ObjectMeta, "project-namespace") {
+				projectNs = slice.ObjectMeta.GetLabels()["project-namespace"]
+			}
+
 			s := &kubeslicev1beta1.Slice{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      sliceName,
 					Namespace: ControlPlaneNamespace,
+					Labels: map[string]string{
+						"project-namespace": projectNs,
+					},
 				},
 				Spec: kubeslicev1beta1.SliceSpec{},
 			}
