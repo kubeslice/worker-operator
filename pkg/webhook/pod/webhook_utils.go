@@ -3,6 +3,7 @@ package pod
 import (
 	"context"
 
+	"github.com/kubeslice/apis/pkg/controller/v1alpha1"
 	"github.com/kubeslice/worker-operator/controllers"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -32,6 +33,6 @@ func (w *webhookClient) GetNamespaceLabels(ctx context.Context, client client.Cl
 	return nsLabels, nil
 }
 
-func (w *webhookClient) GetSliceOverlayNetworkType(ctx context.Context, client client.Client, sliceName string) (string, error) {
+func (w *webhookClient) GetSliceOverlayNetworkType(ctx context.Context, client client.Client, sliceName string) (v1alpha1.NetworkType, error) {
 	return controllers.GetSliceOverlayNetworkType(ctx, client, sliceName)
 }

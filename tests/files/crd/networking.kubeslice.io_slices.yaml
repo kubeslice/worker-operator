@@ -162,6 +162,12 @@ spec:
                   sliceDisplayName:
                     description: display name of the slice.
                     type: string
+                  sliceGatewayProtocol:
+                    description: 'SliceGateway Protocol Type: UDP or TCP'
+                    type: string
+                  sliceGatewayServiceType:
+                    description: SliceGateway Service Type
+                    type: string
                   sliceId:
                     description: UUID of the slice.
                     type: string
@@ -177,6 +183,14 @@ spec:
                     required:
                     - sliceIpamType
                     type: object
+                  sliceOverlayNetworkDeploymentMode:
+                    description: 'Slice overlay network deployment mode: single-network,
+                      multi-network or no-network'
+                    enum:
+                    - single-network
+                    - multi-network
+                    - no-network
+                    type: string
                   sliceSubnet:
                     description: IP subnet range of the slice.
                     type: string
@@ -184,11 +198,8 @@ spec:
                     description: Type of the slice.
                     type: string
                 required:
-                - qosProfileDetails
                 - sliceDisplayName
                 - sliceId
-                - sliceIpam
-                - sliceSubnet
                 - sliceType
                 type: object
             type: object

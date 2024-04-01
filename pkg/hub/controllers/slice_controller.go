@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
+	"github.com/kubeslice/apis/pkg/controller/v1alpha1"
 	spokev1alpha1 "github.com/kubeslice/apis/pkg/worker/v1alpha1"
 	"github.com/kubeslice/kubeslice-monitoring/pkg/events"
 	"github.com/kubeslice/kubeslice-monitoring/pkg/metrics"
@@ -386,6 +387,11 @@ func (r *SliceReconciler) updateSliceHealth(ctx context.Context, slice *spokev1a
 	debuglog := log.V(1)
 	slice.Status.SliceHealth.ComponentStatuses = []spokev1alpha1.ComponentStatus{}
 	slice.Status.SliceHealth.SliceHealthStatus = spokev1alpha1.SliceHealthStatusNormal
+	if slice.Spec.OverlayNetworkDeploymentMode == v1alpha1.NONET {
+		debuglog.Info("skipping workerslice health check for no-network deployment")
+		return nil
+	}
+	// check for components since slice network is enabled
 	for _, c := range components {
 		cs, err := r.getComponentStatus(ctx, &c, slice.Spec.SliceName)
 		if err != nil {
