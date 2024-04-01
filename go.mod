@@ -1,6 +1,6 @@
 module github.com/kubeslice/worker-operator
 
-go 1.21
+go 1.22.1
 
 require (
 	contrib.go.opencensus.io/exporter/prometheus v0.4.1
