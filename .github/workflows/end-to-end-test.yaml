@@ -94,6 +94,10 @@ jobs:
         
     - name: Delete huge unnecessary tools folder
       run: rm -rf /opt/hostedtoolcache
+        
+    - name: Check disk space
+      run: |
+        df . -h
     
     - name: build kind clusters
       run: |
@@ -101,6 +105,20 @@ jobs:
         bash .github/workflows/scripts/start-kind.sh
       env: 
          GITHUB_HEAD_COMMIT: ${{ steps.vars.outputs.sha_commit }}
+      
+    - name: Free disk space
+      run: |
+        sudo apt install aptitude -y >/dev/null 2>&1
+        sudo aptitude purge google-cloud-sdk -f -y >/dev/null 2>&1
+        sudo aptitude purge microsoft-edge-stable -f -y >/dev/null 2>&1 || true
+        sudo apt purge microsoft-edge-stable -f -y >/dev/null 2>&1 || true
+        sudo apt-get autoremove -y >/dev/null 2>&1
+        sudo apt-get autoclean -y >/dev/null 2>&1
+        echo "some packages purged"
+        
+    - name: Check disk space
+      run: |
+        df . -h
 
     - name: Docker Run Action
       uses: addnab/docker-run-action@v3
@@ -135,9 +153,6 @@ jobs:
           snmp pollinate libpq-dev postgresql-client powershell ruby-full \
           sphinxsearch subversion mongodb-org azure-cli microsoft-edge-stable \
           -y -f >/dev/null 2>&1
-        sudo aptitude purge google-cloud-sdk -f -y >/dev/null 2>&1
-        sudo aptitude purge microsoft-edge-stable -f -y >/dev/null 2>&1 || true
-        sudo apt purge microsoft-edge-stable -f -y >/dev/null 2>&1 || true
         sudo aptitude purge '~n ^mysql' -f -y >/dev/null 2>&1
         sudo aptitude purge '~n ^php' -f -y >/dev/null 2>&1
         sudo aptitude purge '~n ^dotnet' -f -y >/dev/null 2>&1
