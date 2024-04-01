@@ -26,6 +26,7 @@ import (
 	hubv1alpha1 "github.com/kubeslice/apis/pkg/controller/v1alpha1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -38,6 +39,7 @@ var _ = Describe("NodeRestart Test Suite", func() {
 	var ns *v1.Namespace
 	var cluster *hubv1alpha1.Cluster
 	var nsmconfig *v1.ConfigMap
+	var nsmgrMock *appsv1.DaemonSet
 
 	Context("With kubeslice node restarting", func() {
 		BeforeEach(func() {
@@ -158,6 +160,33 @@ var _ = Describe("NodeRestart Test Suite", func() {
 			if errors.IsNotFound(err) {
 				Expect(k8sClient.Create(ctx, ns)).Should(Succeed())
 			}
+			// nsmgr daemonset (isNetworkPresent)
+			nsmgrMock = &appsv1.DaemonSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "nsmgr",
+					Namespace: CONTROL_PLANE_NS,
+					Labels:    map[string]string{"app": "nsmgr"},
+				},
+				Spec: appsv1.DaemonSetSpec{
+					Selector: &metav1.LabelSelector{
+						MatchLabels: map[string]string{"app": "nsmgr"},
+					},
+					Template: v1.PodTemplateSpec{
+						ObjectMeta: metav1.ObjectMeta{
+							Labels: map[string]string{"app": "nsmgr"},
+						},
+						Spec: v1.PodSpec{
+							Containers: []v1.Container{
+								{
+									Name:  "nsmgr",
+									Image: "containerImage:tag",
+								},
+							},
+						},
+					},
+				},
+			}
+			Expect(k8sClient.Create(ctx, nsmgrMock)).Should(Succeed())
 			// create cluster CR under project namespace
 			cluster = &hubv1alpha1.Cluster{
 				ObjectMeta: metav1.ObjectMeta{
@@ -204,6 +233,8 @@ Prefixes:
 					return k8sClient.Update(ctx, cluster)
 				})
 				Expect(err).To(BeNil())
+				// delete nsmgr
+				Expect(k8sClient.Delete(ctx, nsmgrMock)).Should(Succeed())
 				Eventually(func() bool {
 					err := k8sClient.Delete(ctx, node1)
 					return errors.IsNotFound(err)

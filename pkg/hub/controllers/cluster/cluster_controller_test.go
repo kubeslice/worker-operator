@@ -10,6 +10,7 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -18,7 +19,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
+/*
+FIXME(reduce code repetition): instead of repeating setup/cleanup steps(i.e installing node, nsm configmap, project ns, nsmgr daemonset etc)
+for each Context blocks, create a common section for setup & clean up that executes before the actual validations/tests.
+*/
 var _ = Describe("Hub ClusterController", func() {
+	var nsmgrMock *appsv1.DaemonSet
 	Context("With Cluster CR Created at hub cluster", func() {
 		var ns *corev1.Namespace
 		var cluster *hubv1alpha1.Cluster
@@ -65,6 +71,32 @@ var _ = Describe("Hub ClusterController", func() {
 				Spec:   hubv1alpha1.ClusterSpec{},
 				Status: hubv1alpha1.ClusterStatus{},
 			}
+			// nsmgr daemonset (isNetworkPresent)
+			nsmgrMock = &appsv1.DaemonSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "nsmgr",
+					Namespace: CONTROL_PLANE_NS,
+					Labels:    map[string]string{"app": "nsmgr"},
+				},
+				Spec: appsv1.DaemonSetSpec{
+					Selector: &metav1.LabelSelector{
+						MatchLabels: map[string]string{"app": "nsmgr"},
+					},
+					Template: corev1.PodTemplateSpec{
+						ObjectMeta: metav1.ObjectMeta{
+							Labels: map[string]string{"app": "nsmgr"},
+						},
+						Spec: corev1.PodSpec{
+							Containers: []corev1.Container{
+								{
+									Name:  "nsmgr",
+									Image: "containerImage:tag",
+								},
+							},
+						},
+					},
+				},
+			}
 			nsmconfig = configMap("nsm-config", "kubeslice-system", `
  Prefixes:
  - 192.168.0.0/16
@@ -86,6 +118,8 @@ var _ = Describe("Hub ClusterController", func() {
 					return k8sClient.Update(ctx, cluster)
 				})
 				Expect(err).To(BeNil())
+				// delete nsmgr
+				Expect(k8sClient.Delete(ctx, nsmgrMock)).Should(Succeed())
 				Eventually(func() bool {
 					err := k8sClient.Get(ctx, types.NamespacedName{Name: cluster.Name, Namespace: cluster.Namespace}, cluster)
 					return errors.IsNotFound(err)
@@ -100,6 +134,7 @@ var _ = Describe("Hub ClusterController", func() {
 			if errors.IsNotFound(err) {
 				Expect(k8sClient.Create(ctx, ns)).Should(Succeed())
 			}
+			Expect(k8sClient.Create(ctx, nsmgrMock)).Should(Succeed())
 			Expect(k8sClient.Create(ctx, cluster)).Should(Succeed())
 
 			err = k8sClient.Get(ctx, types.NamespacedName{Name: nsmconfig.Name, Namespace: nsmconfig.Namespace}, nsmconfig)
@@ -182,10 +217,37 @@ var _ = Describe("Hub ClusterController", func() {
 			os.Setenv("CLUSTER_NAME", cluster.Name)
 			operatorSecret = getSecret("kubeslice-kubernetes-dashboard", CONTROL_PLANE_NS)
 			sa = getSA("kubeslice-kubernetes-dashboard", CONTROL_PLANE_NS, operatorSecret.Name)
+			// nsmgr daemonset (isNetworkPresent)
+			nsmgrMock = &appsv1.DaemonSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "nsmgr",
+					Namespace: CONTROL_PLANE_NS,
+					Labels:    map[string]string{"app": "nsmgr"},
+				},
+				Spec: appsv1.DaemonSetSpec{
+					Selector: &metav1.LabelSelector{
+						MatchLabels: map[string]string{"app": "nsmgr"},
+					},
+					Template: corev1.PodTemplateSpec{
+						ObjectMeta: metav1.ObjectMeta{
+							Labels: map[string]string{"app": "nsmgr"},
+						},
+						Spec: corev1.PodSpec{
+							Containers: []corev1.Container{
+								{
+									Name:  "nsmgr",
+									Image: "containerImage:tag",
+								},
+							},
+						},
+					},
+				},
+			}
 		})
 		It("should create secret in controller's project namespace", func() {
 			os.Setenv("CLUSTER_ENDPOINT", hostname)
 			Expect(k8sClient.Create(ctx, node))
+			Expect(k8sClient.Create(ctx, nsmgrMock)).Should(Succeed())
 			Expect(k8sClient.Create(ctx, cluster)).Should(Succeed())
 			Expect(k8sClient.Create(ctx, operatorSecret)).Should(Succeed())
 			Expect(k8sClient.Create(ctx, sa)).Should(Succeed())
@@ -234,12 +296,40 @@ var _ = Describe("Hub ClusterController", func() {
 		var operatorSecret *corev1.Secret
 		var sa *corev1.ServiceAccount
 		var pods []*corev1.Pod
+		var node *corev1.Node
+		var nsmconfig *corev1.ConfigMap
 		// var podBasedComponents []string
 
 		BeforeEach(func() {
 			ns = &corev1.Namespace{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: PROJECT_NS,
+				},
+			}
+			node = &corev1.Node{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test-node",
+					Labels: map[string]string{
+						"topology.kubernetes.io/region": "us-east-1",
+						"kubeslice.io/node-type":        "gateway",
+					},
+				},
+				Spec: corev1.NodeSpec{
+					ProviderID: "gce://demo",
+				},
+				Status: corev1.NodeStatus{
+					Addresses: []corev1.NodeAddress{
+						{
+							Type:    corev1.NodeExternalIP,
+							Address: "35.235.10.1",
+						},
+					},
+					Conditions: []corev1.NodeCondition{
+						{
+							Type:   corev1.NodeReady,
+							Status: corev1.ConditionTrue,
+						},
+					},
 				},
 			}
 			nsSpire = &corev1.Namespace{
@@ -260,6 +350,36 @@ var _ = Describe("Hub ClusterController", func() {
 				Spec:   hubv1alpha1.ClusterSpec{},
 				Status: hubv1alpha1.ClusterStatus{},
 			}
+			// nsmgr daemonset (isNetworkPresent)
+			nsmgrMock = &appsv1.DaemonSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "nsmgr",
+					Namespace: CONTROL_PLANE_NS,
+					Labels:    map[string]string{"app": "nsmgr"},
+				},
+				Spec: appsv1.DaemonSetSpec{
+					Selector: &metav1.LabelSelector{
+						MatchLabels: map[string]string{"app": "nsmgr"},
+					},
+					Template: corev1.PodTemplateSpec{
+						ObjectMeta: metav1.ObjectMeta{
+							Labels: map[string]string{"app": "nsmgr"},
+						},
+						Spec: corev1.PodSpec{
+							Containers: []corev1.Container{
+								{
+									Name:  "nsmgr",
+									Image: "containerImage:tag",
+								},
+							},
+						},
+					},
+				},
+			}
+			nsmconfig = configMap("nsm-config", "kubeslice-system", `
+ Prefixes:
+ - 192.168.0.0/16
+ - 10.96.0.0/12`)
 			// podBasedComponents = []string{
 			// 	"nsmgr",
 			// 	"forwarder",
@@ -277,14 +397,24 @@ var _ = Describe("Hub ClusterController", func() {
 			os.Setenv("CLUSTER_NAME", CLUSTER_NAME)
 			operatorSecret = getSecret("kubeslice-kubernetes-dashboard", CONTROL_PLANE_NS)
 			sa = getSA("kubeslice-kubernetes-dashboard", CONTROL_PLANE_NS, operatorSecret.Name)
+			Expect(k8sClient.Create(ctx, node))
 			Expect(k8sClient.Create(ctx, ns))
 			Expect(k8sClient.Create(ctx, nsSpire))
 			Expect(k8sClient.Create(ctx, nsIstio))
 			Expect(k8sClient.Create(ctx, operatorSecret))
 			Expect(k8sClient.Create(ctx, sa))
+			err := k8sClient.Get(ctx, types.NamespacedName{Name: nsmconfig.Name, Namespace: nsmconfig.Namespace}, nsmconfig)
+			if errors.IsNotFound(err) {
+				Expect(k8sClient.Create(ctx, nsmconfig)).Should(Succeed())
+			}
+			err = k8sClient.Get(ctx, types.NamespacedName{Name: "nsmgr", Namespace: CONTROL_PLANE_NS}, nsmgrMock)
+			if errors.IsNotFound(err) {
+				Expect(k8sClient.Create(ctx, nsmgrMock)).Should(Succeed())
+			}
 			Expect(k8sClient.Create(ctx, cluster))
 
 			DeferCleanup(func() {
+				Expect(k8sClient.Delete(ctx, node)).Should(Succeed())
 				// Delete cluster object
 				k8sClient.Delete(ctx, cluster)
 				err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
@@ -305,6 +435,8 @@ var _ = Describe("Hub ClusterController", func() {
 					fmt.Println("----------------- clusterobj finalizer", cluster.ObjectMeta.Finalizers)
 					return err != nil && errors.IsNotFound(err)
 				}, time.Second*100, time.Second*1).Should(BeTrue())
+				// delete nsmgr
+				Expect(k8sClient.Delete(ctx, nsmgrMock)).Should(Succeed())
 				k8sClient.Delete(ctx, operatorSecret)
 				k8sClient.Delete(ctx, sa)
 

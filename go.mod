@@ -1,6 +1,6 @@
 module github.com/kubeslice/worker-operator
 
-go 1.21
+go 1.22.1
 
 require (
 	contrib.go.opencensus.io/exporter/prometheus v0.4.1
@@ -9,7 +9,7 @@ require (
 	github.com/go-logr/zapr v1.2.4
 	//github.com/golang/protobuf v1.5.3
 	github.com/google/go-cmp v0.6.0
-	github.com/kubeslice/apis v0.2.2
+	github.com/kubeslice/apis v0.3.0
 	github.com/kubeslice/gateway-sidecar v0.2.0
 	github.com/kubeslice/kubeslice-monitoring v0.1.10
 	github.com/kubeslice/netops v0.1.3

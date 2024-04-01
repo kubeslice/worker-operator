@@ -25,6 +25,7 @@ import (
 	"github.com/kubeslice/worker-operator/pkg/logger"
 	"github.com/kubeslice/worker-operator/pkg/netop"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -97,6 +98,10 @@ func (r *SliceReconciler) SendSliceDeletionEventToNetOp(ctx context.Context, sli
 	// This populates the NetOpPods map in the slice reconciler structure.
 	err := r.getNetOpPods(ctx, sliceName, namespace)
 	if err != nil {
+		if errors.IsNotFound(err) {
+			//early exit since there are no object found
+			return nil
+		}
 		return err
 	}
 
