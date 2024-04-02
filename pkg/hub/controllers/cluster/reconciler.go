@@ -96,9 +96,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	if cr == nil {
 		return reconcile.Result{}, err
 	}
-	if cr.Status.RegistrationStatus == "" {
-		cr.Status.RegistrationStatus = hubv1alpha1.RegistrationStatusInProgress
-	}
+
 	log.Info("got cluster CR from hub", "cluster", cr)
 	requeue, result, err := r.handleClusterDeletion(cr, ctx, req)
 	if requeue {
@@ -412,20 +410,19 @@ func (r *Reconciler) updateCNISubnetConfig(ctx context.Context, cr *hubv1alpha1.
 		if err != nil {
 			return err
 		}
-		cniSubnet := []string{}
 		// nsm-config is present only when operator is installed with networking enabled
 		if cr.Status.NetworkPresent {
 			debuglog.Info("try to get cni subnets from nsm-config cm")
-			cniSubnet, err = cl.GetNsmExcludedPrefix(ctx, "nsm-config", "kubeslice-system")
+			cniSubnet, err := cl.GetNsmExcludedPrefix(ctx, "nsm-config", "kubeslice-system")
 			if err != nil {
 				log.Error(err, "Failed to get nsm config")
 				return err
 			}
-		}
-		if !reflect.DeepEqual(cr.Status.CniSubnet, cniSubnet) {
-			cr.Status.CniSubnet = cniSubnet
-			toUpdate = true
-			return r.Status().Update(ctx, cr)
+			if !reflect.DeepEqual(cr.Status.CniSubnet, cniSubnet) {
+				cr.Status.CniSubnet = cniSubnet
+				toUpdate = true
+				return r.Status().Update(ctx, cr)
+			}
 		}
 		return nil
 	})
