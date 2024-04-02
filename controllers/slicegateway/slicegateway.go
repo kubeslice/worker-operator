@@ -26,7 +26,6 @@ import (
 	"net"
 	"os"
 	"strconv"
-	"strings"
 	"sync"
 	"time"
 
@@ -55,6 +54,7 @@ import (
 )
 
 var (
+	vpnClientFileName        = "openvpn_client.ovpn"
 	gwSidecarImage           = os.Getenv("AVESHA_GW_SIDECAR_IMAGE")
 	gwSidecarImagePullPolicy = os.Getenv("AVESHA_GW_SIDECAR_IMAGE_PULLPOLICY")
 
@@ -383,7 +383,6 @@ func (r *SliceGwReconciler) deploymentForGatewayClient(g *kubeslicev1beta1.Slice
 
 	var vpnSecretDefaultMode int32 = 0644
 
-	certFileName := "openvpn_client.ovpn"
 	sidecarImg := "nexus.dev.aveshalabs.io/kubeslice/gw-sidecar:1.0.0"
 	sidecarPullPolicy := corev1.PullAlways
 
@@ -546,23 +545,7 @@ func (r *SliceGwReconciler) deploymentForGatewayClient(g *kubeslicev1beta1.Slice
 						Command: []string{
 							"/usr/local/bin/waitForConfigToRunCmd.sh",
 						},
-						Args: []string{
-							"/vpnclient/" + certFileName,
-							"90",
-							"openvpn",
-							"--remote",
-							g.Status.Config.SliceGatewayRemoteGatewayID,
-							"--port",
-							strconv.Itoa(remotePortNumber),
-							"--ping-restart",
-							"15",
-							"--proto",
-							strings.ToLower(g.Status.Config.SliceGatewayProtocol),
-							"--txqueuelen",
-							"5000",
-							"--config",
-							"/vpnclient/" + certFileName,
-						},
+						Args: getOVPNClientContainerArgs(remotePortNumber, g),
 						SecurityContext: &corev1.SecurityContext{
 							Privileged:               &privileged,
 							AllowPrivilegeEscalation: &privileged,
@@ -1392,13 +1375,43 @@ func (r *SliceGwReconciler) ReconcileGatewayDeployments(ctx context.Context, sli
 		for _, deployment := range deployments.Items {
 			found, nodePortInUse := getClientGwRemotePortInUse(ctx, r.Client, sliceGw, deployment.Name)
 			if found {
-				_, foundInMap := gwClientToRemotePortMap.Load(deployment.Name)
-				if !foundInMap {
+				// Check if the portInUse is valid.
+				// It is valid only if the list of remoteNodePorts in the slicegw object contains the portInUse.
+				if !checkIfNodePortIsValid(sliceGw.Status.Config.SliceGatewayRemoteNodePorts, nodePortInUse) {
+					// Get a valid port number for this deployment
+					portNumToUpdate, err := allocateNodePortToClient(sliceGw.Status.Config.SliceGatewayRemoteNodePorts, deployment.Name, &gwClientToRemotePortMap)
+					if err != nil {
+						return ctrl.Result{}, err, true
+					}
+					// Update the port map
+					gwClientToRemotePortMap.Store(deployment.Name, portNumToUpdate)
+					err = r.updateGatewayDeploymentNodePort(ctx, r.Client, sliceGw, &deployment, portNumToUpdate)
+					if err != nil {
+						return ctrl.Result{}, err, true
+					}
+					// Requeue if the update was successful
+					return ctrl.Result{}, nil, true
+				}
+				// At this point, the node port in use is valid. Check if the port map is populated. Only case
+				// where it is not populated is if the operator restarts. The populated value must match the
+				// port in use. If not, the deploy needs to be updated to match the state stored in the operator.
+				portInMap, foundInMap := gwClientToRemotePortMap.Load(deployment.Name)
+				if foundInMap {
+					if portInMap != nodePortInUse {
+						// Update the deployment since the port numbers do not match
+						err := r.updateGatewayDeploymentNodePort(ctx, r.Client, sliceGw, &deployment, portInMap.(int))
+						if err != nil {
+							return ctrl.Result{}, err, true
+						}
+						// Requeue if the update was successful
+						return ctrl.Result{}, nil, true
+					}
+				} else {
 					gwClientToRemotePortMap.Store(deployment.Name, nodePortInUse)
 				}
-				// TODO: Handle the case of the port number in the deployment and the one in the port map being different
 			}
 		}
+
 	}
 
 	// Delete any deployments marked for deletion. We could have an external orchestrator (like the workerslicegatewayrecycler) request
@@ -1597,5 +1610,32 @@ func (r *SliceGwReconciler) createPodDisruptionBudgetForSliceGatewayPods(ctx con
 	// PDB created successfully
 	log.Info("PodDisruptionBudget for slice gateway pods created successfully")
 
+	return nil
+}
+
+// updateGatewayDeploymentNodePort updates the gateway client deployments with the relevant updated ports
+// from the workersliceconfig
+func (r *SliceGwReconciler) updateGatewayDeploymentNodePort(ctx context.Context, c client.Client, g *kubeslicev1beta1.SliceGateway, deployment *appsv1.Deployment, nodePort int) error {
+	containers := deployment.Spec.Template.Spec.Containers
+	for contIndex, cont := range containers {
+		if cont.Name == "kubeslice-sidecar" {
+			for index, key := range cont.Env {
+				if key.Name == "NODE_PORT" {
+					updatedEnvVar := corev1.EnvVar{
+						Name:  "NODE_PORT",
+						Value: strconv.Itoa(nodePort),
+					}
+					cont.Env[index] = updatedEnvVar
+				}
+			}
+		} else if cont.Name == "kubeslice-openvpn-client" {
+			containers[contIndex].Args = getOVPNClientContainerArgs(nodePort, g)
+		}
+	}
+	deployment.Spec.Template.Spec.Containers = containers
+	err := r.Update(ctx, deployment)
+	if err != nil {
+		return err
+	}
 	return nil
 }
