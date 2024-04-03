@@ -20,6 +20,7 @@ package manifest
 
 import (
 	"context"
+	"os"
 
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
 	istiov1beta1 "istio.io/client-go/pkg/apis/networking/v1beta1"
@@ -43,7 +44,12 @@ import (
 //	gateway
 func InstallEgress(ctx context.Context, c client.Client, slice *kubeslicev1beta1.Slice) error {
 	sliceName := slice.Name
-	templates := map[string]string{"SLICE": sliceName}
+	istioProxyImage := os.Getenv("AVESHA_ISTIO_PROXY_IMAGE")
+	if istioProxyImage == "" {
+		istioProxyImage = ISTIO_PROXY_DEFAULT_IMAGE
+	}
+
+	templates := map[string]string{"SLICE": sliceName, "ProxyImgRef": istioProxyImage}
 
 	deploy := &appsv1.Deployment{}
 	err := NewManifest("egress-deploy", templates).Parse(deploy)
