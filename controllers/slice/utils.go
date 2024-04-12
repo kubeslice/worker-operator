@@ -37,7 +37,8 @@ func (r *SliceReconciler) cleanupSliceResources(ctx context.Context, slice *kube
 		return err
 	}
 	// the crd itself will be absent for no communication slice. skip!
-	if slice.Status.SliceConfig.SliceOverlayNetworkDeploymentMode != v1alpha1.NONET {
+	if slice.Status.SliceConfig != nil &&
+		slice.Status.SliceConfig.SliceOverlayNetworkDeploymentMode != v1alpha1.NONET {
 		//cleanup slice router network service
 		if err := r.cleanupVl3NSE(ctx, slice.Name); err != nil {
 			return err

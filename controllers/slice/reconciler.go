@@ -144,6 +144,12 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 		return result, err
 	}
 
+	if slice.Status.SliceConfig == nil {
+		err := fmt.Errorf("slice not reconciled from hub")
+		log.Error(err, "Slice is not reconciled from hub yet, skipping reconciliation")
+		return ctrl.Result{}, err
+	}
+
 	if slice.Status.SliceConfig.SliceOverlayNetworkDeploymentMode != v1alpha1.NONET {
 		if slice.Status.DNSIP == "" {
 			requeue, result, err := r.handleDnsSvc(ctx, slice)
@@ -151,12 +157,6 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 				return result, err
 			}
 		}
-	}
-
-	if slice.Status.SliceConfig == nil {
-		err := fmt.Errorf("slice not reconciled from hub")
-		log.Error(err, "Slice is not reconciled from hub yet, skipping reconciliation")
-		return ctrl.Result{}, err
 	}
 
 	res, err, requeue := r.ReconcileSliceNamespaces(ctx, slice)
@@ -381,7 +381,8 @@ func (r *SliceReconciler) handleSliceDeletion(slice *kubeslicev1beta1.Slice, ctx
 	} else {
 		if controllerutil.ContainsFinalizer(slice, sliceFinalizer) {
 			log.Info("Deleting slice", "slice", slice.Name)
-			if slice.Status.SliceConfig.SliceOverlayNetworkDeploymentMode != v1alpha1.NONET {
+			if slice.Status.SliceConfig != nil &&
+				slice.Status.SliceConfig.SliceOverlayNetworkDeploymentMode != v1alpha1.NONET {
 				err := r.SendSliceDeletionEventToNetOp(ctx, req.NamespacedName.Name, req.NamespacedName.Namespace)
 				if err != nil {
 					log.Error(err, "Failed to send slice deletetion event to netop")
