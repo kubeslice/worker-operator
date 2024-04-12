@@ -144,17 +144,19 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 		return result, err
 	}
 
-	if slice.Status.DNSIP == "" {
-		requeue, result, err := r.handleDnsSvc(ctx, slice)
-		if requeue {
-			return result, err
-		}
-	}
-
 	if slice.Status.SliceConfig == nil {
 		err := fmt.Errorf("slice not reconciled from hub")
 		log.Error(err, "Slice is not reconciled from hub yet, skipping reconciliation")
 		return ctrl.Result{}, err
+	}
+
+	if slice.Status.SliceConfig.SliceOverlayNetworkDeploymentMode != v1alpha1.NONET {
+		if slice.Status.DNSIP == "" {
+			requeue, result, err := r.handleDnsSvc(ctx, slice)
+			if requeue {
+				return result, err
+			}
+		}
 	}
 
 	res, err, requeue := r.ReconcileSliceNamespaces(ctx, slice)
@@ -187,12 +189,18 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 		return r.handleAppPodStatusChange(appPods, slice, ctx)
 	}
 
-	debugLog.Info("reconciling app pods")
-	res, err, requeue = r.ReconcileAppPod(ctx, slice)
-	if err != nil {
-		log.Error(err, "App pod reconciliation failed")
-		return res, err
+	if slice.Status.SliceConfig.SliceOverlayNetworkDeploymentMode == v1alpha1.NONET {
+		debugLog.Info("No communication slice, skipping reconciliation of apppods")
+		// to support net to no-net switching write a function to remove nsm interfaces, ips, labels with nsmip etc from existing app pods
+	} else {
+		debugLog.Info("reconciling app pods")
+		res, err, requeue = r.ReconcileAppPod(ctx, slice)
+		if err != nil {
+			log.Error(err, "App pod reconciliation failed")
+			return res, err
+		}
 	}
+
 	if requeue {
 		// reconciliation success, update the app pod list in controller
 		log.Info("updating app pod list in hub workersliceconfig status")
@@ -373,9 +381,12 @@ func (r *SliceReconciler) handleSliceDeletion(slice *kubeslicev1beta1.Slice, ctx
 	} else {
 		if controllerutil.ContainsFinalizer(slice, sliceFinalizer) {
 			log.Info("Deleting slice", "slice", slice.Name)
-			err := r.SendSliceDeletionEventToNetOp(ctx, req.NamespacedName.Name, req.NamespacedName.Namespace)
-			if err != nil {
-				log.Error(err, "Failed to send slice deletetion event to netop")
+			if slice.Status.SliceConfig != nil &&
+				slice.Status.SliceConfig.SliceOverlayNetworkDeploymentMode != v1alpha1.NONET {
+				err := r.SendSliceDeletionEventToNetOp(ctx, req.NamespacedName.Name, req.NamespacedName.Namespace)
+				if err != nil {
+					log.Error(err, "Failed to send slice deletetion event to netop")
+				}
 			}
 			if err := r.cleanupSliceResources(ctx, slice); err != nil {
 				log.Error(err, "error while deleting slice")

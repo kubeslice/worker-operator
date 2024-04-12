@@ -116,6 +116,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	debuglog.Info("cluster status", "cr.Status.NetworkPresent", cr.Status.NetworkPresent)
 	if err = r.updateNetworkStatus(ctx, cr); err != nil {
 		log.Error(err, "unable to update networkPresent status")
+		return reconcile.Result{}, err
 	}
 	res, err, requeue = r.updateCNISubnetConfig(ctx, cr, cl)
 	if err != nil {
@@ -421,6 +422,13 @@ func (r *Reconciler) updateCNISubnetConfig(ctx context.Context, cr *hubv1alpha1.
 			if !reflect.DeepEqual(cr.Status.CniSubnet, cniSubnet) {
 				cr.Status.CniSubnet = cniSubnet
 				toUpdate = true
+				return r.Status().Update(ctx, cr)
+			}
+		} else {
+			debuglog.Info("kubeslice networking is disabled, cni subnet list update is not required")
+			if len(cr.Status.CniSubnet) > 0 {
+				debuglog.Info("removing old CNI subnet entries")
+				cr.Status.CniSubnet = []string{}
 				return r.Status().Update(ctx, cr)
 			}
 		}

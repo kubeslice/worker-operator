@@ -21,6 +21,7 @@ package slice
 import (
 	"context"
 
+	"github.com/kubeslice/apis/pkg/controller/v1alpha1"
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
 	"github.com/kubeslice/worker-operator/controllers"
 	corev1 "k8s.io/api/core/v1"
@@ -35,9 +36,13 @@ func (r *SliceReconciler) cleanupSliceResources(ctx context.Context, slice *kube
 	if err := r.cleanupSliceNamespaces(ctx, slice); err != nil {
 		return err
 	}
-	//cleanup slice router network service
-	if err := r.cleanupVl3NSE(ctx, slice.Name); err != nil {
-		return err
+	// the crd itself will be absent for no communication slice. skip!
+	if slice.Status.SliceConfig != nil &&
+		slice.Status.SliceConfig.SliceOverlayNetworkDeploymentMode != v1alpha1.NONET {
+		//cleanup slice router network service
+		if err := r.cleanupVl3NSE(ctx, slice.Name); err != nil {
+			return err
+		}
 	}
 	//cleanup Service Discovery objects - serviceimport and export objects that belong to this slice
 	if err := r.cleanupServiceDiscoveryObjects(ctx, slice.Name); err != nil {

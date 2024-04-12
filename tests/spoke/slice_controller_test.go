@@ -25,6 +25,7 @@ import (
 	"reflect"
 	"time"
 
+	controllerv1alpha1 "github.com/kubeslice/apis/pkg/controller/v1alpha1"
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
 	"github.com/kubeslice/worker-operator/pkg/logger"
 	. "github.com/onsi/ginkgo/v2"
@@ -103,6 +104,19 @@ var _ = Describe("SliceController", func() {
 
 			sliceKey := types.NamespacedName{Name: "test-slice", Namespace: "kubeslice-system"}
 			createdSlice := &kubeslicev1beta1.Slice{}
+
+			Eventually(func() error {
+				err := k8sClient.Get(ctx, sliceKey, createdSlice)
+				if err != nil {
+					return err
+				}
+				createdSlice.Status = kubeslicev1beta1.SliceStatus{
+					SliceConfig: &kubeslicev1beta1.SliceConfig{
+						SliceOverlayNetworkDeploymentMode: controllerv1alpha1.SINGLENET,
+					},
+				}
+				return k8sClient.Status().Update(ctx, createdSlice)
+			}).Should(Succeed())
 
 			// Make sure slice status.Status.DNSIP is pointing to correct serviceIP
 			Eventually(func() string {
