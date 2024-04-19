@@ -167,7 +167,7 @@ func (r *SliceReconciler) reconcileAllowedNamespaces(ctx context.Context, slice 
 			cfgAllowedNsList = append(cfgAllowedNsList, v)
 		}
 	}
-	log.Info("reconciling", "allowedNamespaces", cfgAllowedNsList)
+	debugLog.Info("reconciling", "allowedNamespaces", cfgAllowedNsList)
 
 	// Get the list of existing namespaces that are tagged with the kube-slice label for allowed NS
 	labeledNsList := &corev1.NamespaceList{}
