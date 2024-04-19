@@ -97,7 +97,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{}, err
 	}
 
-	log.Info("got cluster CR from hub", "cluster", cr)
+	log.Info("got cluster CR from hub", "cluster", cr.Name)
 	requeue, result, err := r.handleClusterDeletion(cr, ctx, req)
 	if requeue {
 		return result, err

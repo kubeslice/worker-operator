@@ -166,12 +166,16 @@ func (er *eventRecorder) WithProject(project string) EventRecorder {
 }
 
 // RecordEvent raises a new event with the given fields
-// TODO: events caching and aggregation
 func (er *eventRecorder) RecordEvent(ctx context.Context, e *Event) error {
 	ref, err := reference.GetReference(er.Scheme, e.Object)
 	if err != nil {
 		er.Logger.With("error", err).Error("Unable to parse event obj reference")
 		return err
+	}
+
+	if ref.Namespace == "" {
+		er.Logger.Debugf("reference namespace is empty using name instead ", ref.Name)
+		ref.Namespace = ref.Name
 	}
 
 	ns := er.Options.Namespace
@@ -248,7 +252,8 @@ func (er *eventRecorder) RecordEvent(ctx context.Context, e *Event) error {
 		} else {
 			er.cache.Add(key, ev)
 		}
-		er.Logger.Infof("event has been created %v", ev)
+		er.Logger.Infof("event has been created object: %s/%s kind: %s type: %s reason %s message %s",
+			ev.InvolvedObject.Namespace, ev.InvolvedObject.Name, ev.InvolvedObject.Kind, ev.Type, ev.Reason, ev.Message)
 	} else {
 		// event already present in cache
 		e := lastSeenEvent.(*corev1.Event)
@@ -260,7 +265,8 @@ func (er *eventRecorder) RecordEvent(ctx context.Context, e *Event) error {
 		}
 		// update the cache
 		er.cache.Add(key, e)
-		er.Logger.Infof("event has been updated %v", ev)
+		er.Logger.Debugf("event has been created object: %s/%s kind: %s type: %s reason %s message %s",
+			ev.InvolvedObject.Namespace, ev.InvolvedObject.Name, ev.InvolvedObject.Kind, ev.Type, ev.Reason, ev.Message)
 	}
 	return nil
 }
