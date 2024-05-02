@@ -3,8 +3,6 @@ package cluster
 import (
 	"context"
 	"errors"
-	"reflect"
-	"runtime/debug"
 	"testing"
 
 	hubv1alpha1 "github.com/kubeslice/apis/pkg/controller/v1alpha1"
@@ -12,6 +10,7 @@ import (
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
 	utilmock "github.com/kubeslice/worker-operator/pkg/mocks"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -87,9 +86,7 @@ func TestGetOperatorClusterRole(t *testing.T) {
 		mock.IsType(&rbacv1.ClusterRole{}),
 	).Return(nil)
 	_, err := reconciler.getOperatorClusterRole(ctx)
-	if expected.err != err {
-		t.Error("Expected error:", expected.err, " but got ", err)
-	}
+	assert.ErrorIs(t, expected.err, err)
 }
 
 func TestCreateDeregisterJobPositiveScenarios(t *testing.T) {
@@ -194,9 +191,7 @@ func TestCreateDeregisterJobPositiveScenarios(t *testing.T) {
 		mock.IsType([]k8sclient.CreateOption(nil)),
 	).Return(nil)
 	err := reconciler.createDeregisterJob(ctx, testClusterObj)
-	if expected.err != err {
-		t.Error("Expected error:", expected.err, " but got ", err)
-	}
+	assert.ErrorIs(t, expected.err, err)
 }
 
 func TestReconcilerFailToUpdateClusterRegistrationStatus(t *testing.T) {
@@ -237,9 +232,7 @@ func TestReconcilerFailToUpdateClusterRegistrationStatus(t *testing.T) {
 	).Return(errors.New("error updating status of deregistration on the controller"))
 
 	err := reconciler.createDeregisterJob(ctx, testClusterObj)
-	if expected.errMsg != err.Error() {
-		t.Error("Expected error:", expected.errMsg, " but got ", err)
-	}
+	assert.Equal(t, expected.errMsg, err.Error())
 }
 
 func TestReconcilerFailToCreateServiceAccount(t *testing.T) {
@@ -295,9 +288,7 @@ func TestReconcilerFailToCreateServiceAccount(t *testing.T) {
 	).Return(errors.New("unable to create service account"))
 
 	err := reconciler.createDeregisterJob(ctx, testClusterObj)
-	if expected.errMsg != err.Error() {
-		t.Error("Expected error:", expected.errMsg, " but got ", err)
-	}
+	assert.Equal(t, expected.errMsg, err.Error())
 }
 
 func TestReconcilerFailToFetchOperatorClusterRole(t *testing.T) {
@@ -363,9 +354,7 @@ func TestReconcilerFailToFetchOperatorClusterRole(t *testing.T) {
 	).Return(errors.New("unable to fetch operator clusterrole"))
 
 	err := reconciler.createDeregisterJob(ctx, testClusterObj)
-	if expected.errMsg != err.Error() {
-		t.Error("Expected error:", expected.errMsg, " but got ", err)
-	}
+	assert.Equal(t, expected.errMsg, err.Error())
 }
 
 func TestReconcilerFailToCreateClusterRole(t *testing.T) {
@@ -441,9 +430,7 @@ func TestReconcilerFailToCreateClusterRole(t *testing.T) {
 	).Return(errors.New("unable to create cluster role"))
 
 	err := reconciler.createDeregisterJob(ctx, testClusterObj)
-	if expected.errMsg != err.Error() {
-		t.Error("Expected error:", expected.errMsg, " but got ", err)
-	}
+	assert.Equal(t, expected.errMsg, err.Error())
 }
 
 func TestReconcilerFailToCreateClusterRoleBinding(t *testing.T) {
@@ -524,9 +511,7 @@ func TestReconcilerFailToCreateClusterRoleBinding(t *testing.T) {
 	).Return(errors.New("unable to create cluster rolebinding"))
 
 	err := reconciler.createDeregisterJob(ctx, testClusterObj)
-	if expected.errMsg != err.Error() {
-		t.Error("Expected error:", expected.errMsg, " but got ", err)
-	}
+	assert.Equal(t, expected.errMsg, err.Error())
 }
 
 func TestReconcilerFailToCreateConfigmap(t *testing.T) {
@@ -621,9 +606,7 @@ func TestReconcilerFailToCreateConfigmap(t *testing.T) {
 		mock.IsType([]k8sclient.CreateOption(nil)),
 	).Return(errors.New("Unable to create configmap"))
 	err := reconciler.createDeregisterJob(ctx, testClusterObj)
-	if expected.errMsg != err.Error() {
-		t.Error("Expected error:", expected.errMsg, " but got ", err)
-	}
+	assert.Equal(t, expected.errMsg, err.Error())
 }
 
 func TestReconcilerFailToDeleteJob(t *testing.T) {
@@ -729,9 +712,7 @@ func TestReconcilerFailToDeleteJob(t *testing.T) {
 	).Return(errors.New("Unable to delete deregister job"))
 
 	err := reconciler.createDeregisterJob(ctx, testClusterObj)
-	if expected.errMsg != err.Error() {
-		t.Error("Expected error:", expected.errMsg, " but got ", err)
-	}
+	assert.Equal(t, expected.errMsg, err.Error())
 }
 
 func TestReconcilerFailToCreateDeregisterJob(t *testing.T) {
@@ -842,64 +823,42 @@ func TestReconcilerFailToCreateDeregisterJob(t *testing.T) {
 	).Return(errors.New("Unable to create deregister job"))
 
 	err := reconciler.createDeregisterJob(ctx, testClusterObj)
-	if expected.errMsg != err.Error() {
-		t.Error("Expected error:", expected.errMsg, " but got ", err)
-	}
+	assert.Equal(t, expected.errMsg, err.Error())
 }
 
 func TestGetConfigmapScriptData(t *testing.T) {
 	data, err := getCleanupScript()
-	AssertNoError(t, err)
-	if len(data) == 0 {
-		t.Fatalf("unable to get configmap data")
-	}
+	assert.NoError(t, err)
+	assert.NotZero(t, len(data), "unable to get configmap data")
 }
 
 func TestConstructJobForClusterDeregister(t *testing.T) {
 	job := constructJobForClusterDeregister()
-	AssertEqual(t, job.Name, deregisterJobName)
-	AssertEqual(t, job.Namespace, ControlPlaneNamespace)
+	assert.Equal(t, job.Name, deregisterJobName)
+	assert.Equal(t, job.Namespace, ControlPlaneNamespace)
 }
 
 func TestConstructServiceAccount(t *testing.T) {
 	sa := constructServiceAccount()
-	AssertEqual(t, sa.Name, serviceAccountName)
-	AssertEqual(t, sa.Namespace, ControlPlaneNamespace)
+	assert.Equal(t, sa.Name, serviceAccountName)
+	assert.Equal(t, sa.Namespace, ControlPlaneNamespace)
 }
 
 func TestConstructClusterRole(t *testing.T) {
 	cr := constructClusterRole(testOperatorClusterRole, "random-uid")
-	isEqual := reflect.DeepEqual(cr.Rules, testOperatorClusterRole.Rules)
-	if !isEqual {
-		t.Fatalf("got invalid data in clusterrole Rules: got -- %q want -- %q", &cr.Rules[0], &testOperatorClusterRole.Rules[0])
-	}
+	assert.Equal(t, cr.Rules, testOperatorClusterRole.Rules)
 }
 
 func TestConstructClusterRoleBinding(t *testing.T) {
 	crb := constructClusterRoleBinding("random-uid")
-	AssertEqual(t, crb.Name, clusterRoleBindingName)
-	AssertEqual(t, crb.RoleRef, testClusterRoleRef)
-	AssertEqual(t, len(crb.Subjects), 1)
-	AssertEqual(t, crb.Subjects[0], testClusterRoleBindingSubject[0])
+	assert.Equal(t, crb.Name, clusterRoleBindingName)
+	assert.Equal(t, crb.RoleRef, testClusterRoleRef)
+	assert.Len(t, crb.Subjects, 1)
+	assert.Equal(t, crb.Subjects[0], testClusterRoleBindingSubject[0])
 }
 
 func TestConstructConfigMap(t *testing.T) {
 	data := "this is the data."
 	cm := constructConfigMap(data)
-	AssertEqual(t, cm.Data["kubeslice-cleanup.sh"], data)
-}
-
-func AssertEqual(t *testing.T, actual interface{}, expected interface{}) {
-	t.Helper()
-	if actual != expected {
-		t.Log("expected --", expected, "actual --", actual)
-		t.Fail()
-	}
-}
-
-func AssertNoError(t *testing.T, err error) {
-	t.Helper()
-	if err != nil {
-		t.Errorf("Expected No Error but got %s, Stack:\n%s", err, string(debug.Stack()))
-	}
+	assert.Equal(t, cm.Data["kubeslice-cleanup.sh"], data)
 }

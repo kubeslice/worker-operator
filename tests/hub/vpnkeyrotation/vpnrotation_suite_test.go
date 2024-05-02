@@ -33,6 +33,7 @@ import (
 	"github.com/kubeslice/worker-operator/controllers/slicegateway"
 	ossEvents "github.com/kubeslice/worker-operator/events"
 	"github.com/kubeslice/worker-operator/pkg/hub/controllers"
+	"github.com/kubeslice/worker-operator/pkg/hub/controllers/vpnkeyrotation"
 	hub "github.com/kubeslice/worker-operator/pkg/hub/hubclient"
 	hce "github.com/kubeslice/worker-operator/tests/emulator/hubclient"
 	workernetop "github.com/kubeslice/worker-operator/tests/emulator/workerclient/netop"
@@ -152,7 +153,7 @@ var _ = BeforeSuite(func() {
 	if err != nil {
 		os.Exit(1)
 	}
-	rotationReconciler := NewReconciler(
+	rotationReconciler := vpnkeyrotation.NewReconciler(
 		k8sClient,
 		&hub.HubClientConfig{
 			Client: k8sClient,
@@ -222,7 +223,7 @@ var _ = AfterSuite(func() {
 func shouldProcessVpnKeyRotation(object client.Object) bool {
 	vpn := object.(*hubv1alpha1.VpnKeyRotation)
 	for _, v := range vpn.Spec.Clusters {
-		if v == ClusterName {
+		if v == vpnkeyrotation.ClusterName {
 			return true
 		}
 	}
