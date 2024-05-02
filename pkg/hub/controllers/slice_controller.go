@@ -245,7 +245,7 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req reconcile.Request) 
 			return reconcile.Result{}, err
 		} else {
 			utils.RecordEvent(ctx, r.EventRecorder, slice, nil, ossEvents.EventWorkerSliceHealthUpdated, sliceControllerName)
-			log.Info("succesfully updated the slice CR ", "slice CR ", slice)
+			log.Info("succesfully updated the slice CR ", "slice CR ", slice.Name)
 		}
 	}
 	r.counterSliceUpdated.WithLabelValues(sliceName).Add(1)
