@@ -89,7 +89,7 @@ func (r *SliceReconciler) reconcileAppNamespaces(ctx context.Context, slice *kub
 		log.Error(err, "Failed to list namespaces")
 		return ctrl.Result{}, err, true
 	}
-	log.Info("reconciling", "existingAppNsList", existingAppNsList)
+	debugLog.Info("reconciling", "existingAppNsList", existingAppNsList)
 	// Convert the list into a map for faster lookups. Will come in handy when we compare
 	// existing namespaces against configured namespaces.
 	existingAppNsMap := make(map[string]*nsMarker)
@@ -167,7 +167,7 @@ func (r *SliceReconciler) reconcileAllowedNamespaces(ctx context.Context, slice 
 			cfgAllowedNsList = append(cfgAllowedNsList, v)
 		}
 	}
-	log.Info("reconciling", "allowedNamespaces", cfgAllowedNsList)
+	debugLog.Info("reconciling", "allowedNamespaces", cfgAllowedNsList)
 
 	// Get the list of existing namespaces that are tagged with the kube-slice label for allowed NS
 	labeledNsList := &corev1.NamespaceList{}

@@ -21,15 +21,11 @@ package spoke_test
 import (
 	"context"
 	"fmt"
-	"reflect"
-	"time"
-
-	nsmv1 "github.com/networkservicemesh/sdk-k8s/pkg/tools/k8s/apis/networkservicemesh.io/v1"
-
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
 	"github.com/kubeslice/worker-operator/controllers"
 	slicegatewaycontroller "github.com/kubeslice/worker-operator/controllers/slicegateway"
 	webhook "github.com/kubeslice/worker-operator/pkg/webhook/pod"
+	nsmv1 "github.com/networkservicemesh/sdk-k8s/pkg/tools/k8s/apis/networkservicemesh.io/v1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
@@ -39,7 +35,10 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/util/retry"
+	"reflect"
 	_ "sigs.k8s.io/controller-runtime/pkg/client"
+	"strconv"
+	"time"
 )
 
 var sliceGwFinalizer = []string{
@@ -164,7 +163,8 @@ var _ = Describe("Worker SlicegwController", func() {
 			createdSliceGw = &kubeslicev1beta1.SliceGateway{}
 			createdPodDisruptionBudget = &policyv1.PodDisruptionBudget{}
 			founddepl := &appsv1.Deployment{}
-			deplKey := types.NamespacedName{Name: "test-slicegw", Namespace: CONTROL_PLANE_NS}
+			deplKey1 := types.NamespacedName{Name: "test-slicegw-0-0", Namespace: CONTROL_PLANE_NS}
+			deplKey2 := types.NamespacedName{Name: "test-slicegw-1-0", Namespace: CONTROL_PLANE_NS}
 
 			DeferCleanup(func() {
 				ctx := context.Background()
@@ -185,13 +185,18 @@ var _ = Describe("Worker SlicegwController", func() {
 				}, time.Second*40, time.Millisecond*250).Should(BeTrue())
 				Expect(k8sClient.Delete(ctx, appPod)).Should(Succeed())
 				Eventually(func() bool {
-					err := k8sClient.Get(ctx, deplKey, founddepl)
+					err := k8sClient.Get(ctx, deplKey1, founddepl)
+					if err != nil {
+						return errors.IsNotFound(err)
+					}
+					Expect(k8sClient.Delete(ctx, founddepl)).Should(Succeed())
+					err = k8sClient.Get(ctx, deplKey2, founddepl)
 					if err != nil {
 						return errors.IsNotFound(err)
 					}
 					Expect(k8sClient.Delete(ctx, founddepl)).Should(Succeed())
 					return true
-				}, time.Second*40, time.Millisecond*250).Should(BeTrue())
+				}, time.Second*50, time.Millisecond*250).Should(BeTrue())
 				Expect(k8sClient.Delete(ctx, svc)).Should(Succeed())
 				Eventually(func() bool {
 					err := k8sClient.Get(ctx, types.NamespacedName{Name: svc.Name, Namespace: svc.Namespace}, svc)
@@ -773,8 +778,104 @@ var _ = Describe("Worker SlicegwController", func() {
 			//ip should be same as remote node IP
 			Expect(endpointFound.Subsets[0].Addresses[0].IP).To(Equal(createdSliceGw.Status.Config.SliceGatewayRemoteNodeIPs[0]))
 		})
-	})
+		It("Should restart the gw client deployment if there is mismatch in the nodePorts", func() {
+			ctx := context.Background()
+			Expect(k8sClient.Create(ctx, svc)).Should(Succeed())
+			Expect(k8sClient.Create(ctx, slice)).Should(Succeed())
+			Expect(k8sClient.Create(ctx, vl3ServiceEndpoint)).Should(Succeed())
+			Expect(k8sClient.Create(ctx, sliceGw)).Should(Succeed())
+			Expect(k8sClient.Create(ctx, appPod)).Should(Succeed())
+			sliceKey := types.NamespacedName{Name: "test-slice-4", Namespace: CONTROL_PLANE_NS}
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, sliceKey, createdSlice)
+				return err == nil
+			}, time.Second*250, time.Millisecond*250).Should(BeTrue())
 
+			err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+				err := k8sClient.Get(ctx, sliceKey, createdSlice)
+				if err != nil {
+					return err
+				}
+				// Update the minimum required values in the slice cr status field
+				if createdSlice.Status.SliceConfig == nil {
+					createdSlice.Status.SliceConfig = &kubeslicev1beta1.SliceConfig{
+						SliceDisplayName: slice.Name,
+						SliceSubnet:      "192.168.0.0/16",
+					}
+				}
+				if err := k8sClient.Status().Update(ctx, createdSlice); err != nil {
+					return err
+				}
+				return nil
+			})
+			Expect(err).To(BeNil())
+			Expect(createdSlice.Status.SliceConfig).NotTo(BeNil())
+
+			slicegwkey := types.NamespacedName{Name: "test-slicegw", Namespace: CONTROL_PLANE_NS}
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, slicegwkey, createdSliceGw)
+				return err == nil
+			}, time.Second*250, time.Millisecond*250).Should(BeTrue())
+
+			createdSliceGw.Status.Config.SliceGatewayHostType = "Client"
+			createdSliceGw.Status.Config.SliceGatewayRemoteGatewayID = "remote-gateway-id"
+			createdSliceGw.Status.Config.SliceGatewayRemoteNodeIPs = []string{"192.168.1.1"}
+			createdSliceGw.Status.Config.SliceGatewayRemoteNodePorts = []int{8080, 8090}
+
+			Eventually(func() bool {
+				err := k8sClient.Status().Update(ctx, createdSliceGw)
+				return err == nil
+			}, time.Second*30, time.Millisecond*250).Should(BeTrue())
+
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, slicegwkey, createdSliceGw)
+				return err == nil
+			}, time.Second*10, time.Millisecond*250).Should(BeTrue())
+
+			founddepl := &appsv1.Deployment{}
+			deplKey := types.NamespacedName{Name: "test-slicegw-0-0", Namespace: CONTROL_PLANE_NS}
+
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, deplKey, founddepl)
+				return err == nil
+			}, time.Second*40, time.Millisecond*250).Should(BeTrue())
+
+			founddepl = &appsv1.Deployment{}
+			deplKey = types.NamespacedName{Name: "test-slicegw-1-0", Namespace: CONTROL_PLANE_NS}
+
+			createdSliceGw.Status.Config.SliceGatewayRemoteNodePorts = []int{6080, 7090}
+
+			Eventually(func() bool {
+				err := k8sClient.Status().Update(ctx, createdSliceGw)
+				return err == nil
+			}, time.Second*30, time.Millisecond*250).Should(BeTrue())
+
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, deplKey, founddepl)
+				return err == nil
+			}, time.Second*40, time.Millisecond*250).Should(BeTrue())
+			time.Sleep(time.Second * 30)
+			var portFromDep int
+			Eventually(func(portFromDep *int) []int {
+				err := k8sClient.Get(ctx, deplKey, founddepl)
+				if err != nil {
+					return []int{}
+				}
+				cont := founddepl.Spec.Template.Spec.Containers[0]
+				for _, key := range cont.Env {
+					if key.Name == "NODE_PORT" {
+						*portFromDep, err = strconv.Atoi(key.Value)
+						if err != nil {
+							fmt.Println("error converting string to int")
+							return []int{}
+						}
+
+					}
+				}
+				return createdSliceGw.Status.Config.SliceGatewayRemoteNodePorts
+			}(&portFromDep), time.Second*120, time.Millisecond*250).Should(ContainElement(portFromDep))
+		})
+	})
 	Context("With SliceGw CR deleted", func() {
 
 		BeforeEach(func() {

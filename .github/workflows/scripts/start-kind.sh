@@ -8,7 +8,7 @@ ln -s /opt/kubectx/kubens /usr/local/bin/kubens
 
 # Create controller kind cluster if not present
 if [ ! $(kind get clusters | grep controller) ];then
-  kind create cluster --name controller --config .github/workflows/scripts/cluster.yaml --image kindest/node:v1.24.15
+  kind create cluster --name controller --config .github/workflows/scripts/cluster.yaml --image kindest/node:v1.29.2
 
   # Install Calico calico on controller-cluster
   echo "Installing calico on controller-cluster"
@@ -70,7 +70,7 @@ fi
 
 # Create worker1 kind cluster if not present
 if [ ! $(kind get clusters | grep worker) ];then
-  kind create cluster --name worker --config .github/workflows/scripts/cluster.yaml --image kindest/node:v1.24.15
+  kind create cluster --name worker --config .github/workflows/scripts/cluster.yaml --image kindest/node:v1.29.2
 
   # Install Calico calico on worker-cluster
   echo "Installing calico on worker-cluster"
