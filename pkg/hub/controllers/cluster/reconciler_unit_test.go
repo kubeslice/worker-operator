@@ -15,6 +15,7 @@ import (
 	utilmock "github.com/kubeslice/worker-operator/pkg/mocks"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/stretchr/testify/mock"
+	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -306,5 +307,160 @@ func TestReconcilerToFailWhileCallingCreateDeregisterJob(t *testing.T) {
 	_, _, err = reconciler.handleClusterDeletion(testClusterObjWithFinalizer, ctx, expected.req)
 	if err != nil && expected.errMsg != err.Error() {
 		t.Error("Expected error:", expected.errMsg, " but got ", err.Error())
+	}
+}
+
+type MockClientCall func(*utilmock.MockClient, context.Context)
+
+func TestUpdateNetworkStatus(t *testing.T) {
+	tests := []struct {
+		name      string
+		ctx       context.Context
+		cluster   *hubv1alpha1.Cluster
+		loadMocks MockClientCall
+		err       error
+	}{
+		{
+			"successfully update kubeslice network present status",
+			context.WithValue(context.Background(),
+				types.NamespacedName{}, testClusterObj),
+			testClusterObj,
+			func(clientMock *utilmock.MockClient, ctx context.Context) {
+				// mock client calls
+				clientMock.On("Get",
+					mock.IsType(ctx),
+					mock.IsType(types.NamespacedName{}),
+					mock.IsType(&hubv1alpha1.Cluster{}),
+				).Return(nil)
+				clientMock.On("List",
+					mock.IsType(ctx),
+					mock.IsType(&appsv1.DaemonSetList{}),
+					mock.Anything,
+				).Return(nil)
+				statusClient := clientMock.StatusMock
+				statusClient.On("Update",
+					mock.IsType(ctx),
+					mock.IsType(&hubv1alpha1.Cluster{}),
+					mock.Anything,
+				).Return(nil)
+			},
+			nil,
+		},
+		{
+			"handle cluster object not found",
+			context.WithValue(context.Background(),
+				types.NamespacedName{Namespace: "kube-slice", Name: "kube-slice"}, testClusterObj),
+			testClusterObj,
+			func(clientMock *utilmock.MockClient, ctx context.Context) {
+				clientMock.On("Get",
+					mock.IsType(ctx),
+					mock.IsType(types.NamespacedName{}),
+					mock.IsType(&hubv1alpha1.Cluster{}),
+				).Return(errors.New("cluster object not found"))
+			},
+			errors.New("cluster object not found"),
+		},
+		{
+			"handle failed to update cluster object",
+			context.WithValue(context.Background(),
+				types.NamespacedName{Namespace: "kube-slice", Name: "kube-slice"}, testClusterObj),
+			testClusterObj,
+			func(clientMock *utilmock.MockClient, ctx context.Context) {
+				clientMock.On("Get",
+					mock.IsType(ctx),
+					mock.IsType(types.NamespacedName{}),
+					mock.IsType(&hubv1alpha1.Cluster{}),
+				).Return(nil)
+				clientMock.On("List",
+					mock.IsType(ctx),
+					mock.IsType(&appsv1.DaemonSetList{}),
+					mock.Anything,
+				).Return(nil)
+				statusClient := clientMock.StatusMock
+				statusClient.On("Update",
+					mock.IsType(ctx),
+					mock.IsType(&hubv1alpha1.Cluster{}),
+					mock.Anything,
+				).Return(errors.New("failed to update cluster obj"))
+			},
+			errors.New("failed to update cluster obj"),
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			ctx := test.ctx
+			clientMock := utilmock.NewClient()
+			r := &Reconciler{
+				Client:     clientMock,
+				MeshClient: clientMock,
+			}
+			test.loadMocks(clientMock, ctx)
+			err := r.updateNetworkStatus(ctx, test.cluster)
+			if test.err != nil && err != nil {
+				if test.err.Error() != err.Error() {
+					t.Error("Expected error:", test.err, " but got ", err)
+				}
+			} else if test.err != err {
+				t.Error("Expected error:", test.err, " but got ", err)
+			}
+		})
+	}
+}
+
+func Test_isNsmInstalled(t *testing.T) {
+	tests := []struct {
+		name      string
+		ctx       context.Context
+		loadMocks MockClientCall
+		result    bool
+	}{
+		{
+			"When nsm is installed",
+			context.WithValue(context.Background(), types.NamespacedName{}, testClusterObj),
+			func(clientMock *utilmock.MockClient, ctx context.Context) {
+				clientMock.On("List",
+					mock.IsType(ctx),
+					mock.IsType(&appsv1.DaemonSetList{}),
+					mock.Anything,
+				).Return(nil).Run(func(args mock.Arguments) {
+					arg := args.Get(1).(*appsv1.DaemonSetList)
+					arg.Items = []appsv1.DaemonSet{{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "nsm",
+						},
+					}}
+				})
+			},
+			true,
+		},
+		{
+			"When nsm is not installed",
+			context.WithValue(context.Background(), types.NamespacedName{}, testClusterObj),
+			func(clientMock *utilmock.MockClient, ctx context.Context) {
+				clientMock.On("List",
+					mock.IsType(ctx),
+					mock.IsType(&appsv1.DaemonSetList{}),
+					mock.Anything,
+				).Return(errors.New("failed listing objects"))
+			},
+			false,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			ctx := test.ctx
+			clientMock := utilmock.NewClient()
+			r := &Reconciler{
+				Client:     clientMock,
+				MeshClient: clientMock,
+			}
+			test.loadMocks(clientMock, ctx)
+			result := r.isNsmInstalled(test.ctx)
+			if result != test.result {
+				t.Error("Expected result:", test.result, " but got ", result)
+			}
+		})
 	}
 }
