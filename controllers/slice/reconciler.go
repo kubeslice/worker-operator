@@ -21,7 +21,6 @@ package slice
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
@@ -211,17 +210,6 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 		}, nil
 	}
 
-	appPods, err := r.getAppPods(ctx, slice)
-	debugLog.Info("app pods", "pods", appPods, "err", err)
-
-	// expose the number of app pods metric of a slice
-	r.exposeMetric(appPods, slice)
-
-	if isAppPodStatusChanged(appPods, slice.Status.AppPods) {
-		log.Info("App pod status changed")
-		return r.handleAppPodStatusChange(appPods, slice, ctx)
-	}
-
 	debugLog.Info("reconciling app pods")
 	res, err, requeue = r.ReconcileAppPod(ctx, slice)
 	if err != nil {
@@ -241,6 +229,8 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 			Requeue: true,
 		}, nil
 	}
+	// expose the number of app pods metric of a slice
+	r.exposeMetric(slice.Status.AppPods, slice)
 
 	return ctrl.Result{
 		RequeueAfter: controllers.ReconcileInterval,
@@ -264,22 +254,6 @@ func (r *SliceReconciler) exposeMetric(appPods []kubeslicev1beta1.AppPod, slice 
 	for namespace, pods := range mapAppPodsPerNamespace {
 		r.gaugeAppPods.WithLabelValues(slice.Name, namespace).Set(float64(len(pods)))
 	}
-}
-
-func (r *SliceReconciler) handleAppPodStatusChange(appPods []kubeslicev1beta1.AppPod, slice *kubeslicev1beta1.Slice, ctx context.Context) (reconcile.Result, error) {
-	log := logger.FromContext(ctx).WithName("app-pod-update")
-
-	slice.Status.AppPods = appPods
-	slice.Status.AppPodsUpdatedOn = time.Now().Unix()
-	err := r.Status().Update(ctx, slice)
-	if err != nil {
-		log.Error(err, "Failed to update Slice status for app pods")
-		return ctrl.Result{}, err
-	}
-	log.Info("App pod status updated in slice")
-	utils.RecordEvent(ctx, r.EventRecorder, slice, nil, ossEvents.EventSliceUpdated, controllerName)
-
-	return ctrl.Result{Requeue: true}, nil
 }
 
 func isEgressConfigured(slice *kubeslicev1beta1.Slice) bool {
@@ -370,26 +344,6 @@ func (r *SliceReconciler) handleSliceDeletion(slice *kubeslicev1beta1.Slice, ctx
 		return true, ctrl.Result{}, nil
 	}
 	return false, reconcile.Result{}, nil
-}
-
-func isAppPodStatusChanged(current []kubeslicev1beta1.AppPod, old []kubeslicev1beta1.AppPod) bool {
-	if len(current) != len(old) {
-		return true
-	}
-
-	s := make(map[string]string)
-
-	for _, c := range old {
-		s[c.PodIP] = c.PodName
-	}
-
-	for _, c := range current {
-		if s[c.PodIP] != c.PodName {
-			return true
-		}
-	}
-
-	return false
 }
 
 // Setup SliceReconciler

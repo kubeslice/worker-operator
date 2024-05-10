@@ -146,25 +146,22 @@ func (r Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resul
 			return ctrl.Result{}, err
 		}
 
-		log.Info("serviceexport updated with ports")
-
 		return ctrl.Result{Requeue: true}, nil
 	}
 
 	res, err, requeue := r.ReconcileAppPod(ctx, serviceexport)
 	if requeue {
-		log.Info("app pods reconciled")
 		debugLog.Info("requeuing after app pod reconcile", "res", res, "er", err)
 		return res, err
 	}
 	r.gaugeEndpoints.WithLabelValues(serviceexport.Spec.Slice, serviceexport.Namespace, serviceexport.Name).Set(float64(serviceexport.Status.AvailableEndpoints))
+
 	res, err, requeue = r.ReconcileIngressGwPod(ctx, serviceexport)
 	if err != nil {
 		utils.RecordEvent(ctx, r.EventRecorder, serviceexport, nil, ossEvents.EventIngressGWPodReconcileFailed, controllerName)
 		return ctrl.Result{}, err
 	}
 	if requeue {
-		log.Info("ingress gw pod reconciled")
 		utils.RecordEvent(ctx, r.EventRecorder, serviceexport, nil, ossEvents.EventIngressGWPodReconciledSuccessfully, controllerName)
 		debugLog.Info("requeuing after ingress gw pod reconcile", "res", res, "er", err)
 		return res, nil
@@ -175,7 +172,6 @@ func (r Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resul
 		return ctrl.Result{}, err
 	}
 	if requeue {
-		log.Info("aliases reconciled")
 		r.gaugeAliases.WithLabelValues(serviceexport.Spec.Slice, serviceexport.Namespace, serviceexport.Name).Set(float64(len(serviceexport.Status.Aliases)))
 		debugLog.Info("requeuing after aliases reconcile", "res", res, "er", err)
 		return res, nil
@@ -186,14 +182,12 @@ func (r Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resul
 		return ctrl.Result{}, err
 	}
 	if requeue {
-		log.Info("synched serviceexport status")
 		debugLog.Info("requeuing after serviceexport sync", "res", res, "er", err)
 		return res, nil
 	}
 
 	res, err, requeue = r.ReconcileIstio(ctx, serviceexport)
 	if requeue {
-		log.Info("istio reconciled")
 		debugLog.Info("requeuing after Istio reconcile", "res", res, "er", err)
 		return res, err
 	}

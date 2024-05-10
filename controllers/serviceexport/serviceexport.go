@@ -55,14 +55,13 @@ func (r *Reconciler) ReconcileAppPod(
 	serviceexport.Status.ExportStatus = kubeslicev1beta1.ExportStatusPending // Set status to pending
 	serviceexport.Status.AvailableEndpoints = len(appPods)
 
-	log.Info("updating service app pods")
 	debugLog.Info("updating service app pods", "app pods", appPods)
 	err = r.Status().Update(ctx, serviceexport)
 	if err != nil {
 		log.Error(err, "Failed to update ServiceExport status for app pods")
 		return ctrl.Result{}, err, true
 	}
-	log.Info("Service App pod status updated")
+	log.Info("Service App pod status updated", "AvailableEndpoints", len(appPods))
 	return ctrl.Result{Requeue: true}, nil, true
 }
 
@@ -81,7 +80,7 @@ func (r *Reconciler) getAppPods(ctx context.Context, serviceexport *kubeslicev1b
 		return nil, err
 	}
 
-	debugLog.Info("pods matching labels", "count", len(podList.Items))
+	debugLog.Info("pods matching labels", "ServiceExport", serviceexport.Name, "count", len(podList.Items))
 
 	appPods := []kubeslicev1beta1.ServicePod{}
 	appPodsInSlice, err := getAppPodsInSlice(ctx, r.Client, serviceexport.Spec.Slice)
@@ -90,13 +89,14 @@ func (r *Reconciler) getAppPods(ctx context.Context, serviceexport *kubeslicev1b
 		return nil, err
 	}
 
-	debugLog.Info("app pods in slice", "pods", appPodsInSlice)
+	debugLog.Info("app pods in slice", "ServiceExport", serviceexport.Name, "pods", appPodsInSlice)
 	for _, pod := range podList.Items {
 		if pod.Status.Phase == corev1.PodRunning {
 			dnsName := pod.Name + "." + getClusterName() + "." + serviceexport.Name + "." + serviceexport.Namespace + ".svc.slice.local"
 			ip := getNsmIP(&pod, appPodsInSlice)
 			// Avoid adding pods with no nsmip (not part of slice yet)
 			if ip == "" {
+				debugLog.Info("No NSM IP. skipping endpoint", "ServiceExport", serviceexport.Name, pod.Name)
 				continue
 			}
 			appPods = append(appPods, kubeslicev1beta1.ServicePod{
