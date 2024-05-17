@@ -28,3 +28,29 @@ webhooks:
     - statefulsets
     - daemonsets
   sideEffects: NoneOnDryRun
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  name: validating-webhook-configuration
+webhooks:
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
+      path: /validate-webhook
+  failurePolicy: Fail
+  name: webhook.kubeslice.io
+  rules:
+  - apiGroups:
+    - networking.kubeslice.io
+    apiVersions:
+    - v1beta1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - serviceexports
+  sideEffects: NoneOnDryRun
