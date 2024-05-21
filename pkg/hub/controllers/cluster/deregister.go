@@ -280,6 +280,10 @@ func constructConfigMap(data string) *corev1.ConfigMap {
 }
 
 func constructJobForClusterDeregister() *batchv1.Job {
+	workerInstallerImage := os.Getenv("WORKER_INSTALLER_IMAGE")
+	if workerInstallerImage == "" {
+		workerInstallerImage = WORKER_INSTALLER_DEFAULT_IMAGE
+	}
 	backOffLimit := int32(0)
 	ttlSecondsAfterFinished := int32(600)
 	job := &batchv1.Job{
@@ -304,7 +308,7 @@ func constructJobForClusterDeregister() *batchv1.Job {
 					ServiceAccountName: serviceAccountName,
 					Containers: []corev1.Container{{
 						Name:  cleanupContainer,
-						Image: "aveshasystems/worker-installer:1.1.8",
+						Image: workerInstallerImage,
 						Command: []string{
 							"/bin/bash",
 							"/tmp/kubeslice-cleanup.sh",
