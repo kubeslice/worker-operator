@@ -257,11 +257,20 @@ func (r *SliceReconciler) reconcileNetworkComponents(ctx context.Context, slice 
 	debugLog.Info("ExternalGatewayConfig", "egw", slice.Status.SliceConfig)
 	if isEgressConfigured(slice) {
 		debugLog.Info("Installing egress")
-		err = manifest.InstallEgress(ctx, r.Client, slice)
-		if err != nil {
-			log.Error(err, "unable to install egress")
-			utils.RecordEvent(ctx, r.EventRecorder, slice, nil, ossEvents.EventSliceEgressInstallFailed, controllerName)
-			return ctrl.Result{}, err, false
+
+		switch slice.Status.SliceConfig.ExternalGatewayConfig.GatewayType {
+		case "envoy":
+			// create vpc egress ns in all workers (all the service imports are created in it)
+			// fmt.Sprintf(VpcEgressGwNsName, slice.Name)
+			break
+
+		case "istio":
+			err = manifest.InstallEgress(ctx, r.Client, slice)
+			if err != nil {
+				log.Error(err, "unable to install egress")
+				utils.RecordEvent(ctx, r.EventRecorder, slice, nil, ossEvents.EventSliceEgressInstallFailed, controllerName)
+				return ctrl.Result{}, err, false
+			}
 		}
 	}
 
