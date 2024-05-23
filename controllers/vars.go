@@ -45,5 +45,6 @@ const (
 	SliceGatewayEdgeTypeLabelKey         = "kubeslice.io/slice-gw-edge-type"
 	NodeTypeSelectorLabelKey             = "kubeslice.io/node-type"
 	PodTypeSelectorLabelKey              = "kubeslice.io/pod-type"
+	PodTypeSelectorValueApp              = "app"
 	TopologyKeySelector                  = "topology.kubeslice.io/gateway"
 )
