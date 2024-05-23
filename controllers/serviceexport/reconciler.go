@@ -37,6 +37,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -279,19 +280,35 @@ func (r *Reconciler) mapPodsToServiceExport(ctx context.Context, obj client.Obje
 // SetupWithManager setus up reconciler with manager
 func (r *Reconciler) SetupWithManager(mgr ctrl.Manager) error {
 	var labelSelector metav1.LabelSelector
-	// The appconfig reconciler needs to be invoked whenever there is an update to the
-	// referenced secret
+	// "kubeslice.io/pod-type": "app"
 	labelSelector.MatchLabels = map[string]string{controllers.PodTypeSelectorLabelKey: controllers.PodTypeSelectorValueApp}
-	podPredicate, err := predicate.LabelSelectorPredicate(labelSelector)
-	if err != nil {
-		return err
-	}
+
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&kubeslicev1beta1.ServiceExport{}).
 		Watches(
 			&corev1.Pod{},
 			handler.EnqueueRequestsFromMapFunc(r.mapPodsToServiceExport),
-			builder.WithPredicates(podPredicate),
+			builder.WithPredicates(predicate.Funcs{
+				CreateFunc: func(e event.CreateEvent) bool {
+					return false
+				},
+				DeleteFunc: func(e event.DeleteEvent) bool {
+					selector, err := metav1.LabelSelectorAsSelector(&labelSelector)
+					if err != nil {
+						return false
+					}
+					if selector.Matches(labels.Set(e.Object.GetLabels())) {
+						return true
+					}
+					return false
+				},
+				UpdateFunc: func(e event.UpdateEvent) bool {
+					return false
+				},
+				GenericFunc: func(e event.GenericEvent) bool {
+					return false
+				},
+			}),
 		).
 		Complete(r)
 }
