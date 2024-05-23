@@ -237,7 +237,7 @@ func (r *Reconciler) Setup(mgr ctrl.Manager, mf metrics.MetricsFactory) error {
 func (r *Reconciler) mapPodsToServiceExport(ctx context.Context, obj client.Object) (recs []reconcile.Request) {
 	log := logger.FromContext(ctx)
 	debugLog := log.V(1)
-	debugLog.Info("triggered watcher for svc export")
+	debugLog.Info("triggered watcher for svc export", "obj", obj.GetName())
 	_, ok := obj.(*corev1.Pod)
 	if !ok {
 		debugLog.Info("Unexpected object type in ServiceExport reconciler watch predicate expected *corev1.Pod found ", reflect.TypeOf(obj))
