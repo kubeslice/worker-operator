@@ -237,7 +237,8 @@ func (r *Reconciler) Setup(mgr ctrl.Manager, mf metrics.MetricsFactory) error {
 func (r *Reconciler) mapPodsToServiceExport(ctx context.Context, obj client.Object) (recs []reconcile.Request) {
 	log := logger.FromContext(ctx)
 	debugLog := log.V(1)
-	_, ok := obj.(*corev1.Secret)
+	debugLog.Info("triggered watcher for svc export")
+	_, ok := obj.(*corev1.Pod)
 	if !ok {
 		debugLog.Info("Unexpected object type in ServiceExport reconciler watch predicate expected *corev1.Pod found ", reflect.TypeOf(obj))
 		return
@@ -252,6 +253,7 @@ func (r *Reconciler) mapPodsToServiceExport(ctx context.Context, obj client.Obje
 		log.Error(err, "Failed to list service export", "application namespace", obj.GetNamespace())
 		return
 	}
+	debugLog.Info("Service export found in app ns", "count", len(svcexpList.Items))
 	for _, svcexp := range svcexpList.Items {
 		selector, err := metav1.LabelSelectorAsSelector(svcexp.Spec.Selector)
 		if err != nil {
@@ -259,6 +261,10 @@ func (r *Reconciler) mapPodsToServiceExport(ctx context.Context, obj client.Obje
 			continue
 		}
 		if selector.Matches(labels.Set(obj.GetLabels())) {
+			debugLog.Info("requeueing svc export", "obj", types.NamespacedName{
+				Name:      svcexp.Name,
+				Namespace: svcexp.Namespace,
+			})
 			recs = append(recs, reconcile.Request{
 				NamespacedName: types.NamespacedName{
 					Name:      svcexp.Name,
