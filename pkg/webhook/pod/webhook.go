@@ -75,11 +75,10 @@ func (wh *WebhookServer) Handle(ctx context.Context, req admission.Request) admi
 		}
 
 		if mutate, sliceName := wh.MutationRequired(pod.ObjectMeta, ctx, req.Kind.Kind); !mutate {
-			log.Info("mutation not required for pod", "pod metadata", pod.ObjectMeta)
+			log.Info("mutation not required for pod", "pod metadata", pod.ObjectMeta.Name)
 		} else {
-			log.Info("mutating pod", "pod metadata", pod.ObjectMeta)
+			log.Info("mutating pod", "pod metadata", pod.ObjectMeta.Name)
 			pod = MutatePod(pod, sliceName)
-			log.Info("mutated pod", "pod metadata", pod.ObjectMeta)
 		}
 
 		marshaled, err := json.Marshal(pod)
@@ -98,7 +97,6 @@ func (wh *WebhookServer) Handle(ctx context.Context, req admission.Request) admi
 		if mutate, sliceName := wh.MutationRequired(deploy.ObjectMeta, ctx, req.Kind.Kind); !mutate {
 			log.Info("mutation not required for deployment", "pod metadata", deploy.Spec.Template.ObjectMeta)
 		} else {
-			log.Info("mutating deploy", "pod metadata", deploy.Spec.Template.ObjectMeta)
 			deploy = MutateDeployment(deploy, sliceName)
 			log.Info("mutated deploy", "pod metadata", deploy.Spec.Template.ObjectMeta)
 		}
@@ -119,7 +117,6 @@ func (wh *WebhookServer) Handle(ctx context.Context, req admission.Request) admi
 		if mutate, sliceName := wh.MutationRequired(statefulset.ObjectMeta, ctx, req.Kind.Kind); !mutate {
 			log.Info("mutation not required for statefulsets", "pod metadata", statefulset.Spec.Template.ObjectMeta)
 		} else {
-			log.Info("mutating statefulset", "pod metadata", statefulset.Spec.Template.ObjectMeta)
 			statefulset = MutateStatefulset(statefulset, sliceName)
 			log.Info("mutated statefulset", "pod metadata", statefulset.Spec.Template.ObjectMeta)
 		}
@@ -140,7 +137,6 @@ func (wh *WebhookServer) Handle(ctx context.Context, req admission.Request) admi
 		if mutate, sliceName := wh.MutationRequired(daemonset.ObjectMeta, ctx, req.Kind.Kind); !mutate {
 			log.Info("mutation not required for daemonset", "pod metadata", daemonset.Spec.Template.ObjectMeta)
 		} else {
-			log.Info("mutating daemonset", "pod metadata", daemonset.Spec.Template.ObjectMeta)
 			daemonset = MutateDaemonSet(daemonset, sliceName)
 			log.Info("mutated daemonset", "pod metadata", daemonset.Spec.Template.ObjectMeta)
 		}
