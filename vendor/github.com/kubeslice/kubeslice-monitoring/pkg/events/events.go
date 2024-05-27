@@ -166,12 +166,16 @@ func (er *eventRecorder) WithProject(project string) EventRecorder {
 }
 
 // RecordEvent raises a new event with the given fields
-// TODO: events caching and aggregation
 func (er *eventRecorder) RecordEvent(ctx context.Context, e *Event) error {
 	ref, err := reference.GetReference(er.Scheme, e.Object)
 	if err != nil {
 		er.Logger.With("error", err).Error("Unable to parse event obj reference")
 		return err
+	}
+
+	if ref.Namespace == "" {
+		er.Logger.Debugf("reference namespace is empty using name instead ", ref.Name)
+		ref.Namespace = ref.Name
 	}
 
 	ns := er.Options.Namespace
