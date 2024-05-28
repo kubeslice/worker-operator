@@ -21,16 +21,24 @@ package slice
 import (
 	"context"
 	"fmt"
+	"log"
+	"reflect"
 
 	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/apimachinery/pkg/types"
 	retry "k8s.io/client-go/util/retry"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/event"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/kubeslice/kubeslice-monitoring/pkg/events"
@@ -358,10 +366,150 @@ func (r *SliceReconciler) Setup(mgr ctrl.Manager, mf metrics.MetricsFactory) err
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *SliceReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	// Create a label selector that matches based on the existence of a label key
+	sliceSelector := labels.NewSelector()
+	requirement, err := labels.NewRequirement(controllers.ApplicationNamespaceSelectorLabelKey, selection.Exists, nil)
+	if err != nil {
+		log.Fatalf("Error creating label requirement: %v", err)
+	}
+	sliceSelector = sliceSelector.Add(*requirement)
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&kubeslicev1beta1.Slice{}).
 		Owns(&appsv1.Deployment{}).
 		Owns(&corev1.Pod{}).
 		Owns(&kubeslicev1beta1.SliceGateway{}).
+		Watches(
+			&appsv1.Deployment{},
+			handler.EnqueueRequestsFromMapFunc(func(ctx context.Context, o client.Object) (recs []reconcile.Request) {
+				log := logger.FromContext(ctx)
+				debuglog := log.V(1)
+				debuglog.Info("Triggered slice reconciler by", "type", reflect.TypeOf(o))
+				sliceName := o.(*appsv1.Deployment).Labels[controllers.ApplicationNamespaceSelectorLabelKey]
+				recs = append(recs, reconcile.Request{
+					NamespacedName: types.NamespacedName{
+						Name:      sliceName,
+						Namespace: controllers.ControlPlaneNamespace,
+					},
+				})
+				debuglog.Info("Requeuing slice", "name", sliceName)
+				return
+			}),
+			builder.WithPredicates(predicate.Funcs{
+				CreateFunc: func(e event.CreateEvent) bool {
+					return false
+				},
+				DeleteFunc: func(e event.DeleteEvent) bool {
+					return sliceSelector.Matches(labels.Set(e.Object.GetLabels()))
+				},
+				UpdateFunc: func(e event.UpdateEvent) bool {
+					if sliceSelector.Matches(labels.Set(e.ObjectOld.GetLabels())) {
+						oldObj, ok := e.ObjectOld.(*appsv1.Deployment)
+						if !ok {
+							return false
+						}
+						newObj, ok := e.ObjectNew.(*appsv1.Deployment)
+						if !ok {
+							return false
+						}
+						// trigger in case of scale down
+						if oldObj.Status.ReadyReplicas > newObj.Status.ReadyReplicas {
+							return true
+						}
+					}
+					return false
+				},
+				GenericFunc: func(e event.GenericEvent) bool {
+					return false
+				},
+			}),
+		).
+		Watches(
+			&appsv1.DaemonSet{},
+			handler.EnqueueRequestsFromMapFunc(func(ctx context.Context, o client.Object) (recs []reconcile.Request) {
+				log := logger.FromContext(ctx)
+				debuglog := log.V(1)
+				debuglog.Info("Triggered slice reconciler by", "type", reflect.TypeOf(o))
+				sliceName := o.(*appsv1.DaemonSet).Labels[controllers.ApplicationNamespaceSelectorLabelKey]
+				recs = append(recs, reconcile.Request{
+					NamespacedName: types.NamespacedName{
+						Name:      sliceName,
+						Namespace: controllers.ControlPlaneNamespace,
+					},
+				})
+				debuglog.Info("Requeuing slice", "name", sliceName)
+				return
+			}),
+			builder.WithPredicates(predicate.Funcs{
+				CreateFunc: func(e event.CreateEvent) bool {
+					return false
+				},
+				DeleteFunc: func(e event.DeleteEvent) bool {
+					return sliceSelector.Matches(labels.Set(e.Object.GetLabels()))
+				},
+				UpdateFunc: func(e event.UpdateEvent) bool {
+					if sliceSelector.Matches(labels.Set(e.ObjectOld.GetLabels())) {
+						oldObj, ok := e.ObjectOld.(*appsv1.DaemonSet)
+						if !ok {
+							return false
+						}
+						newObj, ok := e.ObjectNew.(*appsv1.DaemonSet)
+						if !ok {
+							return false
+						}
+						if oldObj.Status.NumberReady > newObj.Status.NumberReady {
+							return true
+						}
+					}
+					return false
+				},
+				GenericFunc: func(e event.GenericEvent) bool {
+					return false
+				},
+			}),
+		).
+		Watches(
+			&appsv1.StatefulSet{},
+			handler.EnqueueRequestsFromMapFunc(func(ctx context.Context, o client.Object) (recs []reconcile.Request) {
+				log := logger.FromContext(ctx)
+				debuglog := log.V(1)
+				debuglog.Info("Triggered slice reconciler by", "type", reflect.TypeOf(o))
+				sliceName := o.(*appsv1.StatefulSet).Labels[controllers.ApplicationNamespaceSelectorLabelKey]
+				recs = append(recs, reconcile.Request{
+					NamespacedName: types.NamespacedName{
+						Name:      sliceName,
+						Namespace: controllers.ControlPlaneNamespace,
+					},
+				})
+				debuglog.Info("Requeuing slice", "name", sliceName)
+				return
+			}),
+			builder.WithPredicates(predicate.Funcs{
+				CreateFunc: func(e event.CreateEvent) bool {
+					return false
+				},
+				DeleteFunc: func(e event.DeleteEvent) bool {
+					return sliceSelector.Matches(labels.Set(e.Object.GetLabels()))
+				},
+				UpdateFunc: func(e event.UpdateEvent) bool {
+					if sliceSelector.Matches(labels.Set(e.ObjectOld.GetLabels())) {
+						oldObj, ok := e.ObjectOld.(*appsv1.StatefulSet)
+						if !ok {
+							return false
+						}
+						newObj, ok := e.ObjectNew.(*appsv1.StatefulSet)
+						if !ok {
+							return false
+						}
+						if oldObj.Status.ReadyReplicas > newObj.Status.ReadyReplicas {
+							return true
+						}
+					}
+					return false
+				},
+				GenericFunc: func(e event.GenericEvent) bool {
+					return false
+				},
+			}),
+		).
 		Complete(r)
 }

@@ -21,14 +21,18 @@ package serviceexport
 import (
 	"context"
 	"fmt"
+	"reflect"
 	"time"
 
 	"github.com/go-logr/logr"
 	"github.com/prometheus/client_golang/prometheus"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/kubeslice/kubeslice-monitoring/pkg/events"
 	"github.com/kubeslice/kubeslice-monitoring/pkg/metrics"
@@ -223,7 +227,35 @@ func (r *Reconciler) Setup(mgr ctrl.Manager, mf metrics.MetricsFactory) error {
 func (r *Reconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&kubeslicev1beta1.ServiceExport{}).
+		Watches(
+			&kubeslicev1beta1.Slice{},
+			handler.EnqueueRequestsFromMapFunc(r.mapServiceExportsToSlice),
+		).
 		Complete(r)
+}
+
+// enqueue requests with service exports belonging under given slice
+func (r *Reconciler) mapServiceExportsToSlice(ctx context.Context, obj client.Object) (recs []reconcile.Request) {
+	log := logger.FromContext(ctx)
+	debugLog := log.V(1)
+	_, ok := obj.(*kubeslicev1beta1.Slice)
+	if !ok {
+		debugLog.Info("Unexpected object type, expected *kubeslicev1beta1.Slice found ", "type", reflect.TypeOf(obj))
+		return
+	}
+	svcexportList := &kubeslicev1beta1.ServiceExportList{}
+	labelSelector := client.MatchingLabels{controllers.ApplicationNamespaceSelectorLabelKey: obj.(*kubeslicev1beta1.Slice).Name}
+	err := r.List(ctx, svcexportList, labelSelector)
+	if err != nil {
+		return
+	}
+	for _, svcexport := range svcexportList.Items {
+		recs = append(recs, reconcile.Request{NamespacedName: types.NamespacedName{
+			Name:      svcexport.Name,
+			Namespace: svcexport.Namespace,
+		}})
+	}
+	return
 }
 
 func (r *Reconciler) GetServiceExport(ctx context.Context, req ctrl.Request, log *logr.Logger) (*kubeslicev1beta1.ServiceExport, error) {
