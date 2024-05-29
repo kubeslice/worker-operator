@@ -206,6 +206,11 @@ func MutateDeployment(deploy *appsv1.Deployment, sliceName string) *appsv1.Deplo
 	labels[PodInjectLabelKey] = "app"
 	labels[admissionWebhookAnnotationInjectKey] = sliceName
 
+	if deploy.ObjectMeta.Labels == nil {
+		deploy.ObjectMeta.Labels = make(map[string]string)
+	}
+	deploy.ObjectMeta.Labels[admissionWebhookAnnotationInjectKey] = sliceName
+
 	return deploy
 }
 
@@ -230,6 +235,11 @@ func MutateStatefulset(ss *appsv1.StatefulSet, sliceName string) *appsv1.Statefu
 	labels[PodInjectLabelKey] = "app"
 	labels[admissionWebhookAnnotationInjectKey] = sliceName
 
+	if ss.ObjectMeta.Labels == nil {
+		ss.ObjectMeta.Labels = make(map[string]string)
+	}
+	ss.ObjectMeta.Labels[admissionWebhookAnnotationInjectKey] = sliceName
+
 	return ss
 }
 
@@ -253,6 +263,12 @@ func MutateDaemonSet(ds *appsv1.DaemonSet, sliceName string) *appsv1.DaemonSet {
 	labels := ds.Spec.Template.ObjectMeta.Labels
 	labels[PodInjectLabelKey] = "app"
 	labels[admissionWebhookAnnotationInjectKey] = sliceName
+
+	// add slice identifier labels to object
+	if ds.ObjectMeta.Labels == nil {
+		ds.ObjectMeta.Labels = make(map[string]string)
+	}
+	ds.ObjectMeta.Labels[admissionWebhookAnnotationInjectKey] = sliceName
 
 	return ds
 }
