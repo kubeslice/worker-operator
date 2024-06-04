@@ -21,24 +21,34 @@ package serviceexport
 import (
 	"context"
 	"fmt"
+	"reflect"
 	"time"
 
 	"github.com/go-logr/logr"
 	"github.com/prometheus/client_golang/prometheus"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
+
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/event"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/kubeslice/kubeslice-monitoring/pkg/events"
 	"github.com/kubeslice/kubeslice-monitoring/pkg/metrics"
-
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
 	"github.com/kubeslice/worker-operator/controllers"
 	ossEvents "github.com/kubeslice/worker-operator/events"
 	"github.com/kubeslice/worker-operator/pkg/logger"
 	"github.com/kubeslice/worker-operator/pkg/utils"
-	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
 // Reconciler reconciles serviceexport resource
@@ -225,10 +235,81 @@ func (r *Reconciler) Setup(mgr ctrl.Manager, mf metrics.MetricsFactory) error {
 	return r.SetupWithManager(mgr)
 }
 
+func (r *Reconciler) mapPodsToServiceExport(ctx context.Context, obj client.Object) (recs []reconcile.Request) {
+	log := logger.FromContext(ctx)
+	debugLog := log.V(1)
+	debugLog.Info("triggered watcher for svc export", "obj", obj.GetName())
+	_, ok := obj.(*corev1.Pod)
+	if !ok {
+		debugLog.Info("Unexpected object type in ServiceExport reconciler watch predicate expected *corev1.Pod found ", reflect.TypeOf(obj))
+		return
+	}
+	// get all svc export in the app ns
+	svcexpList := &kubeslicev1beta1.ServiceExportList{}
+	listOpts := []client.ListOption{
+		client.InNamespace(obj.GetNamespace()),
+	}
+	err := r.List(ctx, svcexpList, listOpts...)
+	if err != nil {
+		log.Error(err, "Failed to list service export", "application namespace", obj.GetNamespace())
+		return
+	}
+	debugLog.Info("Service export found in app ns", "count", len(svcexpList.Items))
+	for _, svcexp := range svcexpList.Items {
+		selector, err := metav1.LabelSelectorAsSelector(svcexp.Spec.Selector)
+		if err != nil {
+			log.Error(err, "Failed to parse selector", "service export", svcexp.Name, "selector", svcexp.Spec.Selector)
+			continue
+		}
+		if selector.Matches(labels.Set(obj.GetLabels())) {
+			debugLog.Info("requeueing svc export", "obj", types.NamespacedName{
+				Name:      svcexp.Name,
+				Namespace: svcexp.Namespace,
+			})
+			recs = append(recs, reconcile.Request{
+				NamespacedName: types.NamespacedName{
+					Name:      svcexp.Name,
+					Namespace: svcexp.Namespace,
+				},
+			})
+		}
+	}
+	return recs
+}
+
 // SetupWithManager setus up reconciler with manager
 func (r *Reconciler) SetupWithManager(mgr ctrl.Manager) error {
+	var labelSelector metav1.LabelSelector
+	// "kubeslice.io/pod-type": "app"
+	labelSelector.MatchLabels = map[string]string{controllers.PodTypeSelectorLabelKey: controllers.PodTypeSelectorValueApp}
+
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&kubeslicev1beta1.ServiceExport{}).
+		Watches(
+			&corev1.Pod{},
+			handler.EnqueueRequestsFromMapFunc(r.mapPodsToServiceExport),
+			builder.WithPredicates(predicate.Funcs{
+				CreateFunc: func(e event.CreateEvent) bool {
+					return false
+				},
+				DeleteFunc: func(e event.DeleteEvent) bool {
+					selector, err := metav1.LabelSelectorAsSelector(&labelSelector)
+					if err != nil {
+						return false
+					}
+					if selector.Matches(labels.Set(e.Object.GetLabels())) {
+						return true
+					}
+					return false
+				},
+				UpdateFunc: func(e event.UpdateEvent) bool {
+					return false
+				},
+				GenericFunc: func(e event.GenericEvent) bool {
+					return false
+				},
+			}),
+		).
 		Complete(r)
 }
 
