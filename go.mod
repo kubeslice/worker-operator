@@ -2,6 +2,9 @@ module github.com/kubeslice/worker-operator
 
 go 1.22.1
 
+replace github.com/kubeslice/apis => ../../misc/apis
+
+
 require (
 	contrib.go.opencensus.io/exporter/prometheus v0.4.1
 	github.com/avast/retry-go v3.0.0+incompatible
