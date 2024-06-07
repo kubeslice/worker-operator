@@ -42,9 +42,9 @@ const (
 type GatewayType string
 
 const (
-	NONE  GatewayType = "none"
-	ISTIO GatewayType = "istio"
-	ENVOY GatewayType = "envoy"
+	GATEWAY_TYPE_NONE  GatewayType = "none"
+	GATEWAY_TYPE_ISTIO GatewayType = "istio"
+	GATEWAY_TYPE_ENVOY GatewayType = "envoy"
 )
 
 // SliceConfigSpec defines the desired state of SliceConfig

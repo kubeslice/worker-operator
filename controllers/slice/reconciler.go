@@ -23,33 +23,37 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	retry "k8s.io/client-go/util/retry"
+
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	"github.com/kubeslice/apis/pkg/controller/v1alpha1"
+	"github.com/go-logr/logr"
+	controllerv1alpha1 "github.com/kubeslice/apis/pkg/controller/v1alpha1"
 	"github.com/kubeslice/kubeslice-monitoring/pkg/events"
 	"github.com/kubeslice/kubeslice-monitoring/pkg/metrics"
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
 	"github.com/kubeslice/worker-operator/controllers"
 	ossEvents "github.com/kubeslice/worker-operator/events"
-
 	"github.com/kubeslice/worker-operator/pkg/logger"
 	"github.com/kubeslice/worker-operator/pkg/manifest"
 	"github.com/kubeslice/worker-operator/pkg/utils"
 	"github.com/prometheus/client_golang/prometheus"
-	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
-var sliceFinalizer = "networking.kubeslice.io/slice-finalizer"
-var controllerName = "sliceReconciler"
+const VPC_NS_FMT = "%s-vpc-access-gw-system"
+
+var (
+	sliceFinalizer = "networking.kubeslice.io/slice-finalizer"
+	controllerName = "sliceReconciler"
+)
 
 // SliceReconciler reconciles a Slice object
 type SliceReconciler struct {
@@ -151,7 +155,7 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 		return ctrl.Result{}, err
 	}
 
-	if slice.Status.SliceConfig.SliceOverlayNetworkDeploymentMode != v1alpha1.NONET {
+	if slice.Status.SliceConfig.SliceOverlayNetworkDeploymentMode != controllerv1alpha1.NONET {
 		if slice.Status.DNSIP == "" {
 			requeue, result, err := r.handleDnsSvc(ctx, slice)
 			if requeue {
@@ -166,7 +170,7 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 		return res, err
 	}
 
-	if slice.Status.SliceConfig.SliceOverlayNetworkDeploymentMode == v1alpha1.NONET {
+	if slice.Status.SliceConfig.SliceOverlayNetworkDeploymentMode == controllerv1alpha1.NONET {
 		debugLog.Info("No communication slice, skipping reconciliation of qos, netop, egw, router etc")
 		// to support net to no-net switching write a function to delete network components if present
 	} else {
@@ -190,7 +194,7 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 		return r.handleAppPodStatusChange(appPods, slice, ctx)
 	}
 
-	if slice.Status.SliceConfig.SliceOverlayNetworkDeploymentMode == v1alpha1.NONET {
+	if slice.Status.SliceConfig.SliceOverlayNetworkDeploymentMode == controllerv1alpha1.NONET {
 		debugLog.Info("No communication slice, skipping reconciliation of apppods")
 		// to support net to no-net switching write a function to remove nsm interfaces, ips, labels with nsmip etc from existing app pods
 	} else {
@@ -254,17 +258,10 @@ func (r *SliceReconciler) reconcileNetworkComponents(ctx context.Context, slice 
 		return res, nil, true
 	}
 
-	debugLog.Info("ExternalGatewayConfig", "egw", slice.Status.SliceConfig)
-	if isEgressConfigured(slice) {
-		debugLog.Info("Installing egress")
-
-		switch slice.Status.SliceConfig.ExternalGatewayConfig.GatewayType {
-		case "envoy":
-			// create vpc egress ns in all workers (all the service imports are created in it)
-			// fmt.Sprintf(VpcEgressGwNsName, slice.Name)
-			break
-
-		case "istio":
+	debugLog.Info("ExternalGatewayConfig", "obj", slice.Status.SliceConfig.ExternalGatewayConfig)
+	if slice.Status.SliceConfig.ExternalGatewayConfig.GatewayType == controllerv1alpha1.GATEWAY_TYPE_ISTIO {
+		if isEgressConfigured(slice) {
+			debugLog.Info("Installing istio egress")
 			err = manifest.InstallEgress(ctx, r.Client, slice)
 			if err != nil {
 				log.Error(err, "unable to install egress")
@@ -272,15 +269,15 @@ func (r *SliceReconciler) reconcileNetworkComponents(ctx context.Context, slice 
 				return ctrl.Result{}, err, false
 			}
 		}
-	}
 
-	if isIngressConfigured(slice) {
-		debugLog.Info("Installing ingress")
-		err = manifest.InstallIngress(ctx, r.Client, slice)
-		if err != nil {
-			log.Error(err, "unable to install ingress")
-			utils.RecordEvent(ctx, r.EventRecorder, slice, nil, ossEvents.EventSliceIngressInstallFailed, controllerName)
-			return ctrl.Result{}, err, false
+		if isIngressConfigured(slice) {
+			debugLog.Info("Installing istio ingress")
+			err = manifest.InstallIngress(ctx, r.Client, slice)
+			if err != nil {
+				log.Error(err, "unable to install ingress")
+				utils.RecordEvent(ctx, r.EventRecorder, slice, nil, ossEvents.EventSliceIngressInstallFailed, controllerName)
+				return ctrl.Result{}, err, false
+			}
 		}
 	}
 
@@ -392,7 +389,7 @@ func (r *SliceReconciler) handleSliceDeletion(slice *kubeslicev1beta1.Slice, ctx
 		if controllerutil.ContainsFinalizer(slice, sliceFinalizer) {
 			log.Info("Deleting slice", "slice", slice.Name)
 			if slice.Status.SliceConfig != nil &&
-				slice.Status.SliceConfig.SliceOverlayNetworkDeploymentMode != v1alpha1.NONET {
+				slice.Status.SliceConfig.SliceOverlayNetworkDeploymentMode != controllerv1alpha1.NONET {
 				err := r.SendSliceDeletionEventToNetOp(ctx, req.NamespacedName.Name, req.NamespacedName.Namespace)
 				if err != nil {
 					log.Error(err, "Failed to send slice deletetion event to netop")
