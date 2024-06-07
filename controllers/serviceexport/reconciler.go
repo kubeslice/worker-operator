@@ -46,6 +46,7 @@ import (
 	"github.com/kubeslice/kubeslice-monitoring/pkg/metrics"
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
 	"github.com/kubeslice/worker-operator/controllers"
+	sliceController "github.com/kubeslice/worker-operator/controllers/slice"
 	ossEvents "github.com/kubeslice/worker-operator/events"
 	"github.com/kubeslice/worker-operator/pkg/logger"
 	"github.com/kubeslice/worker-operator/pkg/utils"
@@ -133,8 +134,8 @@ func (r Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resul
 		return ctrl.Result{RequeueAfter: controllers.ReconcileInterval}, nil
 	}
 
-	if !arrayContainsString(slice.Status.ApplicationNamespaces, serviceexport.Namespace) {
-		log.Error(fmt.Errorf("Serviceexport ns is not part of the slice"), "Couldn't onboard serviceexport")
+	if !isValidNameSpace(serviceexport.Namespace, slice) {
+		log.Error(fmt.Errorf("serviceexport ns is not part of the slice"), "couldn't onboard serviceexport")
 		if serviceexport.Status.ExportStatus != kubeslicev1beta1.ExportStatusPending {
 			serviceexport.Status.ExportStatus = kubeslicev1beta1.ExportStatusPending
 			if err := r.Status().Update(ctx, serviceexport); err != nil {
@@ -221,6 +222,13 @@ func (r Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resul
 	return ctrl.Result{
 		RequeueAfter: 30 * time.Second,
 	}, nil
+}
+
+func isValidNameSpace(ns string, slice *kubeslicev1beta1.Slice) bool {
+	if ns == fmt.Sprintf(sliceController.VPC_NS_FMT, slice.Name) {
+		return true
+	}
+	return arrayContainsString(slice.Status.ApplicationNamespaces, ns)
 }
 
 // Setup ServiceExport Reconciler
