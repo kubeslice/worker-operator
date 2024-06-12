@@ -78,11 +78,10 @@ func (wh *WebhookServer) Handle(ctx context.Context, req admission.Request) admi
 		}
 
 		if mutate, sliceName := wh.MutationRequired(pod.ObjectMeta, ctx, req.Kind.Kind); !mutate {
-			log.Info("mutation not required for pod", "pod metadata", pod.ObjectMeta)
+			log.Info("mutation not required for pod", "pod metadata", pod.ObjectMeta.Name)
 		} else {
-			log.Info("mutating pod", "pod metadata", pod.ObjectMeta)
+			log.Info("mutating pod", "pod metadata", pod.ObjectMeta.Name)
 			pod = MutatePod(pod, sliceName)
-			log.Info("mutated pod", "pod metadata", pod.ObjectMeta)
 		}
 
 		marshaled, err := json.Marshal(pod)
@@ -101,7 +100,6 @@ func (wh *WebhookServer) Handle(ctx context.Context, req admission.Request) admi
 		if mutate, sliceName := wh.MutationRequired(deploy.ObjectMeta, ctx, req.Kind.Kind); !mutate {
 			log.Info("mutation not required for deployment", "pod metadata", deploy.Spec.Template.ObjectMeta)
 		} else {
-			log.Info("mutating deploy", "pod metadata", deploy.Spec.Template.ObjectMeta)
 			deploy = MutateDeployment(deploy, sliceName)
 			log.Info("mutated deploy", "pod metadata", deploy.Spec.Template.ObjectMeta)
 		}
@@ -122,7 +120,6 @@ func (wh *WebhookServer) Handle(ctx context.Context, req admission.Request) admi
 		if mutate, sliceName := wh.MutationRequired(statefulset.ObjectMeta, ctx, req.Kind.Kind); !mutate {
 			log.Info("mutation not required for statefulsets", "pod metadata", statefulset.Spec.Template.ObjectMeta)
 		} else {
-			log.Info("mutating statefulset", "pod metadata", statefulset.Spec.Template.ObjectMeta)
 			statefulset = MutateStatefulset(statefulset, sliceName)
 			log.Info("mutated statefulset", "pod metadata", statefulset.Spec.Template.ObjectMeta)
 		}
@@ -143,7 +140,6 @@ func (wh *WebhookServer) Handle(ctx context.Context, req admission.Request) admi
 		if mutate, sliceName := wh.MutationRequired(daemonset.ObjectMeta, ctx, req.Kind.Kind); !mutate {
 			log.Info("mutation not required for daemonset", "pod metadata", daemonset.Spec.Template.ObjectMeta)
 		} else {
-			log.Info("mutating daemonset", "pod metadata", daemonset.Spec.Template.ObjectMeta)
 			daemonset = MutateDaemonSet(daemonset, sliceName)
 			log.Info("mutated daemonset", "pod metadata", daemonset.Spec.Template.ObjectMeta)
 		}
@@ -226,6 +222,11 @@ func MutateDeployment(deploy *appsv1.Deployment, sliceName string) *appsv1.Deplo
 	labels[PodInjectLabelKey] = "app"
 	labels[admissionWebhookAnnotationInjectKey] = sliceName
 
+	if deploy.ObjectMeta.Labels == nil {
+		deploy.ObjectMeta.Labels = make(map[string]string)
+	}
+	deploy.ObjectMeta.Labels[admissionWebhookAnnotationInjectKey] = sliceName
+
 	return deploy
 }
 
@@ -250,6 +251,11 @@ func MutateStatefulset(ss *appsv1.StatefulSet, sliceName string) *appsv1.Statefu
 	labels[PodInjectLabelKey] = "app"
 	labels[admissionWebhookAnnotationInjectKey] = sliceName
 
+	if ss.ObjectMeta.Labels == nil {
+		ss.ObjectMeta.Labels = make(map[string]string)
+	}
+	ss.ObjectMeta.Labels[admissionWebhookAnnotationInjectKey] = sliceName
+
 	return ss
 }
 
@@ -273,6 +279,12 @@ func MutateDaemonSet(ds *appsv1.DaemonSet, sliceName string) *appsv1.DaemonSet {
 	labels := ds.Spec.Template.ObjectMeta.Labels
 	labels[PodInjectLabelKey] = "app"
 	labels[admissionWebhookAnnotationInjectKey] = sliceName
+
+	// add slice identifier labels to object
+	if ds.ObjectMeta.Labels == nil {
+		ds.ObjectMeta.Labels = make(map[string]string)
+	}
+	ds.ObjectMeta.Labels[admissionWebhookAnnotationInjectKey] = sliceName
 
 	return ds
 }

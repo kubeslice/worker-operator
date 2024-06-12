@@ -24,9 +24,7 @@ import (
 
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
 	"github.com/kubeslice/worker-operator/controllers"
-	ossEvents "github.com/kubeslice/worker-operator/events"
 	"github.com/kubeslice/worker-operator/pkg/logger"
-	"github.com/kubeslice/worker-operator/pkg/utils"
 	webhook "github.com/kubeslice/worker-operator/pkg/webhook/pod"
 
 	corev1 "k8s.io/api/core/v1"
@@ -34,23 +32,43 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
+func isAppPodStatusChanged(current []kubeslicev1beta1.AppPod, old []kubeslicev1beta1.AppPod) bool {
+	if len(current) != len(old) {
+		return true
+	}
+
+	oldPodMap := make(map[string]string)
+
+	for _, op := range old {
+		oldPodMap[op.PodName] = op.PodIP
+	}
+
+	for _, cp := range current {
+		if _, ok := oldPodMap[cp.PodName]; !ok {
+			return true
+		}
+	}
+
+	return false
+}
+
 func (r *SliceReconciler) getAppPods(ctx context.Context, slice *kubeslicev1beta1.Slice) ([]kubeslicev1beta1.AppPod, error) {
 	log := logger.FromContext(ctx).WithValues("type", "app_pod")
 	debugLog := log.V(1)
 
 	podList := &corev1.PodList{}
 	listOpts := []client.ListOption{
-		client.MatchingLabels(labelsForAppPods()),
+		client.MatchingLabels(labelsForAppPods(slice.Name)),
 	}
 	if err := r.List(ctx, podList, listOpts...); err != nil {
 		log.Error(err, "Failed to list pods")
 		return nil, err
 	}
+
 	appPods := []kubeslicev1beta1.AppPod{}
+
 	for _, pod := range podList.Items {
-
 		a := pod.Annotations
-
 		if !isAppPodConnectedToSliceRouter(a, "vl3-service-"+slice.Name) {
 			// Could get noisy. Review needed.
 			debugLog.Info("App pod is not part of the slice", "pod", pod.Name, "slice", slice.Name)
@@ -65,12 +83,13 @@ func (r *SliceReconciler) getAppPods(ctx context.Context, slice *kubeslicev1beta
 			})
 		}
 	}
+
 	return appPods, nil
 }
 
 // labelsForAppPods returns the labels for App pods
-func labelsForAppPods() map[string]string {
-	return map[string]string{webhook.PodInjectLabelKey: "app"}
+func labelsForAppPods(sliceName string) map[string]string {
+	return map[string]string{webhook.PodInjectLabelKey: "app", ApplicationNamespaceSelectorLabelKey: sliceName}
 }
 
 func isAppPodConnectedToSliceRouter(annotations map[string]string, sliceRouter string) bool {
@@ -93,14 +112,23 @@ func (r *SliceReconciler) ReconcileAppPod(ctx context.Context, slice *kubeslicev
 		return ctrl.Result{}, err, true
 	}
 	debugLog.Info("Got pods connected to slice", "result", podsConnectedToSlice)
-	corePodList := &corev1.PodList{}
-	listOpts := []client.ListOption{
-		client.MatchingLabels(labelsForAppPods()),
-	}
-	if err := r.List(ctx, corePodList, listOpts...); err != nil {
-		log.Error(err, "Failed to list pods")
+
+	appPods, err := r.getAppPods(ctx, slice)
+	debugLog.Info("app pods", "slice", sliceName, "pods", appPods, "err", err)
+	if err != nil {
 		return ctrl.Result{}, err, true
 	}
+
+	updateNeeded := false
+
+	// First, reconcile the current set of pods in the slice namespaces with the pods stored
+	// in the slice status.
+	if isAppPodStatusChanged(appPods, slice.Status.AppPods) {
+		log.Info("Latest app pods do not match the pods in slice status. Update needed", "slice", sliceName)
+		updateNeeded = true
+		slice.Status.AppPods = appPods
+	}
+
 	for i := range slice.Status.AppPods {
 		pod := &slice.Status.AppPods[i]
 		debugLog.Info("getting app pod connectivity status", "podIp", pod.PodIP, "podName", pod.PodName)
@@ -108,25 +136,37 @@ func (r *SliceReconciler) ReconcileAppPod(ctx context.Context, slice *kubeslicev
 		// Presence of an nsm interface is good enough for now to consider the app pod as healthy with
 		// respect to its connectivity to the slice.
 		if appPodConnectedToSlice == nil {
-			debugLog.Info("App pod unhealthy: Not connected to slice", "podName", pod.PodName)
-
-			if pod.NsmIP != "" || pod.NsmPeerIP != "" {
-				return r.updateSliceAppPodStatus(ctx, pod, slice)
+			debugLog.Info("App pod not connected to slice", "podName", pod.PodName)
+			if pod.NsmIP != "" {
+				pod.NsmIP = ""
+				updateNeeded = true
 			}
-			debugLog.Info("App pod unhealthy, skipping reconciliation")
 			continue
 		}
 
 		if pod.NsmIP != appPodConnectedToSlice.NsmIP {
-			pod.NsmIP, pod.NsmPeerIP, pod.NsmInterface =
-				appPodConnectedToSlice.NsmIP, appPodConnectedToSlice.NsmPeerIP, appPodConnectedToSlice.NsmInterface
-			slice.Status.AppPodsUpdatedOn = time.Now().Unix()
-			log.Info("app pod status changed", "nsmIp", pod.NsmIP, "peerIp", pod.NsmPeerIP)
-
-			//Label pod with NSM IP
-			return r.labelAppPodWithNsmIp(ctx, pod, corePodList, slice)
+			debugLog.Info("app pod status changed", "old nsmIp", pod.NsmIP, "new nsmIp", appPodConnectedToSlice.NsmIP)
+			pod.NsmIP = appPodConnectedToSlice.NsmIP
+			updateNeeded = true
 		}
 	}
+
+	if updateNeeded {
+		slice.Status.AppPodsUpdatedOn = time.Now().Unix()
+		err := r.Status().Update(ctx, slice)
+		if err != nil {
+			log.Error(err, "Failed to update Slice status for app pods")
+			return ctrl.Result{}, err, true
+		}
+	}
+
+	// Reconcile nsm IP label on app pods
+	err = r.labelAppPodWithNsmIp(ctx, slice)
+	if err != nil {
+		log.Error(err, "Failed to label app pods")
+		return ctrl.Result{}, err, true
+	}
+
 	return ctrl.Result{}, nil, false
 }
 
@@ -144,60 +184,50 @@ func findAppPodConnectedToSlice(podName string, connectedPods []kubeslicev1beta1
 	return nil
 }
 
-// findPodInPodList returns the index of the pod in the podList that matches
-// the input pod to be found
-func findPodInPodList(podName string, podList *corev1.PodList) int {
-	for i := range podList.Items {
-		pod := podList.Items[i]
-		if podName == pod.Name {
-			return i
-		}
-	}
-	return -1
-}
-
-func (r *SliceReconciler) updateSliceAppPodStatus(ctx context.Context, pod *kubeslicev1beta1.AppPod, slice *kubeslicev1beta1.Slice) (ctrl.Result, error, bool) {
+func (r *SliceReconciler) labelAppPodWithNsmIp(ctx context.Context, slice *kubeslicev1beta1.Slice) error {
 	log := logger.FromContext(ctx).WithValues("type", "app_pod")
 	debugLog := log.V(1)
-	pod.NsmIP = ""
-	pod.NsmPeerIP = ""
-	slice.Status.AppPodsUpdatedOn = time.Now().Unix()
-	debugLog.Info("Setting app pod nsm and peer Ip to null")
-	err := r.Status().Update(ctx, slice)
-	if err != nil {
-		log.Error(err, "Failed to update Slice status for app pods which sets nsmip and peerip to null")
-		return ctrl.Result{}, err, true
+
+	corePodList := &corev1.PodList{}
+	listOpts := []client.ListOption{
+		client.MatchingLabels(labelsForAppPods(slice.Name)),
 	}
-	debugLog.Info("App pod status updated and nsmip peerip set to null")
-	utils.RecordEvent(ctx, r.EventRecorder, slice, nil, ossEvents.EventSliceUpdated, controllerName)
-	return ctrl.Result{}, nil, true
-}
+	if err := r.List(ctx, corePodList, listOpts...); err != nil {
+		log.Error(err, "Label app pods error: Failed to list pods")
+		return err
+	}
 
-func (r *SliceReconciler) labelAppPodWithNsmIp(ctx context.Context, pod *kubeslicev1beta1.AppPod, corePodList *corev1.PodList, slice *kubeslicev1beta1.Slice) (ctrl.Result, error, bool) {
-	log := logger.FromContext(ctx).WithValues("type", "app_pod")
-	debugLog := log.V(1)
-	podIndex := findPodInPodList(pod.PodName, corePodList)
-	if podIndex == -1 {
-		debugLog.Info("Could not find pod in podList, skipping nsmIP labelling")
-	} else {
-		corePod := corePodList.Items[podIndex]
-		labels := corePod.GetLabels()
-		labels[controllers.NSMIPLabelSelectorKey] = pod.NsmIP
-		corePod.SetLabels(labels)
-
-		err := r.Update(ctx, &corePod)
-		if err != nil {
-			log.Error(err, "Failed to update NSM IP label for app pod")
-			return ctrl.Result{}, err, true
+	for _, pod := range corePodList.Items {
+		updateNeeded := false
+		podInSlice := findAppPodConnectedToSlice(pod.Name, slice.Status.AppPods)
+		if podInSlice == nil {
+			continue
 		}
-		debugLog.Info("App pod label added/updated", "nsmIP", pod.NsmIP)
+		labels := pod.GetLabels()
+		if labels == nil {
+			labels = make(map[string]string)
+		}
+		_, ok := labels[controllers.NSMIPLabelSelectorKey]
+		if !ok {
+			updateNeeded = true
+			labels[controllers.NSMIPLabelSelectorKey] = podInSlice.NsmIP
+		} else {
+			if labels[controllers.NSMIPLabelSelectorKey] != podInSlice.NsmIP {
+				updateNeeded = true
+				labels[controllers.NSMIPLabelSelectorKey] = podInSlice.NsmIP
+			}
+		}
+
+		if updateNeeded {
+			pod.SetLabels(labels)
+			err := r.Update(ctx, &pod)
+			if err != nil {
+				log.Error(err, "Failed to update NSM IP label for app pod", "pod", pod.Name)
+				return err
+			}
+			debugLog.Info("App pod label added/updated", "pod", pod.Name, "nsmIP", podInSlice.NsmIP)
+		}
 	}
-	err := r.Status().Update(ctx, slice)
-	if err != nil {
-		log.Error(err, "Failed to update Slice status for app pods")
-		return ctrl.Result{}, err, true
-	}
-	log.Info("App pod status updated")
-	utils.RecordEvent(ctx, r.EventRecorder, slice, nil, ossEvents.EventSliceUpdated, controllerName)
-	return ctrl.Result{}, nil, true
+
+	return nil
 }
