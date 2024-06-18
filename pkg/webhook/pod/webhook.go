@@ -44,6 +44,7 @@ const (
 	controlPlaneNamespace                     = "kubeslice-system"
 	nsmInjectAnnotaionKey1                    = "ns.networkservicemesh.io"
 	nsmInjectAnnotaionKey2                    = "networkservicemesh.io"
+	kubesliceExcludeKey                       = "kubeslice.io/exclude"
 )
 
 var (
@@ -316,9 +317,19 @@ func (wh *WebhookServer) ValidateServiceExport(svcex *v1beta1.ServiceExport, ctx
 	return true, "", nil
 }
 
+// returns mutationRequired bool, sliceName string
 func (wh *WebhookServer) MutationRequired(metadata metav1.ObjectMeta, ctx context.Context, kind string) (bool, string) {
 	log := logger.FromContext(ctx)
 	annotations := metadata.GetAnnotations()
+
+	labels := metadata.GetLabels()
+	if labels != nil {
+		val, exists := labels[kubesliceExcludeKey]
+		// don't mutate if kubeslice.io/exclude=true
+		if exists && val == "true" {
+			return false, ""
+		}
+	}
 
 	//early exit if metadata in nil
 	//we allow empty annotation, but namespace should not be empty
