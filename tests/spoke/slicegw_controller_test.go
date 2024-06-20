@@ -21,6 +21,10 @@ package spoke_test
 import (
 	"context"
 	"fmt"
+	"reflect"
+	"strconv"
+	"time"
+
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
 	"github.com/kubeslice/worker-operator/controllers"
 	slicegatewaycontroller "github.com/kubeslice/worker-operator/controllers/slicegateway"
@@ -35,10 +39,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/util/retry"
-	"reflect"
 	_ "sigs.k8s.io/controller-runtime/pkg/client"
-	"strconv"
-	"time"
 )
 
 var sliceGwFinalizer = []string{

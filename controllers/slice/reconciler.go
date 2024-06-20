@@ -281,7 +281,8 @@ func (r *SliceReconciler) reconcileNetworkComponents(ctx context.Context, slice 
 	}
 
 	debugLog.Info("ExternalGatewayConfig", "obj", slice.Status.SliceConfig.ExternalGatewayConfig)
-	if slice.Status.SliceConfig.ExternalGatewayConfig.GatewayType == controllerv1alpha1.GATEWAY_TYPE_ISTIO {
+	if slice.Status.SliceConfig.ExternalGatewayConfig != nil &&
+		slice.Status.SliceConfig.ExternalGatewayConfig.GatewayType == controllerv1alpha1.GATEWAY_TYPE_ISTIO {
 		if isEgressConfigured(slice) {
 			debugLog.Info("Installing istio egress")
 			err = manifest.InstallEgress(ctx, r.Client, slice)
