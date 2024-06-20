@@ -91,10 +91,11 @@ type NamespaceIsolationProfile struct {
 
 // ExternalGatewayConfig determines istio ingress/egress configuration
 type ExternalGatewayConfig struct {
-	Ingress     *ExternalGatewayConfigOptions `json:"ingress,omitempty"`
-	Egress      *ExternalGatewayConfigOptions `json:"egress,omitempty"`
-	NsIngress   *ExternalGatewayConfigOptions `json:"nsIngress,omitempty"`
-	GatewayType string                        `json:"gatewayType,omitempty"`
+	Ingress          *ExternalGatewayConfigOptions    `json:"ingress,omitempty"`
+	Egress           *ExternalGatewayConfigOptions    `json:"egress,omitempty"`
+	NsIngress        *ExternalGatewayConfigOptions    `json:"nsIngress,omitempty"`
+	GatewayType      controllerv1alpha1.GatewayType   `json:"gatewayType,omitempty"`
+	VPCServiceAccess controllerv1alpha1.ServiceAccess `json:"vpcServiceAccess,omitempty"`
 }
 
 type ExternalGatewayConfigOptions struct {

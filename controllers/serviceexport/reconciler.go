@@ -32,20 +32,17 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
-
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
-	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
-	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/kubeslice/kubeslice-monitoring/pkg/events"
 	"github.com/kubeslice/kubeslice-monitoring/pkg/metrics"
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
 	"github.com/kubeslice/worker-operator/controllers"
+	sliceController "github.com/kubeslice/worker-operator/controllers/slice"
 	ossEvents "github.com/kubeslice/worker-operator/events"
 	"github.com/kubeslice/worker-operator/pkg/logger"
 	"github.com/kubeslice/worker-operator/pkg/utils"
@@ -133,8 +130,8 @@ func (r Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resul
 		return ctrl.Result{RequeueAfter: controllers.ReconcileInterval}, nil
 	}
 
-	if !arrayContainsString(slice.Status.ApplicationNamespaces, serviceexport.Namespace) {
-		log.Error(fmt.Errorf("Serviceexport ns is not part of the slice"), "Couldn't onboard serviceexport")
+	if !isValidNameSpace(serviceexport.Namespace, slice) {
+		log.Error(fmt.Errorf("serviceexport ns is not part of the slice"), "couldn't onboard serviceexport")
 		if serviceexport.Status.ExportStatus != kubeslicev1beta1.ExportStatusPending {
 			serviceexport.Status.ExportStatus = kubeslicev1beta1.ExportStatusPending
 			if err := r.Status().Update(ctx, serviceexport); err != nil {
@@ -156,25 +153,22 @@ func (r Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resul
 			return ctrl.Result{}, err
 		}
 
-		log.Info("serviceexport updated with ports")
-
 		return ctrl.Result{Requeue: true}, nil
 	}
 
 	res, err, requeue := r.ReconcileAppPod(ctx, serviceexport)
 	if requeue {
-		log.Info("app pods reconciled")
 		debugLog.Info("requeuing after app pod reconcile", "res", res, "er", err)
 		return res, err
 	}
 	r.gaugeEndpoints.WithLabelValues(serviceexport.Spec.Slice, serviceexport.Namespace, serviceexport.Name).Set(float64(serviceexport.Status.AvailableEndpoints))
+
 	res, err, requeue = r.ReconcileIngressGwPod(ctx, serviceexport)
 	if err != nil {
 		utils.RecordEvent(ctx, r.EventRecorder, serviceexport, nil, ossEvents.EventIngressGWPodReconcileFailed, controllerName)
 		return ctrl.Result{}, err
 	}
 	if requeue {
-		log.Info("ingress gw pod reconciled")
 		utils.RecordEvent(ctx, r.EventRecorder, serviceexport, nil, ossEvents.EventIngressGWPodReconciledSuccessfully, controllerName)
 		debugLog.Info("requeuing after ingress gw pod reconcile", "res", res, "er", err)
 		return res, nil
@@ -185,7 +179,6 @@ func (r Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resul
 		return ctrl.Result{}, err
 	}
 	if requeue {
-		log.Info("aliases reconciled")
 		r.gaugeAliases.WithLabelValues(serviceexport.Spec.Slice, serviceexport.Namespace, serviceexport.Name).Set(float64(len(serviceexport.Status.Aliases)))
 		debugLog.Info("requeuing after aliases reconcile", "res", res, "er", err)
 		return res, nil
@@ -196,14 +189,12 @@ func (r Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resul
 		return ctrl.Result{}, err
 	}
 	if requeue {
-		log.Info("synched serviceexport status")
 		debugLog.Info("requeuing after serviceexport sync", "res", res, "er", err)
 		return res, nil
 	}
 
 	res, err, requeue = r.ReconcileIstio(ctx, serviceexport)
 	if requeue {
-		log.Info("istio reconciled")
 		debugLog.Info("requeuing after Istio reconcile", "res", res, "er", err)
 		return res, err
 	}
@@ -221,6 +212,13 @@ func (r Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resul
 	return ctrl.Result{
 		RequeueAfter: 30 * time.Second,
 	}, nil
+}
+
+func isValidNameSpace(ns string, slice *kubeslicev1beta1.Slice) bool {
+	if ns == fmt.Sprintf(sliceController.VPC_NS_FMT, slice.Name) {
+		return true
+	}
+	return arrayContainsString(slice.Status.ApplicationNamespaces, ns)
 }
 
 // Setup ServiceExport Reconciler
@@ -286,31 +284,34 @@ func (r *Reconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&kubeslicev1beta1.ServiceExport{}).
 		Watches(
-			&corev1.Pod{},
-			handler.EnqueueRequestsFromMapFunc(r.mapPodsToServiceExport),
-			builder.WithPredicates(predicate.Funcs{
-				CreateFunc: func(e event.CreateEvent) bool {
-					return false
-				},
-				DeleteFunc: func(e event.DeleteEvent) bool {
-					selector, err := metav1.LabelSelectorAsSelector(&labelSelector)
-					if err != nil {
-						return false
-					}
-					if selector.Matches(labels.Set(e.Object.GetLabels())) {
-						return true
-					}
-					return false
-				},
-				UpdateFunc: func(e event.UpdateEvent) bool {
-					return false
-				},
-				GenericFunc: func(e event.GenericEvent) bool {
-					return false
-				},
-			}),
+			&kubeslicev1beta1.Slice{},
+			handler.EnqueueRequestsFromMapFunc(r.mapServiceExportsToSlice),
 		).
 		Complete(r)
+}
+
+// enqueue requests with service exports belonging under given slice
+func (r *Reconciler) mapServiceExportsToSlice(ctx context.Context, obj client.Object) (recs []reconcile.Request) {
+	log := logger.FromContext(ctx)
+	debugLog := log.V(1)
+	_, ok := obj.(*kubeslicev1beta1.Slice)
+	if !ok {
+		debugLog.Info("Unexpected object type, expected *kubeslicev1beta1.Slice found ", "type", reflect.TypeOf(obj))
+		return
+	}
+	svcexportList := &kubeslicev1beta1.ServiceExportList{}
+	labelSelector := client.MatchingLabels{controllers.ApplicationNamespaceSelectorLabelKey: obj.(*kubeslicev1beta1.Slice).Name}
+	err := r.List(ctx, svcexportList, labelSelector)
+	if err != nil {
+		return
+	}
+	for _, svcexport := range svcexportList.Items {
+		recs = append(recs, reconcile.Request{NamespacedName: types.NamespacedName{
+			Name:      svcexport.Name,
+			Namespace: svcexport.Namespace,
+		}})
+	}
+	return
 }
 
 func (r *Reconciler) GetServiceExport(ctx context.Context, req ctrl.Request, log *logr.Logger) (*kubeslicev1beta1.ServiceExport, error) {

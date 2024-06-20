@@ -21,35 +21,46 @@ package slice
 import (
 	"context"
 	"fmt"
-	"time"
+	"log"
+	"reflect"
 
-	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/apimachinery/pkg/types"
 	retry "k8s.io/client-go/util/retry"
+
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/event"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	"github.com/kubeslice/apis/pkg/controller/v1alpha1"
+	"github.com/go-logr/logr"
+	controllerv1alpha1 "github.com/kubeslice/apis/pkg/controller/v1alpha1"
 	"github.com/kubeslice/kubeslice-monitoring/pkg/events"
 	"github.com/kubeslice/kubeslice-monitoring/pkg/metrics"
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
 	"github.com/kubeslice/worker-operator/controllers"
 	ossEvents "github.com/kubeslice/worker-operator/events"
-
 	"github.com/kubeslice/worker-operator/pkg/logger"
 	"github.com/kubeslice/worker-operator/pkg/manifest"
 	"github.com/kubeslice/worker-operator/pkg/utils"
 	"github.com/prometheus/client_golang/prometheus"
-	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
-var sliceFinalizer = "networking.kubeslice.io/slice-finalizer"
-var controllerName = "sliceReconciler"
+const VPC_NS_FMT = "%s-vpc-access-gw-system"
+
+var (
+	sliceFinalizer = "networking.kubeslice.io/slice-finalizer"
+	controllerName = "sliceReconciler"
+)
 
 // SliceReconciler reconciles a Slice object
 type SliceReconciler struct {
@@ -151,7 +162,7 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 		return ctrl.Result{}, err
 	}
 
-	if slice.Status.SliceConfig.SliceOverlayNetworkDeploymentMode != v1alpha1.NONET {
+	if slice.Status.SliceConfig.SliceOverlayNetworkDeploymentMode != controllerv1alpha1.NONET {
 		if slice.Status.DNSIP == "" {
 			requeue, result, err := r.handleDnsSvc(ctx, slice)
 			if requeue {
@@ -166,7 +177,7 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 		return res, err
 	}
 
-	if slice.Status.SliceConfig.SliceOverlayNetworkDeploymentMode == v1alpha1.NONET {
+	if slice.Status.SliceConfig.SliceOverlayNetworkDeploymentMode == controllerv1alpha1.NONET {
 		debugLog.Info("No communication slice, skipping reconciliation of qos, netop, egw, router etc")
 		// to support net to no-net switching write a function to delete network components if present
 	} else {
@@ -179,27 +190,40 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 		}
 	}
 
-	appPods, err := r.getAppPods(ctx, slice)
-	debugLog.Info("app pods", "pods", appPods, "err", err)
-
-	// expose the number of app pods metric of a slice
-	r.exposeMetric(appPods, slice)
-
-	if isAppPodStatusChanged(appPods, slice.Status.AppPods) {
-		log.Info("App pod status changed")
-		return r.handleAppPodStatusChange(appPods, slice, ctx)
+	if isIngressConfigured(slice) {
+		debugLog.Info("Installing ingress")
+		err = manifest.InstallIngress(ctx, r.Client, slice)
+		if err != nil {
+			log.Error(err, "unable to install ingress")
+			utils.RecordEvent(ctx, r.EventRecorder, slice, nil, ossEvents.EventSliceIngressInstallFailed, controllerName)
+			return ctrl.Result{}, nil
+		}
 	}
 
-	if slice.Status.SliceConfig.SliceOverlayNetworkDeploymentMode == v1alpha1.NONET {
-		debugLog.Info("No communication slice, skipping reconciliation of apppods")
-		// to support net to no-net switching write a function to remove nsm interfaces, ips, labels with nsmip etc from existing app pods
-	} else {
-		debugLog.Info("reconciling app pods")
-		res, err, requeue = r.ReconcileAppPod(ctx, slice)
-		if err != nil {
-			log.Error(err, "App pod reconciliation failed")
-			return res, err
-		}
+	res, err, requeue = r.ReconcileSliceRouter(ctx, slice)
+	if err != nil {
+		log.Error(err, "Failed to reconcile slice router")
+	}
+	if requeue {
+		return res, err
+	}
+
+	res, err, requeue = r.ReconcileSliceGwEdge(ctx, slice)
+	if err != nil {
+		log.Error(err, "Slice Edge reconciliation failed")
+		return res, err
+	}
+	if requeue {
+		return ctrl.Result{
+			Requeue: true,
+		}, nil
+	}
+
+	debugLog.Info("reconciling app pods")
+	res, err, requeue = r.ReconcileAppPod(ctx, slice)
+	if err != nil {
+		log.Error(err, "App pod reconciliation failed")
+		return res, err
 	}
 
 	if requeue {
@@ -215,6 +239,8 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 			Requeue: true,
 		}, nil
 	}
+	// expose the number of app pods metric of a slice
+	r.exposeMetric(slice.Status.AppPods, slice)
 
 	return ctrl.Result{
 		RequeueAfter: controllers.ReconcileInterval,
@@ -254,24 +280,27 @@ func (r *SliceReconciler) reconcileNetworkComponents(ctx context.Context, slice 
 		return res, nil, true
 	}
 
-	debugLog.Info("ExternalGatewayConfig", "egw", slice.Status.SliceConfig)
-	if isEgressConfigured(slice) {
-		debugLog.Info("Installing egress")
-		err = manifest.InstallEgress(ctx, r.Client, slice)
-		if err != nil {
-			log.Error(err, "unable to install egress")
-			utils.RecordEvent(ctx, r.EventRecorder, slice, nil, ossEvents.EventSliceEgressInstallFailed, controllerName)
-			return ctrl.Result{}, err, false
+	debugLog.Info("ExternalGatewayConfig", "obj", slice.Status.SliceConfig.ExternalGatewayConfig)
+	if slice.Status.SliceConfig.ExternalGatewayConfig != nil &&
+		slice.Status.SliceConfig.ExternalGatewayConfig.GatewayType == controllerv1alpha1.GATEWAY_TYPE_ISTIO {
+		if isEgressConfigured(slice) {
+			debugLog.Info("Installing istio egress")
+			err = manifest.InstallEgress(ctx, r.Client, slice)
+			if err != nil {
+				log.Error(err, "unable to install egress")
+				utils.RecordEvent(ctx, r.EventRecorder, slice, nil, ossEvents.EventSliceEgressInstallFailed, controllerName)
+				return ctrl.Result{}, err, false
+			}
 		}
-	}
 
-	if isIngressConfigured(slice) {
-		debugLog.Info("Installing ingress")
-		err = manifest.InstallIngress(ctx, r.Client, slice)
-		if err != nil {
-			log.Error(err, "unable to install ingress")
-			utils.RecordEvent(ctx, r.EventRecorder, slice, nil, ossEvents.EventSliceIngressInstallFailed, controllerName)
-			return ctrl.Result{}, err, false
+		if isIngressConfigured(slice) {
+			debugLog.Info("Installing istio ingress")
+			err = manifest.InstallIngress(ctx, r.Client, slice)
+			if err != nil {
+				log.Error(err, "unable to install ingress")
+				utils.RecordEvent(ctx, r.EventRecorder, slice, nil, ossEvents.EventSliceIngressInstallFailed, controllerName)
+				return ctrl.Result{}, err, false
+			}
 		}
 	}
 
@@ -295,22 +324,6 @@ func (r *SliceReconciler) exposeMetric(appPods []kubeslicev1beta1.AppPod, slice 
 	for namespace, pods := range mapAppPodsPerNamespace {
 		r.gaugeAppPods.WithLabelValues(slice.Name, namespace).Set(float64(len(pods)))
 	}
-}
-
-func (r *SliceReconciler) handleAppPodStatusChange(appPods []kubeslicev1beta1.AppPod, slice *kubeslicev1beta1.Slice, ctx context.Context) (reconcile.Result, error) {
-	log := logger.FromContext(ctx).WithName("app-pod-update")
-
-	slice.Status.AppPods = appPods
-	slice.Status.AppPodsUpdatedOn = time.Now().Unix()
-	err := r.Status().Update(ctx, slice)
-	if err != nil {
-		log.Error(err, "Failed to update Slice status for app pods")
-		return ctrl.Result{}, err
-	}
-	log.Info("App pod status updated in slice")
-	utils.RecordEvent(ctx, r.EventRecorder, slice, nil, ossEvents.EventSliceUpdated, controllerName)
-
-	return ctrl.Result{Requeue: true}, nil
 }
 
 func isEgressConfigured(slice *kubeslicev1beta1.Slice) bool {
@@ -383,7 +396,7 @@ func (r *SliceReconciler) handleSliceDeletion(slice *kubeslicev1beta1.Slice, ctx
 		if controllerutil.ContainsFinalizer(slice, sliceFinalizer) {
 			log.Info("Deleting slice", "slice", slice.Name)
 			if slice.Status.SliceConfig != nil &&
-				slice.Status.SliceConfig.SliceOverlayNetworkDeploymentMode != v1alpha1.NONET {
+				slice.Status.SliceConfig.SliceOverlayNetworkDeploymentMode != controllerv1alpha1.NONET {
 				err := r.SendSliceDeletionEventToNetOp(ctx, req.NamespacedName.Name, req.NamespacedName.Namespace)
 				if err != nil {
 					log.Error(err, "Failed to send slice deletetion event to netop")
@@ -405,26 +418,6 @@ func (r *SliceReconciler) handleSliceDeletion(slice *kubeslicev1beta1.Slice, ctx
 	return false, reconcile.Result{}, nil
 }
 
-func isAppPodStatusChanged(current []kubeslicev1beta1.AppPod, old []kubeslicev1beta1.AppPod) bool {
-	if len(current) != len(old) {
-		return true
-	}
-
-	s := make(map[string]string)
-
-	for _, c := range old {
-		s[c.PodIP] = c.PodName
-	}
-
-	for _, c := range current {
-		if s[c.PodIP] != c.PodName {
-			return true
-		}
-	}
-
-	return false
-}
-
 // Setup SliceReconciler
 // Initializes metrics and sets up with manager
 func (r *SliceReconciler) Setup(mgr ctrl.Manager, mf metrics.MetricsFactory) error {
@@ -437,10 +430,150 @@ func (r *SliceReconciler) Setup(mgr ctrl.Manager, mf metrics.MetricsFactory) err
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *SliceReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	// Create a label selector that matches based on the existence of a label key
+	sliceSelector := labels.NewSelector()
+	requirement, err := labels.NewRequirement(controllers.ApplicationNamespaceSelectorLabelKey, selection.Exists, nil)
+	if err != nil {
+		log.Fatalf("Error creating label requirement: %v", err)
+	}
+	sliceSelector = sliceSelector.Add(*requirement)
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&kubeslicev1beta1.Slice{}).
 		Owns(&appsv1.Deployment{}).
 		Owns(&corev1.Pod{}).
 		Owns(&kubeslicev1beta1.SliceGateway{}).
+		Watches(
+			&appsv1.Deployment{},
+			handler.EnqueueRequestsFromMapFunc(func(ctx context.Context, o client.Object) (recs []reconcile.Request) {
+				log := logger.FromContext(ctx)
+				debuglog := log.V(1)
+				debuglog.Info("Triggered slice reconciler by", "type", reflect.TypeOf(o))
+				sliceName := o.(*appsv1.Deployment).Labels[controllers.ApplicationNamespaceSelectorLabelKey]
+				recs = append(recs, reconcile.Request{
+					NamespacedName: types.NamespacedName{
+						Name:      sliceName,
+						Namespace: controllers.ControlPlaneNamespace,
+					},
+				})
+				debuglog.Info("Requeuing slice", "name", sliceName)
+				return
+			}),
+			builder.WithPredicates(predicate.Funcs{
+				CreateFunc: func(e event.CreateEvent) bool {
+					return false
+				},
+				DeleteFunc: func(e event.DeleteEvent) bool {
+					return sliceSelector.Matches(labels.Set(e.Object.GetLabels()))
+				},
+				UpdateFunc: func(e event.UpdateEvent) bool {
+					if sliceSelector.Matches(labels.Set(e.ObjectOld.GetLabels())) {
+						oldObj, ok := e.ObjectOld.(*appsv1.Deployment)
+						if !ok {
+							return false
+						}
+						newObj, ok := e.ObjectNew.(*appsv1.Deployment)
+						if !ok {
+							return false
+						}
+						// trigger in case of scale down
+						if oldObj.Status.ReadyReplicas > newObj.Status.ReadyReplicas {
+							return true
+						}
+					}
+					return false
+				},
+				GenericFunc: func(e event.GenericEvent) bool {
+					return false
+				},
+			}),
+		).
+		Watches(
+			&appsv1.DaemonSet{},
+			handler.EnqueueRequestsFromMapFunc(func(ctx context.Context, o client.Object) (recs []reconcile.Request) {
+				log := logger.FromContext(ctx)
+				debuglog := log.V(1)
+				debuglog.Info("Triggered slice reconciler by", "type", reflect.TypeOf(o))
+				sliceName := o.(*appsv1.DaemonSet).Labels[controllers.ApplicationNamespaceSelectorLabelKey]
+				recs = append(recs, reconcile.Request{
+					NamespacedName: types.NamespacedName{
+						Name:      sliceName,
+						Namespace: controllers.ControlPlaneNamespace,
+					},
+				})
+				debuglog.Info("Requeuing slice", "name", sliceName)
+				return
+			}),
+			builder.WithPredicates(predicate.Funcs{
+				CreateFunc: func(e event.CreateEvent) bool {
+					return false
+				},
+				DeleteFunc: func(e event.DeleteEvent) bool {
+					return sliceSelector.Matches(labels.Set(e.Object.GetLabels()))
+				},
+				UpdateFunc: func(e event.UpdateEvent) bool {
+					if sliceSelector.Matches(labels.Set(e.ObjectOld.GetLabels())) {
+						oldObj, ok := e.ObjectOld.(*appsv1.DaemonSet)
+						if !ok {
+							return false
+						}
+						newObj, ok := e.ObjectNew.(*appsv1.DaemonSet)
+						if !ok {
+							return false
+						}
+						if oldObj.Status.NumberReady > newObj.Status.NumberReady {
+							return true
+						}
+					}
+					return false
+				},
+				GenericFunc: func(e event.GenericEvent) bool {
+					return false
+				},
+			}),
+		).
+		Watches(
+			&appsv1.StatefulSet{},
+			handler.EnqueueRequestsFromMapFunc(func(ctx context.Context, o client.Object) (recs []reconcile.Request) {
+				log := logger.FromContext(ctx)
+				debuglog := log.V(1)
+				debuglog.Info("Triggered slice reconciler by", "type", reflect.TypeOf(o))
+				sliceName := o.(*appsv1.StatefulSet).Labels[controllers.ApplicationNamespaceSelectorLabelKey]
+				recs = append(recs, reconcile.Request{
+					NamespacedName: types.NamespacedName{
+						Name:      sliceName,
+						Namespace: controllers.ControlPlaneNamespace,
+					},
+				})
+				debuglog.Info("Requeuing slice", "name", sliceName)
+				return
+			}),
+			builder.WithPredicates(predicate.Funcs{
+				CreateFunc: func(e event.CreateEvent) bool {
+					return false
+				},
+				DeleteFunc: func(e event.DeleteEvent) bool {
+					return sliceSelector.Matches(labels.Set(e.Object.GetLabels()))
+				},
+				UpdateFunc: func(e event.UpdateEvent) bool {
+					if sliceSelector.Matches(labels.Set(e.ObjectOld.GetLabels())) {
+						oldObj, ok := e.ObjectOld.(*appsv1.StatefulSet)
+						if !ok {
+							return false
+						}
+						newObj, ok := e.ObjectNew.(*appsv1.StatefulSet)
+						if !ok {
+							return false
+						}
+						if oldObj.Status.ReadyReplicas > newObj.Status.ReadyReplicas {
+							return true
+						}
+					}
+					return false
+				},
+				GenericFunc: func(e event.GenericEvent) bool {
+					return false
+				},
+			}),
+		).
 		Complete(r)
 }

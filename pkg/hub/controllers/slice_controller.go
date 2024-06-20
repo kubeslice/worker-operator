@@ -28,17 +28,18 @@ import (
 	spokev1alpha1 "github.com/kubeslice/apis/pkg/worker/v1alpha1"
 	"github.com/kubeslice/kubeslice-monitoring/pkg/events"
 	"github.com/kubeslice/kubeslice-monitoring/pkg/metrics"
-	ossEvents "github.com/kubeslice/worker-operator/events"
-
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
+	ossEvents "github.com/kubeslice/worker-operator/events"
 	"github.com/kubeslice/worker-operator/pkg/gwsidecar"
 	"github.com/kubeslice/worker-operator/pkg/logger"
 	"github.com/kubeslice/worker-operator/pkg/utils"
 	"github.com/prometheus/client_golang/prometheus"
+
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/util/retry"
+
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -315,6 +316,7 @@ func (r *SliceReconciler) updateSliceConfig(ctx context.Context, meshSlice *kube
 		NsIngress: &kubeslicev1beta1.ExternalGatewayConfigOptions{
 			Enabled: extGwCfg.NsIngress.Enabled,
 		},
+		VPCServiceAccess: extGwCfg.VPCServiceAccess,
 	}
 
 	return r.MeshClient.Status().Update(ctx, meshSlice)
