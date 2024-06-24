@@ -306,6 +306,11 @@ var _ = Describe("Hub ClusterController", func() {
 					Name: PROJECT_NS,
 				},
 			}
+			nsmWebhookNs := &corev1.Namespace{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: NSM_WEBHOOK_NS,
+				},
+			}
 			node = &corev1.Node{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "test-node",
@@ -399,6 +404,7 @@ var _ = Describe("Hub ClusterController", func() {
 			sa = getSA("kubeslice-kubernetes-dashboard", CONTROL_PLANE_NS, operatorSecret.Name)
 			Expect(k8sClient.Create(ctx, node))
 			Expect(k8sClient.Create(ctx, ns))
+			Expect(k8sClient.Create(ctx, nsmWebhookNs))
 			Expect(k8sClient.Create(ctx, nsSpire))
 			Expect(k8sClient.Create(ctx, nsIstio))
 			Expect(k8sClient.Create(ctx, operatorSecret))
@@ -530,9 +536,9 @@ var _ = Describe("Hub ClusterController", func() {
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "admission-webhook",
 						Labels: map[string]string{
-							"app": "admission-webhook-k8s",
+							"app": "kubeslice-nsm-webhook",
 						},
-						Namespace: "kubeslice-system",
+						Namespace: NSM_WEBHOOK_NS,
 					},
 					Spec: corev1.PodSpec{
 						Containers: []corev1.Container{{
