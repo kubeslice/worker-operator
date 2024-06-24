@@ -34,4 +34,5 @@ var (
 	HubCAFile                      = utils.GetEnvOrDefault("HUB_CA_FILE", "/var/run/secrets/kubernetes.io/hub-serviceaccount/ca.crt")
 	ClusterName                    = os.Getenv("CLUSTER_NAME")
 	WORKER_INSTALLER_DEFAULT_IMAGE = "aveshasystems/worker-installer:1.1.8"
+	NSM_WEBHOOK_NS                 = "kubeslice-nsm-webhook-system"
 )

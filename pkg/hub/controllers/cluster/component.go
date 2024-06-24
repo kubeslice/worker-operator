@@ -27,9 +27,9 @@ var components = []component{
 	{
 		name: "admission-webhook",
 		labels: map[string]string{
-			"app": "admission-webhook-k8s",
+			"app": "kubeslice-nsm-webhook",
 		},
-		ns: controllers.ControlPlaneNamespace,
+		ns: NSM_WEBHOOK_NS,
 	},
 	{
 		name: "netop",
