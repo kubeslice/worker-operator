@@ -272,7 +272,7 @@ func (r *ServiceImportReconciler) handleSvcimDeletion(svcim *spokev1alpha1.Worke
 		if controllerutil.ContainsFinalizer(svcim, svcimFinalizer) {
 			log.Info("deleting serviceimport")
 			// our finalizer is present, so lets handle any external dependency
-			if err := r.DeleteServiceImportOnSpoke(ctx, svcim); err != nil && !errors.IsNotFound(err) {
+			if err := r.DeleteServiceImportOnSpoke(ctx, svcim); err != nil {
 				// if fail to delete the external dependency here, return with error
 				// so that it can be retried
 				log.Error(err, "unable to delete service import on spoke")
@@ -292,6 +292,7 @@ func (r *ServiceImportReconciler) handleSvcimDeletion(svcim *spokev1alpha1.Worke
 	return false, reconcile.Result{}, nil
 }
 
+// delete service import, if exists
 func (r *ServiceImportReconciler) DeleteServiceImportOnSpoke(ctx context.Context, svcim *spokev1alpha1.WorkerServiceImport) error {
 	log := logger.FromContext(ctx)
 
@@ -303,7 +304,7 @@ func (r *ServiceImportReconciler) DeleteServiceImportOnSpoke(ctx context.Context
 	}
 
 	err := r.MeshClient.Delete(ctx, svcimOnSpoke)
-	if err != nil {
+	if err != nil && !errors.IsNotFound(err) {
 		return err
 	}
 
