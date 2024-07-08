@@ -166,7 +166,7 @@ func (r *ServiceImportReconciler) Reconcile(ctx context.Context, req reconcile.R
 						Name: vpcAccessNamespaceName,
 					},
 				}
-				if err := r.Create(ctx, namespace); err != nil {
+				if err := r.MeshClient.Create(ctx, namespace); err != nil {
 					log.Error(err, "Failed to create vpc access namespace", "namespace", vpcAccessNamespaceName)
 					return reconcile.Result{}, err
 				}
