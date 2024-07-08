@@ -20,18 +20,22 @@ package controllers
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	spokev1alpha1 "github.com/kubeslice/apis/pkg/worker/v1alpha1"
 	"github.com/kubeslice/kubeslice-monitoring/pkg/events"
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
 	"github.com/kubeslice/worker-operator/controllers"
+	sliceController "github.com/kubeslice/worker-operator/controllers/slice"
 	ossEvents "github.com/kubeslice/worker-operator/events"
 	"github.com/kubeslice/worker-operator/pkg/logger"
 	"github.com/kubeslice/worker-operator/pkg/utils"
+
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -147,6 +151,32 @@ func (r *ServiceImportReconciler) Reconcile(ctx context.Context, req reconcile.R
 		}, nil
 	}
 
+	// vpc access ns
+	vpcAccessNamespaceName := fmt.Sprintf(sliceController.VPC_NS_FMT, sliceName)
+	if svcim.Spec.ServiceNamespace == vpcAccessNamespaceName {
+		namespace := &corev1.Namespace{}
+		err := r.MeshClient.Get(ctx, types.NamespacedName{
+			Name: svcim.Spec.ServiceNamespace,
+		}, namespace)
+		if err != nil {
+			if errors.IsNotFound(err) {
+				log.Info("VPC access namespace not found, creating...", "namespace", vpcAccessNamespaceName)
+				namespace = &corev1.Namespace{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: vpcAccessNamespaceName,
+					},
+				}
+				if err := r.Create(ctx, namespace); err != nil {
+					log.Error(err, "Failed to create vpc access namespace", "namespace", vpcAccessNamespaceName)
+					return reconcile.Result{}, err
+				}
+				log.Info("Vpc access namespace created successfully", "namespace", vpcAccessNamespaceName)
+			} else {
+				log.Error(err, "Failed to get vpc access namespace", "namespace", vpcAccessNamespaceName)
+			}
+		}
+	}
+
 	meshSvcIm, err := r.getMeshServiceImport(ctx, svcim)
 	if meshSvcIm == nil {
 		log.Error(err, "unable to fetch mesh service import")
@@ -242,7 +272,7 @@ func (r *ServiceImportReconciler) handleSvcimDeletion(svcim *spokev1alpha1.Worke
 		if controllerutil.ContainsFinalizer(svcim, svcimFinalizer) {
 			log.Info("deleting serviceimport")
 			// our finalizer is present, so lets handle any external dependency
-			if err := r.DeleteServiceImportOnSpoke(ctx, svcim); err != nil {
+			if err := r.DeleteServiceImportOnSpoke(ctx, svcim); err != nil && !errors.IsNotFound(err) {
 				// if fail to delete the external dependency here, return with error
 				// so that it can be retried
 				log.Error(err, "unable to delete service import on spoke")
