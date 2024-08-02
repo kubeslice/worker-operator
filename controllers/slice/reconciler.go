@@ -190,35 +190,6 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 		}
 	}
 
-	if isIngressConfigured(slice) {
-		debugLog.Info("Installing ingress")
-		err = manifest.InstallIngress(ctx, r.Client, slice)
-		if err != nil {
-			log.Error(err, "unable to install ingress")
-			utils.RecordEvent(ctx, r.EventRecorder, slice, nil, ossEvents.EventSliceIngressInstallFailed, controllerName)
-			return ctrl.Result{}, nil
-		}
-	}
-
-	res, err, requeue = r.ReconcileSliceRouter(ctx, slice)
-	if err != nil {
-		log.Error(err, "Failed to reconcile slice router")
-	}
-	if requeue {
-		return res, err
-	}
-
-	res, err, requeue = r.ReconcileSliceGwEdge(ctx, slice)
-	if err != nil {
-		log.Error(err, "Slice Edge reconciliation failed")
-		return res, err
-	}
-	if requeue {
-		return ctrl.Result{
-			Requeue: true,
-		}, nil
-	}
-
 	debugLog.Info("reconciling app pods")
 	res, err, requeue = r.ReconcileAppPod(ctx, slice)
 	if err != nil {
