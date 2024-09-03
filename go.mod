@@ -11,7 +11,7 @@ require (
 	github.com/go-logr/zapr v1.2.4
 	github.com/golang/protobuf v1.5.3
 	github.com/google/go-cmp v0.6.0
-	github.com/kubeslice/apis v0.2.3-gamma
+	github.com/kubeslice/apis v0.2.3-delta
 	github.com/kubeslice/gateway-sidecar v0.2.0
 	github.com/kubeslice/kubeslice-monitoring v0.2.1
 	github.com/kubeslice/netops v0.1.3
