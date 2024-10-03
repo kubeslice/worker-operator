@@ -80,6 +80,10 @@ func (wh *WebhookServer) Handle(ctx context.Context, req admission.Request) admi
 
 		if mutate, sliceName := wh.MutationRequired(pod.ObjectMeta, ctx, req.Kind.Kind); !mutate {
 			log.Info("mutation not required for pod", "pod metadata", pod.ObjectMeta.Name)
+			if offBoard := wh.OffboardRequired(pod.ObjectMeta, ctx, req.Kind.Kind); offBoard {
+				log.Info("mutation to offboard required for pod", "pod metadata", pod.ObjectMeta.Name)
+				pod = OffBoardPod(pod, ctx)
+			}
 		} else {
 			log.Info("mutating pod", "pod metadata", pod.ObjectMeta.Name)
 			pod = MutatePod(pod, sliceName)
@@ -175,6 +179,44 @@ func (wh *WebhookServer) Handle(ctx context.Context, req admission.Request) admi
 			Message: "Invalid Kind",
 		},
 	}}
+}
+
+func OffBoardPod(pod *corev1.Pod, ctx context.Context) *corev1.Pod {
+	log := logger.FromContext(ctx)
+
+	metadata := pod.ObjectMeta
+	annotations := metadata.GetAnnotations()
+	labels := metadata.GetLabels()
+
+	//TODO:
+	// 		a. if not part of slice but has kubeslice or nsm labels -> yes ? remove them
+	//			i.   remove labels
+	//TODO: move as global variable
+	// Remove kubeslice and nsm labels if present
+	//TODO: use constants
+	labelsToRemove := []string{"kubeslice.io/nsmIP", "kubeslice.io/pod-type", "kubeslice.io/slice"}
+	for _, labelKey := range labelsToRemove {
+		if _, exists := labels[labelKey]; exists {
+			log.Info("Removing label", "labelKey", labelKey)
+			delete(labels, labelKey)
+		}
+	}
+	metadata.SetLabels(labels)
+	//TODO:			ii.  remove annotations
+	//TODO: move as global variable
+	// Remove annotations if necessary
+	//TODO: use constants
+	annotationsToRemove := []string{"kubeslice.io/status", "ns.networkservicemesh.io", "networkservicemesh.io"}
+	for _, annotationKey := range annotationsToRemove {
+		if _, exists := annotations[annotationKey]; exists {
+			log.Info("Removing annotation", "annotationKey", annotationKey)
+			delete(annotations, annotationKey)
+		}
+	}
+	metadata.SetAnnotations(annotations)
+	pod.ObjectMeta = metadata
+	//TODO			iii. remove containers
+	return pod
 }
 
 func MutatePod(pod *corev1.Pod, sliceName string) *corev1.Pod {
@@ -315,6 +357,39 @@ func (wh *WebhookServer) ValidateServiceExport(svcex *v1beta1.ServiceExport, ctx
 		}
 	}
 	return true, "", nil
+}
+
+func (wh *WebhookServer) OffboardRequired(metadata metav1.ObjectMeta, ctx context.Context, kind string) bool {
+	log := logger.FromContext(ctx)
+	annotations := metadata.GetAnnotations()
+	labels := metadata.GetLabels()
+
+	//TODO:
+	// 		a. if not part of slice but has kubeslice or nsm labels -> yes ? remove them
+	//			i.   remove labels
+	//			ii.  remove annotations
+	//TODO: move as global variable
+	// Remove kubeslice and nsm labels if present
+	//TODO: use constants
+	labelsToRemove := []string{"kubeslice.io/nsmIP", "kubeslice.io/pod-type", "kubeslice.io/slice"}
+	for _, labelKey := range labelsToRemove {
+		if _, exists := labels[labelKey]; exists {
+			log.Info("Removing label", "labelKey", labelKey)
+			return true
+		}
+	}
+
+	//TODO: move as global variable
+	// Remove annotations if necessary
+	//TODO: use constants
+	annotationsToRemove := []string{"kubeslice.io/status", "ns.networkservicemesh.io", "networkservicemesh.io"}
+	for _, annotationKey := range annotationsToRemove {
+		if _, exists := annotations[annotationKey]; exists {
+			log.Info("Removing annotation", "annotationKey", annotationKey)
+			return true
+		}
+	}
+	return false
 }
 
 // returns mutationRequired bool, sliceName string
