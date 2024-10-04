@@ -82,7 +82,7 @@ func (wh *WebhookServer) Handle(ctx context.Context, req admission.Request) admi
 			log.Info("mutation not required for pod", "pod metadata", pod.ObjectMeta.Name)
 			if offBoard := wh.OffboardRequired(pod.ObjectMeta, ctx, req.Kind.Kind); offBoard {
 				log.Info("mutation to offboard required for pod", "pod metadata", pod.ObjectMeta.Name)
-				pod = OffBoardPod(pod, ctx)
+				pod = wh.OffBoardPod(pod, ctx)
 			}
 		} else {
 			log.Info("mutating pod", "pod metadata", pod.ObjectMeta.Name)
@@ -181,7 +181,7 @@ func (wh *WebhookServer) Handle(ctx context.Context, req admission.Request) admi
 	}}
 }
 
-func OffBoardPod(pod *corev1.Pod, ctx context.Context) *corev1.Pod {
+func (wh *WebhookServer) OffBoardPod(pod *corev1.Pod, ctx context.Context) *corev1.Pod {
 	log := logger.FromContext(ctx)
 
 	metadata := pod.ObjectMeta
