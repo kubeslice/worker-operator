@@ -26,6 +26,7 @@ import (
 
 	"github.com/kubeslice/worker-operator/controllers"
 
+	cntrl "github.com/kubeslice/worker-operator/controllers"
 	hub "github.com/kubeslice/worker-operator/pkg/hub/hubclient"
 	"github.com/kubeslice/worker-operator/pkg/logger"
 	"github.com/kubeslice/worker-operator/pkg/utils"
@@ -99,6 +100,18 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	if err != nil {
 		log.Error(err, "error while retrieving labels from namespace")
 		return ctrl.Result{}, err
+	}
+	if sliceName != "" {
+		isNsConfigured, err := cntrl.SliceAppNamespaceConfigured(ctx, sliceName, namespace.Name)
+		if err != nil {
+			log.Error(err, "Failed to get app namespace info for slice",
+				"slice", sliceName, "namespace", namespace.Name)
+			return ctrl.Result{}, nil
+		}
+		if !isNsConfigured {
+			log.Info("Namespace not part of slice", "namespace", namespace.Name, "slice", sliceName)
+			return ctrl.Result{}, nil
+		}
 	}
 	*r.EventRecorder = (*r.EventRecorder).WithSlice(sliceName)
 	err = hub.UpdateNamespaceInfoToHub(ctx, r.Hubclient, namespace.Name, sliceName)

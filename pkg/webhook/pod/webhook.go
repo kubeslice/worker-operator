@@ -80,9 +80,9 @@ func (wh *WebhookServer) Handle(ctx context.Context, req admission.Request) admi
 
 		if mutate, sliceName := wh.MutationRequired(pod.ObjectMeta, ctx, req.Kind.Kind); !mutate {
 			log.Info("mutation not required for pod", "pod metadata", pod.ObjectMeta.Name)
-			if offBoard := wh.OffboardRequired(pod.ObjectMeta, ctx, req.Kind.Kind); offBoard {
+			if offBoard := wh.OffboardRequired(pod.ObjectMeta, ctx, req.Kind.Kind, sliceName); offBoard {
 				log.Info("mutation to offboard required for pod", "pod metadata", pod.ObjectMeta.Name)
-				pod = wh.OffBoardPod(pod, ctx)
+				pod.ObjectMeta = wh.OffBoardObject(pod.ObjectMeta, ctx)
 			}
 		} else {
 			log.Info("mutating pod", "pod metadata", pod.ObjectMeta.Name)
@@ -181,10 +181,9 @@ func (wh *WebhookServer) Handle(ctx context.Context, req admission.Request) admi
 	}}
 }
 
-func (wh *WebhookServer) OffBoardPod(pod *corev1.Pod, ctx context.Context) *corev1.Pod {
-	log := logger.FromContext(ctx)
+func (wh *WebhookServer) OffBoardObject(metadata metav1.ObjectMeta, ctx context.Context) metav1.ObjectMeta {
+	log := logger.FromContext(ctx).WithName("Webhook")
 
-	metadata := pod.ObjectMeta
 	annotations := metadata.GetAnnotations()
 	labels := metadata.GetLabels()
 
@@ -214,9 +213,8 @@ func (wh *WebhookServer) OffBoardPod(pod *corev1.Pod, ctx context.Context) *core
 		}
 	}
 	metadata.SetAnnotations(annotations)
-	pod.ObjectMeta = metadata
 	//TODO			iii. remove containers
-	return pod
+	return metadata
 }
 
 func MutatePod(pod *corev1.Pod, sliceName string) *corev1.Pod {
@@ -359,8 +357,8 @@ func (wh *WebhookServer) ValidateServiceExport(svcex *v1beta1.ServiceExport, ctx
 	return true, "", nil
 }
 
-func (wh *WebhookServer) OffboardRequired(metadata metav1.ObjectMeta, ctx context.Context, kind string) bool {
-	log := logger.FromContext(ctx)
+func (wh *WebhookServer) OffboardRequired(metadata metav1.ObjectMeta, ctx context.Context, kind, sliceName string) bool {
+	log := logger.FromContext(ctx).WithName("Webhook")
 	annotations := metadata.GetAnnotations()
 	labels := metadata.GetLabels()
 
@@ -371,10 +369,26 @@ func (wh *WebhookServer) OffboardRequired(metadata metav1.ObjectMeta, ctx contex
 	//TODO: move as global variable
 	// Remove kubeslice and nsm labels if present
 	//TODO: use constants
+	if sliceNameInNs, exists := labels[admissionWebhookSliceNamespaceSelectorKey]; exists {
+		if sliceNameInNs != sliceName {
+			nsConfigured, err := wh.SliceInfoClient.SliceAppNamespaceConfigured(context.Background(), sliceNameInNs, metadata.Namespace)
+			if err != nil {
+				log.Error(err, "Failed to get app namespace info for slice",
+					"slice", sliceNameInNs, "namespace", metadata.Namespace)
+				return false
+			}
+			if !nsConfigured {
+				log.Info("Namespace not part of slice", "namespace", metadata.Namespace, "slice", sliceNameInNs)
+				return false
+			}
+			return true
+		}
+	}
+
 	labelsToRemove := []string{"kubeslice.io/nsmIP", "kubeslice.io/pod-type", "kubeslice.io/slice"}
 	for _, labelKey := range labelsToRemove {
 		if _, exists := labels[labelKey]; exists {
-			log.Info("Removing label", "labelKey", labelKey)
+			log.Info("Found label", "labelKey", labelKey)
 			return true
 		}
 	}
@@ -385,7 +399,7 @@ func (wh *WebhookServer) OffboardRequired(metadata metav1.ObjectMeta, ctx contex
 	annotationsToRemove := []string{"kubeslice.io/status", "ns.networkservicemesh.io", "networkservicemesh.io"}
 	for _, annotationKey := range annotationsToRemove {
 		if _, exists := annotations[annotationKey]; exists {
-			log.Info("Removing annotation", "annotationKey", annotationKey)
+			log.Info("Found annotation", "annotationKey", annotationKey)
 			return true
 		}
 	}
@@ -394,7 +408,7 @@ func (wh *WebhookServer) OffboardRequired(metadata metav1.ObjectMeta, ctx contex
 
 // returns mutationRequired bool, sliceName string
 func (wh *WebhookServer) MutationRequired(metadata metav1.ObjectMeta, ctx context.Context, kind string) (bool, string) {
-	log := logger.FromContext(ctx)
+	log := logger.FromContext(ctx).WithName("Webhook")
 	annotations := metadata.GetAnnotations()
 
 	labels := metadata.GetLabels()
@@ -410,19 +424,6 @@ func (wh *WebhookServer) MutationRequired(metadata metav1.ObjectMeta, ctx contex
 	//we allow empty annotation, but namespace should not be empty
 	if metadata.GetNamespace() == "" {
 		log.Info("namespace is empty")
-		return false, ""
-	}
-
-	// do not inject if it is already injected
-	//TODO(rahulsawra): need better way to define injected status
-	if annotations[AdmissionWebhookAnnotationStatusKey] == "injected" {
-		log.Info("obj is already injected", "kind", kind)
-		return false, ""
-	}
-
-	// Do not auto onboard control plane namespace. Ideally, we should not have any deployment/pod in the control plane ns connect to a slice
-	if metadata.Namespace == controlPlaneNamespace {
-		log.Info("namespace is same as controle plane")
 		return false, ""
 	}
 
@@ -442,25 +443,38 @@ func (wh *WebhookServer) MutationRequired(metadata metav1.ObjectMeta, ctx contex
 		return false, ""
 	}
 
+	// do not inject if it is already injected
+	//TODO(rahulsawra): need better way to define injected status
+	if annotations[AdmissionWebhookAnnotationStatusKey] == "injected" {
+		log.Info("obj is already injected", "kind", kind)
+		return false, sliceNameInNs
+	}
+
+	// Do not auto onboard control plane namespace. Ideally, we should not have any deployment/pod in the control plane ns connect to a slice
+	if metadata.Namespace == controlPlaneNamespace {
+		log.Info("namespace is same as controle plane")
+		return false, sliceNameInNs
+	}
+
 	sliceNetworkType, err := wh.SliceInfoClient.GetSliceOverlayNetworkType(context.Background(), wh.Client, sliceNameInNs)
 	if err != nil {
 		log.Error(err, "Error getting slice overlay network type")
-		return false, ""
+		return false, sliceNameInNs
 	}
 	if sliceNetworkType != "" && sliceNetworkType != v1alpha1.SINGLENET {
 		log.Info("Slice overlay type is not single-network. Skip pod mutation...")
-		return false, ""
+		return false, sliceNameInNs
 	}
 
 	nsConfigured, err := wh.SliceInfoClient.SliceAppNamespaceConfigured(context.Background(), sliceNameInNs, metadata.Namespace)
 	if err != nil {
 		log.Error(err, "Failed to get app namespace info for slice",
 			"slice", sliceNameInNs, "namespace", metadata.Namespace)
-		return false, ""
+		return false, sliceNameInNs
 	}
 	if !nsConfigured {
 		log.Info("Namespace not part of slice", "namespace", metadata.Namespace, "slice", sliceNameInNs)
-		return false, ""
+		return false, sliceNameInNs
 	}
 	// The annotation kubeslice.io/slice:SLICENAME is present, enable mutation
 	return true, sliceNameInNs
