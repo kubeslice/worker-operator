@@ -78,7 +78,7 @@ func labelsForSliceGwDeployment(name, slice, depName string) map[string]string {
 	}
 }
 
-func labelsForSliceGwService(name, svcName, depName string) map[string]string {
+func labelsForSliceGwService(name, depName string) map[string]string {
 	return map[string]string{
 		controllers.SliceGatewaySelectorLabelKey: name,
 		"kubeslice.io/slice-gw-dep":              depName,
@@ -360,7 +360,7 @@ func (r *SliceGwReconciler) serviceForGateway(g *kubeslicev1beta1.SliceGateway, 
 		},
 		Spec: corev1.ServiceSpec{
 			Type:     "NodePort",
-			Selector: labelsForSliceGwService(g.Name, svcName, depName),
+			Selector: labelsForSliceGwService(g.Name, depName),
 			Ports: []corev1.ServicePort{{
 				Port:       11194,
 				Protocol:   proto,
@@ -661,8 +661,25 @@ func (r *SliceGwReconciler) ReconcileGwPodStatus(ctx context.Context, slicegatew
 			return ctrl.Result{}, err, true
 		}
 		gwPod.LocalNsmIP = status.NsmStatus.LocalIP
-		gwPod.TunnelStatus = kubeslicev1beta1.TunnelStatus(status.TunnelStatus)
-		// this grpc call fails untill the openvpn tunnel connection is not established, so its better to do not reconcile in case of errors, hence the reconciler does not proceedes further
+		gwPod.TunnelStatus = kubeslicev1beta1.TunnelStatus{
+			IntfName:    status.TunnelStatus.IntfName,
+			LocalIP:     status.TunnelStatus.LocalIP,
+			RemoteIP:    status.TunnelStatus.RemoteIP,
+			Latency:     status.TunnelStatus.Latency,
+			TxRate:      status.TunnelStatus.TxRate,
+			RxRate:      status.TunnelStatus.RxRate,
+			PacketLoss:  status.TunnelStatus.PacketLoss,
+			Status:      int32(status.TunnelStatus.Status),
+			TunnelState: status.TunnelStatus.TunnelState,
+		}
+
+		if isClient(slicegateway) {
+			// get the remote port number this gw pod is connected to on the remote cluster
+			_, remotePortInUse := getClientGwRemotePortInUse(ctx, r.Client, slicegateway, GetDepNameFromPodName(slicegateway.Status.Config.SliceGatewayID, gwPod.PodName))
+			gwPod.RemotePort = int32(remotePortInUse)
+		}
+
+		// this grpc call fails untill the openvpn tunnel connection is not established, so its better to do not reconcile in case of errors, hence the reconciler does not proceeds further
 		gwPod.PeerPodName, err = r.getRemoteGwPodName(ctx, slicegateway.Status.Config.SliceGatewayRemoteVpnIP, gwPod.PodIP)
 		if err != nil {
 			log.Error(err, "Error getting peer pod name", "PodName", gwPod.PodName, "PodIP", gwPod.PodIP)
@@ -671,10 +688,11 @@ func (r *SliceGwReconciler) ReconcileGwPodStatus(ctx context.Context, slicegatew
 		if isGatewayStatusChanged(slicegateway, gwPod) {
 			toUpdate = true
 		}
-		if len(slicegateway.Status.GatewayPodStatus) != len(gwPodsInfo) {
-			toUpdate = true
-		}
 	}
+	if len(slicegateway.Status.GatewayPodStatus) != len(gwPodsInfo) {
+		toUpdate = true
+	}
+
 	if toUpdate {
 		log.Info("gwPodsInfo", "gwPodsInfo", gwPodsInfo)
 		slicegateway.Status.GatewayPodStatus = gwPodsInfo
@@ -725,6 +743,10 @@ func (r *SliceGwReconciler) SendConnectionContextAndQosToGwPod(ctx context.Conte
 
 		err = retry.RetryOnConflict(retry.DefaultRetry, func() error {
 			err := r.Get(ctx, req.NamespacedName, slicegateway)
+			if err != nil {
+				log.Error(err, "Failed to get SliceGateway")
+				return err
+			}
 			slicegateway.Status.ConnectionContextUpdatedOn = time.Now().Unix()
 			err = r.Status().Update(ctx, slicegateway)
 			if err != nil {
@@ -1094,6 +1116,15 @@ func (r *SliceGwReconciler) gwPodPlacementIsSkewed(ctx context.Context, sliceGw 
 
 func (r *SliceGwReconciler) ReconcileGwPodPlacement(ctx context.Context, sliceGw *kubeslicev1beta1.SliceGateway) error {
 	log := r.Log
+
+	// if the env variable is set, do not perform any gw pod rebalancing. This is useful in clusters where
+	// the k8s scheduler does not honor the pod anti-affinity rule and places the gw pods on the same node. Such scenarios
+	// could occur if the node with the kubeslice gateway label is cordoned off or if the node has insufficient resources or
+	// if the node has some taints that the gw pods cannot tolerate.
+	if os.Getenv("DISABLE_GW_POD_REBALANCING") == "true" {
+		return nil
+	}
+
 	// The gw pod rebalancing is always performed on a deployment. We expect the gw pods belonging to a slicegateway
 	// object between any two clusters to placed on different nodes marked as kubeslice gateway nodes. If they are
 	// initially placed on the same node due to lack of kubeslice-gateway nodes, the rebalancing algorithim is expected
@@ -1170,7 +1201,7 @@ func (r *SliceGwReconciler) handleSliceGwSvcCreation(ctx context.Context, sliceG
 	return ctrl.Result{Requeue: true}, nil, true
 }
 
-func (r *SliceGwReconciler) handleSliceGwSvcDeletion(ctx context.Context, sliceGw *kubeslicev1beta1.SliceGateway, svcName, depName string) error {
+func (r *SliceGwReconciler) handleSliceGwSvcDeletion(ctx context.Context, sliceGw *kubeslicev1beta1.SliceGateway, svcName string) error {
 	log := logger.FromContext(ctx).WithName("slicegw")
 	serviceFound := corev1.Service{}
 	err := r.Get(ctx, types.NamespacedName{Namespace: sliceGw.Namespace, Name: svcName}, &serviceFound)
@@ -1385,7 +1416,7 @@ func (r *SliceGwReconciler) ReconcileGatewayDeployments(ctx context.Context, sli
 					}
 					// Update the port map
 					gwClientToRemotePortMap.Store(deployment.Name, portNumToUpdate)
-					err = r.updateGatewayDeploymentNodePort(ctx, r.Client, sliceGw, &deployment, portNumToUpdate)
+					err = r.updateGatewayDeploymentNodePort(ctx, sliceGw, &deployment, portNumToUpdate)
 					if err != nil {
 						return ctrl.Result{}, err, true
 					}
@@ -1399,7 +1430,7 @@ func (r *SliceGwReconciler) ReconcileGatewayDeployments(ctx context.Context, sli
 				if foundInMap {
 					if portInMap != nodePortInUse {
 						// Update the deployment since the port numbers do not match
-						err := r.updateGatewayDeploymentNodePort(ctx, r.Client, sliceGw, &deployment, portInMap.(int))
+						err := r.updateGatewayDeploymentNodePort(ctx, sliceGw, &deployment, portInMap.(int))
 						if err != nil {
 							return ctrl.Result{}, err, true
 						}
@@ -1425,7 +1456,7 @@ func (r *SliceGwReconciler) ReconcileGatewayDeployments(ctx context.Context, sli
 	if deploymentsToDelete != nil {
 		for _, depToDelete := range deploymentsToDelete.Items {
 			// Delete the gw svc associated with the deployment
-			err := r.handleSliceGwSvcDeletion(ctx, sliceGw, getGwSvcNameFromDepName(depToDelete.Name), depToDelete.Name)
+			err := r.handleSliceGwSvcDeletion(ctx, sliceGw, getGwSvcNameFromDepName(depToDelete.Name))
 			if err != nil {
 				log.Error(err, "Failed to delete gw svc", "svcName", depToDelete.Name)
 				return ctrl.Result{}, err, true
@@ -1615,7 +1646,7 @@ func (r *SliceGwReconciler) createPodDisruptionBudgetForSliceGatewayPods(ctx con
 
 // updateGatewayDeploymentNodePort updates the gateway client deployments with the relevant updated ports
 // from the workersliceconfig
-func (r *SliceGwReconciler) updateGatewayDeploymentNodePort(ctx context.Context, c client.Client, g *kubeslicev1beta1.SliceGateway, deployment *appsv1.Deployment, nodePort int) error {
+func (r *SliceGwReconciler) updateGatewayDeploymentNodePort(ctx context.Context, g *kubeslicev1beta1.SliceGateway, deployment *appsv1.Deployment, nodePort int) error {
 	containers := deployment.Spec.Template.Spec.Containers
 	for contIndex, cont := range containers {
 		if cont.Name == "kubeslice-sidecar" {
