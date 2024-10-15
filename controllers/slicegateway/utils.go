@@ -22,16 +22,17 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
+	"strconv"
+	"strings"
+	"sync"
+
 	gwsidecarpb "github.com/kubeslice/gateway-sidecar/pkg/sidecar/sidecarpb"
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
 	"github.com/kubeslice/worker-operator/controllers"
 	ossEvents "github.com/kubeslice/worker-operator/events"
 	"github.com/kubeslice/worker-operator/pkg/utils"
 	webhook "github.com/kubeslice/worker-operator/pkg/webhook/pod"
-	"os"
-	"strconv"
-	"strings"
-	"sync"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -112,6 +113,10 @@ func getPodNames(slicegateway *kubeslicev1beta1.SliceGateway) []string {
 }
 
 func GetDepNameFromPodName(sliceGwID, podName string) string {
+	if sliceGwID == "" || podName == "" {
+		return ""
+	}
+
 	after, found := strings.CutPrefix(podName, sliceGwID)
 	if !found {
 		return ""
@@ -204,13 +209,13 @@ func getPodPairToRebalance(podsOnNode []corev1.Pod, sliceGw *kubeslicev1beta1.Sl
 func GetPeerGwPodName(gwPodName string, sliceGw *kubeslicev1beta1.SliceGateway) (string, error) {
 	podInfo := findGwPodInfo(sliceGw.Status.GatewayPodStatus, gwPodName)
 	if podInfo == nil {
-		return "", errors.New("Gw pod not found")
+		return "", errors.New("gw pod not found")
 	}
 	if podInfo.TunnelStatus.Status != int32(gwsidecarpb.TunnelStatusType_GW_TUNNEL_STATE_UP) {
-		return "", errors.New("Gw tunnel is down")
+		return "", errors.New("gw tunnel is down")
 	}
 	if podInfo.PeerPodName == "" {
-		return "", errors.New("Gw peer pod info unavailable")
+		return "", errors.New("gw peer pod info unavailable")
 	}
 
 	return podInfo.PeerPodName, nil

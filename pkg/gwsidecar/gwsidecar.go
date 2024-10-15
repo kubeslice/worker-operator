@@ -33,16 +33,19 @@ type NsmStatus struct {
 	IntfName string
 	LocalIP  string
 }
+
 type TunnelStatus struct {
-	IntfName   string
-	LocalIP    string
-	RemoteIP   string
-	Latency    uint64
-	TxRate     uint64
-	RxRate     uint64
-	PacketLoss uint64
-	Status     int32
+	IntfName    string
+	LocalIP     string
+	RemoteIP    string
+	Latency     uint64
+	TxRate      uint64
+	RxRate      uint64
+	PacketLoss  uint64
+	Status      int32
+	TunnelState string
 }
+
 type GwStatus struct {
 	NsmStatus
 	TunnelStatus
@@ -79,6 +82,17 @@ func (worker gwSidecarClient) GetSliceGwRemotePodName(ctx context.Context, gwRem
 	return res.GatewayPodName, nil
 }
 
+func getTunnelState(tunnelState sidecar.TunnelStatusType) string {
+	switch tunnelState {
+	case sidecar.TunnelStatusType_GW_TUNNEL_STATE_UP:
+		return "UP"
+	case sidecar.TunnelStatusType_GW_TUNNEL_STATE_DOWN:
+		return "DOWN"
+	default:
+		return "UNKNOWN"
+	}
+}
+
 // GetStatus retrieves sidecar status
 func (worker gwSidecarClient) GetStatus(ctx context.Context, serverAddr string) (*GwStatus, error) {
 	conn, err := grpc.Dial(serverAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
@@ -103,14 +117,19 @@ func (worker gwSidecarClient) GetStatus(ctx context.Context, serverAddr string) 
 	}
 	if res.TunnelStatus != nil {
 		gwStatus.TunnelStatus = TunnelStatus{
-			IntfName:   res.TunnelStatus.NetInterface,
-			LocalIP:    res.TunnelStatus.LocalIP,
-			RemoteIP:   res.TunnelStatus.PeerIP,
-			PacketLoss: res.TunnelStatus.PacketLoss,
-			Status:     int32(res.TunnelStatus.Status),
+			IntfName:    res.TunnelStatus.NetInterface,
+			LocalIP:     res.TunnelStatus.LocalIP,
+			RemoteIP:    res.TunnelStatus.PeerIP,
+			Latency:     res.TunnelStatus.Latency,
+			TxRate:      res.TunnelStatus.TxRate,
+			RxRate:      res.TunnelStatus.RxRate,
+			PacketLoss:  res.TunnelStatus.PacketLoss,
+			Status:      int32(res.TunnelStatus.Status),
+			TunnelState: getTunnelState(res.TunnelStatus.Status),
 		}
 	} else {
 		gwStatus.TunnelStatus.Status = int32(sidecar.TunnelStatusType_GW_TUNNEL_STATE_DOWN)
+		gwStatus.TunnelStatus.TunnelState = getTunnelState(sidecar.TunnelStatusType_GW_TUNNEL_STATE_DOWN)
 	}
 
 	return gwStatus, err
