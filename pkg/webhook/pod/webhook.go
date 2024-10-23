@@ -104,9 +104,13 @@ func (wh *WebhookServer) Handle(ctx context.Context, req admission.Request) admi
 
 		if mutate, sliceName := wh.MutationRequired(deploy.ObjectMeta, ctx, req.Kind.Kind); !mutate {
 			log.Info("mutation not required for deployment", "pod metadata", deploy.Spec.Template.ObjectMeta)
+			if offBoard := wh.OffboardRequired(deploy.ObjectMeta, ctx, req.Kind.Kind, sliceName); offBoard {
+				log.Info("mutation to offboard required for deploy", "deploy metadata", deploy.ObjectMeta.Name)
+				deploy.ObjectMeta = wh.OffBoardObject(deploy.ObjectMeta, ctx)
+			}
 		} else {
 			deploy = MutateDeployment(deploy, sliceName)
-			log.Info("mutated deploy", "pod metadata", deploy.Spec.Template.ObjectMeta)
+			log.Info("mutated deploy", "deploy metadata", deploy.Spec.Template.ObjectMeta)
 		}
 
 		marshaled, err := json.Marshal(deploy)
@@ -123,10 +127,14 @@ func (wh *WebhookServer) Handle(ctx context.Context, req admission.Request) admi
 		log := logger.FromContext(ctx)
 
 		if mutate, sliceName := wh.MutationRequired(statefulset.ObjectMeta, ctx, req.Kind.Kind); !mutate {
-			log.Info("mutation not required for statefulsets", "pod metadata", statefulset.Spec.Template.ObjectMeta)
+			log.Info("mutation not required for statefulsets", "statefulset metadata", statefulset.Spec.Template.ObjectMeta)
+			if offBoard := wh.OffboardRequired(statefulset.ObjectMeta, ctx, req.Kind.Kind, sliceName); offBoard {
+				log.Info("mutation to offboard required for statefulset", "statefulset metadata", statefulset.ObjectMeta.Name)
+				statefulset.ObjectMeta = wh.OffBoardObject(statefulset.ObjectMeta, ctx)
+			}
 		} else {
 			statefulset = MutateStatefulset(statefulset, sliceName)
-			log.Info("mutated statefulset", "pod metadata", statefulset.Spec.Template.ObjectMeta)
+			log.Info("mutated statefulset", "statefulset metadata", statefulset.Spec.Template.ObjectMeta)
 		}
 
 		marshaled, err := json.Marshal(statefulset)
@@ -143,10 +151,14 @@ func (wh *WebhookServer) Handle(ctx context.Context, req admission.Request) admi
 		log := logger.FromContext(ctx)
 
 		if mutate, sliceName := wh.MutationRequired(daemonset.ObjectMeta, ctx, req.Kind.Kind); !mutate {
-			log.Info("mutation not required for daemonset", "pod metadata", daemonset.Spec.Template.ObjectMeta)
+			log.Info("mutation not required for daemonset", "daemonset metadata", daemonset.Spec.Template.ObjectMeta)
+			if offBoard := wh.OffboardRequired(daemonset.ObjectMeta, ctx, req.Kind.Kind, sliceName); offBoard {
+				log.Info("mutation to offboard required for daemonset", "daemonset metadata", daemonset.ObjectMeta.Name)
+				daemonset.ObjectMeta = wh.OffBoardObject(daemonset.ObjectMeta, ctx)
+			}
 		} else {
 			daemonset = MutateDaemonSet(daemonset, sliceName)
-			log.Info("mutated daemonset", "pod metadata", daemonset.Spec.Template.ObjectMeta)
+			log.Info("mutated daemonset", "daemonset metadata", daemonset.Spec.Template.ObjectMeta)
 		}
 
 		marshaled, err := json.Marshal(daemonset)
@@ -370,19 +382,22 @@ func (wh *WebhookServer) OffboardRequired(metadata metav1.ObjectMeta, ctx contex
 	// Remove kubeslice and nsm labels if present
 	//TODO: use constants
 	if sliceNameInNs, exists := labels[admissionWebhookSliceNamespaceSelectorKey]; exists {
+		log.Info("slice name in namespace exists", "sliceNameInNs", sliceNameInNs)
 		if sliceNameInNs != sliceName {
-			nsConfigured, err := wh.SliceInfoClient.SliceAppNamespaceConfigured(context.Background(), sliceNameInNs, metadata.Namespace)
+			log.Info("slice name in namespace does not match sliceName", "sliceNameInNs", sliceNameInNs, "sliceName", sliceName)
+			nsConfigured, err := wh.SliceInfoClient.SliceAppNamespaceConfigured(context.Background(), sliceName, metadata.Namespace)
 			if err != nil {
 				log.Error(err, "Failed to get app namespace info for slice",
-					"slice", sliceNameInNs, "namespace", metadata.Namespace)
+					"slice", sliceName, "namespace", metadata.Namespace)
 				return false
 			}
 			if !nsConfigured {
-				log.Info("Namespace not part of slice", "namespace", metadata.Namespace, "slice", sliceNameInNs)
-				return false
+				log.Info("Namespace not part of slice", "namespace", metadata.Namespace, "slice", sliceName)
+				return true
 			}
-			return true
+			return false
 		}
+		return false
 	}
 
 	labelsToRemove := []string{"kubeslice.io/nsmIP", "kubeslice.io/pod-type", "kubeslice.io/slice"}
