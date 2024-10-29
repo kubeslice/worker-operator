@@ -4,7 +4,8 @@ dockerbuildtestPipeline(
   service: 'worker-operator',
   buildArguments: [PLATFORM:"amd64"],
   run_unit_tests: 'false',
-  ignore_critical: 'false'
+  ignore_critical: 'false',
+  update_trivy: 'false'
   
 )
 
