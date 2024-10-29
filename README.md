@@ -93,13 +93,13 @@ The image is set as `docker.io/aveshasystems/worker-operator:$(VERSION)` in the 
 2. Check the loaded image in the cluster. Modify the node name if required.
 
    ```console
-   docker exec -it <node-name> critical images
+   docker exec -it <node-name> crictl images
    ```
 
    Example:
 
    ```console
-   docker exec -it kind-control-plane critical images
+   docker exec -it kind-control-plane crictl images
    ```
 
 ### Deploy the Worker Operator on a Cluster
