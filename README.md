@@ -8,8 +8,8 @@ The `kubeslice-worker` operator uses Kubebuilder, a framework for building Kuber
 It is strongly recommended that you use a released version.
 
 Please refer to our documentation on:
-- [Get Started on KubeSlice](https://kubeslice.io/documentation/open-source/1.3.0/category/get-started)
-- [Install KubeSlice](https://kubeslice.io/documentation/open-source/1.3.0/category/install-kubeslice)
+- [Get Started on KubeSlice](https://kubeslice.io/documentation/open-source/latest/category/get-started)
+- [Install KubeSlice](https://kubeslice.io/documentation/open-source/latest/category/install-kubeslice)
 
 ## Install `kubeslice-worker` on a Kind Cluster
 
@@ -19,7 +19,7 @@ Before you begin, make sure the following prerequisites are met:
 * Docker is installed and running on your local machine.
 * A running [`kind`](https://kind.sigs.k8s.io/) cluster.
 * [`kubectl`](https://kubernetes.io/docs/tasks/tools/) is installed and configured.
-* You have prepared the environment to install [`kubeslice-controller`](https://github.com/kubeslice/kubeslice-controller) on the controller cluster and [`worker-operator`](https://github.com/kubeslice/worker-operator) on the worker cluster. For more information, see [Prerequisites](https://kubeslice.io/documentation/open-source/1.3.0/category/prerequisites).
+* You have prepared the environment to install [`kubeslice-controller`](https://github.com/kubeslice/kubeslice-controller) on the controller cluster and [`worker-operator`](https://github.com/kubeslice/worker-operator) on the worker cluster. For more information, see [Prerequisites](https://kubeslice.io/documentation/open-source/latest/category/prerequisites).
 
 ### Build and Deploy a Worker Operator on a Kind Cluster
 
@@ -31,13 +31,13 @@ docker pull aveshasystems/worker-operator:latest
 
 ### Setting up Your Helm Repo
 
-If you have not added avesha helm repo yet, add it.
+If you have not added Avesha's `helm repo` yet, add it.
 
 ```console
 helm repo add avesha https://kubeslice.github.io/charts/
 ```
 
-Upgrade the avesha helm repo.
+Upgrade Avesha's `helm repo`.
 
 ```console
 helm repo update
@@ -69,7 +69,7 @@ deploy/controller_secret.sh gke_avesha-dev_us-east1-c_xxxx kubeslice-cisco my-aw
    ```
 
 2. Edit the `VERSION` variable in the Makefile to change the docker tag to be built.
-The image is set as `docker.io/aveshasystems/worker-operator:$(VERSION)` in the Makefile. Modify this if required.
+The image is set as `docker.io/aveshasystems/worker-operator:$(VERSION)` in the Makefile. Modify this as required.
 
    ```console
    make docker-build
@@ -155,7 +155,7 @@ prefix-service-76bd89c44f-2p6dw          1/1     Running   0          48s
 
 ### Uninstall the Worker Operator
 
-For more information, see [deregister the worker cluster](https://kubeslice.io/documentation/open-source/1.3.0/uninstall-kubeslice/#deregister-worker-clusters).
+For more information, see [deregister the worker cluster](https://kubeslice.io/documentation/open-source/latest/uninstall-kubeslice/#deregister-worker-clusters).
 
 ```console
 helm uninstall kubeslice-worker -n kubeslice-system
