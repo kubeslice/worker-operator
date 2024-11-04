@@ -169,10 +169,18 @@ spec:
                       type: string
                     podName:
                       type: string
+                    remotePort:
+                      description: |-
+                        RemotePort is the port number this gw pod is connected to on the remote cluster.
+                        Applicable only for gw clients. Would be set to 0 for gw servers.
+                      format: int32
+                      type: integer
                     routeRemoved:
                       format: int32
                       type: integer
                     tunnelStatus:
+                      description: TunnelStatus is the status of the tunnel between
+                        this gw pod and its peer
                       properties:
                         IntfName:
                           type: string
@@ -190,8 +198,14 @@ spec:
                           format: int64
                           type: integer
                         Status:
+                          description: 'Status is the status of the tunnel. 0: DOWN,
+                            1: UP'
                           format: int32
                           type: integer
+                        TunnelState:
+                          description: 'TunnelState is the state of the tunnel in
+                            string format: UP, DOWN, UNKNOWN'
+                          type: string
                         TxRate:
                           format: int64
                           type: integer
