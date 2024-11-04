@@ -48,7 +48,18 @@ const (
 )
 
 var (
-	log = logger.NewWrappedLogger().WithName("Webhook").V(1)
+	log            = logger.NewWrappedLogger().WithName("Webhook").V(1)
+	LabelsToRemove = []string{
+		"kubeslice.io/nsmIP",
+		"kubeslice.io/pod-type",
+		"kubeslice.io/slice",
+	}
+
+	AnnotationsToRemove = []string{
+		"kubeslice.io/status",
+		"ns.networkservicemesh.io",
+		"networkservicemesh.io",
+	}
 )
 
 type SliceInfoProvider interface {
@@ -199,33 +210,25 @@ func (wh *WebhookServer) OffBoardObject(metadata metav1.ObjectMeta, ctx context.
 	annotations := metadata.GetAnnotations()
 	labels := metadata.GetLabels()
 
-	//TODO:
-	// 		a. if not part of slice but has kubeslice or nsm labels -> yes ? remove them
-	//			i.   remove labels
-	//TODO: move as global variable
 	// Remove kubeslice and nsm labels if present
-	//TODO: use constants
-	labelsToRemove := []string{"kubeslice.io/nsmIP", "kubeslice.io/pod-type", "kubeslice.io/slice"}
-	for _, labelKey := range labelsToRemove {
+	LabelsToRemove := []string{"kubeslice.io/nsmIP", "kubeslice.io/pod-type", "kubeslice.io/slice"}
+	for _, labelKey := range LabelsToRemove {
 		if _, exists := labels[labelKey]; exists {
 			log.Info("Removing label", "labelKey", labelKey)
 			delete(labels, labelKey)
 		}
 	}
 	metadata.SetLabels(labels)
-	//TODO:			ii.  remove annotations
-	//TODO: move as global variable
+
 	// Remove annotations if necessary
-	//TODO: use constants
-	annotationsToRemove := []string{"kubeslice.io/status", "ns.networkservicemesh.io", "networkservicemesh.io"}
-	for _, annotationKey := range annotationsToRemove {
+	AnnotationsToRemove := []string{"kubeslice.io/status", "ns.networkservicemesh.io", "networkservicemesh.io"}
+	for _, annotationKey := range AnnotationsToRemove {
 		if _, exists := annotations[annotationKey]; exists {
 			log.Info("Removing annotation", "annotationKey", annotationKey)
 			delete(annotations, annotationKey)
 		}
 	}
 	metadata.SetAnnotations(annotations)
-	//TODO			iii. remove containers
 	return metadata
 }
 
@@ -374,13 +377,7 @@ func (wh *WebhookServer) OffboardRequired(metadata metav1.ObjectMeta, ctx contex
 	annotations := metadata.GetAnnotations()
 	labels := metadata.GetLabels()
 
-	//TODO:
-	// 		a. if not part of slice but has kubeslice or nsm labels -> yes ? remove them
-	//			i.   remove labels
-	//			ii.  remove annotations
-	//TODO: move as global variable
 	// Remove kubeslice and nsm labels if present
-	//TODO: use constants
 	if sliceNameInNs, exists := labels[admissionWebhookSliceNamespaceSelectorKey]; exists {
 		log.Info("slice name in namespace exists", "sliceNameInNs", sliceNameInNs)
 		if sliceNameInNs != sliceName {
@@ -400,19 +397,17 @@ func (wh *WebhookServer) OffboardRequired(metadata metav1.ObjectMeta, ctx contex
 		return false
 	}
 
-	labelsToRemove := []string{"kubeslice.io/nsmIP", "kubeslice.io/pod-type", "kubeslice.io/slice"}
-	for _, labelKey := range labelsToRemove {
+	LabelsToRemove := []string{"kubeslice.io/nsmIP", "kubeslice.io/pod-type", "kubeslice.io/slice"}
+	for _, labelKey := range LabelsToRemove {
 		if _, exists := labels[labelKey]; exists {
 			log.Info("Found label", "labelKey", labelKey)
 			return true
 		}
 	}
 
-	//TODO: move as global variable
 	// Remove annotations if necessary
-	//TODO: use constants
-	annotationsToRemove := []string{"kubeslice.io/status", "ns.networkservicemesh.io", "networkservicemesh.io"}
-	for _, annotationKey := range annotationsToRemove {
+	AnnotationsToRemove := []string{"kubeslice.io/status", "ns.networkservicemesh.io", "networkservicemesh.io"}
+	for _, annotationKey := range AnnotationsToRemove {
 		if _, exists := annotations[annotationKey]; exists {
 			log.Info("Found annotation", "annotationKey", annotationKey)
 			return true
