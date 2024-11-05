@@ -1386,6 +1386,27 @@ func (r *SliceGwReconciler) ReconcileGatewayDeployments(ctx context.Context, sli
 				return ctrl.Result{}, err, true
 			}
 			return ctrl.Result{Requeue: true}, nil, true
+		} else {
+			// update logic for gateways
+			for i := range deployments.Items {
+				deployment := &deployments.Items[i]
+				if deployment.Name == sliceGwName+"-"+fmt.Sprint(gwInstance)+"-"+"0" {
+					// update if gateway sidecar image has been changed in worker env vars
+					for j := range deployment.Spec.Template.Spec.Containers {
+						container := &deployment.Spec.Template.Spec.Containers[j]
+						if container.Name == "kubeslice-sidecar" && container.Image != gwSidecarImage {
+							container.Image = gwSidecarImage
+							log.Info("updating gw Deployment sidecar", "Name", deployment.Name, "image", gwSidecarImage)
+							err = r.Update(ctx, deployment)
+							if err != nil {
+								log.Error(err, "Failed to update Deployment", "Name", deployment.Name)
+								return ctrl.Result{}, err, true
+							}
+							return ctrl.Result{Requeue: true}, nil, true
+						}
+					}
+				}
+			}
 		}
 	}
 
