@@ -53,6 +53,10 @@ import (
 	webhook "github.com/kubeslice/worker-operator/pkg/webhook/pod"
 )
 
+const (
+	DEFAULT_SIDECAR_IMG = "nexus.dev.aveshalabs.io/kubeslice/gw-sidecar:1.0.0"
+)
+
 var (
 	vpnClientFileName        = "openvpn_client.ovpn"
 	gwSidecarImage           = os.Getenv("AVESHA_GW_SIDECAR_IMAGE")
@@ -110,7 +114,7 @@ func (r *SliceGwReconciler) deploymentForGatewayServer(g *kubeslicev1beta1.Slice
 
 	var privileged = true
 
-	sidecarImg := "nexus.dev.aveshalabs.io/kubeslice/gw-sidecar:1.0.0"
+	sidecarImg := DEFAULT_SIDECAR_IMG
 	sidecarPullPolicy := corev1.PullAlways
 	vpnImg := "nexus.dev.aveshalabs.io/kubeslice/openvpn-server.ubuntu.18.04:1.0.0"
 	vpnPullPolicy := corev1.PullAlways
@@ -1376,6 +1380,11 @@ func (r *SliceGwReconciler) ReconcileGatewayDeployments(ctx context.Context, sli
 		}
 	}
 
+	sidecarImg := DEFAULT_SIDECAR_IMG
+	if len(gwSidecarImage) != 0 {
+		sidecarImg = gwSidecarImage
+	}
+
 	for gwInstance := 0; gwInstance < numGwInstances; gwInstance++ {
 		if !gwDeploymentIsPresent(sliceGwName, gwInstance, deployments) {
 			dep := r.deploymentForGateway(sliceGw, sliceGwName+"-"+fmt.Sprint(gwInstance)+"-"+"0", gwConfigKey)
@@ -1386,6 +1395,27 @@ func (r *SliceGwReconciler) ReconcileGatewayDeployments(ctx context.Context, sli
 				return ctrl.Result{}, err, true
 			}
 			return ctrl.Result{Requeue: true}, nil, true
+		} else {
+			// update logic for gateways
+			for i := range deployments.Items {
+				deployment := &deployments.Items[i]
+				if deployment.Name == sliceGwName+"-"+fmt.Sprint(gwInstance)+"-"+"0" {
+					// update if gateway sidecar image has been changed in worker env vars
+					for j := range deployment.Spec.Template.Spec.Containers {
+						container := &deployment.Spec.Template.Spec.Containers[j]
+						if container.Name == "kubeslice-sidecar" && container.Image != sidecarImg {
+							container.Image = sidecarImg
+							log.Info("updating gw Deployment sidecar", "Name", deployment.Name, "image", gwSidecarImage)
+							err = r.Update(ctx, deployment)
+							if err != nil {
+								log.Error(err, "Failed to update Deployment", "Name", deployment.Name)
+								return ctrl.Result{}, err, true
+							}
+							return ctrl.Result{Requeue: true}, nil, true
+						}
+					}
+				}
+			}
 		}
 	}
 

@@ -1,6 +1,6 @@
 module github.com/kubeslice/worker-operator
 
-go 1.22.1
+go 1.23.2
 
 // replace github.com/kubeslice/apis => ../../misc/apis
 
