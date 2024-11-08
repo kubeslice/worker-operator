@@ -54,7 +54,8 @@ import (
 )
 
 const (
-	DEFAULT_SIDECAR_IMG = "nexus.dev.aveshalabs.io/kubeslice/gw-sidecar:1.0.0"
+	DEFAULT_SIDECAR_IMG        = "nexus.dev.aveshalabs.io/kubeslice/gw-sidecar:1.0.0"
+	DEFAULT_SIDECAR_PULLPOLICY = corev1.PullAlways
 )
 
 var (
@@ -115,7 +116,7 @@ func (r *SliceGwReconciler) deploymentForGatewayServer(g *kubeslicev1beta1.Slice
 	var privileged = true
 
 	sidecarImg := DEFAULT_SIDECAR_IMG
-	sidecarPullPolicy := corev1.PullAlways
+	sidecarPullPolicy := DEFAULT_SIDECAR_PULLPOLICY
 	vpnImg := "nexus.dev.aveshalabs.io/kubeslice/openvpn-server.ubuntu.18.04:1.0.0"
 	vpnPullPolicy := corev1.PullAlways
 	baseFileName := os.Getenv("CLUSTER_NAME") + "-" + g.Spec.SliceName + "-" + g.Status.Config.SliceGatewayName + ".vpn.aveshasystems.com"
@@ -1384,6 +1385,10 @@ func (r *SliceGwReconciler) ReconcileGatewayDeployments(ctx context.Context, sli
 	if len(gwSidecarImage) != 0 {
 		sidecarImg = gwSidecarImage
 	}
+	sidecarPullPolicy := DEFAULT_SIDECAR_PULLPOLICY
+	if len(gwSidecarImagePullPolicy) != 0 {
+		sidecarPullPolicy = corev1.PullPolicy(gwSidecarImagePullPolicy)
+	}
 
 	for gwInstance := 0; gwInstance < numGwInstances; gwInstance++ {
 		if !gwDeploymentIsPresent(sliceGwName, gwInstance, deployments) {
@@ -1403,8 +1408,9 @@ func (r *SliceGwReconciler) ReconcileGatewayDeployments(ctx context.Context, sli
 					// update if gateway sidecar image has been changed in worker env vars
 					for j := range deployment.Spec.Template.Spec.Containers {
 						container := &deployment.Spec.Template.Spec.Containers[j]
-						if container.Name == "kubeslice-sidecar" && container.Image != sidecarImg {
+						if container.Name == "kubeslice-sidecar" && (container.Image != sidecarImg || container.ImagePullPolicy != sidecarPullPolicy) {
 							container.Image = sidecarImg
+							container.ImagePullPolicy = sidecarPullPolicy
 							log.Info("updating gw Deployment sidecar", "Name", deployment.Name, "image", gwSidecarImage)
 							err = r.Update(ctx, deployment)
 							if err != nil {
