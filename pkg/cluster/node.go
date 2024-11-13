@@ -51,23 +51,23 @@ type NodeInfo struct {
 	sync.Mutex
 }
 
-//GetNodeExternalIpList gets the list of External Node IPs of kubeslice-gateway nodes
-
-func (n *NodeInfo) getNodeExternalIpList(networkMode bool) ([]string, error) {
+// When kubeslice network is enabled this method gets the list of External/Internal Node IPs of ready nodes that are labeled as kubeslice-gateway.
+// If kubeslice networking is disabled it returns IPs of all ready nodes
+func (n *NodeInfo) getNodeExternalIpList(isNetworkPresent bool) ([]string, error) {
 	n.Lock()
 	defer n.Unlock()
-	err := n.populateNodeIpList(networkMode)
+	err := n.populateNodeIpList(isNetworkPresent)
 	if err != nil {
 		return nil, err
 	}
 	return n.NodeIPList, nil
 }
 
-func (n *NodeInfo) populateNodeIpList(networkMode bool) error {
+func (n *NodeInfo) populateNodeIpList(isNetworkPresent bool) error {
 	ctx := context.Background()
 	nodeList := corev1.NodeList{}
 	labels := map[string]string{}
-	if networkMode {
+	if isNetworkPresent {
 		labels = map[string]string{controllers.NodeTypeSelectorLabelKey: "gateway"}
 	}
 	listOptions := []client.ListOption{
@@ -104,10 +104,10 @@ func (n *NodeInfo) populateNodeIpList(networkMode bool) error {
 	return err
 }
 
-func GetNodeIP(client client.Client, networkMode bool) ([]string, error) {
+func GetNodeIP(client client.Client, isNetworkPresent bool) ([]string, error) {
 	nodeInfo.Client = client
 	// nodeIPs will either have list of ExternalIPs if available, else Internal IPs
-	nodeIps, err := nodeInfo.getNodeExternalIpList(networkMode)
+	nodeIps, err := nodeInfo.getNodeExternalIpList(isNetworkPresent)
 	if err != nil || len(nodeIps) == 0 {
 		log.Error(err, "Getting NodeIP From kube-api-server")
 		return []string{""}, err
