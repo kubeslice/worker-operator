@@ -98,6 +98,7 @@ func GetSliceGatewayServers(ctx context.Context, c client.Client, sliceName stri
 func GetSliceGwServices(ctx context.Context, c client.Client, sliceName string) (*corev1.ServiceList, error) {
 	sliceGwSvcList := &corev1.ServiceList{}
 	listOpts := []client.ListOption{
+		client.InNamespace(ControlPlaneNamespace),
 		client.MatchingLabels(map[string]string{ApplicationNamespaceSelectorLabelKey: sliceName}),
 	}
 
