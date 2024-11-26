@@ -218,7 +218,7 @@ func isValidNameSpace(ns string, slice *kubeslicev1beta1.Slice) bool {
 	if ns == fmt.Sprintf(sliceController.VPC_NS_FMT, slice.Name) {
 		return true
 	}
-	return arrayContainsString(slice.Status.ApplicationNamespaces, ns)
+	return arrayContainsString(slice.Status.SliceConfig.NamespaceIsolationProfile.ApplicationNamespaces, ns)
 }
 
 // Setup ServiceExport Reconciler
