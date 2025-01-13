@@ -857,14 +857,16 @@ func (r *SliceGwReconciler) SyncNetOpConnectionContextAndQos(ctx context.Context
 
 // getRemoteGwPodName returns the remote gw PodName.
 func (r *SliceGwReconciler) getRemoteGwPodName(ctx context.Context, gwRemoteVpnIP string, podIP string) (string, error) {
-	r.Log.Info("calling gw sidecar to get PodName", "type", "slicegw")
+	log := logger.FromContext(ctx).WithValues("type", "SliceGw")
+	debugLog := log.V(1)
+	debugLog.Info("calling gw sidecar to get PodName", "type", "slicegw")
 	sidecarGrpcAddress := podIP + ":5000"
 	remoteGwPodName, err := r.WorkerGWSidecarClient.GetSliceGwRemotePodName(ctx, gwRemoteVpnIP, sidecarGrpcAddress)
 	if err != nil {
-		r.Log.Error(err, "Failed to get slicegw remote pod name", "PodIp", podIP)
+		log.Error(err, "Failed to get slicegw remote pod name", "PodIp", podIP)
 		return "", err
 	}
-	r.Log.Info("slicegw remote pod name", "RemotePodName", remoteGwPodName)
+	debugLog.Info("slicegw remote pod name", "RemotePodName", remoteGwPodName)
 	return remoteGwPodName, nil
 }
 

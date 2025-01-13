@@ -53,7 +53,8 @@ var sliceGWController = "workersliceGWController"
 var sliceGwFinalizer = "controller.kubeslice.io/sliceGw-finalizer"
 
 func (r *SliceGwReconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
-	log := logger.FromContext(ctx)
+	log := logger.FromContext(ctx).WithName("controllers").WithName("WorkerSliceGW")
+	ctx = logger.WithLogger(ctx, log)
 
 	sliceGw := &spokev1alpha1.WorkerSliceGateway{}
 	err := r.Get(ctx, req.NamespacedName, sliceGw)
@@ -64,6 +65,7 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req reconcile.Request
 			log.Info("SliceGw resource not found in hub. Ignoring since object must be deleted")
 			return reconcile.Result{}, nil
 		}
+		log.Error(err, "unknown error gourish")
 		return reconcile.Result{}, err
 	}
 
@@ -92,6 +94,7 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req reconcile.Request
 		utils.RecordEvent(ctx, r.EventRecorder, sliceGw, nil, ossEvents.EventSliceGWCreateFailed, sliceGWController)
 		return reconcile.Result{}, err
 	} else {
+		log.Info("gourish no slicegw updated on spoke", "slicegw", sliceGwName)
 		utils.RecordEvent(ctx, r.EventRecorder, sliceGw, nil, ossEvents.EventSliceGWCreated, sliceGWController)
 	}
 	err = retry.RetryOnConflict(retry.DefaultRetry, func() error {
@@ -101,34 +104,41 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req reconcile.Request
 		}
 		err := r.MeshClient.Get(ctx, sliceGwRef, meshSliceGw)
 		if err != nil {
+			log.Info("gourish did not get slicegw in retry block", "slicegw", sliceGwRef)
 			return err
 		}
-		meshSliceGw.Status.Config = kubeslicev1beta1.SliceGatewayConfig{
-			SliceName:                           sliceGw.Spec.SliceName,
-			SliceGatewayID:                      sliceGw.Spec.LocalGatewayConfig.GatewayName,
-			SliceGatewaySubnet:                  sliceGw.Spec.LocalGatewayConfig.GatewaySubnet,
-			SliceGatewayRemoteSubnet:            sliceGw.Spec.RemoteGatewayConfig.GatewaySubnet,
-			SliceGatewayHostType:                sliceGw.Spec.GatewayHostType,
-			SliceGatewayRemoteNodeIPs:           sliceGw.Spec.RemoteGatewayConfig.NodeIps,
-			SliceGatewayRemoteNodePorts:         sliceGw.Spec.RemoteGatewayConfig.NodePorts,
-			SliceGatewayRemoteClusterID:         sliceGw.Spec.RemoteGatewayConfig.ClusterName,
-			SliceGatewayRemoteGatewayID:         sliceGw.Spec.RemoteGatewayConfig.GatewayName,
-			SliceGatewayLocalVpnIP:              sliceGw.Spec.LocalGatewayConfig.VpnIp,
-			SliceGatewayRemoteVpnIP:             sliceGw.Spec.RemoteGatewayConfig.VpnIp,
-			SliceGatewayName:                    strconv.Itoa(sliceGw.Spec.GatewayNumber),
-			SliceGatewayIntermediateDeployments: meshSliceGw.Status.Config.SliceGatewayIntermediateDeployments,
-			SliceGatewayConnectivityType:        sliceGw.Spec.GatewayConnectivityType,
-			SliceGatewayProtocol:                sliceGw.Spec.GatewayProtocol,
-			SliceGatewayServerLBIPs:             sliceGw.Spec.RemoteGatewayConfig.LoadBalancerIps,
-		}
+		if time.Since(meshSliceGw.Status.Config.LastUpdated.Time) > 120*time.Second {
+			meshSliceGw.Status.Config = kubeslicev1beta1.SliceGatewayConfig{
+				LastUpdated:                         metav1.Now(),
+				SliceName:                           sliceGw.Spec.SliceName,
+				SliceGatewayID:                      sliceGw.Spec.LocalGatewayConfig.GatewayName,
+				SliceGatewaySubnet:                  sliceGw.Spec.LocalGatewayConfig.GatewaySubnet,
+				SliceGatewayRemoteSubnet:            sliceGw.Spec.RemoteGatewayConfig.GatewaySubnet,
+				SliceGatewayHostType:                sliceGw.Spec.GatewayHostType,
+				SliceGatewayRemoteNodeIPs:           sliceGw.Spec.RemoteGatewayConfig.NodeIps,
+				SliceGatewayRemoteNodePorts:         sliceGw.Spec.RemoteGatewayConfig.NodePorts,
+				SliceGatewayRemoteClusterID:         sliceGw.Spec.RemoteGatewayConfig.ClusterName,
+				SliceGatewayRemoteGatewayID:         sliceGw.Spec.RemoteGatewayConfig.GatewayName,
+				SliceGatewayLocalVpnIP:              sliceGw.Spec.LocalGatewayConfig.VpnIp,
+				SliceGatewayRemoteVpnIP:             sliceGw.Spec.RemoteGatewayConfig.VpnIp,
+				SliceGatewayName:                    strconv.Itoa(sliceGw.Spec.GatewayNumber),
+				SliceGatewayIntermediateDeployments: meshSliceGw.Status.Config.SliceGatewayIntermediateDeployments,
+				SliceGatewayConnectivityType:        sliceGw.Spec.GatewayConnectivityType,
+				SliceGatewayProtocol:                sliceGw.Spec.GatewayProtocol,
+				SliceGatewayServerLBIPs:             sliceGw.Spec.RemoteGatewayConfig.LoadBalancerIps,
+			}
 
-		err = r.MeshClient.Status().Update(ctx, meshSliceGw)
-		if err != nil {
-			utils.RecordEvent(ctx, r.EventRecorder, sliceGw, nil, ossEvents.EventSliceGWUpdateFailed, sliceGWController)
-			log.Error(err, "unable to update sliceGw status in spoke cluster", "sliceGw", sliceGwName)
-			return err
+			err = r.MeshClient.Status().Update(ctx, meshSliceGw)
+			if err != nil {
+				utils.RecordEvent(ctx, r.EventRecorder, sliceGw, nil, ossEvents.EventSliceGWUpdateFailed, sliceGWController)
+				log.Error(err, "unable to update sliceGw status in spoke cluster", "sliceGw", sliceGwName)
+				return err
+			} else {
+				log.Info("gourish updated slicegw status in worker cluster", "sliceGw", sliceGwName)
+				utils.RecordEvent(ctx, r.EventRecorder, sliceGw, nil, ossEvents.EventSliceGWUpdated, sliceGWController)
+			}
 		} else {
-			utils.RecordEvent(ctx, r.EventRecorder, sliceGw, nil, ossEvents.EventSliceGWUpdated, sliceGWController)
+			log.Info("slicegw config lastupdated is less than 2 minutes ago", "lastUpdated", meshSliceGw.Status.Config.LastUpdated, "workerslicegw", meshSliceGw.Name)
 		}
 		return nil
 	})
@@ -262,11 +272,13 @@ func (r *SliceGwReconciler) createSliceGwOnSpoke(ctx context.Context, sliceGw *s
 		Name:      sliceGwName,
 		Namespace: ControlPlaneNamespace,
 	}
+	log.Info("gourish about to create slicegw", "slicegw", sliceGwRef)
 	err := r.MeshClient.Get(ctx, sliceGwRef, meshSliceGw)
 	if err != nil {
+		log.Info("gourish did not find slicegw", "slicegw", sliceGwRef)
 		if errors.IsNotFound(err) {
 			// Request object not found, create it in the spoke cluster
-			log.Info("SliceGw resource not found in spoke cluster, creating")
+			log.Info("gourish SliceGw resource not found in spoke cluster, creating")
 			meshSliceGw = &kubeslicev1beta1.SliceGateway{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      sliceGwName,

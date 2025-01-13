@@ -113,7 +113,8 @@ func getMeshServiceImportObj(svcim *spokev1alpha1.WorkerServiceImport) *kubeslic
 }
 
 func (r *ServiceImportReconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
-	log := logger.FromContext(ctx)
+	log := logger.FromContext(ctx).WithName("workerserviceimport").WithName(req.Name)
+	ctx = logger.WithLogger(ctx, log)
 
 	svcim, err := r.getServiceImport(ctx, req)
 	if svcim == nil {

@@ -138,6 +138,7 @@ func (worker gwSidecarClient) GetStatus(ctx context.Context, serverAddr string) 
 // SendConnectionContext sends connection context info to sidecar
 func (worker gwSidecarClient) SendConnectionContext(ctx context.Context, serverAddr string, gwConnCtx *GwConnectionContext) error {
 	log := logger.FromContext(ctx)
+	debugLog := log.V(1)
 	conn, err := grpc.Dial(serverAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		return err
@@ -151,7 +152,7 @@ func (worker gwSidecarClient) SendConnectionContext(ctx context.Context, serverA
 		RemoteSliceGwNsmSubnet: gwConnCtx.RemoteSliceGwNsmSubnet,
 	}
 
-	log.Info("SliceGwConnectionContext", "SliceGwConnectionContext", msg)
+	debugLog.Info("SliceGwConnectionContext", "SliceGwConnectionContext", msg)
 
 	_, err = client.UpdateConnectionContext(ctx, msg)
 

@@ -22,7 +22,6 @@ import (
 	"context"
 	"fmt"
 	"reflect"
-	"time"
 
 	"github.com/go-logr/logr"
 	"github.com/prometheus/client_golang/prometheus"
@@ -210,7 +209,7 @@ func (r Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resul
 	}
 
 	return ctrl.Result{
-		RequeueAfter: 30 * time.Second,
+		RequeueAfter: controllers.ReconcileInterval,
 	}, nil
 }
 

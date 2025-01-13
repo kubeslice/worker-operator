@@ -73,6 +73,8 @@ type SliceGatewayConfig struct {
 	SliceGatewayProtocol string `json:"sliceGatewayProtocol,omitempty"`
 	// Slice gateway server LB IPs
 	SliceGatewayServerLBIPs []string `json:"sliceGatewayServerLBIps,omitempty"`
+	// LastUpdated is the timestamp when slicegwstatus was updated
+	LastUpdated metav1.Time `json:"lastUpdated,omitempty"`
 }
 
 // SliceGatewayStatus defines the observed state of SliceGateway

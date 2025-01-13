@@ -142,7 +142,7 @@ var sliceFinalizer = "controller.kubeslice.io/hubSpokeSlice-finalizer"
 var sliceControllerName string = "workerSliceController"
 
 func (r *SliceReconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
-	log := r.Log.WithValues("sliceconfig", req.NamespacedName)
+	log := r.Log.WithValues("workersliceconfig", req.NamespacedName).WithName(req.Name)
 	ctx = logger.WithLogger(ctx, log)
 	debuglog := log.V(1)
 	slice := &spokev1alpha1.WorkerSliceConfig{}

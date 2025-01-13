@@ -36,7 +36,7 @@ var (
 
 	ImagePullSecretName = utils.GetEnvOrDefault("IMAGE_PULL_SECRET_NAME", "kubeslice-nexus")
 
-	ReconcileInterval = 10 * time.Second
+	ReconcileInterval = 60 * time.Second
 )
 
 const (

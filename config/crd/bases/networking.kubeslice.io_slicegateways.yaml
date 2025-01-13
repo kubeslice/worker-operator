@@ -3,7 +3,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.15.0
+    controller-gen.kubebuilder.io/version: v0.16.3
   name: slicegateways.networking.kubeslice.io
 spec:
   group: networking.kubeslice.io
@@ -69,6 +69,11 @@ spec:
               config:
                 description: SliceGatewayConfig defines the config received from backend
                 properties:
+                  lastUpdated:
+                    description: LastUpdated is the timestamp when slicegwstatus was
+                      updated
+                    format: date-time
+                    type: string
                   sliceGatewayConnectivityType:
                     description: SliceGateway Connectivity Type
                     type: string

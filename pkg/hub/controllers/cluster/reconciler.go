@@ -626,7 +626,7 @@ func (r *Reconciler) handleClusterDeletion(cluster *hubv1alpha1.Cluster, ctx con
 		}
 		// Stop reconciliation as the item is being deleted
 		return true, reconcile.Result{
-			RequeueAfter: 60 * time.Second,
+			RequeueAfter: controllers.ReconcileInterval,
 		}, nil
 	}
 	return false, reconcile.Result{}, nil

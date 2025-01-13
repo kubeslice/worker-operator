@@ -20,11 +20,11 @@ package serviceimport
 
 import (
 	"context"
-	"time"
 
 	"github.com/go-logr/logr"
 	"github.com/kubeslice/kubeslice-monitoring/pkg/events"
 	"github.com/kubeslice/kubeslice-monitoring/pkg/metrics"
+	"github.com/kubeslice/worker-operator/controllers"
 	ossEvents "github.com/kubeslice/worker-operator/events"
 	"github.com/kubeslice/worker-operator/pkg/logger"
 	"github.com/kubeslice/worker-operator/pkg/utils"
@@ -122,7 +122,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	}
 
 	return ctrl.Result{
-		RequeueAfter: 10 * time.Second,
+		RequeueAfter: controllers.ReconcileInterval,
 	}, nil
 }
 
