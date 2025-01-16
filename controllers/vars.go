@@ -37,6 +37,11 @@ var (
 	ImagePullSecretName = utils.GetEnvOrDefault("IMAGE_PULL_SECRET_NAME", "kubeslice-nexus")
 
 	ReconcileInterval = 10 * time.Second
+	// This value is the periodic reconcile interval for slicegateway CRs. The slicegateway CRD reconciler is set up to
+	// be event driven. In addition to being triggered due to updates to the slicegateway CR objects, it is also invoked
+	// in an event driven manner whenever important pods like the slice router, slice gw pods, and other critical infra
+	// pods restart. Hence, it does not really need an aggressive periodic reconcile interval.
+	SliceGatewayReconcileInterval = 120 * time.Second
 )
 
 const (

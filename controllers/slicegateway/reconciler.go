@@ -40,6 +40,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -188,6 +189,7 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		if err := r.reconcileGatewayHeadlessService(ctx, sliceGw); err != nil {
 			return ctrl.Result{}, err
 		}
+
 		//create an endpoint if not exists
 		requeue, res, err := r.reconcileGatewayEndpoint(ctx, sliceGw)
 		if requeue {
@@ -279,7 +281,7 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	}
 
 	return ctrl.Result{
-		RequeueAfter: controllers.ReconcileInterval,
+		RequeueAfter: controllers.SliceGatewayReconcileInterval,
 	}, nil
 }
 
@@ -357,6 +359,8 @@ func (r *SliceGwReconciler) findSliceGwObjectsToReconcile(ctx context.Context, p
 
 	podType := getPodType(podLabels)
 
+	r.Log.Info("Invoke SliceGw reconciler", "pod type update", podType)
+
 	sliceGwList := &kubeslicev1beta1.SliceGatewayList{}
 	var err error
 
@@ -378,6 +382,15 @@ func (r *SliceGwReconciler) findSliceGwObjectsToReconcile(ctx context.Context, p
 		}
 	case "nsm":
 		sliceGwList, err = r.findObjectsForNsmUpdate()
+		if err != nil {
+			return []reconcile.Request{}
+		}
+	case "slicegateway":
+		sliceGwName, found := podLabels[controllers.SliceGatewaySelectorLabelKey]
+		if !found {
+			return []reconcile.Request{}
+		}
+		sliceGwList, err = r.findObjectsForSliceGwUpdate(sliceGwName)
 		if err != nil {
 			return []reconcile.Request{}
 		}
@@ -414,9 +427,24 @@ func (r *SliceGwReconciler) sliceGwObjectsToReconcileForNodeRestart(ctx context.
 	return requests
 }
 
+func (r *SliceGwReconciler) findObjectsForSliceGwUpdate(sliceGwName string) (*kubeslicev1beta1.SliceGatewayList, error) {
+	sliceGwList := &kubeslicev1beta1.SliceGatewayList{}
+	sliceGw := kubeslicev1beta1.SliceGateway{}
+
+	err := r.Get(context.Background(), types.NamespacedName{Name: sliceGwName, Namespace: controllers.ControlPlaneNamespace}, &sliceGw)
+	if err != nil {
+		return nil, err
+	}
+
+	sliceGwList.Items = []kubeslicev1beta1.SliceGateway{sliceGw}
+
+	return sliceGwList, nil
+}
+
 func (r *SliceGwReconciler) findObjectsForSliceRouterUpdate(sliceName string) (*kubeslicev1beta1.SliceGatewayList, error) {
 	sliceGwList := &kubeslicev1beta1.SliceGatewayList{}
 	listOpts := []client.ListOption{
+		client.InNamespace(controllers.ControlPlaneNamespace),
 		client.MatchingLabels(map[string]string{controllers.ApplicationNamespaceSelectorLabelKey: sliceName}),
 	}
 	err := r.List(context.Background(), sliceGwList, listOpts...)
@@ -479,8 +507,15 @@ func (r *SliceGwReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		return err
 	}
 
+	// Check for updates to slice gw pods
+	labelSelector.MatchLabels = map[string]string{webhook.PodInjectLabelKey: "slicegateway"}
+	slicegwPredicate, err := predicate.LabelSelectorPredicate(labelSelector)
+	if err != nil {
+		return err
+	}
+
 	sliceGwUpdPredicate := predicate.Or(
-		slicerouterPredicate, netopPredicate, nsmgrPredicate, nsmfwdPredicate,
+		slicerouterPredicate, netopPredicate, nsmgrPredicate, nsmfwdPredicate, slicegwPredicate,
 	)
 
 	// The slice gateway reconciler needs to be invoked whenever there is an update to the
@@ -507,7 +542,39 @@ func (r *SliceGwReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		).
 		Watches(&corev1.Node{},
 			handler.EnqueueRequestsFromMapFunc(r.sliceGwObjectsToReconcileForNodeRestart),
-			builder.WithPredicates(nodePredicate),
+			builder.WithPredicates(nodePredicate, predicate.Funcs{
+				CreateFunc: func(e event.CreateEvent) bool {
+					return true
+				},
+				DeleteFunc: func(e event.DeleteEvent) bool {
+					return true
+				},
+				UpdateFunc: func(e event.UpdateEvent) bool {
+					oldObj, ok := e.ObjectOld.(*corev1.Node)
+					if !ok {
+						return true
+					}
+					newObj, ok := e.ObjectNew.(*corev1.Node)
+					if !ok {
+						// The reconcile would be triggered by the Create func
+						return false
+					}
+					if oldObj.ObjectMeta.Labels != nil {
+						nodelabel, ok := oldObj.ObjectMeta.Labels[controllers.NodeTypeSelectorLabelKey]
+						if !ok {
+							// Check if the label was added to the node
+							nodelabel, ok = newObj.ObjectMeta.Labels[controllers.NodeTypeSelectorLabelKey]
+							if ok && nodelabel == "gateway" {
+								return true
+							}
+						}
+					}
+					return false
+				},
+				GenericFunc: func(e event.GenericEvent) bool {
+					return false
+				},
+			}),
 		).
 		Complete(r)
 }
