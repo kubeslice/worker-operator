@@ -700,17 +700,29 @@ func (r *SliceGwReconciler) ReconcileGwPodStatus(ctx context.Context, slicegatew
 
 	if toUpdate {
 		log.Info("gwPodsInfo", "gwPodsInfo", gwPodsInfo)
-		slicegateway.Status.GatewayPodStatus = gwPodsInfo
-		slicegateway.Status.ConnectionContextUpdatedOn = 0
-		err := r.Status().Update(ctx, slicegateway)
+		err = retry.RetryOnConflict(retry.DefaultRetry, func() error {
+			err := r.Get(ctx, types.NamespacedName{Namespace: controllers.ControlPlaneNamespace, Name: slicegateway.Name}, slicegateway)
+			if err != nil {
+				log.Error(err, "Failed to get SliceGateway")
+				return err
+			}
+			slicegateway.Status.GatewayPodStatus = gwPodsInfo
+			slicegateway.Status.ConnectionContextUpdatedOn = 0
+			err = r.Status().Update(ctx, slicegateway)
+			if err != nil {
+				debugLog.Error(err, "Failed to update SliceGateway status for gateway status")
+				return err
+			}
+			return nil
+		})
 		if err != nil {
-			debugLog.Error(err, "error while update", "Failed to update SliceGateway status for gateway status")
-			return ctrl.Result{}, err, true
+			log.Error(err, "Failed to update SliceGateway status for gw pods")
+			return ctrl.Result{RequeueAfter: 30 * time.Second}, nil, true
 		}
 		toReconcile = true
 	}
 	if toReconcile {
-		return ctrl.Result{}, err, true
+		return ctrl.Result{}, nil, true
 	}
 	return ctrl.Result{}, nil, false
 }
@@ -744,25 +756,6 @@ func (r *SliceGwReconciler) SendConnectionContextAndQosToGwPod(ctx context.Conte
 		if err != nil {
 			log.Error(err, "Failed to send qos to gateway")
 			return ctrl.Result{RequeueAfter: 10 * time.Second}, err, true
-		}
-
-		err = retry.RetryOnConflict(retry.DefaultRetry, func() error {
-			err := r.Get(ctx, req.NamespacedName, slicegateway)
-			if err != nil {
-				log.Error(err, "Failed to get SliceGateway")
-				return err
-			}
-			slicegateway.Status.ConnectionContextUpdatedOn = time.Now().Unix()
-			err = r.Status().Update(ctx, slicegateway)
-			if err != nil {
-				log.Error(err, "Failed to update SliceGateway status for conn ctx update in retry loop")
-				return err
-			}
-			return nil
-		})
-		if err != nil {
-			log.Error(err, "Failed to update SliceGateway status for conn ctx update")
-			return ctrl.Result{}, err, true
 		}
 	}
 	return ctrl.Result{}, nil, false

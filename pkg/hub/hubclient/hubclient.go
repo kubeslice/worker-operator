@@ -22,7 +22,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"reflect"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 
@@ -38,6 +37,7 @@ import (
 	hubv1alpha1 "github.com/kubeslice/apis/pkg/controller/v1alpha1"
 	spokev1alpha1 "github.com/kubeslice/apis/pkg/worker/v1alpha1"
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
+	hubutils "github.com/kubeslice/worker-operator/pkg/hub"
 	"github.com/kubeslice/worker-operator/pkg/logger"
 	"github.com/kubeslice/worker-operator/pkg/monitoring"
 )
@@ -168,8 +168,8 @@ func (hubClient *HubClientConfig) UpdateNodePortForSliceGwServer(ctx context.Con
 		return err
 	}
 
-	if reflect.DeepEqual(sliceGw.Spec.LocalGatewayConfig.NodePorts, sliceGwNodePorts) {
-		// No update needed
+	// If the node ports on the controller cluster and the worker are the same, no need to update
+	if hubutils.ListEqual(sliceGw.Spec.LocalGatewayConfig.NodePorts, sliceGwNodePorts) {
 		return nil
 	}
 

@@ -30,6 +30,7 @@ import (
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
 	"github.com/kubeslice/worker-operator/controllers"
 	ossEvents "github.com/kubeslice/worker-operator/events"
+	hubutils "github.com/kubeslice/worker-operator/pkg/hub"
 	"github.com/kubeslice/worker-operator/pkg/logger"
 	"github.com/kubeslice/worker-operator/pkg/utils"
 	corev1 "k8s.io/api/core/v1"
@@ -94,47 +95,91 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req reconcile.Request
 	} else {
 		utils.RecordEvent(ctx, r.EventRecorder, sliceGw, nil, ossEvents.EventSliceGWCreated, sliceGWController)
 	}
-	err = retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		sliceGwRef := client.ObjectKey{
-			Name:      sliceGwName,
-			Namespace: ControlPlaneNamespace,
-		}
-		err := r.MeshClient.Get(ctx, sliceGwRef, meshSliceGw)
-		if err != nil {
-			return err
-		}
-		meshSliceGw.Status.Config = kubeslicev1beta1.SliceGatewayConfig{
-			SliceName:                           sliceGw.Spec.SliceName,
-			SliceGatewayID:                      sliceGw.Spec.LocalGatewayConfig.GatewayName,
-			SliceGatewaySubnet:                  sliceGw.Spec.LocalGatewayConfig.GatewaySubnet,
-			SliceGatewayRemoteSubnet:            sliceGw.Spec.RemoteGatewayConfig.GatewaySubnet,
-			SliceGatewayHostType:                sliceGw.Spec.GatewayHostType,
-			SliceGatewayRemoteNodeIPs:           sliceGw.Spec.RemoteGatewayConfig.NodeIps,
-			SliceGatewayRemoteNodePorts:         sliceGw.Spec.RemoteGatewayConfig.NodePorts,
-			SliceGatewayRemoteClusterID:         sliceGw.Spec.RemoteGatewayConfig.ClusterName,
-			SliceGatewayRemoteGatewayID:         sliceGw.Spec.RemoteGatewayConfig.GatewayName,
-			SliceGatewayLocalVpnIP:              sliceGw.Spec.LocalGatewayConfig.VpnIp,
-			SliceGatewayRemoteVpnIP:             sliceGw.Spec.RemoteGatewayConfig.VpnIp,
-			SliceGatewayName:                    strconv.Itoa(sliceGw.Spec.GatewayNumber),
-			SliceGatewayIntermediateDeployments: meshSliceGw.Status.Config.SliceGatewayIntermediateDeployments,
-			SliceGatewayConnectivityType:        sliceGw.Spec.GatewayConnectivityType,
-			SliceGatewayProtocol:                sliceGw.Spec.GatewayProtocol,
-			SliceGatewayServerLBIPs:             sliceGw.Spec.RemoteGatewayConfig.LoadBalancerIps,
-		}
 
-		err = r.MeshClient.Status().Update(ctx, meshSliceGw)
-		if err != nil {
-			utils.RecordEvent(ctx, r.EventRecorder, sliceGw, nil, ossEvents.EventSliceGWUpdateFailed, sliceGWController)
-			log.Error(err, "unable to update sliceGw status in spoke cluster", "sliceGw", sliceGwName)
-			return err
-		} else {
-			utils.RecordEvent(ctx, r.EventRecorder, sliceGw, nil, ossEvents.EventSliceGWUpdated, sliceGWController)
-		}
-		return nil
-	})
+	// Update the slicegateway CR on the worker cluster only if something has changed.
+	toUpdate := false
+	sliceGwRef := client.ObjectKey{
+		Name:      sliceGwName,
+		Namespace: ControlPlaneNamespace,
+	}
+	err = r.MeshClient.Get(ctx, sliceGwRef, meshSliceGw)
 	if err != nil {
 		return reconcile.Result{}, err
 	}
+	// First check all the static fields.
+	if meshSliceGw.Status.Config.SliceGatewayID != sliceGw.Spec.LocalGatewayConfig.GatewayName ||
+		meshSliceGw.Status.Config.SliceGatewaySubnet != sliceGw.Spec.LocalGatewayConfig.GatewaySubnet ||
+		meshSliceGw.Status.Config.SliceGatewayRemoteSubnet != sliceGw.Spec.RemoteGatewayConfig.GatewaySubnet ||
+		meshSliceGw.Status.Config.SliceGatewayHostType != sliceGw.Spec.GatewayHostType ||
+		meshSliceGw.Status.Config.SliceGatewayRemoteClusterID != sliceGw.Spec.RemoteGatewayConfig.ClusterName ||
+		meshSliceGw.Status.Config.SliceGatewayRemoteGatewayID != sliceGw.Spec.RemoteGatewayConfig.GatewayName ||
+		meshSliceGw.Status.Config.SliceGatewayName != strconv.Itoa(sliceGw.Spec.GatewayNumber) ||
+		meshSliceGw.Status.Config.SliceGatewayConnectivityType != sliceGw.Spec.GatewayConnectivityType ||
+		meshSliceGw.Status.Config.SliceGatewayProtocol != sliceGw.Spec.GatewayProtocol {
+		toUpdate = true
+	}
+	// If no change in static fields, check the dynamic fields
+	if !toUpdate {
+		// For client type, check the following fields
+		if meshSliceGw.Status.Config.SliceGatewayHostType == "Client" {
+			if !hubutils.ListEqual(meshSliceGw.Status.Config.SliceGatewayRemoteNodeIPs, sliceGw.Spec.RemoteGatewayConfig.NodeIps) {
+				log.Info("Update from hub: Node IPs changed", "SliceGw", sliceGw.Name, "NodeIPs", sliceGw.Spec.RemoteGatewayConfig.NodeIps)
+				toUpdate = true
+			}
+			// Next check node port
+			if !toUpdate {
+				if !hubutils.ListEqual(meshSliceGw.Status.Config.SliceGatewayNodePorts, sliceGw.Spec.RemoteGatewayConfig.NodePorts) {
+					log.Info("Update from hub: NodePort numbers changed", "SliceGw", sliceGw.Name, "NodePorts", sliceGw.Spec.RemoteGatewayConfig.NodePorts)
+					toUpdate = true
+				}
+			}
+		}
+		// Nothing dynamic to check for the server type
+	}
+
+	if toUpdate {
+		err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+			sliceGwRef := client.ObjectKey{
+				Name:      sliceGwName,
+				Namespace: ControlPlaneNamespace,
+			}
+			err := r.MeshClient.Get(ctx, sliceGwRef, meshSliceGw)
+			if err != nil {
+				return err
+			}
+			meshSliceGw.Status.Config = kubeslicev1beta1.SliceGatewayConfig{
+				SliceName:                           sliceGw.Spec.SliceName,
+				SliceGatewayID:                      sliceGw.Spec.LocalGatewayConfig.GatewayName,
+				SliceGatewaySubnet:                  sliceGw.Spec.LocalGatewayConfig.GatewaySubnet,
+				SliceGatewayRemoteSubnet:            sliceGw.Spec.RemoteGatewayConfig.GatewaySubnet,
+				SliceGatewayHostType:                sliceGw.Spec.GatewayHostType,
+				SliceGatewayRemoteNodeIPs:           sliceGw.Spec.RemoteGatewayConfig.NodeIps,
+				SliceGatewayRemoteNodePorts:         sliceGw.Spec.RemoteGatewayConfig.NodePorts,
+				SliceGatewayRemoteClusterID:         sliceGw.Spec.RemoteGatewayConfig.ClusterName,
+				SliceGatewayRemoteGatewayID:         sliceGw.Spec.RemoteGatewayConfig.GatewayName,
+				SliceGatewayLocalVpnIP:              sliceGw.Spec.LocalGatewayConfig.VpnIp,
+				SliceGatewayRemoteVpnIP:             sliceGw.Spec.RemoteGatewayConfig.VpnIp,
+				SliceGatewayName:                    strconv.Itoa(sliceGw.Spec.GatewayNumber),
+				SliceGatewayIntermediateDeployments: meshSliceGw.Status.Config.SliceGatewayIntermediateDeployments,
+				SliceGatewayConnectivityType:        sliceGw.Spec.GatewayConnectivityType,
+				SliceGatewayProtocol:                sliceGw.Spec.GatewayProtocol,
+				SliceGatewayServerLBIPs:             sliceGw.Spec.RemoteGatewayConfig.LoadBalancerIps,
+			}
+
+			err = r.MeshClient.Status().Update(ctx, meshSliceGw)
+			if err != nil {
+				return err
+			}
+			utils.RecordEvent(ctx, r.EventRecorder, sliceGw, nil, ossEvents.EventSliceGWUpdated, sliceGWController)
+			return nil
+		})
+		if err != nil {
+			utils.RecordEvent(ctx, r.EventRecorder, sliceGw, nil, ossEvents.EventSliceGWUpdateFailed, sliceGWController)
+			log.Error(err, "unable to update sliceGw status in spoke cluster", "sliceGw", sliceGwName)
+			return reconcile.Result{}, err
+		}
+	}
+
 	return reconcile.Result{}, nil
 }
 
