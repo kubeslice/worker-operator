@@ -659,7 +659,7 @@ func (r *SliceReconciler) UpdateSliceHealthMetrics(slice *spokev1alpha1.WorkerSl
 }
 
 // New
-var toFilter = []string{"kubeslice.io", "kubernetes.io"}
+var toFilter = []string{"kubeslice-", "kubernetes.io"}
 
 func partialContains(slice []string, str string) bool {
 	for _, s := range slice {
