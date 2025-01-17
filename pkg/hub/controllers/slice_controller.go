@@ -21,6 +21,7 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -185,13 +186,17 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req reconcile.Request) 
 				projectNs = slice.ObjectMeta.GetLabels()["project-namespace"]
 			}
 
+			// TODO: (Priyank) Add additional labels to the slice object
+			additionalLabels := FilterLabelsAndAnnotations(slice.ObjectMeta.Labels)
+			additionalLabels["project-namespace"] = projectNs
+			additionalAnnotations := FilterLabelsAndAnnotations(slice.ObjectMeta.Annotations)
+
 			s := &kubeslicev1beta1.Slice{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      sliceName,
-					Namespace: ControlPlaneNamespace,
-					Labels: map[string]string{
-						"project-namespace": projectNs,
-					},
+					Name:        sliceName,
+					Namespace:   ControlPlaneNamespace,
+					Labels:      additionalLabels,
+					Annotations: additionalAnnotations,
 				},
 				Spec: kubeslicev1beta1.SliceSpec{},
 			}
@@ -651,4 +656,27 @@ func (r *SliceReconciler) UpdateSliceHealthMetrics(slice *spokev1alpha1.WorkerSl
 			r.gaugeComponentUp.WithLabelValues(sliceName, cs.Component).Set(0)
 		}
 	}
+}
+
+// New
+var toFilter = []string{"kubeslice.io", "kubernetes.io"}
+
+func partialContains(slice []string, str string) bool {
+	for _, s := range slice {
+		if strings.Contains(str, s) {
+			return true
+		}
+	}
+	return false
+}
+
+func FilterLabelsAndAnnotations(data map[string]string) map[string]string {
+	filtered := make(map[string]string)
+	for key, value := range data {
+		// Skip if `key` contains any substring in `toFilter`
+		if !partialContains(toFilter, key) {
+			filtered[key] = value
+		}
+	}
+	return filtered
 }

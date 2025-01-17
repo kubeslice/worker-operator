@@ -752,9 +752,12 @@ func (r *SliceReconciler) createAndLabelAppNamespaces(ctx context.Context, cfgAp
 			// If the namespace doesn't exist on specified cluster then first create it
 			if errors.IsNotFound(err) {
 				log.Info("Namespace is not found. Creating namespace.", "namespace", cfgAppNs)
+				// TODO: (Priyank) Add additional labels and annotations to the namespace as we are creating the namespace
 				namespace = &corev1.Namespace{
 					ObjectMeta: metav1.ObjectMeta{
-						Name: cfgAppNs,
+						Name:        cfgAppNs,
+						Labels:      slice.Labels,
+						Annotations: slice.Annotations,
 					},
 				}
 				if err := r.Create(ctx, namespace); err != nil {
