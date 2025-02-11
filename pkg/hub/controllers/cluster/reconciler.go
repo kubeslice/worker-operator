@@ -57,6 +57,8 @@ const (
 	MAX_CLUSTER_DEREGISTRATION_ATTEMPTS        = 3
 )
 
+var GrafanaDashboardUrl = os.Getenv("GRAFANA_DASHBOARD_URL")
+
 type Reconciler struct {
 	client.Client
 	MeshClient    client.Client
@@ -104,6 +106,17 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	}
 
 	cl := cluster.NewCluster(r.MeshClient, cr.Name)
+
+	if cr.Spec.ClusterProperty.Monitoring.GrafanaDashboardBaseURL == "" {
+		if GrafanaDashboardUrl != "" {
+			cr.Spec.ClusterProperty.Monitoring.GrafanaDashboardBaseURL = GrafanaDashboardUrl
+			err := r.Update(ctx, cr)
+			if err != nil {
+				return ctrl.Result{}, err
+			}
+		}
+	}
+
 	res, err, requeue := r.updateClusterCloudProviderInfo(ctx, cr, cl)
 	if err != nil {
 		utils.RecordEvent(ctx, r.EventRecorder, cr, nil, ossEvents.EventClusterProviderUpdateInfoFailed, controllerName)
