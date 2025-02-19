@@ -20,6 +20,7 @@ package cluster
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"reflect"
@@ -34,6 +35,7 @@ import (
 	"github.com/kubeslice/worker-operator/pkg/logger"
 	"github.com/kubeslice/worker-operator/pkg/utils"
 	"github.com/prometheus/client_golang/prometheus"
+	"k8s.io/apimachinery/pkg/api/errors"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -184,7 +186,61 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		utils.RecordEvent(ctx, r.EventRecorder, cr, nil, ossEvents.EventClusterHealthStatusUpdated, controllerName)
 	}
 	utils.RecordEvent(ctx, r.EventRecorder, cr, nil, ossEvents.EventClusterHealthStatusUpdated, controllerName)
+	// Fetch namespaceConfig from cluster CR and create 'namespace-labels-config' configMap in worker namespace
+	if err := r.createNamespaceConfigMap(ctx, cr); err != nil {
+		log.Error(err, "unable to create configMap from namespaceConfig of Cluster CR")
+		return reconcile.Result{}, err
+	}
 	return reconcile.Result{RequeueAfter: r.ReconcileInterval}, nil
+}
+
+func (r *Reconciler) createNamespaceConfigMap(ctx context.Context, cr *hubv1alpha1.Cluster) error {
+	log := logger.FromContext(ctx).WithName("createNamespaceConfigMap")
+	configMapName := "namespace-labels-config"
+	// Serialize labels and annotations as JSON
+	labelsJSON, err := json.Marshal(cr.Status.NamespaceConfig.NamespaceLabels)
+	if err != nil {
+		return fmt.Errorf("failed to marshal namespace labels: %v", err)
+	}
+	annotationsJSON, err := json.Marshal(cr.Status.NamespaceConfig.NamespaceAnnotations)
+	if err != nil {
+		return fmt.Errorf("failed to marshal namespace annotations: %v", err)
+	}
+	// Define the desired ConfigMap data
+	configMapData := map[string]string{
+		"labels":      string(labelsJSON),
+		"annotations": string(annotationsJSON),
+	}
+	// Fetch the existing ConfigMap
+	existingConfigMap := &corev1.ConfigMap{}
+	err = r.Get(ctx, types.NamespacedName{Name: configMapName, Namespace: ControlPlaneNamespace}, existingConfigMap)
+	if err != nil {
+		//if not found create a new one
+		if errors.IsNotFound(err) {
+			log.Info("namespace config map not found, creating")
+			cm := &corev1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      configMapName,
+					Namespace: ControlPlaneNamespace,
+				},
+				Data: configMapData,
+			}
+			if createErr := r.Create(ctx, cm); createErr != nil {
+				return fmt.Errorf("failed to create ConfigMap %s: %v", configMapName, createErr)
+			}
+			return nil
+		}
+		log.Error(err, "failed to fetch namespace config map, creating")
+		return err
+	}
+	// Update existing ConfigMap if data has changed
+	if existingConfigMap.Data["labels"] != configMapData["labels"] || existingConfigMap.Data["annotations"] != configMapData["annotations"] {
+		existingConfigMap.Data = configMapData
+		if err := r.Update(ctx, existingConfigMap); err != nil {
+			return fmt.Errorf("failed to update namespace labels ConfigMap %s: %v", configMapName, err)
+		}
+	}
+	return nil
 }
 
 // if nsm core compoent is not found in a cluster, it's assumed that
@@ -455,7 +511,7 @@ func (r *Reconciler) updateNodeIps(ctx context.Context, cr *hubv1alpha1.Cluster)
 		if err != nil {
 			return err
 		}
-		nodeIPs, err := cluster.GetNodeIP(r.MeshClient)
+		nodeIPs, err := cluster.GetNodeIP(r.MeshClient, cr.Status.NetworkPresent)
 		if err != nil {
 			log.Error(err, "Error Getting nodeIP")
 			return err
