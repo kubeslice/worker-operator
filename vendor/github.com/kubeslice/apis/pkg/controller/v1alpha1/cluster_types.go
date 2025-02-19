@@ -57,9 +57,6 @@ type ClusterSpec struct {
 	NetworkInterface string `json:"networkInterface,omitempty"`
 	//put in an object
 	ClusterProperty ClusterProperty `json:"clusterProperty,omitempty"`
-	// EnableAutoEviction is a flag to enable auto eviction feature for the given cluster
-	EnableAutoEviction bool `json:"enableAutoEviction,omitempty"`
-	RequeueOnFailure   bool `json:"requeueOnFailure,omitempty"`
 }
 
 type ClusterProperty struct {
@@ -95,8 +92,6 @@ type GeoLocation struct {
 
 // Monitoring defines the field of ClusterSpec
 type Monitoring struct {
-	// GrafanaDashboardBaseURL is the base URL for the grafana dashboard
-	GrafanaDashboardBaseURL string `json:"grafanaDashboardBaseURL,omitempty"`
 	//KubernetesDashboard contains the information regarding Kubernetes Monitoring Dashboard
 	KubernetesDashboard KubernetesDashboard `json:"kubernetesDashboard,omitempty"`
 }
@@ -136,17 +131,8 @@ type ClusterStatus struct {
 
 	// VCPURestriction is the restriction on the cluster disabling the creation of new pods
 	VCPURestriction *VCPURestriction `json:"vCPURestriction,omitempty"`
-
-	//NamespaceConfig is the set of user defined labels/annotations to be applied to any namespace created under the cluster CR
-	NamespaceConfig NamespaceConfig `json:"namespaceConfig,omitempty"`
 }
 
-type NamespaceConfig struct {
-	// NamespaceLabels is the set of user defined labels to be applied to any namespace created under the cluster CR
-	NamespaceLabels map[string]string `json:"namespaceLabels,omitempty"`
-	// NamespaceAnnotations is the set of user defined annotations to be applied to any namespace created under the cluster CR
-	NamespaceAnnotations map[string]string `json:"namespaceAnnotations,omitempty"`
-}
 type VCPURestriction struct {
 	// EnforceRestrictions is the flag to check if the cluster is restricted
 	EnforceRestrictions bool `json:"enforceRestrictions,omitempty"`

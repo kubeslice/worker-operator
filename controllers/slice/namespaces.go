@@ -19,7 +19,6 @@ package slice
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -101,25 +100,20 @@ func (r *SliceReconciler) reconcileAppNamespaces(ctx context.Context, slice *kub
 			marked: false,
 		}
 	}
-	// Fetch namespace labels configMap
-	configLabels, configAnnotations, err := r.getNamespaceConfigFromConfigMap(ctx)
-	if err != nil {
-		return ctrl.Result{}, err, true
-	}
 	// Compare the existing list with the configured list.
 	// If a namespace is not found in the existing list, consider it as an addition event and
 	// label the namespace.
 	// (In case it doesn't exist, first create it & then label the same)
 	// If a namespace is found in the existing list, mark it to indicate that it has been verified
 	// to be valid as it is present in the configured list as well.
-	labeledAppNsList, statusChanged, err := r.createAndLabelAppNamespaces(ctx, cfgAppNsList, existingAppNsMap, slice, configLabels, configAnnotations)
+	labeledAppNsList, statusChanged, err := r.createAndLabelAppNamespaces(ctx, cfgAppNsList, existingAppNsMap, slice)
 	if err != nil {
 		return ctrl.Result{}, err, true
 	}
 	// Sweep the existing namespaces again to unbind any namespace that was not found in the configured list
 	for existingAppNs := range existingAppNsMap {
 		if !existingAppNsMap[existingAppNs].marked {
-			err := r.unbindAppNamespace(ctx, slice, existingAppNs, configLabels, configAnnotations)
+			err := r.unbindAppNamespace(ctx, slice, existingAppNs)
 			if err != nil {
 				log.Error(err, "Failed to unbind namespace from slice", "namespace", existingAppNs)
 				return ctrl.Result{}, err, true
@@ -363,7 +357,7 @@ func indexOf(a []string, b string) int {
 	return -1
 }
 
-func (r *SliceReconciler) unbindAppNamespace(ctx context.Context, slice *kubeslicev1beta1.Slice, appNs string, configLabels, configAnnotations map[string]string) error {
+func (r *SliceReconciler) unbindAppNamespace(ctx context.Context, slice *kubeslicev1beta1.Slice, appNs string) error {
 	log := logger.FromContext(ctx).WithValues("type", "appNamespaces")
 	debuglog := log.V(1)
 	namespace := &corev1.Namespace{}
@@ -389,13 +383,6 @@ func (r *SliceReconciler) unbindAppNamespace(ctx context.Context, slice *kubesli
 			delete(nsLabels, InjectSidecarKey)
 		}
 		namespace.ObjectMeta.SetLabels(nsLabels)
-		// remove user defined labels
-		removeEntries(nsLabels, configLabels)
-		// fetch annotations and remove user defined annotations from the namespace
-		nsAnnotations := namespace.ObjectMeta.GetAnnotations()
-		removeEntries(nsAnnotations, configAnnotations)
-		namespace.ObjectMeta.SetAnnotations(nsAnnotations)
-
 		err = r.Update(ctx, namespace)
 		if err != nil {
 			log.Error(err, "NS unbind: Failed to remove slice label", "namespace", appNs)
@@ -700,25 +687,19 @@ func (r *SliceReconciler) installSliceNetworkPolicyInAppNs(ctx context.Context, 
 func (r *SliceReconciler) cleanupSliceNamespaces(ctx context.Context, slice *kubeslicev1beta1.Slice) error {
 	log := logger.FromContext(ctx).WithValues("type", "appNamespaces")
 
-	configLabels, configAnnotations, err := r.getNamespaceConfigFromConfigMap(ctx)
-	if err != nil {
-		log.Error(err, "unable to fetch namespace label config")
-		configLabels = make(map[string]string)
-		configAnnotations = make(map[string]string)
-	}
 	// Get the list of existing namespaces that are tagged with the kubeslice label
 	existingAppNsList := &corev1.NamespaceList{}
 	listOpts := []client.ListOption{
 		client.MatchingLabels(map[string]string{controllers.ApplicationNamespaceSelectorLabelKey: slice.Name}),
 	}
-	err = r.List(ctx, existingAppNsList, listOpts...)
+	err := r.List(ctx, existingAppNsList, listOpts...)
 	if err != nil {
 		log.Error(err, "Failed to list namespaces")
 		return err
 	}
 
 	for _, existingAppNsObj := range existingAppNsList.Items {
-		err := r.unbindAppNamespace(ctx, slice, existingAppNsObj.ObjectMeta.Name, configLabels, configAnnotations)
+		err := r.unbindAppNamespace(ctx, slice, existingAppNsObj.ObjectMeta.Name)
 		if err != nil {
 			log.Error(err, "Failed to unbind namespace from slice", "namespace", existingAppNsObj.ObjectMeta.Name)
 			return err
@@ -754,7 +735,7 @@ func buildAppNamespacesList(slice *kubeslicev1beta1.Slice) []string {
 	}
 	return cfgAppNsList
 }
-func (r *SliceReconciler) createAndLabelAppNamespaces(ctx context.Context, cfgAppNsList []string, existingAppNsMap map[string]*nsMarker, slice *kubeslicev1beta1.Slice, configLabels, configAnnotations map[string]string) ([]string, bool, error) {
+func (r *SliceReconciler) createAndLabelAppNamespaces(ctx context.Context, cfgAppNsList []string, existingAppNsMap map[string]*nsMarker, slice *kubeslicev1beta1.Slice) ([]string, bool, error) {
 	labeledAppNsList := []string{}
 	statusChanged := false
 	log := logger.FromContext(ctx).WithValues("type", "appNamespaces")
@@ -773,9 +754,7 @@ func (r *SliceReconciler) createAndLabelAppNamespaces(ctx context.Context, cfgAp
 				log.Info("Namespace is not found. Creating namespace.", "namespace", cfgAppNs)
 				namespace = &corev1.Namespace{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:        cfgAppNs,
-						Labels:      configLabels,
-						Annotations: configAnnotations,
+						Name: cfgAppNs,
 					},
 				}
 				if err := r.Create(ctx, namespace); err != nil {
@@ -796,19 +775,10 @@ func (r *SliceReconciler) createAndLabelAppNamespaces(ctx context.Context, cfgAp
 		if nsLabels == nil {
 			nsLabels = make(map[string]string)
 		}
-		mergeMaps(configLabels, nsLabels)
 		nsLabels[controllers.ApplicationNamespaceSelectorLabelKey] = slice.Name
 		nsLabels[InjectSidecarKey] = "true"
 		namespace.ObjectMeta.SetLabels(nsLabels)
 
-		// A namespace might not have any annotations attached to it. Directly accessing the annotations map
-		// leads to a crash for such namespaces.
-		// If the annotations map is nil, create one and use the setter api to attach it to the namespace.
-		nsAnnotations := namespace.ObjectMeta.GetAnnotations()
-		if nsAnnotations == nil {
-			nsAnnotations = make(map[string]string)
-		}
-		mergeMaps(configAnnotations, nsAnnotations)
 		err = r.Update(ctx, namespace)
 		if err != nil {
 			log.Error(err, "Failed to label namespace", "Namespace", cfgAppNs)
@@ -820,46 +790,4 @@ func (r *SliceReconciler) createAndLabelAppNamespaces(ctx context.Context, cfgAp
 		statusChanged = true
 	}
 	return labeledAppNsList, statusChanged, nil
-}
-
-// Fetch namespace ConfigMap from worker cluster
-func (r *SliceReconciler) getNamespaceConfigFromConfigMap(ctx context.Context) (map[string]string, map[string]string, error) {
-	cm := &corev1.ConfigMap{}
-	err := r.Get(ctx, types.NamespacedName{Name: "namespace-labels-config", Namespace: ControlPlaneNamespace}, cm)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	labels := make(map[string]string)
-	annotations := make(map[string]string)
-
-	if err := json.Unmarshal([]byte(cm.Data["labels"]), &labels); err != nil {
-		return nil, nil, err
-	}
-	if err := json.Unmarshal([]byte(cm.Data["annotations"]), &annotations); err != nil {
-		return labels, nil, err
-	}
-
-	return labels, annotations, nil
-}
-
-// mergeMaps merges two maps, giving priority to values from overrideMap
-func mergeMaps(baseMap, overrideMap map[string]string) map[string]string {
-	result := make(map[string]string)
-	for k, v := range baseMap {
-		result[k] = v
-	}
-	for k, v := range overrideMap {
-		result[k] = v
-	}
-	return result
-}
-
-// removeEntries removes key-value pairs from map1 if they exist in map2 with the same value.
-func removeEntries(map1, map2 map[string]string) {
-	for key, value := range map2 {
-		if v, exists := map1[key]; exists && v == value {
-			delete(map1, key)
-		}
-	}
 }
