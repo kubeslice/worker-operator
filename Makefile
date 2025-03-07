@@ -92,7 +92,7 @@ vet: ## Run go vet against code.
 	go vet ./...
 
 .PHONY: test
-test:   fmt vet envtest ## Run tests. 
+test:   fmt vet envtest ## Run tests.
 	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) -p path)" go test -v -coverprofile=coverage.out -coverpkg ./... ./...
 
 .PHONY: unit-test-coverage
@@ -115,11 +115,13 @@ run: manifests generate fmt vet ## Run a controller from your host.
 
 .PHONY: docker-build
 docker-build: ## Build docker image with the manager.
-	docker build -t ${IMG} .
+	docker buildx create --name container --driver=docker-container || true
+	docker build --builder container --platform linux/amd64,linux/arm64 -t ${IMG} .
 
 .PHONY: docker-push
 docker-push: ## Push docker image with the manager.
-	docker push ${IMG}
+	docker buildx create --name container --driver=docker-container || true
+	docker build --push --builder container --platform linux/amd64,linux/arm64 -t ${IMG} .
 
 ##@ Deployment
 
@@ -132,7 +134,7 @@ chart-deploy:
 .PHONY: chart-undeploy
 chart-undeploy:
 	## Delete the artifacts using helm
-	## Usage: make chart-undeploy 
+	## Usage: make chart-undeploy
 	helm delete kubeslice-worker -n kubeslice-system
 
 ifndef ignore-not-found
@@ -242,7 +244,7 @@ catalog-build: opm ## Build a catalog image.
 catalog-push: ## Push a catalog image.
 	$(MAKE) docker-push IMG=$(CATALOG_IMG)
 
-# Generate events schema map 
+# Generate events schema map
 .PHONY: generate-events
 generate-events:
 	go run hack/generate/generate.go config/events/worker-events.yaml
