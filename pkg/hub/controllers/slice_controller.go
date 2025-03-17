@@ -179,21 +179,18 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req reconcile.Request) 
 			// Request object not found, create it in the spoke cluster
 			log.Info("Slice resource not found in spoke cluster, creating")
 
-			// Fetch project namespace label
-			var projectNs string
-			if metav1.HasLabel(slice.ObjectMeta, "project-namespace") {
-				projectNs = slice.ObjectMeta.GetLabels()["project-namespace"]
-			}
-
 			s := &kubeslicev1beta1.Slice{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      sliceName,
 					Namespace: ControlPlaneNamespace,
-					Labels: map[string]string{
-						"project-namespace": projectNs,
-					},
 				},
 				Spec: kubeslicev1beta1.SliceSpec{},
+			}
+			if s.ObjectMeta.Labels == nil {
+				s.ObjectMeta.Labels = make(map[string]string)
+			}
+			if slice.ObjectMeta.GetLabels() != nil {
+				s.ObjectMeta.SetLabels(slice.ObjectMeta.GetLabels())
 			}
 
 			err = r.MeshClient.Create(ctx, s)
@@ -268,12 +265,6 @@ func (r *SliceReconciler) updateSliceConfig(ctx context.Context, meshSlice *kube
 	}
 	if meshSlice.Status.SliceConfig.SliceSubnet == "" {
 		meshSlice.Status.SliceConfig.SliceSubnet = spokeSlice.Spec.SliceSubnet
-	}
-	if meshSlice.ObjectMeta.Labels == nil {
-		meshSlice.ObjectMeta.Labels = make(map[string]string)
-		if spokeSlice.ObjectMeta.Labels != nil {
-			meshSlice.ObjectMeta.Labels = spokeSlice.ObjectMeta.Labels
-		}
 	}
 
 	if meshSlice.Status.SliceConfig.SliceIpam.IpamClusterOctet == 0 {
