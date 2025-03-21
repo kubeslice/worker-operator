@@ -186,12 +186,6 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req reconcile.Request) 
 				},
 				Spec: kubeslicev1beta1.SliceSpec{},
 			}
-			if s.ObjectMeta.Labels == nil {
-				s.ObjectMeta.Labels = make(map[string]string)
-			}
-			if slice.ObjectMeta.GetLabels() != nil {
-				s.ObjectMeta.SetLabels(slice.ObjectMeta.GetLabels())
-			}
 
 			err = r.MeshClient.Create(ctx, s)
 			if err != nil {
@@ -214,6 +208,30 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req reconcile.Request) 
 		}
 		r.counterSliceUpdationFailed.WithLabelValues(sliceName).Add(1)
 		return reconcile.Result{}, err
+	}
+
+	updateRequired := false
+	if meshSlice.ObjectMeta.Labels == nil {
+		meshSlice.ObjectMeta.Labels = make(map[string]string)
+	}
+	// Copy or update labels from slice to meshSlice
+	for key, sv := range slice.ObjectMeta.GetLabels() {
+		if val, ok := meshSlice.ObjectMeta.Labels[key]; !ok || val != sv {
+			updateRequired = true
+			meshSlice.ObjectMeta.Labels[key] = sv
+		}
+	}
+	// Remove extra labels from meshSlice that are not in slice
+	for key := range meshSlice.ObjectMeta.Labels {
+		if _, ok := slice.ObjectMeta.Labels[key]; !ok {
+			updateRequired = true
+			delete(meshSlice.ObjectMeta.Labels, key)
+		}
+	}
+	if updateRequired {
+		if err := r.MeshClient.Update(ctx, meshSlice); err != nil {
+			return ctrl.Result{}, err
+		}
 	}
 
 	err = r.updateSliceConfig(ctx, meshSlice, slice)
