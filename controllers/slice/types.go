@@ -37,6 +37,7 @@ type NetOpPod struct {
 type HubClientProvider interface {
 	UpdateAppPodsList(ctx context.Context, sliceConfigName string, appPods []kubeslicev1beta1.AppPod) error
 	UpdateAppNamespaces(ctx context.Context, sliceConfigName string, onboardedNamespaces []string) error
+	GetClusterNamespaceConfig(ctx context.Context, clusterName string) (map[string]string, map[string]string, error)
 }
 
 type WorkerRouterClientProvider interface {

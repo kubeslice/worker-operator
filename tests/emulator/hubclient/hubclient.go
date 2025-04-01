@@ -98,3 +98,7 @@ func (hubClientEmulator *HubClientEmulator) UpdateLBIPsForSliceGwServer(
 	ctx context.Context, lbIPs []string, sliceGwName string) error {
 	return nil
 }
+
+func (hubClientEmulator *HubClientEmulator) GetClusterNamespaceConfig(ctx context.Context, clusterName string) (map[string]string, map[string]string, error) {
+	return nil, nil, nil
+}
