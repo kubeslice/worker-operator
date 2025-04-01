@@ -57,6 +57,9 @@ type ClusterSpec struct {
 	NetworkInterface string `json:"networkInterface,omitempty"`
 	//put in an object
 	ClusterProperty ClusterProperty `json:"clusterProperty,omitempty"`
+	// EnableAutoEviction is a flag to enable auto eviction feature for the given cluster
+	EnableAutoEviction bool `json:"enableAutoEviction,omitempty"`
+	RequeueOnFailure   bool `json:"requeueOnFailure,omitempty"`
 }
 
 type ClusterProperty struct {
@@ -92,6 +95,8 @@ type GeoLocation struct {
 
 // Monitoring defines the field of ClusterSpec
 type Monitoring struct {
+	// GrafanaDashboardBaseURL is the base URL for the grafana dashboard
+	GrafanaDashboardBaseURL string `json:"grafanaDashboardBaseURL,omitempty"`
 	//KubernetesDashboard contains the information regarding Kubernetes Monitoring Dashboard
 	KubernetesDashboard KubernetesDashboard `json:"kubernetesDashboard,omitempty"`
 }
