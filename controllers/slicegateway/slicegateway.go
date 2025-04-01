@@ -748,14 +748,16 @@ func (r *SliceGwReconciler) SendConnectionContextAndQosToGwPod(ctx context.Conte
 
 		err := r.WorkerGWSidecarClient.SendConnectionContext(ctx, sidecarGrpcAddress, connCtx)
 		if err != nil {
-			log.Error(err, "Unable to send conn ctx to gw")
-			return ctrl.Result{RequeueAfter: 10 * time.Second}, err, true
+			// Log error and move on to the next gw pod. Will be re-tried in the next reconcile cycle.
+			log.Error(err, "Unable to send conn ctx to gw", "pod", sidecarGrpcAddress)
+			continue
 		}
 
 		err = r.WorkerGWSidecarClient.UpdateSliceQosProfile(ctx, sidecarGrpcAddress, slice)
 		if err != nil {
-			log.Error(err, "Failed to send qos to gateway")
-			return ctrl.Result{RequeueAfter: 10 * time.Second}, err, true
+			// Log error and move on to the next gw pod. Will be re-tried in the next reconcile cycle
+			log.Error(err, "Failed to send qos to gateway", "pod", sidecarGrpcAddress)
+			continue
 		}
 	}
 	return ctrl.Result{}, nil, false
@@ -1057,6 +1059,7 @@ func (r *SliceGwReconciler) gwPodPlacementIsSkewed(ctx context.Context, sliceGw 
 	labels := map[string]string{controllers.PodTypeSelectorLabelKey: "slicegateway", "kubeslice.io/slice-gw": sliceGw.Name}
 	listOptions := []client.ListOption{
 		client.MatchingLabels(labels),
+		client.MatchingFields{"status.phase": "Running"},
 	}
 	err := r.Client.List(ctx, &podList, listOptions...)
 	if err != nil {
@@ -1264,16 +1267,50 @@ func (r *SliceGwReconciler) ReconcileGatewayServices(ctx context.Context, sliceG
 
 	sliceGwName := sliceGw.Name
 
-	for gwInstance := 0; gwInstance < r.NumberOfGateways; gwInstance++ {
-		if !gwServiceIsPresent(sliceGwName, gwInstance, gwServices) {
-			svcName := "svc-" + sliceGwName + "-" + fmt.Sprint(gwInstance) + "-" + "0"
-			depName := sliceGwName + "-" + fmt.Sprint(gwInstance) + "-" + "0"
-			_, err, _ := r.handleSliceGwSvcCreation(ctx, sliceGw, svcName, depName)
+	deployments, err := GetDeployments(ctx, r.Client, sliceGw.Spec.SliceName, sliceGw.Name)
+	if err != nil {
+		return ctrl.Result{}, err, true
+	}
+
+	validGwSvcNames := []string{}
+	// Create gw services for the currently available gw deployments
+	for _, deployment := range deployments.Items {
+		svcNameForDep := "svc-" + deployment.Name
+		if getGwService(gwServices, svcNameForDep) == nil {
+			_, err, _ := r.handleSliceGwSvcCreation(ctx, sliceGw, svcNameForDep, deployment.Name)
 			if err != nil {
 				return ctrl.Result{}, err, true
 			}
 			return ctrl.Result{Requeue: true}, nil, true
 		}
+		validGwSvcNames = append(validGwSvcNames, svcNameForDep)
+	}
+
+	// Delete stale gw services if found
+	gwsvcToDelete := []string{}
+	for _, gwsvc := range gwServices.Items {
+		found := false
+		for _, svc := range validGwSvcNames {
+			if svc == gwsvc.Name {
+				found = true
+				break
+			}
+		}
+		if !found {
+			// Add to delete gw svc list
+			gwsvcToDelete = append(gwsvcToDelete, gwsvc.Name)
+		}
+	}
+
+	if len(gwsvcToDelete) > 0 {
+		for _, svcToDelete := range gwsvcToDelete {
+			err := r.handleSliceGwSvcDeletion(ctx, sliceGw, svcToDelete)
+			if err != nil {
+				log.Error(err, "Failed to delete stale gw svc", "name", svcToDelete)
+				return ctrl.Result{}, err, true
+			}
+		}
+		return ctrl.Result{Requeue: true}, nil, true
 	}
 
 	nodePorts, err := r.getNodePorts(ctx, sliceGw)
@@ -1397,23 +1434,22 @@ func (r *SliceGwReconciler) ReconcileGatewayDeployments(ctx context.Context, sli
 			// update logic for gateways
 			for i := range deployments.Items {
 				deployment := &deployments.Items[i]
-				if deployment.Name == sliceGwName+"-"+fmt.Sprint(gwInstance)+"-"+"0" {
-					// update if gateway sidecar image has been changed in worker env vars
-					for j := range deployment.Spec.Template.Spec.Containers {
-						container := &deployment.Spec.Template.Spec.Containers[j]
-						if container.Name == "kubeslice-sidecar" && (container.Image != sidecarImg || container.ImagePullPolicy != sidecarPullPolicy) {
-							container.Image = sidecarImg
-							container.ImagePullPolicy = sidecarPullPolicy
-							log.Info("updating gw Deployment sidecar", "Name", deployment.Name, "image", gwSidecarImage)
-							err = r.Update(ctx, deployment)
-							if err != nil {
-								log.Error(err, "Failed to update Deployment", "Name", deployment.Name)
-								return ctrl.Result{}, err, true
-							}
-							return ctrl.Result{Requeue: true}, nil, true
+				// update if gateway sidecar image has been changed in worker env vars
+				for j := range deployment.Spec.Template.Spec.Containers {
+					container := &deployment.Spec.Template.Spec.Containers[j]
+					if container.Name == "kubeslice-sidecar" && (container.Image != sidecarImg || container.ImagePullPolicy != sidecarPullPolicy) {
+						container.Image = sidecarImg
+						container.ImagePullPolicy = sidecarPullPolicy
+						log.Info("updating gw Deployment sidecar", "Name", deployment.Name, "image", gwSidecarImage)
+						err = r.Update(ctx, deployment)
+						if err != nil {
+							log.Error(err, "Failed to update Deployment", "Name", deployment.Name)
+							return ctrl.Result{}, err, true
 						}
+						return ctrl.Result{Requeue: true}, nil, true
 					}
 				}
+
 			}
 		}
 	}
