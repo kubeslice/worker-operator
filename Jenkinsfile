@@ -1,9 +1,12 @@
-@Library('jenkins-library@opensource-helm-pipeline-release') _
-dockerbuildtestPipeline(
+@Library('jenkins-library@opensource-helm-multiarch') _
+dockerImagePipeline(
   script: this,
-  service: 'worker-operator',
-  buildArguments: [PLATFORM:"amd64"],
-  run_unit_tests: 'false'
-  
+  services: ['worker-operator'],
+  dockerfiles: ['Dockerfile'],
+  pushed: true,
+  run_unit_tests: 'false',
+  buildArgumentsList: [
+    [ENV: 'production', PLATFORM: 'linux/arm64,linux/amd64']
+]
 )
 
