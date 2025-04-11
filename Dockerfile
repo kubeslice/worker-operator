@@ -20,6 +20,9 @@
 # Build the manager binary
 FROM golang:1.24.0 AS builder
 
+ARG TARGETOS
+ARG TARGETARCH
+
 WORKDIR /workspace
 # Copy the Go Modules manifests
 COPY go.mod go.mod
@@ -38,11 +41,11 @@ COPY pkg/ pkg/
 COPY events/ events/
 # Build
 RUN go env -w GOPRIVATE=github.com/kubeslice && \
-    CGO_ENABLED=0 GOOS=linux GOARCH=amd64 GO111MODULE=on go build -mod=vendor -a -o manager main.go
+    CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} GO111MODULE=on go build -mod=vendor -a -o manager main.go
 
 # Use distroless as minimal base image to package the manager binary
 # Refer to https://github.com/GoogleContainerTools/distroless for more details
-FROM gcr.io/distroless/static:nonroot
+FROM gcr.io/distroless/static-debian12:nonroot
 LABEL maintainer="Avesha Systems"
 WORKDIR /
 COPY --from=builder /workspace/manager .
@@ -54,7 +57,7 @@ ENV MANIFEST_PATH="/files/manifests"
 ENV SCRIPT_PATH="/scripts"
 COPY scripts scripts
 
-USER nonroot:nonroot
+USER 65532:65532
 
 ENTRYPOINT ["/manager"]
 
