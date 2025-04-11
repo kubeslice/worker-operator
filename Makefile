@@ -115,11 +115,13 @@ run: manifests generate fmt vet ## Run a controller from your host.
 
 .PHONY: docker-build
 docker-build: ## Build docker image with the manager.
-	docker build -t ${IMG} .
+	docker buildx create --name container --driver=docker-container || true
+	docker build --builder container --platform linux/amd64,linux/arm64 -t ${IMG} .
 
 .PHONY: docker-push
 docker-push: ## Push docker image with the manager.
-	docker push ${IMG}
+	docker buildx create --name container --driver=docker-container || true
+	docker build --push --builder container --platform linux/amd64,linux/arm64 -t ${IMG} .
 
 ##@ Deployment
 
