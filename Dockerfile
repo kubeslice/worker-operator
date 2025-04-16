@@ -20,8 +20,7 @@
 # Build the manager binary
 FROM golang:1.24.2 AS builder
 
-ARG TARGETARCH
-ARG TARGETOS
+
 
 WORKDIR /workspace
 # Copy the Go Modules manifests
@@ -33,6 +32,9 @@ ADD vendor vendor
 #RUN echo "[url \"git@bitbucket.org:\"]\n\tinsteadOf = https://bitbucket.org/" >> /root/.gitconfig
 #RUN go env -w GOPRIVATE=bitbucket.org/realtimeai && go mod download
 
+ARG TARGETPLATFORM
+ARG TARGETARCH
+
 # Copy the go source
 COPY main.go main.go
 COPY api/ api/
@@ -41,7 +43,7 @@ COPY pkg/ pkg/
 COPY events/ events/
 # Build
 RUN go env -w GOPRIVATE=github.com/kubeslice && \
-    CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} GO111MODULE=on go build -mod=vendor -a -o manager main.go
+    CGO_ENABLED=0 GOOS=linux GOARCH=${TARGETARCH} GO111MODULE=on go build -mod=vendor -a -o manager main.go
 
 # Use distroless as minimal base image to package the manager binary
 # Refer to https://github.com/GoogleContainerTools/distroless for more details
