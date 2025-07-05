@@ -273,12 +273,25 @@ func (r *SliceGwReconciler) deploymentForGatewayServer(g *kubeslicev1beta1.Slice
 								Add: []corev1.Capability{
 									"NET_ADMIN",
 								},
+								Drop: []corev1.Capability{
+									"ALL",
+								},
 							},
 						},
 						VolumeMounts: []corev1.VolumeMount{{
 							Name:      "shared-volume",
 							MountPath: "/etc/openvpn",
 						}},
+						Resources: corev1.ResourceRequirements{
+							Limits: corev1.ResourceList{
+								"memory": resource.MustParse("256Mi"),
+								"cpu":    resource.MustParse("200m"),
+							},
+							Requests: corev1.ResourceList{
+								"memory": resource.MustParse("128Mi"),
+								"cpu":    resource.MustParse("100m"),
+							},
+						},
 					}},
 					Volumes: []corev1.Volume{
 						{
@@ -558,12 +571,25 @@ func (r *SliceGwReconciler) deploymentForGatewayClient(g *kubeslicev1beta1.Slice
 								Add: []corev1.Capability{
 									"NET_ADMIN",
 								},
+								Drop: []corev1.Capability{
+									"ALL",
+								},
 							},
 						},
 						VolumeMounts: []corev1.VolumeMount{{
 							Name:      "shared-volume",
 							MountPath: "/vpnclient",
 						}},
+						Resources: corev1.ResourceRequirements{
+							Limits: corev1.ResourceList{
+								"memory": resource.MustParse("128Mi"),
+								"cpu":    resource.MustParse("100m"),
+							},
+							Requests: corev1.ResourceList{
+								"memory": resource.MustParse("64Mi"),
+								"cpu":    resource.MustParse("50m"),
+							},
+						},
 					}},
 					Volumes: []corev1.Volume{{
 						Name: "shared-volume",
