@@ -43,6 +43,8 @@ type SliceGatewayConfig struct {
 	SliceName string `json:"sliceName,omitempty"`
 	// Slice gateway subnet range.
 	SliceSiteName string `json:"sliceSiteName,omitempty"`
+	// Slice gateway vpn type
+	SliceGatewayType string `json:"sliceGatewayType,omitempty"`
 	// Slice gateway subnet range.
 	SliceGatewaySubnet string `json:"sliceGatewaySubnet,omitempty"`
 	// SliceGateway status
