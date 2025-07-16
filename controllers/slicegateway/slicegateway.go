@@ -54,7 +54,7 @@ import (
 )
 
 const (
-	DEFAULT_SIDECAR_IMG        = "sumon124816/kubeslice:gw-sidecar-1"
+	DEFAULT_SIDECAR_IMG        = "nexus.dev.aveshalabs.io/kubeslice/gw-sidecar:1.0.0"
 	DEFAULT_SIDECAR_PULLPOLICY = corev1.PullAlways
 )
 
@@ -103,263 +103,106 @@ func labelsForSliceGwStatus(name string) map[string]string {
 // deploymentForGateway returns a gateway Deployment object
 func (r *SliceGwReconciler) deploymentForGateway(g *kubeslicev1beta1.SliceGateway, depName string, gwConfigKey int) *appsv1.Deployment {
 	if g.Status.Config.SliceGatewayHostType == "Server" {
-		if g.Status.Config.SliceGatewayType == "OpenVPN" {
-			return r.deploymentForGatewayServer(g, depName, gwConfigKey)
-		} else {
-			return r.newWireGuardServerGatewayDeployment(g, depName, gwConfigKey)
-		}
+		return r.deploymentForGatewayServer(g, depName, gwConfigKey)
 	} else {
-		if g.Status.Config.SliceGatewayType == "OpenVPN" {
-			return r.deploymentForGatewayClient(g, depName, gwConfigKey)
-		} else {
-			return r.newWireGuardClientGatewayDeployment(g, depName, gwConfigKey)
-		}
+		return r.deploymentForGatewayClient(g, depName, gwConfigKey)
 	}
 }
 
-func (r *SliceGwReconciler) newWireGuardServerGatewayDeployment(g *kubeslicev1beta1.SliceGateway, depName string, gwConfigKey int) *appsv1.Deployment {
-	ls := labelsForSliceGwDeployment(g.Name, g.Spec.SliceName, depName)
+func getServerVpnContainerSpec(g *kubeslicev1beta1.SliceGateway) corev1.Container {
+	privileged := true
 
-	var replicas int32 = 1
-
-	var vpnSecretDefaultMode int32 = 420
-
-	var privileged = true
-
-	sidecarImg := DEFAULT_SIDECAR_IMG
-	sidecarPullPolicy := DEFAULT_SIDECAR_PULLPOLICY
-	vpnImg := "sumon124816/wireguard:server-7"
-	vpnPullPolicy := corev1.PullAlways
-
-	if len(gwSidecarImage) != 0 {
-		sidecarImg = gwSidecarImage
-	}
-
-	if len(gwSidecarImagePullPolicy) != 0 {
-		sidecarPullPolicy = corev1.PullPolicy(gwSidecarImagePullPolicy)
-	}
-
-	if len(wireguardServerImage) != 0 {
-		vpnImg = wireguardServerImage
-	}
-
-	if len(wireguardServerPullPolicy) != 0 {
-		vpnPullPolicy = corev1.PullPolicy(wireguardServerPullPolicy)
-	}
-
-	nsmAnnotation := fmt.Sprintf("kernel://vl3-service-%s/nsm0", g.Spec.SliceName)
-	selectedNodeIP := ""
-	nodeIps := cluster.GetNodeExternalIpList()
-	if nodeIps != nil {
-		selectedNodeIP = nodeIps[0]
-	}
-	dep := &appsv1.Deployment{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      depName,
-			Namespace: g.Namespace,
-			Labels: map[string]string{
-				controllers.ApplicationNamespaceSelectorLabelKey: g.Spec.SliceName,
-				webhook.PodInjectLabelKey:                        "slicegateway",
-				"kubeslice.io/slicegw":                           g.Name,
+	switch g.Status.Config.SliceGatewayType {
+	case "OpenVPN":
+		vpnImg := "nexus.dev.aveshalabs.io/kubeslice/openvpn-server.ubuntu.18.04:1.0.0"
+		if len(openVpnServerImage) != 0 {
+			vpnImg = openVpnServerImage
+		}
+		vpnPullPolicy := corev1.PullAlways
+		if len(openVpnServerPullPolicy) != 0 {
+			vpnPullPolicy = corev1.PullPolicy(openVpnServerPullPolicy)
+		}
+		return corev1.Container{
+			Name:            "kubeslice-openvpn-server",
+			Image:           vpnImg,
+			ImagePullPolicy: vpnPullPolicy,
+			Command: []string{
+				"/usr/local/bin/waitForConfigToRunCmd.sh",
 			},
-		},
-		Spec: appsv1.DeploymentSpec{
-			Replicas: &replicas,
-			Selector: &metav1.LabelSelector{
-				MatchLabels: ls,
+			Args: []string{
+				"/etc/openvpn/openvpn.conf",
+				"90",
+				"ovpn_run",
 			},
-			Template: corev1.PodTemplateSpec{
-				ObjectMeta: metav1.ObjectMeta{
-					Labels: ls,
-					Annotations: map[string]string{
-						"prometheus.io/port":    "18080",
-						"prometheus.io/scrape":  "true",
-						"networkservicemesh.io": nsmAnnotation,
+			SecurityContext: &corev1.SecurityContext{
+				Privileged:               &privileged,
+				AllowPrivilegeEscalation: &privileged,
+				Capabilities: &corev1.Capabilities{
+					Add: []corev1.Capability{
+						"NET_ADMIN",
 					},
 				},
-				Spec: corev1.PodSpec{
-					ServiceAccountName: "vpn-gateway-server",
-					Affinity: &corev1.Affinity{
-						NodeAffinity: &corev1.NodeAffinity{
-							RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
-								NodeSelectorTerms: []corev1.NodeSelectorTerm{{
-									MatchExpressions: []corev1.NodeSelectorRequirement{{
-										Key:      controllers.NodeTypeSelectorLabelKey,
-										Operator: corev1.NodeSelectorOpIn,
-										Values:   []string{"gateway"},
-									}},
-								}},
-							},
-						},
-						PodAntiAffinity: getPodAntiAffinity(g.Spec.SliceName, g.Name),
-					},
-					Containers: []corev1.Container{{
-						Name:            "kubeslice-sidecar",
-						Image:           sidecarImg,
-						ImagePullPolicy: sidecarPullPolicy,
-						Env: []corev1.EnvVar{
-							{
-								Name:  "SLICE_NAME",
-								Value: g.Spec.SliceName,
-							},
-							{
-								Name:  "CLUSTER_ID",
-								Value: controllers.ClusterName,
-							},
-							{
-								Name:  "REMOTE_CLUSTER_ID",
-								Value: g.Status.Config.SliceGatewayRemoteClusterID,
-							},
-							{
-								Name:  "GATEWAY_ID",
-								Value: g.Status.Config.SliceGatewayID,
-							},
-							{
-								Name:  "REMOTE_GATEWAY_ID",
-								Value: g.Status.Config.SliceGatewayRemoteGatewayID,
-							},
-							{
-								Name:  "POD_TYPE",
-								Value: "GATEWAY_POD",
-							},
-							{
-								Name:  "NODE_IP",
-								Value: selectedNodeIP,
-							},
-							{
-								Name:  "VPN_TYPE",
-								Value: g.Status.Config.SliceGatewayType,
-							},
-							{
-								Name:  "VPN_MODE",
-								Value: "SERVER",
-							},
-							{
-								Name:  "MOUNT_PATH",
-								Value: "config",
-							},
-						},
-						SecurityContext: &corev1.SecurityContext{
-							Privileged:               &privileged,
-							AllowPrivilegeEscalation: &privileged,
-							Capabilities: &corev1.Capabilities{
-								Add: []corev1.Capability{
-									"NET_ADMIN",
-								},
-							},
-						},
-						VolumeMounts: []corev1.VolumeMount{
-							{
-								Name:      "shared-volume",
-								MountPath: "/config",
-							},
-							{
-								Name:      "vpn-keys",
-								MountPath: "/var/run/vpn",
-							},
-						},
-						Resources: corev1.ResourceRequirements{
-							Limits: corev1.ResourceList{
-								"memory": resource.MustParse("200Mi"),
-								"cpu":    resource.MustParse("500m"),
-							},
-							Requests: corev1.ResourceList{
-								"memory": resource.MustParse("50Mi"),
-								"cpu":    resource.MustParse("50m"),
-							},
-						},
-					}, {
-						Name:            "kubeslice-wireguard-server",
-						Image:           vpnImg,
-						ImagePullPolicy: vpnPullPolicy,
-						Env: []corev1.EnvVar{
-							{
-								Name:  "ADDRESS",
-								Value: fmt.Sprintf("%s%s", g.Status.Config.SliceGatewayLocalVpnIP, "/32"),
-							},
-							{
-								Name:  "PORT",
-								Value: "11194",
-							},
-							{
-								Name:  "ALLOWED_IPS",
-								Value: fmt.Sprintf("%s/32, %s", g.Status.Config.SliceGatewayRemoteVpnIP, g.Status.Config.SliceGatewayRemoteSubnet),
-							},
-						},
-						SecurityContext: &corev1.SecurityContext{
-							Privileged:               &privileged,
-							AllowPrivilegeEscalation: &privileged,
-							Capabilities: &corev1.Capabilities{
-								Add: []corev1.Capability{
-									"NET_ADMIN",
-								},
-							},
-						},
-						VolumeMounts: []corev1.VolumeMount{
-							{
-								Name:      "shared-volume",
-								MountPath: "/etc/wireguard/privatekey",
-								SubPath:   "privatekey",
-								ReadOnly:  true,
-							},
-							{
-								Name:      "shared-volume",
-								MountPath: "/etc/wireguard/publickey",
-								SubPath:   "publickey",
-								ReadOnly:  true,
-							},
-						},
-					}},
-					Volumes: []corev1.Volume{
-						{
-							Name: "shared-volume",
-							VolumeSource: corev1.VolumeSource{
-								EmptyDir: &corev1.EmptyDirVolumeSource{},
-							},
-						},
-						{
-							Name: "vpn-keys",
-							VolumeSource: corev1.VolumeSource{
-								Secret: &corev1.SecretVolumeSource{
-									SecretName:  g.Name + "-" + strconv.Itoa(gwConfigKey), // secret contains the vpn config
-									DefaultMode: &vpnSecretDefaultMode,
-									Items: []corev1.KeyToPath{
-										{
-											Key:  "clientPublicKeyWgFile",
-											Path: "publickey",
-										}, {
-											Key:  "serverPrivateKeyWgFile",
-											Path: "privatekey",
-										},
-									},
-								},
-							},
-						},
-					},
-					Tolerations: []corev1.Toleration{{
-						Key:      controllers.NodeTypeSelectorLabelKey,
-						Operator: "Equal",
-						Effect:   "NoSchedule",
-						Value:    "gateway",
-					}, {
-						Key:      controllers.NodeTypeSelectorLabelKey,
-						Operator: "Equal",
-						Effect:   "NoExecute",
-						Value:    "gateway",
-					}},
+			},
+			VolumeMounts: []corev1.VolumeMount{{
+				Name:      "shared-volume",
+				MountPath: "/etc/openvpn",
+			}},
+		}
+
+	case "Wireguard":
+		vpnImg := "sumon124816/wireguard:server-7"
+		if len(wireguardServerImage) != 0 {
+			vpnImg = wireguardServerImage
+		}
+		vpnPullPolicy := corev1.PullAlways
+		if len(wireguardServerPullPolicy) != 0 {
+			vpnPullPolicy = corev1.PullPolicy(wireguardServerPullPolicy)
+		}
+		return corev1.Container{
+			Name:            "kubeslice-wireguard-server",
+			Image:           vpnImg,
+			ImagePullPolicy: vpnPullPolicy,
+			Env: []corev1.EnvVar{
+				{
+					Name:  "ADDRESS",
+					Value: fmt.Sprintf("%s%s", g.Status.Config.SliceGatewayLocalVpnIP, "/32"),
+				},
+				{
+					Name:  "PORT",
+					Value: "11194",
+				},
+				{
+					Name:  "ALLOWED_IPS",
+					Value: fmt.Sprintf("%s/32, %s", g.Status.Config.SliceGatewayRemoteVpnIP, g.Status.Config.SliceGatewayRemoteSubnet),
 				},
 			},
-		},
+			SecurityContext: &corev1.SecurityContext{
+				Privileged:               &privileged,
+				AllowPrivilegeEscalation: &privileged,
+				Capabilities: &corev1.Capabilities{
+					Add: []corev1.Capability{
+						"NET_ADMIN",
+					},
+				},
+			},
+			VolumeMounts: []corev1.VolumeMount{
+				{
+					Name:      "shared-volume",
+					MountPath: "/etc/wireguard/privatekey",
+					SubPath:   "privatekey",
+					ReadOnly:  true,
+				},
+				{
+					Name:      "shared-volume",
+					MountPath: "/etc/wireguard/publickey",
+					SubPath:   "publickey",
+					ReadOnly:  true,
+				},
+			},
+		}
+	default:
+		return corev1.Container{}
 	}
-
-	if len(controllers.ImagePullSecretName) != 0 {
-		dep.Spec.Template.Spec.ImagePullSecrets = []corev1.LocalObjectReference{{
-			Name: controllers.ImagePullSecretName,
-		}}
-	}
-	// Set SliceGateway instance as the owner and controller
-	ctrl.SetControllerReference(g, dep, r.Scheme)
-	return dep
 }
 
 func (r *SliceGwReconciler) deploymentForGatewayServer(g *kubeslicev1beta1.SliceGateway, depName string, gwConfigKey int) *appsv1.Deployment {
@@ -374,8 +217,6 @@ func (r *SliceGwReconciler) deploymentForGatewayServer(g *kubeslicev1beta1.Slice
 
 	sidecarImg := DEFAULT_SIDECAR_IMG
 	sidecarPullPolicy := DEFAULT_SIDECAR_PULLPOLICY
-	vpnImg := "nexus.dev.aveshalabs.io/kubeslice/openvpn-server.ubuntu.18.04:1.0.0"
-	vpnPullPolicy := corev1.PullAlways
 	baseFileName := os.Getenv("CLUSTER_NAME") + "-" + g.Spec.SliceName + "-" + g.Status.Config.SliceGatewayName + ".vpn.aveshasystems.com"
 
 	if len(gwSidecarImage) != 0 {
@@ -384,14 +225,6 @@ func (r *SliceGwReconciler) deploymentForGatewayServer(g *kubeslicev1beta1.Slice
 
 	if len(gwSidecarImagePullPolicy) != 0 {
 		sidecarPullPolicy = corev1.PullPolicy(gwSidecarImagePullPolicy)
-	}
-
-	if len(openVpnServerImage) != 0 {
-		vpnImg = openVpnServerImage
-	}
-
-	if len(openVpnServerPullPolicy) != 0 {
-		vpnPullPolicy = corev1.PullPolicy(openVpnServerPullPolicy)
 	}
 
 	nsmAnnotation := fmt.Sprintf("kernel://vl3-service-%s/nsm0", g.Spec.SliceName)
@@ -515,32 +348,9 @@ func (r *SliceGwReconciler) deploymentForGatewayServer(g *kubeslicev1beta1.Slice
 								"cpu":    resource.MustParse("50m"),
 							},
 						},
-					}, {
-						Name:            "kubeslice-openvpn-server",
-						Image:           vpnImg,
-						ImagePullPolicy: vpnPullPolicy,
-						Command: []string{
-							"/usr/local/bin/waitForConfigToRunCmd.sh",
-						},
-						Args: []string{
-							"/etc/openvpn/openvpn.conf",
-							"90",
-							"ovpn_run",
-						},
-						SecurityContext: &corev1.SecurityContext{
-							Privileged:               &privileged,
-							AllowPrivilegeEscalation: &privileged,
-							Capabilities: &corev1.Capabilities{
-								Add: []corev1.Capability{
-									"NET_ADMIN",
-								},
-							},
-						},
-						VolumeMounts: []corev1.VolumeMount{{
-							Name:      "shared-volume",
-							MountPath: "/etc/openvpn",
-						}},
-					}},
+					},
+						getServerVpnContainerSpec(g),
+					},
 					Volumes: []corev1.Volume{
 						{
 							Name: "shared-volume",
@@ -578,6 +388,12 @@ func (r *SliceGwReconciler) deploymentForGatewayServer(g *kubeslicev1beta1.Slice
 										}, {
 											Key:  "ccdFile",
 											Path: "ccd/" + g.Status.Config.SliceGatewayRemoteGatewayID,
+										}, {
+											Key:  "clientPublicKeyWgFile",
+											Path: "publickey",
+										}, {
+											Key:  "serverPrivateKeyWgFile",
+											Path: "privatekey",
 										},
 									},
 								},
@@ -642,260 +458,100 @@ func (r *SliceGwReconciler) serviceForGateway(g *kubeslicev1beta1.SliceGateway, 
 	return svc
 }
 
-func (r *SliceGwReconciler) newWireGuardClientGatewayDeployment(g *kubeslicev1beta1.SliceGateway, depName string, gwConfigKey int) *appsv1.Deployment {
-	log := logger.FromContext(context.Background()).WithValues("type", "slicegateway")
-	var replicas int32 = 1
-	var privileged = true
+func getClientVpnContainerSpec(g *kubeslicev1beta1.SliceGateway, remotePortNumber int) corev1.Container {
+	privileged := true
 
-	var vpnSecretDefaultMode int32 = 0644
-
-	sidecarImg := "sumon124816/kubeslice:gw-sidecar-1"
-	sidecarPullPolicy := corev1.PullAlways
-
-	vpnImg := "sumon124816/wireguard:client-1"
-	vpnPullPolicy := corev1.PullAlways
-
-	ls := labelsForSliceGwDeployment(g.Name, g.Spec.SliceName, depName)
-
-	if len(gwSidecarImage) != 0 {
-		sidecarImg = gwSidecarImage
-	}
-
-	if len(gwSidecarImagePullPolicy) != 0 {
-		sidecarPullPolicy = corev1.PullPolicy(gwSidecarImagePullPolicy)
-	}
-
-	if len(wireguardClientImage) != 0 {
-		vpnImg = wireguardClientImage
-	}
-
-	if len(wireguardClientPullPolicy) != 0 {
-		vpnPullPolicy = corev1.PullPolicy(wireguardClientPullPolicy)
-	}
-
-	nsmAnnotation := fmt.Sprintf("kernel://vl3-service-%s/nsm0", g.Spec.SliceName)
-
-	remotePortNumber := 0
-	remotePortVal, found := gwClientToRemotePortMap.Load(depName)
-	if found {
-		remotePortNumber = remotePortVal.(int)
-		// Check if cache is valid
-		if !checkIfNodePortIsValid(g.Status.Config.SliceGatewayRemoteNodePorts, remotePortNumber) {
-			log.Info("Port number mapping is invalid", "depName", depName, "port", remotePortNumber)
-			gwClientToRemotePortMap.Delete(depName)
-			remotePortNumber = 0
+	switch g.Status.Config.SliceGatewayType {
+	case "OpenVPN":
+		vpnImg := "nexus.dev.aveshalabs.io/kubeslice/gw-sidecar:1.0.0"
+		if len(openVpnClientImage) != 0 {
+			vpnImg = openVpnClientImage
 		}
-	}
-
-	if !found || remotePortNumber == 0 {
-		for _, nodePort := range g.Status.Config.SliceGatewayRemoteNodePorts {
-			if !checkIfNodePortIsAlreadyUsed(nodePort) {
-				gwClientToRemotePortMap.Store(depName, nodePort)
-				log.Info("Storing in map", "depName", depName, "port", nodePort)
-				break
-			}
+		vpnPullPolicy := corev1.PullAlways
+		if len(openVpnClientPullPolicy) != 0 {
+			vpnPullPolicy = corev1.PullPolicy(openVpnClientPullPolicy)
 		}
-		remotePortVal, found = gwClientToRemotePortMap.Load(depName)
-		if !found {
-			log.Error(errors.New("NodePort Unavailable"), "NodePort Unavailable for deployment", depName)
-			return nil
-		}
-		remotePortNumber = remotePortVal.(int)
-	}
-
-	dep := &appsv1.Deployment{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      depName,
-			Namespace: g.Namespace,
-			Labels: map[string]string{
-				controllers.ApplicationNamespaceSelectorLabelKey: g.Spec.SliceName,
-				webhook.PodInjectLabelKey:                        "slicegateway",
-				"kubeslice.io/slicegw":                           g.Name,
+		return corev1.Container{
+			Name:            "kubeslice-openvpn-client",
+			Image:           vpnImg,
+			ImagePullPolicy: vpnPullPolicy,
+			Command: []string{
+				"/usr/local/bin/waitForConfigToRunCmd.sh",
 			},
-		},
-		Spec: appsv1.DeploymentSpec{
-			Replicas: &replicas,
-			Selector: &metav1.LabelSelector{
-				MatchLabels: ls,
-			},
-			Template: corev1.PodTemplateSpec{
-				ObjectMeta: metav1.ObjectMeta{
-					Labels: ls,
-					Annotations: map[string]string{
-						"prometheus.io/port":    "18080",
-						"prometheus.io/scrape":  "true",
-						"networkservicemesh.io": nsmAnnotation,
+			Args: getOVPNClientContainerArgs(remotePortNumber, g),
+			SecurityContext: &corev1.SecurityContext{
+				Privileged:               &privileged,
+				AllowPrivilegeEscalation: &privileged,
+				Capabilities: &corev1.Capabilities{
+					Add: []corev1.Capability{
+						"NET_ADMIN",
 					},
 				},
-				Spec: corev1.PodSpec{
-					ServiceAccountName: "vpn-gateway-client",
-					Affinity: &corev1.Affinity{
-						NodeAffinity: &corev1.NodeAffinity{
-							RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
-								NodeSelectorTerms: []corev1.NodeSelectorTerm{{
-									MatchExpressions: []corev1.NodeSelectorRequirement{{
-										Key:      controllers.NodeTypeSelectorLabelKey,
-										Operator: corev1.NodeSelectorOpIn,
-										Values:   []string{"gateway"},
-									}},
-								}},
-							},
-						},
-						PodAntiAffinity: getPodAntiAffinity(g.Spec.SliceName, g.Name),
-					},
-					Containers: []corev1.Container{{
-						Name:            "kubeslice-sidecar",
-						Image:           sidecarImg,
-						ImagePullPolicy: sidecarPullPolicy,
-						Env: []corev1.EnvVar{
-							{
-								Name:  "SLICE_NAME",
-								Value: g.Spec.SliceName,
-							},
-							{
-								Name:  "REMOTE_CLUSTER_ID",
-								Value: g.Status.Config.SliceGatewayRemoteClusterID,
-							},
-							{
-								Name:  "GATEWAY_ID",
-								Value: g.Status.Config.SliceGatewayID,
-							},
-							{
-								Name:  "REMOTE_GATEWAY_ID",
-								Value: g.Status.Config.SliceGatewayRemoteGatewayID,
-							},
-							{
-								Name:  "POD_TYPE",
-								Value: "GATEWAY_POD",
-							},
-							{
-								Name:  "VPN_TYPE",
-								Value: g.Status.Config.SliceGatewayType,
-							},
-							{
-								Name:  "VPN_MODE",
-								Value: "CLIENT",
-							},
-							{
-								Name:  "GW_LOG_LEVEL",
-								Value: os.Getenv("GW_LOG_LEVEL"),
-							},
-							{
-								Name:  "NODE_PORT",
-								Value: strconv.Itoa(remotePortNumber),
-							},
-						},
-						SecurityContext: &corev1.SecurityContext{
-							Privileged:               &privileged,
-							AllowPrivilegeEscalation: &privileged,
-							Capabilities: &corev1.Capabilities{
-								Add: []corev1.Capability{
-									"NET_ADMIN",
-								},
-							},
-						},
-						VolumeMounts: []corev1.VolumeMount{{
-							Name:      "shared-volume",
-							MountPath: "/config",
-						}},
-						Resources: corev1.ResourceRequirements{
-							Limits: corev1.ResourceList{
-								"memory": resource.MustParse("200Mi"),
-								"cpu":    resource.MustParse("500m"),
-							},
-							Requests: corev1.ResourceList{
-								"memory": resource.MustParse("50Mi"),
-								"cpu":    resource.MustParse("50m"),
-							},
-						},
-					}, {
-						Name:            "kubeslice-wireguard-client",
-						Image:           vpnImg,
-						ImagePullPolicy: vpnPullPolicy,
-						Env: []corev1.EnvVar{
-							{
-								Name:  "ADDRESS",
-								Value: fmt.Sprintf("%s%s", g.Status.Config.SliceGatewayLocalVpnIP, "/32"),
-							},
-							{
-								Name:  "PORT",
-								Value: "11194",
-							},
-							{
-								Name:  "ALLOWED_IPS",
-								Value: fmt.Sprintf("%s/32, %s", g.Status.Config.SliceGatewayRemoteVpnIP, g.Status.Config.SliceGatewayRemoteSubnet),
-							},
-							{
-								Name:  "ENDPOINT",
-								Value: fmt.Sprintf("%s:%d", g.Status.Config.SliceGatewayRemoteGatewayID, remotePortNumber),
-							},
-						},
-						SecurityContext: &corev1.SecurityContext{
-							Privileged:               &privileged,
-							AllowPrivilegeEscalation: &privileged,
-							Capabilities: &corev1.Capabilities{
-								Add: []corev1.Capability{
-									"NET_ADMIN",
-								},
-							},
-						},
-						VolumeMounts: []corev1.VolumeMount{
-							{
-								Name:      "shared-volume",
-								MountPath: "/etc/wireguard/privatekey",
-								SubPath:   "privatekey",
-								ReadOnly:  true,
-							},
-							{
-								Name:      "shared-volume",
-								MountPath: "/etc/wireguard/publickey",
-								SubPath:   "publickey",
-								ReadOnly:  true,
-							},
-						},
-					}},
-					Volumes: []corev1.Volume{{
-						Name: "shared-volume",
-						VolumeSource: corev1.VolumeSource{
-							Secret: &corev1.SecretVolumeSource{
-								SecretName:  g.Name + "-" + strconv.Itoa(gwConfigKey),
-								DefaultMode: &vpnSecretDefaultMode,
-								Items: []corev1.KeyToPath{
-									{
-										Key:  "serverPublicKeyWgFile",
-										Path: "publickey",
-									}, {
-										Key:  "clientPrivateKeyWgFile",
-										Path: "privatekey",
-									},
-								},
-							},
-						},
-					}},
-					Tolerations: []corev1.Toleration{{
-						Key:      controllers.NodeTypeSelectorLabelKey,
-						Operator: "Equal",
-						Effect:   "NoSchedule",
-						Value:    "gateway",
-					}, {
-						Key:      controllers.NodeTypeSelectorLabelKey,
-						Operator: "Equal",
-						Effect:   "NoExecute",
-						Value:    "gateway",
-					}},
+			},
+			VolumeMounts: []corev1.VolumeMount{{
+				Name:      "shared-volume",
+				MountPath: "/vpnclient",
+			}},
+		}
+
+	case "Wireguard":
+		vpnImg := "sumon124816/wireguard:client-7"
+		if len(wireguardClientImage) != 0 {
+			vpnImg = wireguardClientImage
+		}
+		vpnPullPolicy := corev1.PullAlways
+		if len(wireguardClientPullPolicy) != 0 {
+			vpnPullPolicy = corev1.PullPolicy(wireguardClientPullPolicy)
+		}
+		return corev1.Container{
+			Name:            "kubeslice-wireguard-client",
+			Image:           vpnImg,
+			ImagePullPolicy: vpnPullPolicy,
+			Env: []corev1.EnvVar{
+				{
+					Name:  "ADDRESS",
+					Value: fmt.Sprintf("%s%s", g.Status.Config.SliceGatewayLocalVpnIP, "/32"),
+				},
+				{
+					Name:  "PORT",
+					Value: "11194",
+				},
+				{
+					Name:  "ALLOWED_IPS",
+					Value: fmt.Sprintf("%s/32, %s", g.Status.Config.SliceGatewayRemoteVpnIP, g.Status.Config.SliceGatewayRemoteSubnet),
+				},
+				{
+					Name:  "ENDPOINT",
+					Value: fmt.Sprintf("%s:%d", g.Status.Config.SliceGatewayRemoteGatewayID, remotePortNumber),
 				},
 			},
-		},
+			SecurityContext: &corev1.SecurityContext{
+				Privileged:               &privileged,
+				AllowPrivilegeEscalation: &privileged,
+				Capabilities: &corev1.Capabilities{
+					Add: []corev1.Capability{
+						"NET_ADMIN",
+					},
+				},
+			},
+			VolumeMounts: []corev1.VolumeMount{
+				{
+					Name:      "shared-volume",
+					MountPath: "/etc/wireguard/privatekey",
+					SubPath:   "privatekey",
+					ReadOnly:  true,
+				},
+				{
+					Name:      "shared-volume",
+					MountPath: "/etc/wireguard/publickey",
+					SubPath:   "publickey",
+					ReadOnly:  true,
+				},
+			},
+		}
+	default:
+		return corev1.Container{}
 	}
-	if len(controllers.ImagePullSecretName) != 0 {
-		dep.Spec.Template.Spec.ImagePullSecrets = []corev1.LocalObjectReference{{
-			Name: controllers.ImagePullSecretName,
-		}}
-	}
-
-	// Set SliceGateway instance as the owner and controller
-	ctrl.SetControllerReference(g, dep, r.Scheme)
-	return dep
 }
 
 func (r *SliceGwReconciler) deploymentForGatewayClient(g *kubeslicev1beta1.SliceGateway, depName string, gwConfigKey int) *appsv1.Deployment {
@@ -908,9 +564,6 @@ func (r *SliceGwReconciler) deploymentForGatewayClient(g *kubeslicev1beta1.Slice
 	sidecarImg := "nexus.dev.aveshalabs.io/kubeslice/gw-sidecar:1.0.0"
 	sidecarPullPolicy := corev1.PullAlways
 
-	vpnImg := "nexus.dev.aveshalabs.io/kubeslice/openvpn-client.alpine.amd64:1.0.0"
-	vpnPullPolicy := corev1.PullAlways
-
 	ls := labelsForSliceGwDeployment(g.Name, g.Spec.SliceName, depName)
 
 	if len(gwSidecarImage) != 0 {
@@ -919,14 +572,6 @@ func (r *SliceGwReconciler) deploymentForGatewayClient(g *kubeslicev1beta1.Slice
 
 	if len(gwSidecarImagePullPolicy) != 0 {
 		sidecarPullPolicy = corev1.PullPolicy(gwSidecarImagePullPolicy)
-	}
-
-	if len(openVpnClientImage) != 0 {
-		vpnImg = openVpnClientImage
-	}
-
-	if len(openVpnClientPullPolicy) != 0 {
-		vpnPullPolicy = corev1.PullPolicy(openVpnClientPullPolicy)
 	}
 
 	nsmAnnotation := fmt.Sprintf("kernel://vl3-service-%s/nsm0", g.Spec.SliceName)
@@ -1064,28 +709,9 @@ func (r *SliceGwReconciler) deploymentForGatewayClient(g *kubeslicev1beta1.Slice
 								"cpu":    resource.MustParse("50m"),
 							},
 						},
-					}, {
-						Name:            "kubeslice-openvpn-client",
-						Image:           vpnImg,
-						ImagePullPolicy: vpnPullPolicy,
-						Command: []string{
-							"/usr/local/bin/waitForConfigToRunCmd.sh",
-						},
-						Args: getOVPNClientContainerArgs(remotePortNumber, g),
-						SecurityContext: &corev1.SecurityContext{
-							Privileged:               &privileged,
-							AllowPrivilegeEscalation: &privileged,
-							Capabilities: &corev1.Capabilities{
-								Add: []corev1.Capability{
-									"NET_ADMIN",
-								},
-							},
-						},
-						VolumeMounts: []corev1.VolumeMount{{
-							Name:      "shared-volume",
-							MountPath: "/vpnclient",
-						}},
-					}},
+					},
+						getClientVpnContainerSpec(g, remotePortNumber),
+					},
 					Volumes: []corev1.Volume{{
 						Name: "shared-volume",
 						VolumeSource: corev1.VolumeSource{
@@ -1096,6 +722,12 @@ func (r *SliceGwReconciler) deploymentForGatewayClient(g *kubeslicev1beta1.Slice
 									{
 										Key:  "ovpnConfigFile",
 										Path: "openvpn_client.ovpn",
+									}, {
+										Key:  "serverPublicKeyWgFile",
+										Path: "publickey",
+									}, {
+										Key:  "clientPrivateKeyWgFile",
+										Path: "privatekey",
 									},
 								},
 							},
