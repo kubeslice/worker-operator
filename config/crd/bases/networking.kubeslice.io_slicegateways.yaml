@@ -130,6 +130,9 @@ spec:
                   sliceGatewaySubnet:
                     description: Slice gateway subnet range.
                     type: string
+                  sliceGatewayType:
+                    description: Slice gateway vpn type
+                    type: string
                   sliceName:
                     description: Name of the slice.
                     type: string
