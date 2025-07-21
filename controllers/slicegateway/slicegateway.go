@@ -204,20 +204,98 @@ func getServerVpnContainerSpec(g *kubeslicev1beta1.SliceGateway) corev1.Containe
 		return corev1.Container{}
 	}
 }
+func getVolumesForGatewayServer(g *kubeslicev1beta1.SliceGateway, gwConfigKey int) []corev1.Volume {
+	var vpnSecretDefaultMode int32 = 420
+	var vpnFilesRestrictedMode int32 = 0644
+
+	switch g.Status.Config.SliceGatewayType {
+	case "OpenVPN":
+		baseFileName := os.Getenv("CLUSTER_NAME") + "-" + g.Spec.SliceName + "-" + g.Status.Config.SliceGatewayName + ".vpn.aveshasystems.com"
+		return []corev1.Volume{
+			{
+				Name: "shared-volume",
+				VolumeSource: corev1.VolumeSource{
+					EmptyDir: &corev1.EmptyDirVolumeSource{},
+				},
+			},
+			{
+				Name: "vpn-certs",
+				VolumeSource: corev1.VolumeSource{
+					Secret: &corev1.SecretVolumeSource{
+						SecretName:  g.Name + "-" + strconv.Itoa(gwConfigKey), // secret contains the vpn config
+						DefaultMode: &vpnSecretDefaultMode,
+						Items: []corev1.KeyToPath{
+							{
+								Key:  "ovpnConfigFile",
+								Path: "openvpn.conf",
+							}, {
+								Key:  "pkiCACertFile",
+								Path: "pki/" + "ca.crt",
+							}, {
+								Key:  "pkiDhPemFile",
+								Path: "pki/" + "dh.pem",
+							}, {
+								Key:  "pkiTAKeyFile",
+								Path: "pki/" + baseFileName + "-" + "ta.key",
+							}, {
+								Key:  "pkiIssuedCertFile",
+								Path: "pki/issued/" + baseFileName + ".crt",
+								Mode: &vpnFilesRestrictedMode,
+							}, {
+								Key:  "pkiPrivateKeyFile",
+								Path: "pki/private/" + baseFileName + ".key",
+								Mode: &vpnFilesRestrictedMode,
+							}, {
+								Key:  "ccdFile",
+								Path: "ccd/" + g.Status.Config.SliceGatewayRemoteGatewayID,
+							},
+						},
+					},
+				},
+			},
+		}
+	case "Wireguard":
+		return []corev1.Volume{
+			{
+				Name: "shared-volume",
+				VolumeSource: corev1.VolumeSource{
+					EmptyDir: &corev1.EmptyDirVolumeSource{},
+				},
+			},
+			{
+				Name: "vpn-certs",
+				VolumeSource: corev1.VolumeSource{
+					Secret: &corev1.SecretVolumeSource{
+						SecretName:  g.Name + "-" + strconv.Itoa(gwConfigKey), // secret contains the vpn config
+						DefaultMode: &vpnSecretDefaultMode,
+						Items: []corev1.KeyToPath{
+							{
+								Key:  "clientPublicKeyWgFile",
+								Path: "publickey",
+							}, {
+								Key:  "serverPrivateKeyWgFile",
+								Path: "privatekey",
+							},
+						},
+					},
+				},
+			},
+		}
+	default:
+		// No volumes for other gateway types
+		return []corev1.Volume{}
+	}
+}
 
 func (r *SliceGwReconciler) deploymentForGatewayServer(g *kubeslicev1beta1.SliceGateway, depName string, gwConfigKey int) *appsv1.Deployment {
 	ls := labelsForSliceGwDeployment(g.Name, g.Spec.SliceName, depName)
 
 	var replicas int32 = 1
 
-	var vpnSecretDefaultMode int32 = 420
-	var vpnFilesRestrictedMode int32 = 0644
-
 	var privileged = true
 
 	sidecarImg := DEFAULT_SIDECAR_IMG
 	sidecarPullPolicy := DEFAULT_SIDECAR_PULLPOLICY
-	baseFileName := os.Getenv("CLUSTER_NAME") + "-" + g.Spec.SliceName + "-" + g.Status.Config.SliceGatewayName + ".vpn.aveshasystems.com"
 
 	if len(gwSidecarImage) != 0 {
 		sidecarImg = gwSidecarImage
@@ -351,55 +429,7 @@ func (r *SliceGwReconciler) deploymentForGatewayServer(g *kubeslicev1beta1.Slice
 					},
 						getServerVpnContainerSpec(g),
 					},
-					Volumes: []corev1.Volume{
-						{
-							Name: "shared-volume",
-							VolumeSource: corev1.VolumeSource{
-								EmptyDir: &corev1.EmptyDirVolumeSource{},
-							},
-						},
-						{
-							Name: "vpn-certs",
-							VolumeSource: corev1.VolumeSource{
-								Secret: &corev1.SecretVolumeSource{
-									SecretName:  g.Name + "-" + strconv.Itoa(gwConfigKey), // secret contains the vpn config
-									DefaultMode: &vpnSecretDefaultMode,
-									Items: []corev1.KeyToPath{
-										{
-											Key:  "ovpnConfigFile",
-											Path: "openvpn.conf",
-										}, {
-											Key:  "pkiCACertFile",
-											Path: "pki/" + "ca.crt",
-										}, {
-											Key:  "pkiDhPemFile",
-											Path: "pki/" + "dh.pem",
-										}, {
-											Key:  "pkiTAKeyFile",
-											Path: "pki/" + baseFileName + "-" + "ta.key",
-										}, {
-											Key:  "pkiIssuedCertFile",
-											Path: "pki/issued/" + baseFileName + ".crt",
-											Mode: &vpnFilesRestrictedMode,
-										}, {
-											Key:  "pkiPrivateKeyFile",
-											Path: "pki/private/" + baseFileName + ".key",
-											Mode: &vpnFilesRestrictedMode,
-										}, {
-											Key:  "ccdFile",
-											Path: "ccd/" + g.Status.Config.SliceGatewayRemoteGatewayID,
-										}, {
-											Key:  "clientPublicKeyWgFile",
-											Path: "publickey",
-										}, {
-											Key:  "serverPrivateKeyWgFile",
-											Path: "privatekey",
-										},
-									},
-								},
-							},
-						},
-					},
+					Volumes: getVolumesForGatewayServer(g, gwConfigKey),
 					Tolerations: []corev1.Toleration{{
 						Key:      controllers.NodeTypeSelectorLabelKey,
 						Operator: "Equal",
@@ -554,12 +584,55 @@ func getClientVpnContainerSpec(g *kubeslicev1beta1.SliceGateway, remotePortNumbe
 	}
 }
 
+func getVolumesForGatewayClient(g *kubeslicev1beta1.SliceGateway, gwConfigKey int) []corev1.Volume {
+	var vpnSecretDefaultMode int32 = 420
+
+	switch g.Status.Config.SliceGatewayType {
+	case "OpenVPN":
+		return []corev1.Volume{{
+			Name: "shared-volume",
+			VolumeSource: corev1.VolumeSource{
+				Secret: &corev1.SecretVolumeSource{
+					SecretName:  g.Name + "-" + strconv.Itoa(gwConfigKey),
+					DefaultMode: &vpnSecretDefaultMode,
+					Items: []corev1.KeyToPath{
+						{
+							Key:  "ovpnConfigFile",
+							Path: "openvpn_client.ovpn",
+						},
+					},
+				},
+			},
+		}}
+	case "Wireguard":
+		return []corev1.Volume{{
+			Name: "shared-volume",
+			VolumeSource: corev1.VolumeSource{
+				Secret: &corev1.SecretVolumeSource{
+					SecretName:  g.Name + "-" + strconv.Itoa(gwConfigKey),
+					DefaultMode: &vpnSecretDefaultMode,
+					Items: []corev1.KeyToPath{
+						{
+							Key:  "serverPublicKeyWgFile",
+							Path: "publickey",
+						}, {
+							Key:  "clientPrivateKeyWgFile",
+							Path: "privatekey",
+						},
+					},
+				},
+			},
+		}}
+	default:
+		// No volumes for other gateway types
+		return []corev1.Volume{}
+	}
+}
+
 func (r *SliceGwReconciler) deploymentForGatewayClient(g *kubeslicev1beta1.SliceGateway, depName string, gwConfigKey int) *appsv1.Deployment {
 	log := logger.FromContext(context.Background()).WithValues("type", "slicegateway")
 	var replicas int32 = 1
 	var privileged = true
-
-	var vpnSecretDefaultMode int32 = 0644
 
 	sidecarImg := "nexus.dev.aveshalabs.io/kubeslice/gw-sidecar:1.0.0"
 	sidecarPullPolicy := corev1.PullAlways
@@ -712,27 +785,7 @@ func (r *SliceGwReconciler) deploymentForGatewayClient(g *kubeslicev1beta1.Slice
 					},
 						getClientVpnContainerSpec(g, remotePortNumber),
 					},
-					Volumes: []corev1.Volume{{
-						Name: "shared-volume",
-						VolumeSource: corev1.VolumeSource{
-							Secret: &corev1.SecretVolumeSource{
-								SecretName:  g.Name + "-" + strconv.Itoa(gwConfigKey),
-								DefaultMode: &vpnSecretDefaultMode,
-								Items: []corev1.KeyToPath{
-									{
-										Key:  "ovpnConfigFile",
-										Path: "openvpn_client.ovpn",
-									}, {
-										Key:  "serverPublicKeyWgFile",
-										Path: "publickey",
-									}, {
-										Key:  "clientPrivateKeyWgFile",
-										Path: "privatekey",
-									},
-								},
-							},
-						},
-					}},
+					Volumes: getVolumesForGatewayClient(g, gwConfigKey),
 					Tolerations: []corev1.Toleration{{
 						Key:      controllers.NodeTypeSelectorLabelKey,
 						Operator: "Equal",
