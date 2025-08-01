@@ -132,6 +132,9 @@ spec:
                     type: string
                   sliceGatewayType:
                     description: Slice gateway vpn type
+                    enum:
+                    - OpenVPN
+                    - Wireguard
                     type: string
                   sliceName:
                     description: Name of the slice.

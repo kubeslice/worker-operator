@@ -386,7 +386,7 @@ func (r *SliceGwReconciler) deploymentForGatewayServer(g *kubeslicev1beta1.Slice
 							},
 							{
 								Name:  "VPN_TYPE",
-								Value: g.Status.Config.SliceGatewayType,
+								Value: string(g.Status.Config.SliceGatewayType),
 							},
 							{
 								Name:  "VPN_MODE",
@@ -748,7 +748,7 @@ func (r *SliceGwReconciler) deploymentForGatewayClient(g *kubeslicev1beta1.Slice
 							},
 							{
 								Name:  "VPN_TYPE",
-								Value: g.Status.Config.SliceGatewayType,
+								Value: string(g.Status.Config.SliceGatewayType),
 							},
 							{
 								Name:  "GW_LOG_LEVEL",
