@@ -71,6 +71,13 @@ type SliceGwReconciler struct {
 	NumberOfGateways int
 }
 
+func getRequeueDuration(res ctrl.Result) time.Duration {
+	if res.RequeueAfter == 0 {
+		return controllers.SliceGatewayReconcileInterval
+	}
+	return res.RequeueAfter
+}
+
 //+kubebuilder:rbac:groups=networking.kubeslice.io,resources=slicegateways,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=networking.kubeslice.io,resources=slicegateways/finalizers,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=networking.kubeslice.io,resources=slicegateways/status,verbs=get;update;patch
@@ -158,7 +165,11 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 			return ctrl.Result{}, err
 		}
 		if requeue {
-			return res, err
+			// Just setting the res.Requeue bool to true will not trigger the requeue
+			// so we need to set the res.RequeueAfter to a non-zero value.
+			// The res.Requeue field is deprecated and we should always use res.RequeueAfter instead.
+			res.RequeueAfter = getRequeueDuration(res)
+			return res, nil
 		}
 
 		res, err, requeue = r.ReconcileGatewayServices(ctx, sliceGw)
@@ -166,7 +177,8 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 			return ctrl.Result{}, err
 		}
 		if requeue {
-			return res, err
+			res.RequeueAfter = getRequeueDuration(res)
+			return res, nil
 		}
 
 		sliceGwNodePorts, err = r.getNodePorts(ctx, sliceGw)
@@ -192,8 +204,12 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 
 		//create an endpoint if not exists
 		requeue, res, err := r.reconcileGatewayEndpoint(ctx, sliceGw)
+		if err != nil {
+			return ctrl.Result{}, err
+		}
 		if requeue {
-			return res, err
+			res.RequeueAfter = getRequeueDuration(res)
+			return res, nil
 		}
 
 		res, err, requeue = r.ReconcileGatewayDeployments(ctx, sliceGw)
@@ -201,7 +217,8 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 			return ctrl.Result{}, err
 		}
 		if requeue {
-			return res, err
+			res.RequeueAfter = getRequeueDuration(res)
+			return res, nil
 		}
 
 		sliceGwNodePorts = sliceGw.Status.Config.SliceGatewayRemoteNodePorts
@@ -217,7 +234,8 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		return ctrl.Result{}, err
 	}
 	if requeue {
-		return res, err
+		res.RequeueAfter = getRequeueDuration(res)
+		return res, nil
 	}
 
 	//fetch netop pods
@@ -235,6 +253,7 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		return ctrl.Result{}, err
 	}
 	if requeue {
+		res.RequeueAfter = getRequeueDuration(res)
 		return res, nil
 	}
 
@@ -246,6 +265,7 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		return ctrl.Result{}, err
 	}
 	if requeue {
+		res.RequeueAfter = getRequeueDuration(res)
 		return res, nil
 	}
 
@@ -257,6 +277,7 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		return ctrl.Result{}, err
 	}
 	if requeue {
+		res.RequeueAfter = getRequeueDuration(res)
 		return res, nil
 	}
 

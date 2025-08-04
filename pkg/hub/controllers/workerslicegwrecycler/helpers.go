@@ -162,6 +162,10 @@ func (r *Reconciler) TriggerGwDeploymentDeletion(ctx context.Context, sliceName,
 		if depLabels == nil {
 			depLabels = make(map[string]string)
 		}
+		if _, ok := depLabels["kubeslice.io/marked-for-deletion"]; ok {
+			log.Info("Deployment already marked for deletion", "deployment", depName)
+			return nil
+		}
 		depLabels["kubeslice.io/marked-for-deletion"] = "true"
 
 		depToDelete.ObjectMeta.Labels = depLabels
@@ -172,13 +176,14 @@ func (r *Reconciler) TriggerGwDeploymentDeletion(ctx context.Context, sliceName,
 		return err
 	}
 
-	// Trigger slicegateway controller to create a new intermediate deployment.
+	// Update the slicegw status to remove the intermediate deployment.
 	err = retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		sliceGw := kubeslicev1beta1.SliceGateway{}
 		err := r.MeshClient.Get(ctx, types.NamespacedName{Namespace: "kubeslice-system", Name: sliceGwName}, &sliceGw)
 		if err != nil {
 			return err
 		}
+		updateNeeded := false
 		intermediateDeployments := sliceGw.Status.Config.SliceGatewayIntermediateDeployments
 		for i, intrmDep := range sliceGw.Status.Config.SliceGatewayIntermediateDeployments {
 			if intrmDep == newDepName {
@@ -187,12 +192,17 @@ func (r *Reconciler) TriggerGwDeploymentDeletion(ctx context.Context, sliceName,
 				} else {
 					intermediateDeployments = append(intermediateDeployments[:i], intermediateDeployments[i+1:]...)
 				}
+				updateNeeded = true
 				break
 			}
 		}
-		sliceGw.Status.Config.SliceGatewayIntermediateDeployments = intermediateDeployments
-		log.Info("Updating slicegw status:", "Deleted dep from interim list:", newDepName)
-		return r.MeshClient.Status().Update(ctx, &sliceGw)
+		if updateNeeded {
+			sliceGw.Status.Config.SliceGatewayIntermediateDeployments = intermediateDeployments
+			log.Info("Updating slicegw status:", "Deleted dep from interim list:", newDepName)
+			return r.MeshClient.Status().Update(ctx, &sliceGw)
+		}
+		log.Info("Intermediate deployment update not needed for slicegw status", "deployment", depName)
+		return nil
 	})
 	if err != nil {
 		return err
