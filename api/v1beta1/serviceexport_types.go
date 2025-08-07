@@ -21,6 +21,7 @@ package v1beta1
 import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	gatewayapi "sigs.k8s.io/gateway-api/apis/v1"
 )
 
@@ -136,6 +137,7 @@ type ServiceExportStatus struct {
 // +kubebuilder:printcolumn:name="Status",type=string,JSONPath=`.status.exportStatus`
 // +kubebuilder:printcolumn:name="Alias",type=string,JSONPath=`.spec.aliases`
 // +kubebuilder:resource:path=serviceexports,singular=serviceexport,shortName=svcex
+// +kubebuilder:webhook:path=/validate-webhook,mutating=false,failurePolicy=fail,sideEffects=None,groups=networking.kubeslice.io,resources=serviceexports,verbs=create;update,versions=v1beta1,name=vserviceexport.networking.kubeslice.io,admissionReviewVersions=v1
 
 // ServiceExport is the Schema for the serviceexports API
 type ServiceExport struct {
@@ -157,4 +159,19 @@ type ServiceExportList struct {
 
 func init() {
 	SchemeBuilder.Register(&ServiceExport{}, &ServiceExportList{})
+}
+
+// ValidateCreate implements webhook.Validator so a webhook will be registered for the type
+func (r *ServiceExport) ValidateCreate() error {
+	return nil
+}
+
+// ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
+func (r *ServiceExport) ValidateUpdate(old runtime.Object) error {
+	return nil
+}
+
+// ValidateDelete implements webhook.Validator so a webhook will be registered for the type
+func (r *ServiceExport) ValidateDelete() error {
+	return nil
 }
