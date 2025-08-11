@@ -1059,7 +1059,6 @@ func (r *SliceGwReconciler) gwPodPlacementIsSkewed(ctx context.Context, sliceGw 
 	labels := map[string]string{controllers.PodTypeSelectorLabelKey: "slicegateway", "kubeslice.io/slice-gw": sliceGw.Name}
 	listOptions := []client.ListOption{
 		client.MatchingLabels(labels),
-		client.MatchingFields{"status.phase": "Running"},
 	}
 	err := r.Client.List(ctx, &podList, listOptions...)
 	if err != nil {
@@ -1067,7 +1066,15 @@ func (r *SliceGwReconciler) gwPodPlacementIsSkewed(ctx context.Context, sliceGw 
 		return false, "", "", err
 	}
 
-	podCount := len(podList.Items)
+	// Filter pods that are in running state
+	var runningPods []corev1.Pod
+	for _, pod := range podList.Items {
+		if pod.Status.Phase == corev1.PodRunning {
+			runningPods = append(runningPods, pod)
+		}
+	}
+
+	podCount := len(runningPods)
 
 	numGwInstances := r.NumberOfGateways
 	if isClient(sliceGw) {
@@ -1098,7 +1105,7 @@ func (r *SliceGwReconciler) gwPodPlacementIsSkewed(ctx context.Context, sliceGw 
 	desiredNumPodsPerNode := int(math.Ceil(float64(podCount) / float64(nodeCount)))
 	nodeToPodMap := make(map[string][]corev1.Pod)
 
-	for _, pod := range podList.Items {
+	for _, pod := range runningPods {
 		nodeToPodMap[pod.Spec.NodeName] = append(nodeToPodMap[pod.Spec.NodeName], pod)
 	}
 
