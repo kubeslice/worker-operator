@@ -115,7 +115,8 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req reconcile.Request
 		meshSliceGw.Status.Config.SliceGatewayRemoteGatewayID != sliceGw.Spec.RemoteGatewayConfig.GatewayName ||
 		meshSliceGw.Status.Config.SliceGatewayName != strconv.Itoa(sliceGw.Spec.GatewayNumber) ||
 		meshSliceGw.Status.Config.SliceGatewayConnectivityType != sliceGw.Spec.GatewayConnectivityType ||
-		meshSliceGw.Status.Config.SliceGatewayProtocol != sliceGw.Spec.GatewayProtocol {
+		meshSliceGw.Status.Config.SliceGatewayProtocol != sliceGw.Spec.GatewayProtocol ||
+		meshSliceGw.Status.Config.SliceGatewayType != sliceGw.Spec.GatewayType {
 		toUpdate = true
 	}
 	// If no change in static fields, check the dynamic fields
@@ -160,6 +161,7 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req reconcile.Request
 				SliceGatewayLocalVpnIP:              sliceGw.Spec.LocalGatewayConfig.VpnIp,
 				SliceGatewayRemoteVpnIP:             sliceGw.Spec.RemoteGatewayConfig.VpnIp,
 				SliceGatewayName:                    strconv.Itoa(sliceGw.Spec.GatewayNumber),
+				SliceGatewayType:                    sliceGw.Spec.GatewayType,
 				SliceGatewayIntermediateDeployments: meshSliceGw.Status.Config.SliceGatewayIntermediateDeployments,
 				SliceGatewayConnectivityType:        sliceGw.Spec.GatewayConnectivityType,
 				SliceGatewayProtocol:                sliceGw.Spec.GatewayProtocol,
