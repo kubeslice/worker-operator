@@ -1675,6 +1675,9 @@ func (r *SliceGwReconciler) ReconcileGatewayDeployments(ctx context.Context, sli
 	// Reconcile deployment to node port mapping for gw client deployments
 	if isClient(sliceGw) {
 		for _, deployment := range deployments.Items {
+			if deployment.Labels["kubeslice.io/marked-for-deletion"] == "true" {
+				continue
+			}
 			found, nodePortInUse := getClientGwRemotePortInUse(ctx, r.Client, sliceGw, deployment.Name)
 			if found {
 				// Check if the portInUse is valid.
