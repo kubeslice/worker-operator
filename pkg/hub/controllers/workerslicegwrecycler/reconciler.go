@@ -320,6 +320,15 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			}, nil
 
 		case ST_old_deployment_deleted:
+			// Delete the server deployment only after the client deployment is deleted.
+			// Check if the deployment was deleted on the client side
+			if getResponseIndex(workerslicegwrecycler.Status.Client.Response) < RESP_old_deployment_deleted {
+				log.Info("Waiting for the deployment to be deleted on the client side")
+				return ctrl.Result{
+					RequeueAfter: 10 * time.Second,
+				}, nil
+			}
+
 			err := r.TriggerGwDeploymentDeletion(ctx, slicegw.Spec.SliceName, slicegw.Name, workerslicegwrecycler.Spec.GwPair.ServerID,
 				getNewDeploymentName(workerslicegwrecycler.Spec.GwPair.ServerID))
 			if err != nil {
@@ -330,14 +339,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 
 			// Check if the deployment was deleted
 			if r.CheckIfDeploymentIsPresent(ctx, workerslicegwrecycler.Spec.GwPair.ServerID, slicegw.Spec.SliceName, slicegw.Name) {
-				return ctrl.Result{
-					RequeueAfter: 10 * time.Second,
-				}, nil
-			}
-
-			// Check if the deployment was deleted on the client side
-			if getResponseIndex(workerslicegwrecycler.Status.Client.Response) < RESP_old_deployment_deleted {
-				log.Info("Waiting for the deployment to be deleted on the client side")
 				return ctrl.Result{
 					RequeueAfter: 10 * time.Second,
 				}, nil
