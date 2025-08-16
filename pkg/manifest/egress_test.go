@@ -104,6 +104,29 @@ var _ = Describe("Egress Manifest", func() {
 
 			err := manifest.InstallEgress(ctx, fakeClient, slice)
 			Expect(err).NotTo(HaveOccurred())
+
+			deploy := &appsv1.Deployment{}
+			err = fakeClient.Get(ctx, types.NamespacedName{
+				Name:      "green-istio-egressgateway",
+				Namespace: "kubeslice-system",
+			}, deploy)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(deploy.Spec.Template.Spec.Containers[0].Image).To(Equal(customImage))
+		})
+
+		It("Should use default image when no environment variable is set", func() {
+			os.Unsetenv("AVESHA_ISTIO_PROXY_IMAGE")
+
+			err := manifest.InstallEgress(ctx, fakeClient, slice)
+			Expect(err).NotTo(HaveOccurred())
+
+			deploy := &appsv1.Deployment{}
+			err = fakeClient.Get(ctx, types.NamespacedName{
+				Name:      "green-istio-egressgateway",
+				Namespace: "kubeslice-system",
+			}, deploy)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(deploy.Spec.Template.Spec.Containers[0].Image).To(Equal(manifest.ISTIO_PROXY_DEFAULT_IMAGE))
 		})
 
 		It("Should handle already existing resources gracefully", func() {
