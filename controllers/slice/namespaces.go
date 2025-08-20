@@ -696,7 +696,9 @@ func (r *SliceReconciler) reconcileSliceNetworkPolicy(ctx context.Context, slice
 	policiesInstalled := successfulNamespaces > 0
 	if slice.Status.NetworkPoliciesInstalled != policiesInstalled {
 		slice.Status.NetworkPoliciesInstalled = policiesInstalled
-		return r.Status().Update(ctx, slice)
+		if err := r.Status().Update(ctx, slice); err != nil {
+			return err
+		}
 	}
 
 	if len(errors) > 0 {
