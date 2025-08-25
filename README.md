@@ -159,8 +159,6 @@ For more information, see [deregister the worker cluster](https://kubeslice.io/d
 
 ```console
 helm uninstall kubeslice-worker -n kubeslice-system
-
-###
  ```
 
 ## License
