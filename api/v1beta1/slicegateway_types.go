@@ -19,6 +19,7 @@
 package v1beta1
 
 import (
+	controllerv1alpha1 "github.com/kubeslice/apis/pkg/controller/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -43,6 +44,8 @@ type SliceGatewayConfig struct {
 	SliceName string `json:"sliceName,omitempty"`
 	// Slice gateway subnet range.
 	SliceSiteName string `json:"sliceSiteName,omitempty"`
+	// Slice gateway vpn type
+	SliceGatewayType controllerv1alpha1.SliceGatewayType `json:"sliceGatewayType,omitempty"`
 	// Slice gateway subnet range.
 	SliceGatewaySubnet string `json:"sliceGatewaySubnet,omitempty"`
 	// SliceGateway status
