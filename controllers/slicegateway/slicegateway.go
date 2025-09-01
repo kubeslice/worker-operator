@@ -150,7 +150,7 @@ func getServerVpnContainerSpec(g *kubeslicev1beta1.SliceGateway) corev1.Containe
 		}
 
 	case "Wireguard":
-		vpnImg := "sumon124816/wireguard:server-7"
+		vpnImg := "aveshasystems/wireguard-server.alpine:1.0.0"
 		if len(wireguardServerImage) != 0 {
 			vpnImg = wireguardServerImage
 		}
@@ -525,7 +525,7 @@ func getClientVpnContainerSpec(g *kubeslicev1beta1.SliceGateway, remotePortNumbe
 		}
 
 	case "Wireguard":
-		vpnImg := "sumon124816/wireguard:client-7"
+		vpnImg := "aveshasystems/wireguard-client.alpine:1.0.0"
 		if len(wireguardClientImage) != 0 {
 			vpnImg = wireguardClientImage
 		}
