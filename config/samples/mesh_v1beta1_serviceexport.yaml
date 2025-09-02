@@ -1,7 +1,15 @@
-apiVersion: mesh.avesha.io/v1beta1
+apiVersion: networking.kubeslice.io/v1beta1
 kind: ServiceExport
 metadata:
   name: serviceexport-sample
+  namespace: app-namespace
 spec:
-  # Add fields here
-  foo: bar
+  slice: test-slice
+  selector:
+    matchLabels:
+      app: nginx
+  ports:
+  - name: http
+    containerPort: 80
+    protocol: TCP
+    servicePort: 80
