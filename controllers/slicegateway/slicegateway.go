@@ -187,13 +187,13 @@ func getServerVpnContainerSpec(g *kubeslicev1beta1.SliceGateway) corev1.Containe
 			},
 			VolumeMounts: []corev1.VolumeMount{
 				{
-					Name:      "shared-volume",
+					Name:      "vpn-certs",
 					MountPath: "/etc/wireguard/privatekey",
 					SubPath:   "privatekey",
 					ReadOnly:  true,
 				},
 				{
-					Name:      "shared-volume",
+					Name:      "vpn-certs",
 					MountPath: "/etc/wireguard/publickey",
 					SubPath:   "publickey",
 					ReadOnly:  true,
@@ -1628,6 +1628,19 @@ func (r *SliceGwReconciler) ReconcileGatewayDeployments(ctx context.Context, sli
 
 	for gwInstance := 0; gwInstance < numGwInstances; gwInstance++ {
 		if !gwDeploymentIsPresent(sliceGwName, gwInstance, deployments) {
+			// Check if the required secret exists before creating deployment
+			secretName := sliceGwName + "-" + strconv.Itoa(gwConfigKey)
+			secret := &corev1.Secret{}
+			err := r.Get(ctx, types.NamespacedName{Name: secretName, Namespace: sliceGw.Namespace}, secret)
+			if err != nil {
+				if apierrors.IsNotFound(err) {
+					log.Info("Secret not found, waiting for secret to be created", "secretName", secretName)
+					return ctrl.Result{RequeueAfter: 5 * time.Second}, nil, true
+				}
+				log.Error(err, "Failed to get secret", "secretName", secretName)
+				return ctrl.Result{}, err, true
+			}
+
 			dep := r.deploymentForGateway(sliceGw, sliceGwName+"-"+fmt.Sprint(gwInstance)+"-"+"0", gwConfigKey)
 			log.Info("Creating a new Deployment", "Namespace", dep.Namespace, "Name", dep.Name)
 			err = r.Create(ctx, dep)
@@ -1767,6 +1780,19 @@ func (r *SliceGwReconciler) createIntermediateGatewayDeployment(ctx context.Cont
 	gwConfigKey := 1
 	if vpnKeyRotation != nil {
 		gwConfigKey = vpnKeyRotation.Spec.RotationCount
+	}
+
+	// Check if the required secret exists before creating deployment
+	secretName := sliceGw.Name + "-" + strconv.Itoa(gwConfigKey)
+	secret := &corev1.Secret{}
+	err = r.Get(ctx, types.NamespacedName{Name: secretName, Namespace: sliceGw.Namespace}, secret)
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			log.Info("Secret not found, waiting for secret to be created", "secretName", secretName)
+			return fmt.Errorf("secret %s not found, will retry", secretName)
+		}
+		log.Error(err, "Failed to get secret", "secretName", secretName)
+		return err
 	}
 
 	dep := r.deploymentForGateway(sliceGw, depToCreate, gwConfigKey)
