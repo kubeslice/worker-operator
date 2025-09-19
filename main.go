@@ -71,6 +71,8 @@ import (
 	"github.com/kubeslice/worker-operator/pkg/networkpolicy"
 	"github.com/kubeslice/worker-operator/pkg/utils"
 	podwh "github.com/kubeslice/worker-operator/pkg/webhook/pod"
+	svcexportwh "github.com/kubeslice/worker-operator/pkg/webhook/serviceexport"
+	unified "github.com/kubeslice/worker-operator/pkg/webhook"
 	//+kubebuilder:scaffold:imports
 )
 
@@ -133,18 +135,30 @@ func main() {
 
 	// Use an environment variable to be able to disable webhooks, so that we can run the operator locally
 	if utils.GetEnvOrDefault("ENABLE_WEBHOOKS", "true") == "true" {
+		podWebhook := &podwh.WebhookServer{
+			Client:          mgr.GetClient(),
+			SliceInfoClient: podwh.NewWebhookClient(),
+			Decoder:         admission.NewDecoder(mgr.GetScheme()),
+		}
+		serviceExportWebhook := &svcexportwh.ServiceExportValidator{
+			Client:  mgr.GetClient(),
+			Decoder: admission.NewDecoder(mgr.GetScheme()),
+		}
+		
 		mgr.GetWebhookServer().Register("/mutate-webhook", &webhook.Admission{
-			Handler: &podwh.WebhookServer{
-				Client:          mgr.GetClient(),
-				SliceInfoClient: podwh.NewWebhookClient(),
-				Decoder:         admission.NewDecoder(mgr.GetScheme()),
+			Handler: &unified.UnifiedWebhookHandler{
+				Client:               mgr.GetClient(),
+				Decoder:              admission.NewDecoder(mgr.GetScheme()),
+				PodWebhook:           podWebhook,
+				ServiceExportWebhook: serviceExportWebhook,
 			},
 		})
 		mgr.GetWebhookServer().Register("/validate-webhook", &webhook.Admission{
-			Handler: &podwh.WebhookServer{
-				Client:          mgr.GetClient(),
-				SliceInfoClient: podwh.NewWebhookClient(),
-				Decoder:         admission.NewDecoder(mgr.GetScheme()),
+			Handler: &unified.UnifiedWebhookHandler{
+				Client:               mgr.GetClient(),
+				Decoder:              admission.NewDecoder(mgr.GetScheme()),
+				PodWebhook:           podWebhook,
+				ServiceExportWebhook: serviceExportWebhook,
 			},
 		})
 	}
