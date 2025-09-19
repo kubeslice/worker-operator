@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 FROM golang:1.23.3 AS builder
+=======
+FROM golang:1.24.0 AS builder
+>>>>>>> b6bcef51 (Fix: Update Go version in test.Dockerfile)
 
 WORKDIR /workspace
 # Copy the Go Modules manifests
