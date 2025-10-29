@@ -91,6 +91,16 @@ fmt: ## Run go fmt against code.
 vet: ## Run go vet against code.
 	go vet ./...
 
+.PHONY: e2e-test
+e2e-test: ## Run end-to-end tests located in the ./e2e directory.
+	@echo " Running E2E tests..."
+	@if ! command -v ginkgo &> /dev/null; then \
+		echo " Installing Ginkgo..."; \
+		go install github.com/onsi/ginkgo/v2/ginkgo@latest; \
+	fi
+	@echo " Using Ginkgo binary at: $$(go env GOPATH)/bin/ginkgo"
+	$$(go env GOPATH)/bin/ginkgo run --v --randomize-all --fail-fast --timeout=15m ./e2e
+
 .PHONY: test
 test:   fmt vet envtest ## Run tests.
 	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) -p path)" go test -v -coverprofile=coverage.out -coverpkg ./... ./...
