@@ -22,16 +22,17 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
+	"strconv"
+	"strings"
+	"sync"
+
 	gwsidecarpb "github.com/kubeslice/gateway-sidecar/pkg/sidecar/sidecarpb"
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
 	"github.com/kubeslice/worker-operator/controllers"
 	ossEvents "github.com/kubeslice/worker-operator/events"
 	"github.com/kubeslice/worker-operator/pkg/utils"
 	webhook "github.com/kubeslice/worker-operator/pkg/webhook/pod"
-	"os"
-	"strconv"
-	"strings"
-	"sync"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -174,13 +175,58 @@ func isPodPresentInPodList(podList *corev1.PodList, podName string) bool {
 	return false
 }
 
-// Helper function to find existing GwPodInfo by name in the status
+// findGwPodInfo finds existing GwPodInfo by pod name in the gateway status.
 func findGwPodInfo(gwPodStatus []*kubeslicev1beta1.GwPodInfo, podName string) *kubeslicev1beta1.GwPodInfo {
 	for _, gwPod := range gwPodStatus {
-		if gwPod.PodName == podName {
+		if gwPod != nil && gwPod.PodName == podName {
 			return gwPod
 		}
 	}
+	return nil
+}
+
+// ValidateGatewayPodReadiness checks if a gateway pod is ready for FSM trigger.
+// This includes validating:
+// 1. Pod exists in gateway status
+// 2. Tunnel is UP and operational
+// 3. TUN interface is created and configured
+// 4. Peer pod information is available
+//
+// Returns an error with specific message patterns that callers can check
+// to determine if the error is transient (should retry).
+func ValidateGatewayPodReadiness(sliceGw *kubeslicev1beta1.SliceGateway, podName string) error {
+	if sliceGw == nil {
+		return fmt.Errorf("sliceGw is nil")
+	}
+
+	// Check 1: Find pod info in status
+	podInfo := findGwPodInfo(sliceGw.Status.GatewayPodStatus, podName)
+	if podInfo == nil {
+		return fmt.Errorf("pod %s not found in gateway status", podName)
+	}
+
+	// Check 2: Validate tunnel status is UP
+	if podInfo.TunnelStatus.Status != int32(gwsidecarpb.TunnelStatusType_GW_TUNNEL_STATE_UP) {
+		return fmt.Errorf("tunnel not up for pod %s, current status: %d", podName, podInfo.TunnelStatus.Status)
+	}
+
+	// Check 3: Validate TUN interface is configured
+	if podInfo.TunnelStatus.IntfName == "" {
+		return fmt.Errorf("tunnel interface name not set for pod %s", podName)
+	}
+
+	// Check 4: Validate tunnel has local and remote IPs
+	if podInfo.TunnelStatus.LocalIP == "" || podInfo.TunnelStatus.RemoteIP == "" {
+		return fmt.Errorf("tunnel IPs not configured for pod %s (local: %s, remote: %s)",
+			podName, podInfo.TunnelStatus.LocalIP, podInfo.TunnelStatus.RemoteIP)
+	}
+
+	// Check 5: Validate peer pod information is available
+	if podInfo.PeerPodName == "" {
+		return fmt.Errorf("peer pod name not available for pod %s", podName)
+	}
+
+	// All checks passed - pod is ready
 	return nil
 }
 
@@ -204,13 +250,13 @@ func getPodPairToRebalance(podsOnNode []corev1.Pod, sliceGw *kubeslicev1beta1.Sl
 func GetPeerGwPodName(gwPodName string, sliceGw *kubeslicev1beta1.SliceGateway) (string, error) {
 	podInfo := findGwPodInfo(sliceGw.Status.GatewayPodStatus, gwPodName)
 	if podInfo == nil {
-		return "", errors.New("Gw pod not found")
+		return "", fmt.Errorf("gw pod %s not found in status", gwPodName)
 	}
 	if podInfo.TunnelStatus.Status != int32(gwsidecarpb.TunnelStatusType_GW_TUNNEL_STATE_UP) {
-		return "", errors.New("Gw tunnel is down")
+		return "", fmt.Errorf("gw tunnel is down for pod %s, current status: %d", gwPodName, podInfo.TunnelStatus.Status)
 	}
 	if podInfo.PeerPodName == "" {
-		return "", errors.New("Gw peer pod info unavailable")
+		return "", fmt.Errorf("gw peer pod info unavailable for pod %s", gwPodName)
 	}
 
 	return podInfo.PeerPodName, nil

@@ -156,7 +156,38 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (ctrl
 						log.Error(err, "err listing gw pods")
 						return ctrl.Result{}, err
 					}
-					// trigger FSM for all the gateway pods before updating the status and timestamp
+
+					// STEP 1: Validate all gateway pods are ready before triggering FSM
+					log.Info("Validating gateway pod readiness before FSM trigger",
+						"gateway", selectedGw,
+						"podCount", len(podsUnderGw.Items))
+
+					for _, pod := range podsUnderGw.Items {
+						if err := slicegateway.ValidateGatewayPodReadiness(sliceGw, pod.Name); err != nil {
+							errMsg := err.Error()
+							// Check for transient errors that should trigger a requeue
+							if strings.Contains(errMsg, "not found in gateway status") {
+								log.Info("Gateway pod status not yet populated, requeueing", "pod", pod.Name)
+								return ctrl.Result{RequeueAfter: 5 * time.Second}, nil
+							}
+							if strings.Contains(errMsg, "tunnel not up") || strings.Contains(errMsg, "tunnel interface name not set") {
+								log.Info("Waiting for tunnel to come up, requeueing", "pod", pod.Name)
+								return ctrl.Result{RequeueAfter: 10 * time.Second}, nil
+							}
+							if strings.Contains(errMsg, "tunnel IPs not configured") || strings.Contains(errMsg, "peer pod name not available") {
+								log.Info("Waiting for tunnel configuration, requeueing", "pod", pod.Name)
+								return ctrl.Result{RequeueAfter: 5 * time.Second}, nil
+							}
+							log.Error(err, "Failed to validate gateway pod readiness", "pod", pod.Name)
+							return ctrl.Result{}, err
+						}
+					}
+
+					log.Info("All gateway pods validated and ready for FSM trigger",
+						"gateway", selectedGw,
+						"podCount", len(podsUnderGw.Items))
+
+					// STEP 2: trigger FSM for all the gateway pods before updating the status and timestamp
 					for _, v := range podsUnderGw.Items {
 						// trigger FSM to recylce both gateway pod pairs
 						slice, err := controllers.GetSlice(ctx, r.WorkerClient, sliceName)
@@ -167,18 +198,60 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (ctrl
 
 						peerPodName, err := slicegateway.GetPeerGwPodName(v.Name, sliceGw)
 						if err != nil {
+							// Wrap transient errors as retryable
+							errMsg := err.Error()
+							if strings.Contains(errMsg, "not found in status") {
+								log.Info("Gateway pod status not yet populated, requeueing", "pod", v.Name)
+								return ctrl.Result{RequeueAfter: 5 * time.Second}, nil
+							}
+							if strings.Contains(errMsg, "tunnel is down") {
+								log.Info("Waiting for tunnel to come up, requeueing", "pod", v.Name)
+								return ctrl.Result{RequeueAfter: 10 * time.Second}, nil
+							}
+							if strings.Contains(errMsg, "peer pod info unavailable") {
+								log.Info("Peer pod information not yet synchronized, requeueing", "pod", v.Name)
+								return ctrl.Result{RequeueAfter: 5 * time.Second}, nil
+							}
 							log.Error(err, "Failed to get peer pod name for gw pod", "pod", v.Name)
 							return ctrl.Result{}, err
 						}
 
 						serverID := slicegateway.GetDepNameFromPodName(sliceGw.Status.Config.SliceGatewayID, v.Name)
 						clientID := slicegateway.GetDepNameFromPodName(sliceGw.Status.Config.SliceGatewayRemoteGatewayID, peerPodName)
-						// using pod name as a unique identifier
-						err = r.WorkerRecyclerClient.TriggerFSM(sliceGw, slice, serverID, clientID, controllerName)
+
+						// STEP 2b: Trigger FSM with retry on transient errors
+						err = retry.OnError(
+							retry.DefaultRetry, // Uses exponential backoff
+							func(err error) bool {
+								// Retry on specific transient errors
+								if err == nil {
+									return false
+								}
+								errStr := err.Error()
+								return apierrors.IsTimeout(err) ||
+									apierrors.IsServerTimeout(err) ||
+									apierrors.IsServiceUnavailable(err) ||
+									strings.Contains(errStr, "connection refused") ||
+									strings.Contains(errStr, "i/o timeout") ||
+									strings.Contains(errStr, "deadline exceeded")
+							},
+							func() error {
+								return r.WorkerRecyclerClient.TriggerFSM(sliceGw, slice, serverID, clientID, controllerName)
+							},
+						)
 						if err != nil {
-							log.Error(err, "Err(): triggering FSM")
-							return ctrl.Result{}, err
+							log.Error(err, "Err(): triggering FSM after retries",
+								"pod", v.Name,
+								"serverID", serverID,
+								"clientID", clientID)
+							// Return with requeue instead of failing permanently
+							return ctrl.Result{RequeueAfter: 30 * time.Second}, err
 						}
+
+						log.Info("Successfully triggered FSM for gateway pod",
+							"pod", v.Name,
+							"serverID", serverID,
+							"clientID", clientID)
 					}
 					utils.RecordEvent(ctx, r.EventRecorder, vpnKeyRotation, nil, ossEvents.EventTriggeredFSMToRecycleGateways, controllerName)
 					// update the last Updated Timestamp so even if it requeues the rotation Time Diff will not be greater than 0
