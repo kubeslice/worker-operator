@@ -19,6 +19,7 @@ package namespace
 
 import (
 	"context"
+	"strings"
 
 	"github.com/go-logr/logr"
 	"github.com/kubeslice/kubeslice-monitoring/pkg/events"
@@ -48,8 +49,7 @@ type Reconciler struct {
 	Hubclient     *hub.HubClientConfig
 }
 
-var excludedNs = []string{"kube-system", "default", "kubeslice-system", "kube-node-lease",
-	"kube-public", "istio-system"}
+var excludedNs []string
 
 var controllerName string = "namespaceReconciler"
 
@@ -68,6 +68,9 @@ func (c *Reconciler) getSliceNameFromNs(ns string) (string, error) {
 }
 
 func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+
+	excludedNsEnv := utils.GetEnvOrDefault("EXCLUDED_NS", utils.DefaultExcludedNS)
+	excludedNs = strings.Split(excludedNsEnv, ",")
 	for _, v := range excludedNs {
 		if v == req.Name {
 			return ctrl.Result{}, nil

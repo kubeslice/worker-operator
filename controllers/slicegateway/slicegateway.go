@@ -53,15 +53,24 @@ import (
 	webhook "github.com/kubeslice/worker-operator/pkg/webhook/pod"
 )
 
+const (
+	DEFAULT_SIDECAR_IMG        = "nexus.dev.aveshalabs.io/kubeslice/gw-sidecar:1.0.0"
+	DEFAULT_SIDECAR_PULLPOLICY = corev1.PullAlways
+)
+
 var (
 	vpnClientFileName        = "openvpn_client.ovpn"
 	gwSidecarImage           = os.Getenv("AVESHA_GW_SIDECAR_IMAGE")
 	gwSidecarImagePullPolicy = os.Getenv("AVESHA_GW_SIDECAR_IMAGE_PULLPOLICY")
 
-	openVpnServerImage      = os.Getenv("AVESHA_OPENVPN_SERVER_IMAGE")
-	openVpnClientImage      = os.Getenv("AVESHA_OPENVPN_CLIENT_IMAGE")
-	openVpnServerPullPolicy = os.Getenv("AVESHA_OPENVPN_SERVER_PULLPOLICY")
-	openVpnClientPullPolicy = os.Getenv("AVESHA_OPENVPN_CLIENT_PULLPOLICY")
+	openVpnServerImage        = os.Getenv("AVESHA_OPENVPN_SERVER_IMAGE")
+	openVpnClientImage        = os.Getenv("AVESHA_OPENVPN_CLIENT_IMAGE")
+	openVpnServerPullPolicy   = os.Getenv("AVESHA_OPENVPN_SERVER_PULLPOLICY")
+	openVpnClientPullPolicy   = os.Getenv("AVESHA_OPENVPN_CLIENT_PULLPOLICY")
+	wireguardServerImage      = os.Getenv("WIREGUARD_SERVER_IMAGE")
+	wireguardClientImage      = os.Getenv("WIREGUARD_CLIENT_IMAGE")
+	wireguardServerPullPolicy = os.Getenv("WIREGUARD_SERVER_PULLPOLICY")
+	wireguardClientPullPolicy = os.Getenv("WIREGUARD_CLIENT_PULLPOLICY")
 )
 
 // This is a thread-safe Map that contains the mapping of the gw client deployment to the remote node port.
@@ -78,7 +87,7 @@ func labelsForSliceGwDeployment(name, slice, depName string) map[string]string {
 	}
 }
 
-func labelsForSliceGwService(name, svcName, depName string) map[string]string {
+func labelsForSliceGwService(name, depName string) map[string]string {
 	return map[string]string{
 		controllers.SliceGatewaySelectorLabelKey: name,
 		"kubeslice.io/slice-gw-dep":              depName,
@@ -100,21 +109,193 @@ func (r *SliceGwReconciler) deploymentForGateway(g *kubeslicev1beta1.SliceGatewa
 	}
 }
 
+func getServerVpnContainerSpec(g *kubeslicev1beta1.SliceGateway) corev1.Container {
+	privileged := true
+
+	switch g.Status.Config.SliceGatewayType {
+	case "OpenVPN":
+		vpnImg := "nexus.dev.aveshalabs.io/kubeslice/openvpn-server.ubuntu.18.04:1.0.0"
+		if len(openVpnServerImage) != 0 {
+			vpnImg = openVpnServerImage
+		}
+		vpnPullPolicy := corev1.PullAlways
+		if len(openVpnServerPullPolicy) != 0 {
+			vpnPullPolicy = corev1.PullPolicy(openVpnServerPullPolicy)
+		}
+		return corev1.Container{
+			Name:            "kubeslice-openvpn-server",
+			Image:           vpnImg,
+			ImagePullPolicy: vpnPullPolicy,
+			Command: []string{
+				"/usr/local/bin/waitForConfigToRunCmd.sh",
+			},
+			Args: []string{
+				"/etc/openvpn/openvpn.conf",
+				"90",
+				"ovpn_run",
+			},
+			SecurityContext: &corev1.SecurityContext{
+				Privileged:               &privileged,
+				AllowPrivilegeEscalation: &privileged,
+				Capabilities: &corev1.Capabilities{
+					Add: []corev1.Capability{
+						"NET_ADMIN",
+					},
+				},
+			},
+			VolumeMounts: []corev1.VolumeMount{{
+				Name:      "shared-volume",
+				MountPath: "/etc/openvpn",
+			}},
+		}
+
+	case "Wireguard":
+		vpnImg := "aveshasystems/wireguard-server.alpine:1.0.0"
+		if len(wireguardServerImage) != 0 {
+			vpnImg = wireguardServerImage
+		}
+		vpnPullPolicy := corev1.PullAlways
+		if len(wireguardServerPullPolicy) != 0 {
+			vpnPullPolicy = corev1.PullPolicy(wireguardServerPullPolicy)
+		}
+		return corev1.Container{
+			Name:            "kubeslice-wireguard-server",
+			Image:           vpnImg,
+			ImagePullPolicy: vpnPullPolicy,
+			Env: []corev1.EnvVar{
+				{
+					Name:  "ADDRESS",
+					Value: fmt.Sprintf("%s%s", g.Status.Config.SliceGatewayLocalVpnIP, "/32"),
+				},
+				{
+					Name:  "PORT",
+					Value: "11194",
+				},
+				{
+					Name:  "ALLOWED_IPS",
+					Value: fmt.Sprintf("%s/32, %s", g.Status.Config.SliceGatewayRemoteVpnIP, g.Status.Config.SliceGatewayRemoteSubnet),
+				},
+			},
+			SecurityContext: &corev1.SecurityContext{
+				Privileged:               &privileged,
+				AllowPrivilegeEscalation: &privileged,
+				Capabilities: &corev1.Capabilities{
+					Add: []corev1.Capability{
+						"NET_ADMIN",
+					},
+				},
+			},
+			VolumeMounts: []corev1.VolumeMount{
+				{
+					Name:      "vpn-certs",
+					MountPath: "/etc/wireguard/privatekey",
+					SubPath:   "privatekey",
+					ReadOnly:  true,
+				},
+				{
+					Name:      "vpn-certs",
+					MountPath: "/etc/wireguard/publickey",
+					SubPath:   "publickey",
+					ReadOnly:  true,
+				},
+			},
+		}
+	default:
+		return corev1.Container{}
+	}
+}
+func getVolumesForGatewayServer(g *kubeslicev1beta1.SliceGateway, gwConfigKey int) []corev1.Volume {
+	var vpnSecretDefaultMode int32 = 420
+	var vpnFilesRestrictedMode int32 = 0644
+
+	switch g.Status.Config.SliceGatewayType {
+	case "OpenVPN":
+		baseFileName := os.Getenv("CLUSTER_NAME") + "-" + g.Spec.SliceName + "-" + g.Status.Config.SliceGatewayName + ".vpn.aveshasystems.com"
+		return []corev1.Volume{
+			{
+				Name: "shared-volume",
+				VolumeSource: corev1.VolumeSource{
+					EmptyDir: &corev1.EmptyDirVolumeSource{},
+				},
+			},
+			{
+				Name: "vpn-certs",
+				VolumeSource: corev1.VolumeSource{
+					Secret: &corev1.SecretVolumeSource{
+						SecretName:  g.Name + "-" + strconv.Itoa(gwConfigKey), // secret contains the vpn config
+						DefaultMode: &vpnSecretDefaultMode,
+						Items: []corev1.KeyToPath{
+							{
+								Key:  "ovpnConfigFile",
+								Path: "openvpn.conf",
+							}, {
+								Key:  "pkiCACertFile",
+								Path: "pki/" + "ca.crt",
+							}, {
+								Key:  "pkiDhPemFile",
+								Path: "pki/" + "dh.pem",
+							}, {
+								Key:  "pkiTAKeyFile",
+								Path: "pki/" + baseFileName + "-" + "ta.key",
+							}, {
+								Key:  "pkiIssuedCertFile",
+								Path: "pki/issued/" + baseFileName + ".crt",
+								Mode: &vpnFilesRestrictedMode,
+							}, {
+								Key:  "pkiPrivateKeyFile",
+								Path: "pki/private/" + baseFileName + ".key",
+								Mode: &vpnFilesRestrictedMode,
+							}, {
+								Key:  "ccdFile",
+								Path: "ccd/" + g.Status.Config.SliceGatewayRemoteGatewayID,
+							},
+						},
+					},
+				},
+			},
+		}
+	case "Wireguard":
+		return []corev1.Volume{
+			{
+				Name: "shared-volume",
+				VolumeSource: corev1.VolumeSource{
+					EmptyDir: &corev1.EmptyDirVolumeSource{},
+				},
+			},
+			{
+				Name: "vpn-certs",
+				VolumeSource: corev1.VolumeSource{
+					Secret: &corev1.SecretVolumeSource{
+						SecretName:  g.Name + "-" + strconv.Itoa(gwConfigKey), // secret contains the vpn config
+						DefaultMode: &vpnSecretDefaultMode,
+						Items: []corev1.KeyToPath{
+							{
+								Key:  "clientPublicKeyWgFile",
+								Path: "publickey",
+							}, {
+								Key:  "serverPrivateKeyWgFile",
+								Path: "privatekey",
+							},
+						},
+					},
+				},
+			},
+		}
+	default:
+		// No volumes for other gateway types
+		return []corev1.Volume{}
+	}
+}
+
 func (r *SliceGwReconciler) deploymentForGatewayServer(g *kubeslicev1beta1.SliceGateway, depName string, gwConfigKey int) *appsv1.Deployment {
 	ls := labelsForSliceGwDeployment(g.Name, g.Spec.SliceName, depName)
 
 	var replicas int32 = 1
 
-	var vpnSecretDefaultMode int32 = 420
-	var vpnFilesRestrictedMode int32 = 0644
-
 	var privileged = true
 
-	sidecarImg := "nexus.dev.aveshalabs.io/kubeslice/gw-sidecar:1.0.0"
-	sidecarPullPolicy := corev1.PullAlways
-	vpnImg := "nexus.dev.aveshalabs.io/kubeslice/openvpn-server.ubuntu.18.04:1.0.0"
-	vpnPullPolicy := corev1.PullAlways
-	baseFileName := os.Getenv("CLUSTER_NAME") + "-" + g.Spec.SliceName + "-" + g.Status.Config.SliceGatewayName + ".vpn.aveshasystems.com"
+	sidecarImg := DEFAULT_SIDECAR_IMG
+	sidecarPullPolicy := DEFAULT_SIDECAR_PULLPOLICY
 
 	if len(gwSidecarImage) != 0 {
 		sidecarImg = gwSidecarImage
@@ -122,14 +303,6 @@ func (r *SliceGwReconciler) deploymentForGatewayServer(g *kubeslicev1beta1.Slice
 
 	if len(gwSidecarImagePullPolicy) != 0 {
 		sidecarPullPolicy = corev1.PullPolicy(gwSidecarImagePullPolicy)
-	}
-
-	if len(openVpnServerImage) != 0 {
-		vpnImg = openVpnServerImage
-	}
-
-	if len(openVpnServerPullPolicy) != 0 {
-		vpnPullPolicy = corev1.PullPolicy(openVpnServerPullPolicy)
 	}
 
 	nsmAnnotation := fmt.Sprintf("kernel://vl3-service-%s/nsm0", g.Spec.SliceName)
@@ -212,7 +385,11 @@ func (r *SliceGwReconciler) deploymentForGatewayServer(g *kubeslicev1beta1.Slice
 								Value: selectedNodeIP,
 							},
 							{
-								Name:  "OPEN_VPN_MODE",
+								Name:  "VPN_TYPE",
+								Value: string(g.Status.Config.SliceGatewayType),
+							},
+							{
+								Name:  "VPN_MODE",
 								Value: "SERVER",
 							},
 							{
@@ -249,75 +426,10 @@ func (r *SliceGwReconciler) deploymentForGatewayServer(g *kubeslicev1beta1.Slice
 								"cpu":    resource.MustParse("50m"),
 							},
 						},
-					}, {
-						Name:            "kubeslice-openvpn-server",
-						Image:           vpnImg,
-						ImagePullPolicy: vpnPullPolicy,
-						Command: []string{
-							"/usr/local/bin/waitForConfigToRunCmd.sh",
-						},
-						Args: []string{
-							"/etc/openvpn/openvpn.conf",
-							"90",
-							"ovpn_run",
-						},
-						SecurityContext: &corev1.SecurityContext{
-							Privileged:               &privileged,
-							AllowPrivilegeEscalation: &privileged,
-							Capabilities: &corev1.Capabilities{
-								Add: []corev1.Capability{
-									"NET_ADMIN",
-								},
-							},
-						},
-						VolumeMounts: []corev1.VolumeMount{{
-							Name:      "shared-volume",
-							MountPath: "/etc/openvpn",
-						}},
-					}},
-					Volumes: []corev1.Volume{
-						{
-							Name: "shared-volume",
-							VolumeSource: corev1.VolumeSource{
-								EmptyDir: &corev1.EmptyDirVolumeSource{},
-							},
-						},
-						{
-							Name: "vpn-certs",
-							VolumeSource: corev1.VolumeSource{
-								Secret: &corev1.SecretVolumeSource{
-									SecretName:  g.Name + "-" + strconv.Itoa(gwConfigKey), // secret contains the vpn config
-									DefaultMode: &vpnSecretDefaultMode,
-									Items: []corev1.KeyToPath{
-										{
-											Key:  "ovpnConfigFile",
-											Path: "openvpn.conf",
-										}, {
-											Key:  "pkiCACertFile",
-											Path: "pki/" + "ca.crt",
-										}, {
-											Key:  "pkiDhPemFile",
-											Path: "pki/" + "dh.pem",
-										}, {
-											Key:  "pkiTAKeyFile",
-											Path: "pki/" + baseFileName + "-" + "ta.key",
-										}, {
-											Key:  "pkiIssuedCertFile",
-											Path: "pki/issued/" + baseFileName + ".crt",
-											Mode: &vpnFilesRestrictedMode,
-										}, {
-											Key:  "pkiPrivateKeyFile",
-											Path: "pki/private/" + baseFileName + ".key",
-											Mode: &vpnFilesRestrictedMode,
-										}, {
-											Key:  "ccdFile",
-											Path: "ccd/" + g.Status.Config.SliceGatewayRemoteGatewayID,
-										},
-									},
-								},
-							},
-						},
 					},
+						getServerVpnContainerSpec(g),
+					},
+					Volumes: getVolumesForGatewayServer(g, gwConfigKey),
 					Tolerations: []corev1.Toleration{{
 						Key:      controllers.NodeTypeSelectorLabelKey,
 						Operator: "Equal",
@@ -360,7 +472,7 @@ func (r *SliceGwReconciler) serviceForGateway(g *kubeslicev1beta1.SliceGateway, 
 		},
 		Spec: corev1.ServiceSpec{
 			Type:     "NodePort",
-			Selector: labelsForSliceGwService(g.Name, svcName, depName),
+			Selector: labelsForSliceGwService(g.Name, depName),
 			Ports: []corev1.ServicePort{{
 				Port:       11194,
 				Protocol:   proto,
@@ -376,18 +488,154 @@ func (r *SliceGwReconciler) serviceForGateway(g *kubeslicev1beta1.SliceGateway, 
 	return svc
 }
 
+func getClientVpnContainerSpec(g *kubeslicev1beta1.SliceGateway, remotePortNumber int) corev1.Container {
+	privileged := true
+
+	switch g.Status.Config.SliceGatewayType {
+	case "OpenVPN":
+		vpnImg := "nexus.dev.aveshalabs.io/kubeslice/gw-sidecar:1.0.0"
+		if len(openVpnClientImage) != 0 {
+			vpnImg = openVpnClientImage
+		}
+		vpnPullPolicy := corev1.PullAlways
+		if len(openVpnClientPullPolicy) != 0 {
+			vpnPullPolicy = corev1.PullPolicy(openVpnClientPullPolicy)
+		}
+		return corev1.Container{
+			Name:            "kubeslice-openvpn-client",
+			Image:           vpnImg,
+			ImagePullPolicy: vpnPullPolicy,
+			Command: []string{
+				"/usr/local/bin/waitForConfigToRunCmd.sh",
+			},
+			Args: getOVPNClientContainerArgs(remotePortNumber, g),
+			SecurityContext: &corev1.SecurityContext{
+				Privileged:               &privileged,
+				AllowPrivilegeEscalation: &privileged,
+				Capabilities: &corev1.Capabilities{
+					Add: []corev1.Capability{
+						"NET_ADMIN",
+					},
+				},
+			},
+			VolumeMounts: []corev1.VolumeMount{{
+				Name:      "shared-volume",
+				MountPath: "/vpnclient",
+			}},
+		}
+
+	case "Wireguard":
+		vpnImg := "aveshasystems/wireguard-client.alpine:1.0.0"
+		if len(wireguardClientImage) != 0 {
+			vpnImg = wireguardClientImage
+		}
+		vpnPullPolicy := corev1.PullAlways
+		if len(wireguardClientPullPolicy) != 0 {
+			vpnPullPolicy = corev1.PullPolicy(wireguardClientPullPolicy)
+		}
+		return corev1.Container{
+			Name:            "kubeslice-wireguard-client",
+			Image:           vpnImg,
+			ImagePullPolicy: vpnPullPolicy,
+			Env: []corev1.EnvVar{
+				{
+					Name:  "ADDRESS",
+					Value: fmt.Sprintf("%s%s", g.Status.Config.SliceGatewayLocalVpnIP, "/32"),
+				},
+				{
+					Name:  "PORT",
+					Value: "11194",
+				},
+				{
+					Name:  "ALLOWED_IPS",
+					Value: fmt.Sprintf("%s/32, %s", g.Status.Config.SliceGatewayRemoteVpnIP, g.Status.Config.SliceGatewayRemoteSubnet),
+				},
+				{
+					Name:  "ENDPOINT",
+					Value: fmt.Sprintf("%s:%d", g.Status.Config.SliceGatewayRemoteGatewayID, remotePortNumber),
+				},
+			},
+			SecurityContext: &corev1.SecurityContext{
+				Privileged:               &privileged,
+				AllowPrivilegeEscalation: &privileged,
+				Capabilities: &corev1.Capabilities{
+					Add: []corev1.Capability{
+						"NET_ADMIN",
+					},
+				},
+			},
+			VolumeMounts: []corev1.VolumeMount{
+				{
+					Name:      "shared-volume",
+					MountPath: "/etc/wireguard/privatekey",
+					SubPath:   "privatekey",
+					ReadOnly:  true,
+				},
+				{
+					Name:      "shared-volume",
+					MountPath: "/etc/wireguard/publickey",
+					SubPath:   "publickey",
+					ReadOnly:  true,
+				},
+			},
+		}
+	default:
+		return corev1.Container{}
+	}
+}
+
+func getVolumesForGatewayClient(g *kubeslicev1beta1.SliceGateway, gwConfigKey int) []corev1.Volume {
+	var vpnSecretDefaultMode int32 = 420
+
+	switch g.Status.Config.SliceGatewayType {
+	case "OpenVPN":
+		return []corev1.Volume{{
+			Name: "shared-volume",
+			VolumeSource: corev1.VolumeSource{
+				Secret: &corev1.SecretVolumeSource{
+					SecretName:  g.Name + "-" + strconv.Itoa(gwConfigKey),
+					DefaultMode: &vpnSecretDefaultMode,
+					Items: []corev1.KeyToPath{
+						{
+							Key:  "ovpnConfigFile",
+							Path: "openvpn_client.ovpn",
+						},
+					},
+				},
+			},
+		}}
+	case "Wireguard":
+		return []corev1.Volume{{
+			Name: "shared-volume",
+			VolumeSource: corev1.VolumeSource{
+				Secret: &corev1.SecretVolumeSource{
+					SecretName:  g.Name + "-" + strconv.Itoa(gwConfigKey),
+					DefaultMode: &vpnSecretDefaultMode,
+					Items: []corev1.KeyToPath{
+						{
+							Key:  "serverPublicKeyWgFile",
+							Path: "publickey",
+						}, {
+							Key:  "clientPrivateKeyWgFile",
+							Path: "privatekey",
+						},
+					},
+				},
+			},
+		}}
+	default:
+		// No volumes for other gateway types
+		return []corev1.Volume{}
+	}
+}
+
 func (r *SliceGwReconciler) deploymentForGatewayClient(g *kubeslicev1beta1.SliceGateway, depName string, gwConfigKey int) *appsv1.Deployment {
 	log := logger.FromContext(context.Background()).WithValues("type", "slicegateway")
 	var replicas int32 = 1
 	var privileged = true
 
-	var vpnSecretDefaultMode int32 = 0644
-
 	sidecarImg := "nexus.dev.aveshalabs.io/kubeslice/gw-sidecar:1.0.0"
 	sidecarPullPolicy := corev1.PullAlways
-
-	vpnImg := "nexus.dev.aveshalabs.io/kubeslice/openvpn-client.alpine.amd64:1.0.0"
-	vpnPullPolicy := corev1.PullAlways
 
 	ls := labelsForSliceGwDeployment(g.Name, g.Spec.SliceName, depName)
 
@@ -397,14 +645,6 @@ func (r *SliceGwReconciler) deploymentForGatewayClient(g *kubeslicev1beta1.Slice
 
 	if len(gwSidecarImagePullPolicy) != 0 {
 		sidecarPullPolicy = corev1.PullPolicy(gwSidecarImagePullPolicy)
-	}
-
-	if len(openVpnClientImage) != 0 {
-		vpnImg = openVpnClientImage
-	}
-
-	if len(openVpnClientPullPolicy) != 0 {
-		vpnPullPolicy = corev1.PullPolicy(openVpnClientPullPolicy)
 	}
 
 	nsmAnnotation := fmt.Sprintf("kernel://vl3-service-%s/nsm0", g.Spec.SliceName)
@@ -503,8 +743,12 @@ func (r *SliceGwReconciler) deploymentForGatewayClient(g *kubeslicev1beta1.Slice
 								Value: "GATEWAY_POD",
 							},
 							{
-								Name:  "OPEN_VPN_MODE",
+								Name:  "VPN_MODE",
 								Value: "CLIENT",
+							},
+							{
+								Name:  "VPN_TYPE",
+								Value: string(g.Status.Config.SliceGatewayType),
 							},
 							{
 								Name:  "GW_LOG_LEVEL",
@@ -538,43 +782,10 @@ func (r *SliceGwReconciler) deploymentForGatewayClient(g *kubeslicev1beta1.Slice
 								"cpu":    resource.MustParse("50m"),
 							},
 						},
-					}, {
-						Name:            "kubeslice-openvpn-client",
-						Image:           vpnImg,
-						ImagePullPolicy: vpnPullPolicy,
-						Command: []string{
-							"/usr/local/bin/waitForConfigToRunCmd.sh",
-						},
-						Args: getOVPNClientContainerArgs(remotePortNumber, g),
-						SecurityContext: &corev1.SecurityContext{
-							Privileged:               &privileged,
-							AllowPrivilegeEscalation: &privileged,
-							Capabilities: &corev1.Capabilities{
-								Add: []corev1.Capability{
-									"NET_ADMIN",
-								},
-							},
-						},
-						VolumeMounts: []corev1.VolumeMount{{
-							Name:      "shared-volume",
-							MountPath: "/vpnclient",
-						}},
-					}},
-					Volumes: []corev1.Volume{{
-						Name: "shared-volume",
-						VolumeSource: corev1.VolumeSource{
-							Secret: &corev1.SecretVolumeSource{
-								SecretName:  g.Name + "-" + strconv.Itoa(gwConfigKey),
-								DefaultMode: &vpnSecretDefaultMode,
-								Items: []corev1.KeyToPath{
-									{
-										Key:  "ovpnConfigFile",
-										Path: "openvpn_client.ovpn",
-									},
-								},
-							},
-						},
-					}},
+					},
+						getClientVpnContainerSpec(g, remotePortNumber),
+					},
+					Volumes: getVolumesForGatewayClient(g, gwConfigKey),
 					Tolerations: []corev1.Toleration{{
 						Key:      controllers.NodeTypeSelectorLabelKey,
 						Operator: "Equal",
@@ -661,8 +872,25 @@ func (r *SliceGwReconciler) ReconcileGwPodStatus(ctx context.Context, slicegatew
 			return ctrl.Result{}, err, true
 		}
 		gwPod.LocalNsmIP = status.NsmStatus.LocalIP
-		gwPod.TunnelStatus = kubeslicev1beta1.TunnelStatus(status.TunnelStatus)
-		// this grpc call fails untill the openvpn tunnel connection is not established, so its better to do not reconcile in case of errors, hence the reconciler does not proceedes further
+		gwPod.TunnelStatus = kubeslicev1beta1.TunnelStatus{
+			IntfName:    status.TunnelStatus.IntfName,
+			LocalIP:     status.TunnelStatus.LocalIP,
+			RemoteIP:    status.TunnelStatus.RemoteIP,
+			Latency:     status.TunnelStatus.Latency,
+			TxRate:      status.TunnelStatus.TxRate,
+			RxRate:      status.TunnelStatus.RxRate,
+			PacketLoss:  status.TunnelStatus.PacketLoss,
+			Status:      int32(status.TunnelStatus.Status),
+			TunnelState: status.TunnelStatus.TunnelState,
+		}
+
+		if isClient(slicegateway) {
+			// get the remote port number this gw pod is connected to on the remote cluster
+			_, remotePortInUse := getClientGwRemotePortInUse(ctx, r.Client, slicegateway, GetDepNameFromPodName(slicegateway.Status.Config.SliceGatewayID, gwPod.PodName))
+			gwPod.RemotePort = int32(remotePortInUse)
+		}
+
+		// this grpc call fails untill the openvpn tunnel connection is not established, so its better to do not reconcile in case of errors, hence the reconciler does not proceeds further
 		gwPod.PeerPodName, err = r.getRemoteGwPodName(ctx, slicegateway.Status.Config.SliceGatewayRemoteVpnIP, gwPod.PodIP)
 		if err != nil {
 			log.Error(err, "Error getting peer pod name", "PodName", gwPod.PodName, "PodIP", gwPod.PodIP)
@@ -671,23 +899,36 @@ func (r *SliceGwReconciler) ReconcileGwPodStatus(ctx context.Context, slicegatew
 		if isGatewayStatusChanged(slicegateway, gwPod) {
 			toUpdate = true
 		}
-		if len(slicegateway.Status.GatewayPodStatus) != len(gwPodsInfo) {
-			toUpdate = true
-		}
 	}
+	if len(slicegateway.Status.GatewayPodStatus) != len(gwPodsInfo) {
+		toUpdate = true
+	}
+
 	if toUpdate {
 		log.Info("gwPodsInfo", "gwPodsInfo", gwPodsInfo)
-		slicegateway.Status.GatewayPodStatus = gwPodsInfo
-		slicegateway.Status.ConnectionContextUpdatedOn = 0
-		err := r.Status().Update(ctx, slicegateway)
+		err = retry.RetryOnConflict(retry.DefaultRetry, func() error {
+			err := r.Get(ctx, types.NamespacedName{Namespace: controllers.ControlPlaneNamespace, Name: slicegateway.Name}, slicegateway)
+			if err != nil {
+				log.Error(err, "Failed to get SliceGateway")
+				return err
+			}
+			slicegateway.Status.GatewayPodStatus = gwPodsInfo
+			slicegateway.Status.ConnectionContextUpdatedOn = 0
+			err = r.Status().Update(ctx, slicegateway)
+			if err != nil {
+				debugLog.Error(err, "Failed to update SliceGateway status for gateway status")
+				return err
+			}
+			return nil
+		})
 		if err != nil {
-			debugLog.Error(err, "error while update", "Failed to update SliceGateway status for gateway status")
-			return ctrl.Result{}, err, true
+			log.Error(err, "Failed to update SliceGateway status for gw pods")
+			return ctrl.Result{RequeueAfter: 30 * time.Second}, nil, true
 		}
 		toReconcile = true
 	}
 	if toReconcile {
-		return ctrl.Result{}, err, true
+		return ctrl.Result{}, nil, true
 	}
 	return ctrl.Result{}, nil, false
 }
@@ -713,29 +954,16 @@ func (r *SliceGwReconciler) SendConnectionContextAndQosToGwPod(ctx context.Conte
 
 		err := r.WorkerGWSidecarClient.SendConnectionContext(ctx, sidecarGrpcAddress, connCtx)
 		if err != nil {
-			log.Error(err, "Unable to send conn ctx to gw")
-			return ctrl.Result{RequeueAfter: 10 * time.Second}, err, true
+			// Log error and move on to the next gw pod. Will be re-tried in the next reconcile cycle.
+			log.Error(err, "Unable to send conn ctx to gw", "pod", sidecarGrpcAddress)
+			continue
 		}
 
 		err = r.WorkerGWSidecarClient.UpdateSliceQosProfile(ctx, sidecarGrpcAddress, slice)
 		if err != nil {
-			log.Error(err, "Failed to send qos to gateway")
-			return ctrl.Result{RequeueAfter: 10 * time.Second}, err, true
-		}
-
-		err = retry.RetryOnConflict(retry.DefaultRetry, func() error {
-			err := r.Get(ctx, req.NamespacedName, slicegateway)
-			slicegateway.Status.ConnectionContextUpdatedOn = time.Now().Unix()
-			err = r.Status().Update(ctx, slicegateway)
-			if err != nil {
-				log.Error(err, "Failed to update SliceGateway status for conn ctx update in retry loop")
-				return err
-			}
-			return nil
-		})
-		if err != nil {
-			log.Error(err, "Failed to update SliceGateway status for conn ctx update")
-			return ctrl.Result{}, err, true
+			// Log error and move on to the next gw pod. Will be re-tried in the next reconcile cycle
+			log.Error(err, "Failed to send qos to gateway", "pod", sidecarGrpcAddress)
+			continue
 		}
 	}
 	return ctrl.Result{}, nil, false
@@ -1037,6 +1265,7 @@ func (r *SliceGwReconciler) gwPodPlacementIsSkewed(ctx context.Context, sliceGw 
 	labels := map[string]string{controllers.PodTypeSelectorLabelKey: "slicegateway", "kubeslice.io/slice-gw": sliceGw.Name}
 	listOptions := []client.ListOption{
 		client.MatchingLabels(labels),
+		client.MatchingFields{"status.phase": "Running"},
 	}
 	err := r.Client.List(ctx, &podList, listOptions...)
 	if err != nil {
@@ -1094,6 +1323,15 @@ func (r *SliceGwReconciler) gwPodPlacementIsSkewed(ctx context.Context, sliceGw 
 
 func (r *SliceGwReconciler) ReconcileGwPodPlacement(ctx context.Context, sliceGw *kubeslicev1beta1.SliceGateway) error {
 	log := r.Log
+
+	// if the env variable is set, do not perform any gw pod rebalancing. This is useful in clusters where
+	// the k8s scheduler does not honor the pod anti-affinity rule and places the gw pods on the same node. Such scenarios
+	// could occur if the node with the kubeslice gateway label is cordoned off or if the node has insufficient resources or
+	// if the node has some taints that the gw pods cannot tolerate.
+	if os.Getenv("DISABLE_GW_POD_REBALANCING") == "true" {
+		return nil
+	}
+
 	// The gw pod rebalancing is always performed on a deployment. We expect the gw pods belonging to a slicegateway
 	// object between any two clusters to placed on different nodes marked as kubeslice gateway nodes. If they are
 	// initially placed on the same node due to lack of kubeslice-gateway nodes, the rebalancing algorithim is expected
@@ -1170,7 +1408,7 @@ func (r *SliceGwReconciler) handleSliceGwSvcCreation(ctx context.Context, sliceG
 	return ctrl.Result{Requeue: true}, nil, true
 }
 
-func (r *SliceGwReconciler) handleSliceGwSvcDeletion(ctx context.Context, sliceGw *kubeslicev1beta1.SliceGateway, svcName, depName string) error {
+func (r *SliceGwReconciler) handleSliceGwSvcDeletion(ctx context.Context, sliceGw *kubeslicev1beta1.SliceGateway, svcName string) error {
 	log := logger.FromContext(ctx).WithName("slicegw")
 	serviceFound := corev1.Service{}
 	err := r.Get(ctx, types.NamespacedName{Namespace: sliceGw.Namespace, Name: svcName}, &serviceFound)
@@ -1235,16 +1473,50 @@ func (r *SliceGwReconciler) ReconcileGatewayServices(ctx context.Context, sliceG
 
 	sliceGwName := sliceGw.Name
 
-	for gwInstance := 0; gwInstance < r.NumberOfGateways; gwInstance++ {
-		if !gwServiceIsPresent(sliceGwName, gwInstance, gwServices) {
-			svcName := "svc-" + sliceGwName + "-" + fmt.Sprint(gwInstance) + "-" + "0"
-			depName := sliceGwName + "-" + fmt.Sprint(gwInstance) + "-" + "0"
-			_, err, _ := r.handleSliceGwSvcCreation(ctx, sliceGw, svcName, depName)
+	deployments, err := GetDeployments(ctx, r.Client, sliceGw.Spec.SliceName, sliceGw.Name)
+	if err != nil {
+		return ctrl.Result{}, err, true
+	}
+
+	validGwSvcNames := []string{}
+	// Create gw services for the currently available gw deployments
+	for _, deployment := range deployments.Items {
+		svcNameForDep := "svc-" + deployment.Name
+		if getGwService(gwServices, svcNameForDep) == nil {
+			_, err, _ := r.handleSliceGwSvcCreation(ctx, sliceGw, svcNameForDep, deployment.Name)
 			if err != nil {
 				return ctrl.Result{}, err, true
 			}
 			return ctrl.Result{Requeue: true}, nil, true
 		}
+		validGwSvcNames = append(validGwSvcNames, svcNameForDep)
+	}
+
+	// Delete stale gw services if found
+	gwsvcToDelete := []string{}
+	for _, gwsvc := range gwServices.Items {
+		found := false
+		for _, svc := range validGwSvcNames {
+			if svc == gwsvc.Name {
+				found = true
+				break
+			}
+		}
+		if !found {
+			// Add to delete gw svc list
+			gwsvcToDelete = append(gwsvcToDelete, gwsvc.Name)
+		}
+	}
+
+	if len(gwsvcToDelete) > 0 {
+		for _, svcToDelete := range gwsvcToDelete {
+			err := r.handleSliceGwSvcDeletion(ctx, sliceGw, svcToDelete)
+			if err != nil {
+				log.Error(err, "Failed to delete stale gw svc", "name", svcToDelete)
+				return ctrl.Result{}, err, true
+			}
+		}
+		return ctrl.Result{Requeue: true}, nil, true
 	}
 
 	nodePorts, err := r.getNodePorts(ctx, sliceGw)
@@ -1345,8 +1617,30 @@ func (r *SliceGwReconciler) ReconcileGatewayDeployments(ctx context.Context, sli
 		}
 	}
 
+	sidecarImg := DEFAULT_SIDECAR_IMG
+	if len(gwSidecarImage) != 0 {
+		sidecarImg = gwSidecarImage
+	}
+	sidecarPullPolicy := DEFAULT_SIDECAR_PULLPOLICY
+	if len(gwSidecarImagePullPolicy) != 0 {
+		sidecarPullPolicy = corev1.PullPolicy(gwSidecarImagePullPolicy)
+	}
+
 	for gwInstance := 0; gwInstance < numGwInstances; gwInstance++ {
 		if !gwDeploymentIsPresent(sliceGwName, gwInstance, deployments) {
+			// Check if the required secret exists before creating deployment
+			secretName := sliceGwName + "-" + strconv.Itoa(gwConfigKey)
+			secret := &corev1.Secret{}
+			err := r.Get(ctx, types.NamespacedName{Name: secretName, Namespace: sliceGw.Namespace}, secret)
+			if err != nil {
+				if apierrors.IsNotFound(err) {
+					log.Info("Secret not found, waiting for secret to be created", "secretName", secretName)
+					return ctrl.Result{RequeueAfter: 5 * time.Second}, nil, true
+				}
+				log.Error(err, "Failed to get secret", "secretName", secretName)
+				return ctrl.Result{}, err, true
+			}
+
 			dep := r.deploymentForGateway(sliceGw, sliceGwName+"-"+fmt.Sprint(gwInstance)+"-"+"0", gwConfigKey)
 			log.Info("Creating a new Deployment", "Namespace", dep.Namespace, "Name", dep.Name)
 			err = r.Create(ctx, dep)
@@ -1355,6 +1649,27 @@ func (r *SliceGwReconciler) ReconcileGatewayDeployments(ctx context.Context, sli
 				return ctrl.Result{}, err, true
 			}
 			return ctrl.Result{Requeue: true}, nil, true
+		} else {
+			// update logic for gateways
+			for i := range deployments.Items {
+				deployment := &deployments.Items[i]
+				// update if gateway sidecar image has been changed in worker env vars
+				for j := range deployment.Spec.Template.Spec.Containers {
+					container := &deployment.Spec.Template.Spec.Containers[j]
+					if container.Name == "kubeslice-sidecar" && (container.Image != sidecarImg || container.ImagePullPolicy != sidecarPullPolicy) {
+						container.Image = sidecarImg
+						container.ImagePullPolicy = sidecarPullPolicy
+						log.Info("updating gw Deployment sidecar", "Name", deployment.Name, "image", gwSidecarImage)
+						err = r.Update(ctx, deployment)
+						if err != nil {
+							log.Error(err, "Failed to update Deployment", "Name", deployment.Name)
+							return ctrl.Result{}, err, true
+						}
+						return ctrl.Result{Requeue: true}, nil, true
+					}
+				}
+
+			}
 		}
 	}
 
@@ -1373,6 +1688,9 @@ func (r *SliceGwReconciler) ReconcileGatewayDeployments(ctx context.Context, sli
 	// Reconcile deployment to node port mapping for gw client deployments
 	if isClient(sliceGw) {
 		for _, deployment := range deployments.Items {
+			if deployment.Labels["kubeslice.io/marked-for-deletion"] == "true" {
+				continue
+			}
 			found, nodePortInUse := getClientGwRemotePortInUse(ctx, r.Client, sliceGw, deployment.Name)
 			if found {
 				// Check if the portInUse is valid.
@@ -1385,7 +1703,7 @@ func (r *SliceGwReconciler) ReconcileGatewayDeployments(ctx context.Context, sli
 					}
 					// Update the port map
 					gwClientToRemotePortMap.Store(deployment.Name, portNumToUpdate)
-					err = r.updateGatewayDeploymentNodePort(ctx, r.Client, sliceGw, &deployment, portNumToUpdate)
+					err = r.updateGatewayDeploymentNodePort(ctx, sliceGw, &deployment, portNumToUpdate)
 					if err != nil {
 						return ctrl.Result{}, err, true
 					}
@@ -1399,7 +1717,7 @@ func (r *SliceGwReconciler) ReconcileGatewayDeployments(ctx context.Context, sli
 				if foundInMap {
 					if portInMap != nodePortInUse {
 						// Update the deployment since the port numbers do not match
-						err := r.updateGatewayDeploymentNodePort(ctx, r.Client, sliceGw, &deployment, portInMap.(int))
+						err := r.updateGatewayDeploymentNodePort(ctx, sliceGw, &deployment, portInMap.(int))
 						if err != nil {
 							return ctrl.Result{}, err, true
 						}
@@ -1425,7 +1743,7 @@ func (r *SliceGwReconciler) ReconcileGatewayDeployments(ctx context.Context, sli
 	if deploymentsToDelete != nil {
 		for _, depToDelete := range deploymentsToDelete.Items {
 			// Delete the gw svc associated with the deployment
-			err := r.handleSliceGwSvcDeletion(ctx, sliceGw, getGwSvcNameFromDepName(depToDelete.Name), depToDelete.Name)
+			err := r.handleSliceGwSvcDeletion(ctx, sliceGw, getGwSvcNameFromDepName(depToDelete.Name))
 			if err != nil {
 				log.Error(err, "Failed to delete gw svc", "svcName", depToDelete.Name)
 				return ctrl.Result{}, err, true
@@ -1462,6 +1780,19 @@ func (r *SliceGwReconciler) createIntermediateGatewayDeployment(ctx context.Cont
 	gwConfigKey := 1
 	if vpnKeyRotation != nil {
 		gwConfigKey = vpnKeyRotation.Spec.RotationCount
+	}
+
+	// Check if the required secret exists before creating deployment
+	secretName := sliceGw.Name + "-" + strconv.Itoa(gwConfigKey)
+	secret := &corev1.Secret{}
+	err = r.Get(ctx, types.NamespacedName{Name: secretName, Namespace: sliceGw.Namespace}, secret)
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			log.Info("Secret not found, waiting for secret to be created", "secretName", secretName)
+			return fmt.Errorf("secret %s not found, will retry", secretName)
+		}
+		log.Error(err, "Failed to get secret", "secretName", secretName)
+		return err
 	}
 
 	dep := r.deploymentForGateway(sliceGw, depToCreate, gwConfigKey)
@@ -1615,7 +1946,7 @@ func (r *SliceGwReconciler) createPodDisruptionBudgetForSliceGatewayPods(ctx con
 
 // updateGatewayDeploymentNodePort updates the gateway client deployments with the relevant updated ports
 // from the workersliceconfig
-func (r *SliceGwReconciler) updateGatewayDeploymentNodePort(ctx context.Context, c client.Client, g *kubeslicev1beta1.SliceGateway, deployment *appsv1.Deployment, nodePort int) error {
+func (r *SliceGwReconciler) updateGatewayDeploymentNodePort(ctx context.Context, g *kubeslicev1beta1.SliceGateway, deployment *appsv1.Deployment, nodePort int) error {
 	containers := deployment.Spec.Template.Spec.Containers
 	for contIndex, cont := range containers {
 		if cont.Name == "kubeslice-sidecar" {

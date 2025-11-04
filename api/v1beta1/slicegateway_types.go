@@ -19,6 +19,7 @@
 package v1beta1
 
 import (
+	controllerv1alpha1 "github.com/kubeslice/apis/pkg/controller/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -43,6 +44,8 @@ type SliceGatewayConfig struct {
 	SliceName string `json:"sliceName,omitempty"`
 	// Slice gateway subnet range.
 	SliceSiteName string `json:"sliceSiteName,omitempty"`
+	// Slice gateway vpn type
+	SliceGatewayType controllerv1alpha1.SliceGatewayType `json:"sliceGatewayType,omitempty"`
 	// Slice gateway subnet range.
 	SliceGatewaySubnet string `json:"sliceGatewaySubnet,omitempty"`
 	// SliceGateway status
@@ -132,9 +135,14 @@ type GwPodInfo struct {
 	PeerPodName           string       `json:"peerPodName,omitempty"`
 	PodIP                 string       `json:"podIP,omitempty"`
 	LocalNsmIP            string       `json:"localNsmIP,omitempty"`
-	TunnelStatus          TunnelStatus `json:"tunnelStatus,omitempty"`
-	RouteRemoved          int32        `json:"routeRemoved,omitempty"`
+	// TunnelStatus is the status of the tunnel between this gw pod and its peer
+	TunnelStatus TunnelStatus `json:"tunnelStatus,omitempty"`
+	RouteRemoved int32        `json:"routeRemoved,omitempty"`
+	// RemotePort is the port number this gw pod is connected to on the remote cluster.
+	// Applicable only for gw clients. Would be set to 0 for gw servers.
+	RemotePort int32 `json:"remotePort,omitempty"`
 }
+
 type TunnelStatus struct {
 	IntfName   string `json:"IntfName,omitempty"`
 	LocalIP    string `json:"LocalIP,omitempty"`
@@ -143,7 +151,10 @@ type TunnelStatus struct {
 	TxRate     uint64 `json:"TxRate,omitempty"`
 	RxRate     uint64 `json:"RxRate,omitempty"`
 	PacketLoss uint64 `json:"PacketLoss,omitempty"`
-	Status     int32  `json:"Status,omitempty"`
+	// Status is the status of the tunnel. 0: DOWN, 1: UP
+	Status int32 `json:"Status,omitempty"`
+	// TunnelState is the state of the tunnel in string format: UP, DOWN, UNKNOWN
+	TunnelState string `json:"TunnelState,omitempty"`
 }
 
 func init() {

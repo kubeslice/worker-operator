@@ -179,19 +179,10 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req reconcile.Request) 
 			// Request object not found, create it in the spoke cluster
 			log.Info("Slice resource not found in spoke cluster, creating")
 
-			// Fetch project namespace label
-			var projectNs string
-			if metav1.HasLabel(slice.ObjectMeta, "project-namespace") {
-				projectNs = slice.ObjectMeta.GetLabels()["project-namespace"]
-			}
-
 			s := &kubeslicev1beta1.Slice{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      sliceName,
 					Namespace: ControlPlaneNamespace,
-					Labels: map[string]string{
-						"project-namespace": projectNs,
-					},
 				},
 				Spec: kubeslicev1beta1.SliceSpec{},
 			}
@@ -217,6 +208,30 @@ func (r *SliceReconciler) Reconcile(ctx context.Context, req reconcile.Request) 
 		}
 		r.counterSliceUpdationFailed.WithLabelValues(sliceName).Add(1)
 		return reconcile.Result{}, err
+	}
+
+	updateRequired := false
+	if meshSlice.ObjectMeta.Labels == nil {
+		meshSlice.ObjectMeta.Labels = make(map[string]string)
+	}
+	// Copy or update labels from slice to meshSlice
+	for key, sv := range slice.ObjectMeta.GetLabels() {
+		if val, ok := meshSlice.ObjectMeta.Labels[key]; !ok || val != sv {
+			updateRequired = true
+			meshSlice.ObjectMeta.Labels[key] = sv
+		}
+	}
+	// Remove extra labels from meshSlice that are not in slice
+	for key := range meshSlice.ObjectMeta.Labels {
+		if _, ok := slice.ObjectMeta.Labels[key]; !ok {
+			updateRequired = true
+			delete(meshSlice.ObjectMeta.Labels, key)
+		}
+	}
+	if updateRequired {
+		if err := r.MeshClient.Update(ctx, meshSlice); err != nil {
+			return ctrl.Result{}, err
+		}
 	}
 
 	err = r.updateSliceConfig(ctx, meshSlice, slice)
@@ -268,12 +283,6 @@ func (r *SliceReconciler) updateSliceConfig(ctx context.Context, meshSlice *kube
 	}
 	if meshSlice.Status.SliceConfig.SliceSubnet == "" {
 		meshSlice.Status.SliceConfig.SliceSubnet = spokeSlice.Spec.SliceSubnet
-	}
-	if meshSlice.ObjectMeta.Labels == nil {
-		meshSlice.ObjectMeta.Labels = make(map[string]string)
-		if spokeSlice.ObjectMeta.Labels != nil {
-			meshSlice.ObjectMeta.Labels = spokeSlice.ObjectMeta.Labels
-		}
 	}
 
 	if meshSlice.Status.SliceConfig.SliceIpam.IpamClusterOctet == 0 {

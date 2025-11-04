@@ -18,7 +18,7 @@
 ##########################################################
 
 # Build the manager binary
-FROM golang:1.22.1 as builder
+FROM golang:1.24 AS builder
 
 WORKDIR /workspace
 # Copy the Go Modules manifests
@@ -28,7 +28,10 @@ ADD vendor vendor
 # cache deps before building and copying source so that we don't need to re-download as much
 # and so that source changes don't invalidate our downloaded layer
 #RUN echo "[url \"git@bitbucket.org:\"]\n\tinsteadOf = https://bitbucket.org/" >> /root/.gitconfig
-#RUN go env -w GOPRIVATE=bitbucket.org/realtimeai && go mod download
+
+ARG TARGETOS
+ARG TARGETPLATFORM
+ARG TARGETARCH
 
 # Copy the go source
 COPY main.go main.go
@@ -37,12 +40,11 @@ COPY controllers/ controllers/
 COPY pkg/ pkg/
 COPY events/ events/
 # Build
-RUN go env -w GOPRIVATE=github.com/kubeslice && \
-    CGO_ENABLED=0 GOOS=linux GOARCH=amd64 GO111MODULE=on go build -mod=vendor -a -o manager main.go
+RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} GO111MODULE=on go build -mod=vendor -a -o manager main.go
 
 # Use distroless as minimal base image to package the manager binary
 # Refer to https://github.com/GoogleContainerTools/distroless for more details
-FROM gcr.io/distroless/static:nonroot
+FROM gcr.io/distroless/static-debian12:nonroot
 LABEL maintainer="Avesha Systems"
 WORKDIR /
 COPY --from=builder /workspace/manager .
@@ -54,7 +56,7 @@ ENV MANIFEST_PATH="/files/manifests"
 ENV SCRIPT_PATH="/scripts"
 COPY scripts scripts
 
-USER nonroot:nonroot
+USER 65532:65532
 
 ENTRYPOINT ["/manager"]
 

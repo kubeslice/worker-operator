@@ -113,6 +113,10 @@ func getPodNames(slicegateway *kubeslicev1beta1.SliceGateway) []string {
 }
 
 func GetDepNameFromPodName(sliceGwID, podName string) string {
+	if sliceGwID == "" || podName == "" {
+		return ""
+	}
+
 	after, found := strings.CutPrefix(podName, sliceGwID)
 	if !found {
 		return ""

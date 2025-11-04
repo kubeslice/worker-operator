@@ -455,7 +455,7 @@ func (r *Reconciler) updateNodeIps(ctx context.Context, cr *hubv1alpha1.Cluster)
 		if err != nil {
 			return err
 		}
-		nodeIPs, err := cluster.GetNodeIP(r.MeshClient)
+		nodeIPs, err := cluster.GetNodeIP(r.MeshClient, cr.Status.NetworkPresent)
 		if err != nil {
 			log.Error(err, "Error Getting nodeIP")
 			return err
