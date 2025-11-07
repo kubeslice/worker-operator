@@ -190,18 +190,30 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Create client for hub cluster using hub configuration
-	// This is needed for metrics sync to WorkerSliceGateway CRs on the hub
-	hubConfig := &rest.Config{
+	// Create client for WORKER cluster (used by hub manager to create Slice CRs on worker)
+	clientForHubMgr, err := client.New(ctrl.GetConfigOrDie(), client.Options{
+		Scheme: scheme,
+	})
+	if err != nil {
+		setupLog.With("error", err).Error("unable to create kube client for hub manager")
+		os.Exit(1)
+	}
+
+	// Create SEPARATE client for HUB cluster (used for metrics sync to WorkerSliceGateway CRs on hub)
+	hubClusterConfig := &rest.Config{
 		Host:            os.Getenv("HUB_HOST_ENDPOINT"),
 		BearerTokenFile: hub.HubTokenFile,
 		TLSClientConfig: rest.TLSClientConfig{
 			CAFile: hub.HubCAFile,
 		},
 	}
-	clientForHubMgr, err := client.New(hubConfig, client.Options{
+	hubClusterClient, err := client.New(hubClusterConfig, client.Options{
 		Scheme: scheme,
 	})
+	if err != nil {
+		setupLog.With("error", err).Error("unable to create hub cluster client for metrics sync")
+		os.Exit(1)
+	}
 
 	ctx := ctrl.SetupSignalHandler()
 
@@ -258,8 +270,8 @@ func main() {
 		WorkerRecyclerClient:  workerRecyclerClient,
 		EventRecorder:         &sliceEventRecorder,
 		NumberOfGateways:      2,
-		RawHubClient:          clientForHubMgr,  // Add for metrics sync
-		ClusterName:           controllers.ClusterName,  // Add for metrics sync
+		RawHubClient:          hubClusterClient,  // Hub cluster client for metrics sync
+		ClusterName:           controllers.ClusterName,  // Cluster name for metrics sync
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.With("error", err).Error("unable to create controller", "controller", "SliceGw")
 		os.Exit(1)
