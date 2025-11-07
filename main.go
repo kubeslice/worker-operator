@@ -248,6 +248,8 @@ func main() {
 		WorkerRecyclerClient:  workerRecyclerClient,
 		EventRecorder:         &sliceEventRecorder,
 		NumberOfGateways:      2,
+		RawHubClient:          clientForHubMgr,  // Add for metrics sync
+		ClusterName:           controllers.ClusterName,  // Add for metrics sync
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.With("error", err).Error("unable to create controller", "controller", "SliceGw")
 		os.Exit(1)
