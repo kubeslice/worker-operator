@@ -27,6 +27,7 @@ import (
 	"github.com/go-logr/logr"
 	spokev1alpha1 "github.com/kubeslice/apis/pkg/worker/v1alpha1"
 	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
+	hub "github.com/kubeslice/worker-operator/pkg/hub/hubclient"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/util/retry"
@@ -79,7 +80,7 @@ func (r *SliceGwReconciler) syncMetricsToHub(
 	hubGw := &spokev1alpha1.WorkerSliceGateway{}
 	hubGwKey := types.NamespacedName{
 		Name:      sliceGw.Name,
-		Namespace: sliceGw.Namespace,
+		Namespace: hub.ProjectNamespace,  // Use hub project namespace, not worker namespace
 	}
 
 	err := r.RawHubClient.Get(ctx, hubGwKey, hubGw)
