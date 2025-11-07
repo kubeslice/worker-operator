@@ -925,6 +925,14 @@ func (r *SliceGwReconciler) ReconcileGwPodStatus(ctx context.Context, slicegatew
 			log.Error(err, "Failed to update SliceGateway status for gw pods")
 			return ctrl.Result{RequeueAfter: 30 * time.Second}, nil, true
 		}
+
+		// Sync gateway metrics to hub cluster (if hub client is configured)
+		// This provides real-time threshold-based metrics sync
+		if r.RawHubClient != nil && r.ClusterName != "" {
+			// This call happens immediately after worker CR update for true real-time sync
+			r.syncMetricsToHub(ctx, slicegateway, log)
+		}
+
 		toReconcile = true
 	}
 	if toReconcile {

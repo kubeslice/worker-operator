@@ -69,6 +69,11 @@ type SliceGwReconciler struct {
 	EventRecorder    *events.EventRecorder
 	NodeIPs          []string
 	NumberOfGateways int
+
+	// RawHubClient is the direct client.Client for hub cluster (used for metrics sync)
+	RawHubClient client.Client
+	// ClusterName is used for syncing metrics to hub cluster
+	ClusterName string
 }
 
 //+kubebuilder:rbac:groups=networking.kubeslice.io,resources=slicegateways,verbs=get;list;watch;create;update;patch;delete

@@ -60,10 +60,34 @@ type GatewayCredentials struct {
 	SecretName string `json:"secretName,omitempty"`
 }
 
+// GatewayMetrics contains aggregated metrics from all gateway pods
+type GatewayMetrics struct {
+	// AvgLatency is the average latency across all active gateway pods (in milliseconds)
+	AvgLatency uint64 `json:"avgLatency,omitempty"`
+	// MinLatency is the minimum latency observed across all active gateway pods (in milliseconds)
+	MinLatency uint64 `json:"minLatency,omitempty"`
+	// MaxLatency is the maximum latency observed across all active gateway pods (in milliseconds)
+	MaxLatency uint64 `json:"maxLatency,omitempty"`
+	// AvgRxRate is the average receive rate across all active gateway pods (in bytes/sec)
+	AvgRxRate uint64 `json:"avgRxRate,omitempty"`
+	// AvgTxRate is the average transmit rate across all active gateway pods (in bytes/sec)
+	AvgTxRate uint64 `json:"avgTxRate,omitempty"`
+	// PacketLoss is the average packet loss percentage across all active gateway pods
+	PacketLoss uint64 `json:"packetLoss,omitempty"`
+	// ActivePods is the number of gateway pods with active (UP) tunnels
+	ActivePods int32 `json:"activePods,omitempty"`
+	// LastUpdated is the timestamp when these metrics were last updated
+	LastUpdated metav1.Time `json:"lastUpdated,omitempty"`
+}
+
 // WorkerSliceGatewayStatus defines the observed state of WorkerSliceGateway
 type WorkerSliceGatewayStatus struct {
 	GatewayNumber         int `json:"gatewayNumber,omitempty"`
 	ClusterInsertionIndex int `json:"clusterInsertionIndex,omitempty"`
+	// GatewayMetrics contains aggregated metrics from the worker cluster gateway pods
+	// This field is updated by the worker-operator and provides real-time visibility
+	// into gateway performance (latency, throughput, packet loss)
+	GatewayMetrics *GatewayMetrics `json:"gatewayMetrics,omitempty"`
 }
 
 //+kubebuilder:object:root=true

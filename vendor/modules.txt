@@ -116,7 +116,7 @@ github.com/josharian/intern
 # github.com/json-iterator/go v1.1.12
 ## explicit; go 1.12
 github.com/json-iterator/go
-# github.com/kubeslice/apis v0.4.0
+# github.com/kubeslice/apis v0.4.1-0.20251107051910-a58480e4900f
 ## explicit; go 1.24.0
 github.com/kubeslice/apis/pkg/controller/v1alpha1
 github.com/kubeslice/apis/pkg/worker/v1alpha1
