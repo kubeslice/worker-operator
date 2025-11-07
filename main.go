@@ -44,6 +44,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
+	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
@@ -189,7 +190,16 @@ func main() {
 		os.Exit(1)
 	}
 
-	clientForHubMgr, err := client.New(ctrl.GetConfigOrDie(), client.Options{
+	// Create client for hub cluster using hub configuration
+	// This is needed for metrics sync to WorkerSliceGateway CRs on the hub
+	hubConfig := &rest.Config{
+		Host:            os.Getenv("HUB_HOST_ENDPOINT"),
+		BearerTokenFile: hub.HubTokenFile,
+		TLSClientConfig: rest.TLSClientConfig{
+			CAFile: hub.HubCAFile,
+		},
+	}
+	clientForHubMgr, err := client.New(hubConfig, client.Options{
 		Scheme: scheme,
 	})
 
