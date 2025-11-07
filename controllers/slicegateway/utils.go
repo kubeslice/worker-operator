@@ -133,7 +133,21 @@ func isGWPodStatusChanged(slicegateway *kubeslicev1beta1.SliceGateway, gwPod *ku
 	gwPodStatus := slicegateway.Status.GatewayPodStatus
 	for _, gw := range gwPodStatus {
 		if gw.PodName == gwPod.PodName {
-			return gw.TunnelStatus.Status == gwPod.TunnelStatus.Status && gw.PeerPodName == gwPod.PeerPodName
+			// Check if tunnel status has changed by comparing all relevant fields
+			// Return true only if NOTHING has changed
+			tunnelUnchanged := gw.TunnelStatus.Status == gwPod.TunnelStatus.Status &&
+				gw.TunnelStatus.Latency == gwPod.TunnelStatus.Latency &&
+				gw.TunnelStatus.RxRate == gwPod.TunnelStatus.RxRate &&
+				gw.TunnelStatus.TxRate == gwPod.TunnelStatus.TxRate &&
+				gw.TunnelStatus.PacketLoss == gwPod.TunnelStatus.PacketLoss &&
+				gw.TunnelStatus.RemoteIP == gwPod.TunnelStatus.RemoteIP &&
+				gw.TunnelStatus.LocalIP == gwPod.TunnelStatus.LocalIP &&
+				gw.TunnelStatus.IntfName == gwPod.TunnelStatus.IntfName &&
+				gw.TunnelStatus.TunnelState == gwPod.TunnelStatus.TunnelState
+
+			peerUnchanged := gw.PeerPodName == gwPod.PeerPodName
+
+			return tunnelUnchanged && peerUnchanged
 		}
 	}
 	return false
