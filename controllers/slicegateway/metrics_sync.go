@@ -153,7 +153,8 @@ func computeAggregatedMetrics(gwPods []*kubeslicev1beta1.GwPodInfo) *GatewayMetr
 		}
 
 		// Only include pods with active tunnels
-		if pod.TunnelStatus.Status == 1 { // UP
+		// Check TunnelState instead of Status because sidecar sets TunnelState, not Status
+		if pod.TunnelStatus.TunnelState == "UP" {
 			activePods++
 			latency := pod.TunnelStatus.Latency
 			rxRate := pod.TunnelStatus.RxRate
