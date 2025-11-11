@@ -355,6 +355,10 @@ func (r *SliceGwReconciler) deploymentForGatewayServer(g *kubeslicev1beta1.Slice
 						Name:            "kubeslice-sidecar",
 						Image:           sidecarImg,
 						ImagePullPolicy: sidecarPullPolicy,
+						Ports: []corev1.ContainerPort{{
+							Name:          "metrics",
+							ContainerPort: 18080,
+						}},
 						Env: []corev1.EnvVar{
 							{
 								Name:  "SLICE_NAME",
@@ -721,6 +725,10 @@ func (r *SliceGwReconciler) deploymentForGatewayClient(g *kubeslicev1beta1.Slice
 						Name:            "kubeslice-sidecar",
 						Image:           sidecarImg,
 						ImagePullPolicy: sidecarPullPolicy,
+						Ports: []corev1.ContainerPort{{
+							Name:          "metrics",
+							ContainerPort: 18080,
+						}},
 						Env: []corev1.EnvVar{
 							{
 								Name:  "SLICE_NAME",
