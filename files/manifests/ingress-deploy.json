@@ -61,7 +61,7 @@
         "containers": [
           {
             "name": "istio-proxy",
-            "image": "docker.io/istio/proxyv2:1.16.0",
+            "image": "ProxyImgRef",
             "ports": [
               {
                 "containerPort": 15021,
