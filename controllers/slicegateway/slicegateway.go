@@ -336,6 +336,13 @@ func (r *SliceGwReconciler) deploymentForGatewayServer(g *kubeslicev1beta1.Slice
 					},
 				},
 				Spec: corev1.PodSpec{
+					// Pod-level security context for best practices
+					SecurityContext: &corev1.PodSecurityContext{
+						RunAsNonRoot: func(b bool) *bool { return &b }(true),
+						RunAsUser:    func(i int64) *int64 { return &i }(1000),
+						FSGroup:      func(i int64) *int64 { return &i }(2000),
+					},
+					// Pod-level security context for best practices
 					ServiceAccountName: "vpn-gateway-server",
 					Affinity: &corev1.Affinity{
 						NodeAffinity: &corev1.NodeAffinity{
@@ -706,6 +713,12 @@ func (r *SliceGwReconciler) deploymentForGatewayClient(g *kubeslicev1beta1.Slice
 					},
 				},
 				Spec: corev1.PodSpec{
+					// Pod-level security context for best practices
+					SecurityContext: &corev1.PodSecurityContext{
+						RunAsNonRoot: func(b bool) *bool { return &b }(true),
+						RunAsUser:    func(i int64) *int64 { return &i }(1000),
+						FSGroup:      func(i int64) *int64 { return &i }(2000),
+					},
 					ServiceAccountName: "vpn-gateway-client",
 					Affinity: &corev1.Affinity{
 						NodeAffinity: &corev1.NodeAffinity{
