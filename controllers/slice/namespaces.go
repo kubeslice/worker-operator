@@ -31,6 +31,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
+	"k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -668,33 +669,71 @@ func (r *SliceReconciler) reconcileSliceNetworkPolicy(ctx context.Context, slice
 			return err
 		}
 	}
+
+	// Track for any changes made
+	updatedNamespaces := []string{}
+	successfulNamespaces := 0
+	var errors []error
+
 	for _, appNsObj := range appNsList.Items {
-		err = r.installSliceNetworkPolicyInAppNs(ctx, slice, appNsObj.ObjectMeta.Name)
+		updated, err := r.installSliceNetworkPolicyInAppNs(ctx, slice, appNsObj.ObjectMeta.Name)
 		if err != nil {
-			log.Error(err, "Failed to install network policy", "namespace", appNsObj.ObjectMeta.Name)
+			log.Error(err, "Failed to install/update network policy", "namespace", appNsObj.ObjectMeta.Name)
+			errors = append(errors, fmt.Errorf("namespace %s: %w", appNsObj.ObjectMeta.Name, err))
+			continue
+		}
+		successfulNamespaces++
+		if updated {
+			updatedNamespaces = append(updatedNamespaces, appNsObj.ObjectMeta.Name)
+		}
+	}
+
+	if len(updatedNamespaces) > 0 {
+		utils.RecordEvent(ctx, r.EventRecorder, slice, nil, ossEvents.EventNetPolAdded, "slice_reconciler")
+		log.Info("Network Policies Installed/Updated", "namespaces", updatedNamespaces, "count", len(updatedNamespaces))
+	}
+
+	policiesInstalled := successfulNamespaces > 0
+	if slice.Status.NetworkPoliciesInstalled != policiesInstalled {
+		slice.Status.NetworkPoliciesInstalled = policiesInstalled
+		if err := r.Status().Update(ctx, slice); err != nil {
 			return err
 		}
-		utils.RecordEvent(ctx, r.EventRecorder, slice, nil, ossEvents.EventNetPolAdded, "slice_reconciler")
-		log.Info("Installed netpol for namespace successfully", "namespace", appNsObj.ObjectMeta.Name)
 	}
-	slice.Status.NetworkPoliciesInstalled = true
-	return r.Status().Update(ctx, slice)
+
+	if len(errors) > 0 {
+		return fmt.Errorf("Failed to process some namespaces.Errors: %v", errors)
+	}
+	return nil
 }
 
-func (r *SliceReconciler) installSliceNetworkPolicyInAppNs(ctx context.Context, slice *kubeslicev1beta1.Slice, appNs string) error {
+func (r *SliceReconciler) installSliceNetworkPolicyInAppNs(ctx context.Context, slice *kubeslicev1beta1.Slice, appNs string) (bool, error) {
 	log := r.Log.WithValues("type", "networkPolicy")
 
-	netPolicy := controllers.ContructNetworkPolicyObject(ctx, slice, appNs)
-	err := r.Update(ctx, netPolicy)
+	desiredNetPolicy := controllers.ContructNetworkPolicyObject(ctx, slice, appNs)
+
+	// Try to Get the Existing NetworkPolicy if exists
+	existingNetPolicy := &networkingv1.NetworkPolicy{}
+	netPolicyName := slice.Name + "-" + appNs
+	err := r.Get(ctx, types.NamespacedName{Name: netPolicyName, Namespace: appNs}, existingNetPolicy)
 	if err != nil {
 		if errors.IsNotFound(err) {
-			return r.Create(ctx, netPolicy)
-		} else {
-			return err
+			err := r.Create(ctx, desiredNetPolicy)
+			return err == nil, err
 		}
+		return false, err
 	}
-	log.Info("Updated network policy", "namespace", appNs)
-	return nil
+
+	// NetPolicy Exists, check if update is needed
+	if !equality.Semantic.DeepEqual(desiredNetPolicy.Spec, existingNetPolicy.Spec) {
+		existingNetPolicy.Spec = desiredNetPolicy.Spec
+		if err := r.Update(ctx, existingNetPolicy); err != nil {
+			return false, err
+		}
+		log.Info("Updated network policy", "namespace", appNs)
+		return true, nil
+	}
+	return false, nil
 }
 
 func (r *SliceReconciler) cleanupSliceNamespaces(ctx context.Context, slice *kubeslicev1beta1.Slice) error {
