@@ -401,12 +401,19 @@ func (r *SliceGwReconciler) deploymentForGatewayServer(g *kubeslicev1beta1.Slice
 								Value: "config",
 							},
 						},
+						Ports: []corev1.ContainerPort{{
+							Name:          "grpc",
+							ContainerPort: 5000,
+						}},
 						SecurityContext: &corev1.SecurityContext{
 							Privileged:               &privileged,
 							AllowPrivilegeEscalation: &privileged,
 							Capabilities: &corev1.Capabilities{
 								Add: []corev1.Capability{
 									"NET_ADMIN",
+								},
+								Drop: []corev1.Capability{
+									"ALL",
 								},
 							},
 						},
@@ -767,12 +774,19 @@ func (r *SliceGwReconciler) deploymentForGatewayClient(g *kubeslicev1beta1.Slice
 								Value: strconv.Itoa(remotePortNumber),
 							},
 						},
+						Ports: []corev1.ContainerPort{{
+							Name:          "grpc",
+							ContainerPort: 5000,
+						}},
 						SecurityContext: &corev1.SecurityContext{
 							Privileged:               &privileged,
 							AllowPrivilegeEscalation: &privileged,
 							Capabilities: &corev1.Capabilities{
 								Add: []corev1.Capability{
 									"NET_ADMIN",
+								},
+								Drop: []corev1.Capability{
+									"ALL",
 								},
 							},
 						},
