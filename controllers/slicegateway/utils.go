@@ -371,6 +371,9 @@ func GetPodForGwDeployment(ctx context.Context, c client.Client, depName string)
 	if err := c.List(ctx, &podList, listOpts...); err != nil {
 		return nil, err
 	}
+	if len(podList.Items) == 0 {
+		return nil, fmt.Errorf("No pods found with matching labels")
+	}
 
 	return &podList.Items[0], nil
 }
