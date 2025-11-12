@@ -207,6 +207,12 @@ func (r *SliceReconciler) labelAppPodWithNsmIp(ctx context.Context, slice *kubes
 		if labels == nil {
 			labels = make(map[string]string)
 		}
+
+		annotations := pod.GetAnnotations()
+		if annotations == nil {
+			annotations = make(map[string]string)
+		}
+
 		_, ok := labels[controllers.NSMIPLabelSelectorKey]
 		if !ok {
 			updateNeeded = true
@@ -218,14 +224,22 @@ func (r *SliceReconciler) labelAppPodWithNsmIp(ctx context.Context, slice *kubes
 			}
 		}
 
+		// Add Istio exclusion for NSM communication
+		expectedExcludePort := "5000"
+		if annotations["traffic.sidecar.istio.io/excludeOutboundPorts"] != expectedExcludePort {
+			updateNeeded = true
+			annotations["traffic.sidecar.istio.io/excludeOutboundPorts"] = expectedExcludePort
+		}
+
 		if updateNeeded {
 			pod.SetLabels(labels)
+			pod.SetAnnotations(annotations)
 			err := r.Update(ctx, &pod)
 			if err != nil {
-				log.Error(err, "Failed to update NSM IP label for app pod", "pod", pod.Name)
+				log.Error(err, "Failed to update NSM IP label and Istio annotations for app pod", "pod", pod.Name)
 				return err
 			}
-			debugLog.Info("App pod label added/updated", "pod", pod.Name, "nsmIP", podInSlice.NsmIP)
+			debugLog.Info("App pod label and Istio exclusion added/updated", "pod", pod.Name, "nsmIP", podInSlice.NsmIP)
 		}
 	}
 
