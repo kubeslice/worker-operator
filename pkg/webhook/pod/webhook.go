@@ -45,6 +45,7 @@ const (
 	nsmInjectAnnotaionKey1                    = "ns.networkservicemesh.io"
 	nsmInjectAnnotaionKey2                    = "networkservicemesh.io"
 	kubesliceExcludeKey                       = "kubeslice.io/exclude"
+	SkipInitContainersLabelKey                = "kubeslice.io/skip-init-containers"
 )
 
 var (
@@ -78,11 +79,11 @@ func (wh *WebhookServer) Handle(ctx context.Context, req admission.Request) admi
 			pod.ObjectMeta.Namespace = req.Namespace
 		}
 
-		if mutate, sliceName := wh.MutationRequired(pod.ObjectMeta, ctx, req.Kind.Kind); !mutate {
+		if mutate, sliceName, nsLabels := wh.MutationRequired(pod.ObjectMeta, ctx, req.Kind.Kind); !mutate {
 			log.Info("mutation not required for pod", "pod metadata", pod.ObjectMeta.Name)
 		} else {
 			log.Info("mutating pod", "pod metadata", pod.ObjectMeta.Name)
-			pod = MutatePod(pod, sliceName)
+			pod = MutatePod(pod, sliceName, nsLabels)
 		}
 
 		marshaled, err := json.Marshal(pod)
@@ -98,10 +99,10 @@ func (wh *WebhookServer) Handle(ctx context.Context, req admission.Request) admi
 			return admission.Errored(http.StatusBadRequest, err)
 		}
 
-		if mutate, sliceName := wh.MutationRequired(deploy.ObjectMeta, ctx, req.Kind.Kind); !mutate {
+		if mutate, sliceName, nsLabels := wh.MutationRequired(deploy.ObjectMeta, ctx, req.Kind.Kind); !mutate {
 			log.Info("mutation not required for deployment", "pod metadata", deploy.Spec.Template.ObjectMeta)
 		} else {
-			deploy = MutateDeployment(deploy, sliceName)
+			deploy = MutateDeployment(deploy, sliceName, nsLabels)
 			log.Info("mutated deploy", "pod metadata", deploy.Spec.Template.ObjectMeta)
 		}
 
@@ -118,10 +119,10 @@ func (wh *WebhookServer) Handle(ctx context.Context, req admission.Request) admi
 		}
 		log := logger.FromContext(ctx)
 
-		if mutate, sliceName := wh.MutationRequired(statefulset.ObjectMeta, ctx, req.Kind.Kind); !mutate {
+		if mutate, sliceName, nsLabels := wh.MutationRequired(statefulset.ObjectMeta, ctx, req.Kind.Kind); !mutate {
 			log.Info("mutation not required for statefulsets", "pod metadata", statefulset.Spec.Template.ObjectMeta)
 		} else {
-			statefulset = MutateStatefulset(statefulset, sliceName)
+			statefulset = MutateStatefulset(statefulset, sliceName, nsLabels)
 			log.Info("mutated statefulset", "pod metadata", statefulset.Spec.Template.ObjectMeta)
 		}
 
@@ -138,10 +139,10 @@ func (wh *WebhookServer) Handle(ctx context.Context, req admission.Request) admi
 		}
 		log := logger.FromContext(ctx)
 
-		if mutate, sliceName := wh.MutationRequired(daemonset.ObjectMeta, ctx, req.Kind.Kind); !mutate {
+		if mutate, sliceName, nsLabels := wh.MutationRequired(daemonset.ObjectMeta, ctx, req.Kind.Kind); !mutate {
 			log.Info("mutation not required for daemonset", "pod metadata", daemonset.Spec.Template.ObjectMeta)
 		} else {
-			daemonset = MutateDaemonSet(daemonset, sliceName)
+			daemonset = MutateDaemonSet(daemonset, sliceName, nsLabels)
 			log.Info("mutated daemonset", "pod metadata", daemonset.Spec.Template.ObjectMeta)
 		}
 
@@ -177,7 +178,23 @@ func (wh *WebhookServer) Handle(ctx context.Context, req admission.Request) admi
 	}}
 }
 
-func MutatePod(pod *corev1.Pod, sliceName string) *corev1.Pod {
+// applyCustomLabels applies custom labels from namespace to the pod template labels
+func applyCustomLabels(labels map[string]string, nsLabels map[string]string) {
+	if labels == nil {
+		return
+	}
+	if nsLabels == nil {
+		return
+	}
+	// Copy custom labels from namespace to pod
+	// For initial phase: check if namespace has skip-init-containers label
+	if val, exists := nsLabels[SkipInitContainersLabelKey]; exists {
+		labels[SkipInitContainersLabelKey] = val
+	}
+	// Add more custom label mappings here as needed
+}
+
+func MutatePod(pod *corev1.Pod, sliceName string, nsLabels map[string]string) *corev1.Pod {
 	// Add injection status to pod annotations
 	if pod.ObjectMeta.Annotations == nil {
 		pod.ObjectMeta.Annotations = map[string]string{}
@@ -199,10 +216,13 @@ func MutatePod(pod *corev1.Pod, sliceName string) *corev1.Pod {
 	labels[PodInjectLabelKey] = "app"
 	labels[admissionWebhookAnnotationInjectKey] = sliceName
 
+	// Apply custom labels from namespace
+	applyCustomLabels(labels, nsLabels)
+
 	return pod
 }
 
-func MutateDeployment(deploy *appsv1.Deployment, sliceName string) *appsv1.Deployment {
+func MutateDeployment(deploy *appsv1.Deployment, sliceName string, nsLabels map[string]string) *appsv1.Deployment {
 	// Add injection status to deployment annotations
 	if deploy.Spec.Template.ObjectMeta.Annotations == nil {
 		deploy.Spec.Template.ObjectMeta.Annotations = map[string]string{}
@@ -223,6 +243,9 @@ func MutateDeployment(deploy *appsv1.Deployment, sliceName string) *appsv1.Deplo
 	labels[PodInjectLabelKey] = "app"
 	labels[admissionWebhookAnnotationInjectKey] = sliceName
 
+	// Apply custom labels from namespace
+	applyCustomLabels(labels, nsLabels)
+
 	if deploy.ObjectMeta.Labels == nil {
 		deploy.ObjectMeta.Labels = make(map[string]string)
 	}
@@ -231,7 +254,7 @@ func MutateDeployment(deploy *appsv1.Deployment, sliceName string) *appsv1.Deplo
 	return deploy
 }
 
-func MutateStatefulset(ss *appsv1.StatefulSet, sliceName string) *appsv1.StatefulSet {
+func MutateStatefulset(ss *appsv1.StatefulSet, sliceName string, nsLabels map[string]string) *appsv1.StatefulSet {
 	// Add injection status to statefulset annotations
 	if ss.Spec.Template.ObjectMeta.Annotations == nil {
 		ss.Spec.Template.ObjectMeta.Annotations = map[string]string{}
@@ -252,6 +275,9 @@ func MutateStatefulset(ss *appsv1.StatefulSet, sliceName string) *appsv1.Statefu
 	labels[PodInjectLabelKey] = "app"
 	labels[admissionWebhookAnnotationInjectKey] = sliceName
 
+	// Apply custom labels from namespace
+	applyCustomLabels(labels, nsLabels)
+
 	if ss.ObjectMeta.Labels == nil {
 		ss.ObjectMeta.Labels = make(map[string]string)
 	}
@@ -260,7 +286,7 @@ func MutateStatefulset(ss *appsv1.StatefulSet, sliceName string) *appsv1.Statefu
 	return ss
 }
 
-func MutateDaemonSet(ds *appsv1.DaemonSet, sliceName string) *appsv1.DaemonSet {
+func MutateDaemonSet(ds *appsv1.DaemonSet, sliceName string, nsLabels map[string]string) *appsv1.DaemonSet {
 	// Add injection status to statefulset annotations
 	if ds.Spec.Template.ObjectMeta.Annotations == nil {
 		ds.Spec.Template.ObjectMeta.Annotations = map[string]string{}
@@ -280,6 +306,9 @@ func MutateDaemonSet(ds *appsv1.DaemonSet, sliceName string) *appsv1.DaemonSet {
 	labels := ds.Spec.Template.ObjectMeta.Labels
 	labels[PodInjectLabelKey] = "app"
 	labels[admissionWebhookAnnotationInjectKey] = sliceName
+
+	// Apply custom labels from namespace
+	applyCustomLabels(labels, nsLabels)
 
 	// add slice identifier labels to object
 	if ds.ObjectMeta.Labels == nil {
@@ -317,8 +346,8 @@ func (wh *WebhookServer) ValidateServiceExport(svcex *v1beta1.ServiceExport, ctx
 	return true, "", nil
 }
 
-// returns mutationRequired bool, sliceName string
-func (wh *WebhookServer) MutationRequired(metadata metav1.ObjectMeta, ctx context.Context, kind string) (bool, string) {
+// returns mutationRequired bool, sliceName string, nsLabels map[string]string
+func (wh *WebhookServer) MutationRequired(metadata metav1.ObjectMeta, ctx context.Context, kind string) (bool, string, map[string]string) {
 	log := logger.FromContext(ctx)
 	annotations := metadata.GetAnnotations()
 
@@ -327,7 +356,7 @@ func (wh *WebhookServer) MutationRequired(metadata metav1.ObjectMeta, ctx contex
 		val, exists := labels[kubesliceExcludeKey]
 		// don't mutate if kubeslice.io/exclude=true
 		if exists && val == "true" {
-			return false, ""
+			return false, "", nil
 		}
 	}
 
@@ -335,58 +364,59 @@ func (wh *WebhookServer) MutationRequired(metadata metav1.ObjectMeta, ctx contex
 	//we allow empty annotation, but namespace should not be empty
 	if metadata.GetNamespace() == "" {
 		log.Info("namespace is empty")
-		return false, ""
+		return false, "", nil
 	}
 
 	// do not inject if it is already injected
 	//TODO(rahulsawra): need better way to define injected status
 	if annotations[AdmissionWebhookAnnotationStatusKey] == "injected" {
 		log.Info("obj is already injected", "kind", kind)
-		return false, ""
+		return false, "", nil
 	}
 
 	// Do not auto onboard control plane namespace. Ideally, we should not have any deployment/pod in the control plane ns connect to a slice
 	if metadata.Namespace == controlPlaneNamespace {
 		log.Info("namespace is same as controle plane")
-		return false, ""
+		return false, "", nil
 	}
 
+	// Get namespace labels early to use for custom label propagation
 	nsLabels, err := wh.SliceInfoClient.GetNamespaceLabels(context.Background(), wh.Client, metadata.Namespace)
 	if err != nil {
 		log.Error(err, "Error getting namespace labels")
-		return false, ""
+		return false, "", nil
 	}
 	if nsLabels == nil {
 		log.Info("Namespace has no labels")
-		return false, ""
+		return false, "", nil
 	}
 
 	sliceNameInNs, sliceLabelPresent := nsLabels[admissionWebhookSliceNamespaceSelectorKey]
 	if !sliceLabelPresent {
 		log.Info("Namespace has no slice labels")
-		return false, ""
+		return false, "", nil
 	}
 
 	sliceNetworkType, err := wh.SliceInfoClient.GetSliceOverlayNetworkType(context.Background(), wh.Client, sliceNameInNs)
 	if err != nil {
 		log.Error(err, "Error getting slice overlay network type")
-		return false, ""
+		return false, "", nil
 	}
 	if sliceNetworkType != "" && sliceNetworkType != v1alpha1.SINGLENET {
 		log.Info("Slice overlay type is not single-network. Skip pod mutation...")
-		return false, ""
+		return false, "", nil
 	}
 
 	nsConfigured, err := wh.SliceInfoClient.SliceAppNamespaceConfigured(context.Background(), sliceNameInNs, metadata.Namespace)
 	if err != nil {
 		log.Error(err, "Failed to get app namespace info for slice",
 			"slice", sliceNameInNs, "namespace", metadata.Namespace)
-		return false, ""
+		return false, "", nil
 	}
 	if !nsConfigured {
 		log.Info("Namespace not part of slice", "namespace", metadata.Namespace, "slice", sliceNameInNs)
-		return false, ""
+		return false, "", nil
 	}
 	// The annotation kubeslice.io/slice:SLICENAME is present, enable mutation
-	return true, sliceNameInNs
+	return true, sliceNameInNs, nsLabels
 }
