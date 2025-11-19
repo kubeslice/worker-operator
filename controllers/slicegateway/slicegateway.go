@@ -953,10 +953,20 @@ func (r *SliceGwReconciler) SendConnectionContextAndQosToGwPod(ctx context.Conte
 		log.Info("Gw podIPs not available yet, requeuing")
 		return ctrl.Result{RequeueAfter: 5 * time.Second}, nil, true
 	}
+	
+	topologyType := "full-mesh"
+	if slice.Status.SliceConfig != nil && slice.Status.SliceConfig.TopologyConfig != nil {
+		topologyType = slice.Status.SliceConfig.TopologyConfig.TopologyType
+	}
+	
 	connCtx := &gwsidecar.GwConnectionContext{
 		RemoteSliceGwVpnIP:     slicegateway.Status.Config.SliceGatewayRemoteVpnIP,
 		RemoteSliceGwNsmSubnet: slicegateway.Status.Config.SliceGatewayRemoteSubnet,
+		TopologyType:           topologyType,
 	}
+	
+	log.Info("Sending connection context to gateway pod", "topology", topologyType, "remoteCluster", slicegateway.Status.Config.SliceGatewayRemoteClusterID)
+	
 	for i := range gwPodsInfo {
 		sidecarGrpcAddress := gwPodsInfo[i].PodIP + ":5000"
 

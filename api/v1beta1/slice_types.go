@@ -76,6 +76,8 @@ type SliceConfig struct {
 	SliceGatewayProtocol string `json:"sliceGatewayProtocol,omitempty"`
 	// Slice overlay network deployment mode: single-network, multi-network or no-network
 	SliceOverlayNetworkDeploymentMode controllerv1alpha1.NetworkType `json:"sliceOverlayNetworkDeploymentMode,omitempty"`
+	// Topology configuration
+	TopologyConfig *controllerv1alpha1.TopologyConfig `json:"topologyConfig,omitempty"`
 }
 
 // NamespaceIsolationProfile defines the namespace isolation policy for the slice
