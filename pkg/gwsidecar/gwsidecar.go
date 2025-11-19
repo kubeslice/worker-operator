@@ -54,6 +54,7 @@ type GwStatus struct {
 type GwConnectionContext struct {
 	RemoteSliceGwVpnIP     string
 	RemoteSliceGwNsmSubnet string
+	TopologyType           string
 }
 
 type gwSidecarClient struct {
@@ -149,6 +150,7 @@ func (worker gwSidecarClient) SendConnectionContext(ctx context.Context, serverA
 	msg := &sidecar.SliceGwConnectionContext{
 		RemoteSliceGwVpnIP:     gwConnCtx.RemoteSliceGwVpnIP,
 		RemoteSliceGwNsmSubnet: gwConnCtx.RemoteSliceGwNsmSubnet,
+		TopologyType:           gwConnCtx.TopologyType,
 	}
 
 	log.Info("SliceGwConnectionContext", "SliceGwConnectionContext", msg)

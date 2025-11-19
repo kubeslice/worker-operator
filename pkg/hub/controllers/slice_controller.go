@@ -21,6 +21,7 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"reflect"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -326,6 +327,10 @@ func (r *SliceReconciler) updateSliceConfig(ctx context.Context, meshSlice *kube
 			Enabled: extGwCfg.NsIngress.Enabled,
 		},
 		VPCServiceAccess: extGwCfg.VPCServiceAccess,
+	}
+
+	if err := r.validateAndCopyTopology(ctx, meshSlice, spokeSlice); err != nil {
+		return err
 	}
 
 	return r.MeshClient.Status().Update(ctx, meshSlice)
@@ -660,4 +665,97 @@ func (r *SliceReconciler) UpdateSliceHealthMetrics(slice *spokev1alpha1.WorkerSl
 			r.gaugeComponentUp.WithLabelValues(sliceName, cs.Component).Set(0)
 		}
 	}
+}
+
+func (r *SliceReconciler) validateAndCopyTopology(ctx context.Context, meshSlice *kubeslicev1beta1.Slice, spokeSlice *spokev1alpha1.WorkerSliceConfig) error {
+	log := logger.FromContext(ctx)
+	topologyValue := reflect.ValueOf(spokeSlice.Spec).FieldByName("TopologyConfig")
+	if !topologyValue.IsValid() || topologyValue.IsNil() {
+		log.V(1).Info("TopologyConfig field not present or nil, skipping topology copy")
+		return nil
+	}
+	topologyInterface := topologyValue.Interface()
+	if topologyInterface == nil {
+		return nil
+	}
+	topologyType := reflect.TypeOf(topologyInterface)
+	if topologyType.Kind() != reflect.Ptr {
+		return nil
+	}
+	topologyElem := topologyValue.Elem()
+	if !topologyElem.IsValid() {
+		return nil
+	}
+	topologyTypeField := topologyElem.FieldByName("TopologyType")
+	if !topologyTypeField.IsValid() {
+		return nil
+	}
+	connectivityMatrix := topologyElem.FieldByName("ConnectivityMatrix")
+	forbiddenEdges := topologyElem.FieldByName("ForbiddenEdges")
+	if !connectivityMatrix.IsValid() || !forbiddenEdges.IsValid() {
+		return nil
+	}
+	clustersValue := reflect.ValueOf(spokeSlice.Spec).FieldByName("Clusters")
+	if !clustersValue.IsValid() || clustersValue.Kind() != reflect.Slice {
+		return nil
+	}
+	clusterSet := make(map[string]struct{})
+	for i := 0; i < clustersValue.Len(); i++ {
+		cluster := clustersValue.Index(i).String()
+		clusterSet[cluster] = struct{}{}
+	}
+	if connectivityMatrix.Len() > 0 {
+		for i := 0; i < connectivityMatrix.Len(); i++ {
+			entry := connectivityMatrix.Index(i)
+			sourceCluster := entry.FieldByName("SourceCluster").String()
+			if _, ok := clusterSet[sourceCluster]; !ok {
+				return fmt.Errorf("connectivityMatrix[%d]: sourceCluster %q not in clusters", i, sourceCluster)
+			}
+			targetClusters := entry.FieldByName("TargetClusters")
+			if targetClusters.IsValid() && targetClusters.Kind() == reflect.Slice {
+				for j := 0; j < targetClusters.Len(); j++ {
+					target := targetClusters.Index(j).String()
+					if _, ok := clusterSet[target]; !ok {
+						return fmt.Errorf("connectivityMatrix[%d].targetClusters[%d]: %q not in clusters", i, j, target)
+					}
+				}
+			}
+		}
+	}
+	if forbiddenEdges.Len() > 0 {
+		for i := 0; i < forbiddenEdges.Len(); i++ {
+			edge := forbiddenEdges.Index(i)
+			sourceCluster := edge.FieldByName("SourceCluster").String()
+			if _, ok := clusterSet[sourceCluster]; !ok {
+				return fmt.Errorf("forbiddenEdges[%d]: sourceCluster %q not in clusters", i, sourceCluster)
+			}
+			targetClusters := edge.FieldByName("TargetClusters")
+			if targetClusters.IsValid() && targetClusters.Kind() == reflect.Slice {
+				for j := 0; j < targetClusters.Len(); j++ {
+					target := targetClusters.Index(j).String()
+					if _, ok := clusterSet[target]; !ok {
+						return fmt.Errorf("forbiddenEdges[%d].targetClusters[%d]: %q not in clusters", i, j, target)
+					}
+				}
+			}
+		}
+	}
+	statusConfigValue := reflect.ValueOf(meshSlice.Status.SliceConfig).Elem()
+	topologyConfigField := statusConfigValue.FieldByName("TopologyConfig")
+	if !topologyConfigField.IsValid() || !topologyConfigField.CanSet() {
+		log.V(1).Info("TopologyConfig field not available in worker SliceConfig, skipping copy")
+		return nil
+	}
+	newTopology := reflect.New(topologyConfigField.Type().Elem())
+	newTopologyElem := newTopology.Elem()
+	newTopologyElem.FieldByName("TopologyType").SetString(topologyTypeField.String())
+	if connectivityMatrix.IsValid() && connectivityMatrix.Len() > 0 {
+		newTopologyElem.FieldByName("ConnectivityMatrix").Set(connectivityMatrix)
+	}
+	if forbiddenEdges.IsValid() && forbiddenEdges.Len() > 0 {
+		newTopologyElem.FieldByName("ForbiddenEdges").Set(forbiddenEdges)
+	}
+	topologyConfigField.Set(newTopology)
+	log.Info("Topology configuration copied to worker slice", "topologyType", topologyTypeField.String())
+	return nil
 }
