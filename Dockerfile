@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1
 ##########################################################
 #Dockerfile
 #Copyright (c) 2022 Avesha, Inc. All rights reserved.
@@ -16,31 +17,32 @@
 #See the License for the specific language governing permissions and
 #limitations under the License.
 ##########################################################
-
-# Build the manager binary
-FROM golang:1.24 AS builder
-
-WORKDIR /workspace
-# Copy the Go Modules manifests
-COPY go.mod go.mod
-COPY go.sum go.sum
-ADD vendor vendor
-# cache deps before building and copying source so that we don't need to re-download as much
-# and so that source changes don't invalidate our downloaded layer
-#RUN echo "[url \"git@bitbucket.org:\"]\n\tinsteadOf = https://bitbucket.org/" >> /root/.gitconfig
-
+FROM --platform=$BUILDPLATFORM golang:1.24 AS builder
+LABEL maintainer="Avesha Systems"
 ARG TARGETOS
-ARG TARGETPLATFORM
 ARG TARGETARCH
+ARG BUILDPLATFORM
+WORKDIR /workspace
+
+# Copy the Go Modules manifests first for better layer caching
+COPY go.mod go.sum ./
+# Copy vendor directory (required for -mod=vendor build)
+COPY vendor vendor/
 
 # Copy the go source
-COPY main.go main.go
+COPY main.go ./
 COPY api/ api/
 COPY controllers/ controllers/
 COPY pkg/ pkg/
 COPY events/ events/
-# Build
-RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} GO111MODULE=on go build -mod=vendor -a -o manager main.go
+
+# Cross-compile with optimizations and caching
+RUN --mount=type=cache,target=/root/.cache/go-build \
+    --mount=type=cache,target=/go/pkg \
+    CGO_ENABLED=0 \
+    GOOS=${TARGETOS:-linux} \
+    GOARCH=${TARGETARCH} \
+    go build -mod=vendor -ldflags="-w -s" -trimpath -o manager main.go
 
 # Use distroless as minimal base image to package the manager binary
 # Refer to https://github.com/GoogleContainerTools/distroless for more details
