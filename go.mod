@@ -2,6 +2,8 @@ module github.com/kubeslice/worker-operator
 
 go 1.24.0
 
+toolchain go1.24.11
+
 // replace github.com/kubeslice/apis => ../../misc/apis
 
 require (
