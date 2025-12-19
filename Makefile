@@ -114,14 +114,15 @@ run: manifests generate fmt vet ## Run a controller from your host.
 	go run ./main.go
 
 .PHONY: docker-build
-docker-build: ## Build docker image with the manager.
-	docker buildx create --name container --driver=docker-container || true
-	docker build --builder container --platform linux/amd64,linux/arm64 -t ${IMG} .
+docker-build: ## Build docker image with the manager (multi-arch, requires --push to create manifest list).
+	docker buildx create --name container --driver=docker-container --use || docker buildx use container || true
+	docker buildx build --builder container --platform linux/amd64,linux/arm64 -t ${IMG} .
 
 .PHONY: docker-push
-docker-push: ## Push docker image with the manager.
-	docker buildx create --name container --driver=docker-container || true
-	docker build --push --builder container --platform linux/amd64,linux/arm64 -t ${IMG} .
+docker-push: ## Build and push docker image with the manager (multi-arch manifest list).
+	@echo "Note: BuildKit requires network access to verify image manifests. If offline, images must be pre-pulled."
+	docker buildx create --name container --driver=docker-container --use || docker buildx use container || true
+	docker buildx build --push --builder container --platform linux/amd64,linux/arm64 -t ${IMG} .
 
 ##@ Deployment
 
