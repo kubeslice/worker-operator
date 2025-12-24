@@ -248,6 +248,9 @@ func getVolumesForGatewayServer(g *kubeslicev1beta1.SliceGateway, gwConfigKey in
 							}, {
 								Key:  "ccdFile",
 								Path: "ccd/" + g.Status.Config.SliceGatewayRemoteGatewayID,
+							}, {
+								Key:  "ovpnEnvFile",
+								Path: "ovpn_env.sh",
 							},
 						},
 					},
