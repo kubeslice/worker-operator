@@ -1,0 +1,34 @@
+# Names should be added to this file as
+# Name or Organization <email address>
+# The email address is not required for organizations.
+
+# You can update this list using the following command:
+#
+# (head -n10 AUTHORS && git shortlog -se | sed -E 's/^\s+[0-9]+\t//') | tee AUTHORS
+#
+# Please keep the list sorted.
+
+     3	Jayadeep KM <kmjayadeep@gmail.com>
+     2	Kranthi Kumar <104369326+KRANTHI0918@users.noreply.github.com>
+     2	Md Imran <imranaec@outlook.com>
+    21	Nishant Singh <89241026+NishantSingh10@users.noreply.github.com>
+     4	Nishant Singh <nishantsinghnitc@gmail.com>
+     1	Rahul <rahul.sawra@aveshasystems.com>
+     9	Rahul Kumar <57394571+Rahul-D78@users.noreply.github.com>
+     2	Rahul Sawra <rahul.sawra@aveshasystems.com>
+     3	Rahul-D78 <rahul.kumar@aveshasystems.com>
+     1	Rajendra Naidu <rajendra@aveshasystems.com>
+     2	Richie Sebastian <104349170+richiesebastian@users.noreply.github.com>
+     1	Ubuntu <kranthi@aveshasystems.com>
+     1	Yachika <36668209+YachikaRalhan@users.noreply.github.com>
+     1	dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>
+     3	gourishkb <104021126+gourishkb@users.noreply.github.com>
+     1	krishsastry <krish.sastry@gmail.com>
+     1	kumar.bavanasi <kumar.bavanasi@aveshasystems.com>
+     1	nishantsingh <nishantsinghnitc@gmail.com>
+     1	pnavali <75800004+pnavali@users.noreply.github.com>
+    17	rahulii <r.sawra@gmail.com>
+     1	rahulsawra98 <104886535+rahulsawra98@users.noreply.github.com>
+     7	richiesebastian <104349170+richiesebastian@users.noreply.github.com>
+     9	uma-kt <105046156+uma-kt@users.noreply.github.com>
+     6	veenamj-avesha <104770800+veenamj-avesha@users.noreply.github.com>

@@ -19,6 +19,7 @@ package status
 
 import (
 	"fmt"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -72,10 +73,16 @@ func NewTunnelChecker(log *logger.Logger) Check {
 
 // Execute executes the Tunnel status check
 func (t *TunnelChecker) Execute(interface{}) (err error) {
-	ifaceInfos, err := nettools.GetInterfaceInfos("tun")
+	var vpnPrefixName string
+	if os.Getenv("VPN_TYPE") == "OpenVPN" {
+		vpnPrefixName = "tun"
+	} else {
+		vpnPrefixName = "wg"
+	}
+	ifaceInfos, err := nettools.GetInterfaceInfos(vpnPrefixName)
 	if err != nil {
 		t.tunStatus = nil
-		t.log.Errorf("Unable to find the tun interface")
+		t.log.Errorf("Unable to find the %s interface", vpnPrefixName)
 		return err
 	}
 	if len(ifaceInfos) > 1 || len(ifaceInfos) == 0 {
@@ -89,6 +96,7 @@ func (t *TunnelChecker) Execute(interface{}) (err error) {
 	}
 	//add metrics which can be shown on prometheus
 	metrics.RecordLatencyMetric(float64(t.tunStatus.Latency))
+	metrics.RecordPktLossMetric(float64(t.tunStatus.PacketLoss))
 	metrics.RecordRxRateMetric(float64(t.tunStatus.RxRate))
 	metrics.RecordTxRateMetric(float64(t.tunStatus.TxRate))
 
@@ -192,9 +200,24 @@ func (t *TunnelChecker) onFinishCb(stats *ping.Statistics) {
 	if t.tunStatus != nil {
 		t.tunStatus.Lock()
 		defer t.tunStatus.Unlock()
+		// Check if the pkt loss is 100%. For a prolonged instance of total and complete
+		// packet loss, increment the counter till MAX_PKTLOSS_COUNT and
+		// circle back to GUARANTEED_PKTLOSS_COUNT.
+		// Reset the count if pkt loss is less than 100%.
+		if stats.PacketLoss == 100 {
+			if t.tunStatus.TotalPktLossIter == MAX_PKTLOSS_COUNT {
+				t.tunStatus.TotalPktLossIter = GUARANTEED_PKTLOSS_COUNT
+			} else {
+				t.tunStatus.TotalPktLossIter++
+				t.log.Infof("BBH: incr pkt loss iter: %v", t.tunStatus.TotalPktLossIter)
+			}
+		} else {
+			t.tunStatus.TotalPktLossIter = 0
+		}
 		t.tunStatus.PacketLoss = uint64(stats.PacketLoss)
 		t.tunStatus.Latency = uint64(stats.AvgRtt / time.Millisecond)
-		t.log.Infof("Latency :%v\t Packet Loss:%v\t", t.tunStatus.Latency, t.tunStatus.PacketLoss)
+		t.log.Infof("Latency :%v, Packet Loss:%v, ContiguousTotalPktLossCount: %v",
+			t.tunStatus.Latency, t.tunStatus.PacketLoss, t.tunStatus.TotalPktLossIter)
 		if t.exMod != nil {
 			t.exMod.SendMsg(&tunnelMessage{ty: RestartPinger, msg: nil})
 		}
@@ -228,7 +251,9 @@ func (t *TunnelChecker) updateNetworkStatus(ifaceName string) error {
 	t.log.Debugf("Command: %v output :%v", rxCmd, cmdOut)
 
 	curTime := getCurTimeMs()
-	timeDelta := curTime - t.startTime
+	// The ping interval is one second. So the time delta could sometimes be a little less than one second that could
+	// cause a divide by zero error while calculating the tx and rx rate. Hence recording the rates in terms of bytes per ms.
+	timeDelta := (curTime - t.startTime)
 	t.log.Debugf("Current time: %v Start Time : %v timeDelta: %v prev txBytes: %v prev rxBytes: %v cur txBytes: %v cur rxBytes: %v", curTime, t.startTime, timeDelta, t.txBytes, t.rxBytes, txBytes, rxBytes)
 	if (txBytes - t.txBytes) < 0 {
 		t.log.Errorf("Negative txBytes ")

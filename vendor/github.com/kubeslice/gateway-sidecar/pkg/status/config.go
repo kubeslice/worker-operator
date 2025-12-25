@@ -36,13 +36,25 @@ type Config struct {
 
 // TunnelInterfaceStatus represents Tunnel Interface Status
 type TunnelInterfaceStatus struct {
-	NetInterface string `json:"netInterface,omitempty"`
-	LocalIP      string `json:"localIp,omitempty"`
-	PeerIP       string `json:"peerIp,omitempty"`
-	Latency      uint64 `json:"latency,omitempty"`
-	TxRate       uint64 `json:"txRate,omitempty"`
-	RxRate       uint64 `json:"rxRate,omitempty"`
-	PacketLoss   uint64 `json:"packetLoss,omitempty"`
-	Status       uint64 `json:"status,omitempty"`
+	NetInterface     string `json:"netInterface,omitempty"`
+	LocalIP          string `json:"localIp,omitempty"`
+	PeerIP           string `json:"peerIp,omitempty"`
+	Latency          uint64 `json:"latency,omitempty"`
+	TxRate           uint64 `json:"txRate,omitempty"`
+	RxRate           uint64 `json:"rxRate,omitempty"`
+	PacketLoss       uint64 `json:"packetLoss,omitempty"`
+	Status           uint64 `json:"status,omitempty"`
+	TotalPktLossIter uint32 `json: "totalPktLossIter,omitempty"`
 	sync.Mutex
 }
+
+var (
+	// This var holds the total number of contiguous 100% pkt loss events.
+	// When the number of total and complete pkt loss hits the GUARANTEED_PKTLOSS_COUNT,
+	// it would be safe to assume that the tunnel is down.
+	GUARANTEED_PKTLOSS_COUNT uint32 = 20
+	// We have a circular counter to keep track of total and complete pktloss on the tunnel.
+	// Once the count hits MAX_PKTLOSS_COUNT and if the tunnel is still down, the counter
+	// restarts from GUARANTEED_PKTLOSS_COUNT.
+	MAX_PKTLOSS_COUNT uint32 = 600
+)

@@ -128,7 +128,6 @@ func (TcType) EnumDescriptor() ([]byte, []int) {
 	return file_pkg_sidecar_sidecarpb_gw_sidecar_proto_rawDescGZIP(), []int{1}
 }
 
-//
 type ClassType int32
 
 const (

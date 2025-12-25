@@ -67,16 +67,16 @@ func getGwPodStatus() (*GwPodStatus, error) {
 	if statusMonitor != nil {
 		// Get the monitor status checks
 		checks := statusMonitor.Checks()
-		log.Info("checks","checks",checks)
+		log.Info("checks", "checks", checks)
 		for _, v := range checks {
 			stats, err := v.Status()
-			log.Info("stats","stats ",stats)
+			log.Info("stats", "stats ", stats)
 			if err != nil {
 				// this means that tunnel is not established
 				tunnelStatus.Status = TunnelStatusType_GW_TUNNEL_STATE_DOWN
 				podStatus.TunnelStatus = &tunnelStatus
 				log.Infof("pod status : %v", podStatus)
-				return podStatus,nil
+				return podStatus, nil
 			}
 			tunnelStatus = TunnelInterfaceStatus{
 				NetInterface: stats.NetInterface,
@@ -88,7 +88,9 @@ func getGwPodStatus() (*GwPodStatus, error) {
 				PacketLoss:   stats.PacketLoss,
 				Status:       TunnelStatusType_GW_TUNNEL_STATE_UP,
 			}
-			if tunnelStatus.PacketLoss > 80 || tunnelStatus.NetInterface == "" {
+			// Set the state of the tunnel to down only if there are contiguous instances (recorded by the
+			// stats.TotalPktLossIter counter) of total and complete, i.e 100%, pkt loss.
+			if stats.PacketLoss == 100 && stats.TotalPktLossIter >= status.GUARANTEED_PKTLOSS_COUNT {
 				tunnelStatus.Status = TunnelStatusType_GW_TUNNEL_STATE_DOWN
 			}
 
@@ -164,6 +166,11 @@ func runTcCommand(tcCmd string) (string, error) {
 func updateGwStatusWithConContext(conContext *SliceGwConnectionContext) error {
 	log.Infof("conContext : %v", conContext)
 	var errVal error = nil
+
+	if statusMonitor == nil {
+		log.Error("statusMonitor is nil, cannot perform status checks")
+		return errors.New("internal error: status monitor is uninitialized")
+	}
 
 	for k, v := range statusMonitor.Checks() {
 		switch k {

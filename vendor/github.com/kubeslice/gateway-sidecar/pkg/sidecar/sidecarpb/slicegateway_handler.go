@@ -50,7 +50,7 @@ func sliceGwSetInterClusterDscpConfig(dscpClass string) error {
 	}
 
 	portFilter := ""
-	if os.Getenv("OPEN_VPN_MODE") == "CLIENT" {
+	if os.Getenv("VPN_MODE") == "CLIENT" {
 		if SliceGwRemoteClusterNodePort == "" {
 			log.Infof("Waiting for remote cluster node port to set the dscp config")
 			return nil

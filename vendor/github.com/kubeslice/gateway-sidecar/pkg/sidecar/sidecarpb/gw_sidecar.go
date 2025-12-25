@@ -19,7 +19,6 @@ package sidecar
 
 import (
 	"context"
-	"fmt"
 	"net"
 
 	"github.com/golang/protobuf/ptypes/empty"
@@ -57,28 +56,36 @@ func (s *GwSidecar) GetSliceGwRemotePodName(ctx context.Context, remoteGwVpnIP *
 		return nil, status.Errorf(codes.Canceled, "Client cancelled, abandoning.")
 	}
 	if remoteGwVpnIP == nil {
-		return nil, status.Errorf(codes.InvalidArgument, "Connection Context is Empty")
+		return nil, status.Errorf(codes.InvalidArgument, "Remote Gateway VPN IP is nil")
 	}
 	if remoteGwVpnIP.GetRemoteGwVpnIP() == "" {
 		return nil, status.Errorf(codes.InvalidArgument, "Invalid Remote Slice Gateway VPN IP")
 	}
 
-	// Call the GRPC client get the RemoteGW PodName
-	address := remoteGwVpnIP.RemoteGwVpnIP + ":5000"
-	fmt.Println("logging the address", address)
+	// Call the GRPC client to get the RemoteGW PodName
+	address := remoteGwVpnIP.GetRemoteGwVpnIP() + ":5000"
+	log.Infof("Attempting to dial remote gateway at: %s", address)
+
 	conn, err := grpc.Dial(address, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
-		fmt.Println("err:", err.Error())
-		return nil, status.Errorf(codes.InvalidArgument, "Unable to connecto to remote gw pod")
+		log.Errorf("Failed to dial remote gateway: %v", err)
+		return nil, status.Errorf(codes.Unavailable, "Unable to connect to remote gateway pod")
 	}
 	defer conn.Close()
+
 	client := NewGwSidecarServiceClient(conn)
 	res, err := client.GetStatus(context.Background(), &empty.Empty{})
 	if err != nil {
-		fmt.Println("err:", err.Error())
-		status.Errorf(codes.InvalidArgument, "Unable to get the remote pod status")
+		log.Errorf("Failed to get remote pod status: %v", err)
+		return nil, status.Errorf(codes.Unavailable, "Unable to get the remote pod status")
 	}
-	log.Info("recieved response from remote cluster", res)
+
+	if res == nil {
+		log.Warn("Received nil response from remote cluster")
+		return nil, status.Errorf(codes.Internal, "Remote cluster returned empty response")
+	}
+
+	log.Infof("Received response from remote cluster: %v", res)
 	return res, nil
 }
 
