@@ -124,20 +124,22 @@ func (r *Reconciler) createDeregisterJob(ctx context.Context, cluster *hubv1alph
 		return err
 	}
 
-	cleanupConfigMap := constructConfigMap(data)
 	cmRef := types.NamespacedName{
 		Name:      clusterDeregisterConfigMap,
 		Namespace: ControlPlaneNamespace,
 	}
 	// check if the cleanup configmap already exists, delete it to ensure it has correct data
-	if err := r.MeshClient.Get(ctx, cmRef, cleanupConfigMap); err == nil {
-		err = r.MeshClient.Delete(ctx, cleanupConfigMap)
+	existingConfigMap := &corev1.ConfigMap{}
+	if err := r.MeshClient.Get(ctx, cmRef, existingConfigMap); err == nil {
+		err = r.MeshClient.Delete(ctx, existingConfigMap)
 		if err != nil {
 			log.Error(err, "error while deleting job object", "job", cmRef.Name)
 			return err
 		}
 	}
-	// constructing cleanup configmap
+	// constructing cleanup configmap - create a fresh object to avoid resourceVersion issues
+	cleanupConfigMap := constructConfigMap(data)
+	// create cleanup configmap
 	if err := r.MeshClient.Create(ctx, cleanupConfigMap, &client.CreateOptions{}); err != nil {
 		if apierrors.IsAlreadyExists(err) {
 			log.Info("cluster configmap already exists", "configmap", clusterDeregisterConfigMap)
