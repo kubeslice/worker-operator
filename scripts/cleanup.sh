@@ -102,7 +102,11 @@ else
     if helm_uninstall_no_hook_succeeded; then 
         run_forced_post_uninstall_cleanup
     else
-        echo "❌ Failed to uninstall worker-operator"
-        update_controller_cluster_status "DeregisterFailed"
+        echo "❌ Failed to uninstall worker-operator via Helm, proceeding with manual cleanup"
+        # Even if Helm uninstall fails, we should still attempt manual cleanup
+        # to remove resources and update registration status
+        run_forced_post_uninstall_cleanup
+        # Note: Status will be set to "Deregistered" by run_forced_post_uninstall_cleanup
+        # If cleanup also fails, the status update will reflect that
     fi
 fi
