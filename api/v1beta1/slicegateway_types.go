@@ -151,7 +151,7 @@ type TunnelStatus struct {
 	TxRate     uint64 `json:"TxRate,omitempty"`
 	RxRate     uint64 `json:"RxRate,omitempty"`
 	PacketLoss uint64 `json:"PacketLoss,omitempty"`
-	// Status is the status of the tunnel. 0: DOWN, 1: UP
+	// Status is the status of the tunnel. 0: UP, 1: DOWN
 	Status int32 `json:"Status,omitempty"`
 	// TunnelState is the state of the tunnel in string format: UP, DOWN, UNKNOWN
 	TunnelState string `json:"TunnelState,omitempty"`
