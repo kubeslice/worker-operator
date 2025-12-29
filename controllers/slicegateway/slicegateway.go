@@ -863,6 +863,7 @@ func isGatewayStatusChanged(slicegateway *kubeslicev1beta1.SliceGateway, gwPod *
 func (r *SliceGwReconciler) ReconcileGwPodStatus(ctx context.Context, slicegateway *kubeslicev1beta1.SliceGateway) (ctrl.Result, error, bool) {
 	log := logger.FromContext(ctx).WithValues("type", "SliceGw")
 	debugLog := log.V(1)
+	log.Info("ReconcileGwPodStatus called", "slicegateway", slicegateway.Name)
 
 	gwPodsInfo, err := r.GetGwPodInfo(ctx, slicegateway)
 	if err != nil {
@@ -873,7 +874,8 @@ func (r *SliceGwReconciler) ReconcileGwPodStatus(ctx context.Context, slicegatew
 		log.Info("Gw pods not available yet, requeuing")
 		return ctrl.Result{RequeueAfter: 5 * time.Second}, nil, true
 	}
-	toUpdate, toReconcile := false, false
+	log.V(1).Info("Got gateway pods info", "count", len(gwPodsInfo))
+	toUpdate := false
 	for _, gwPod := range gwPodsInfo {
 		sidecarGrpcAddress := gwPod.PodIP + ":5000"
 
@@ -917,6 +919,7 @@ func (r *SliceGwReconciler) ReconcileGwPodStatus(ctx context.Context, slicegatew
 
 	if toUpdate {
 		log.Info("gwPodsInfo", "gwPodsInfo", gwPodsInfo)
+		log.Info("Updating SliceGateway status (toUpdate=true)", "slicegateway", slicegateway.Name)
 		err = retry.RetryOnConflict(retry.DefaultRetry, func() error {
 			err := r.Get(ctx, types.NamespacedName{Namespace: controllers.ControlPlaneNamespace, Name: slicegateway.Name}, slicegateway)
 			if err != nil {
@@ -936,16 +939,19 @@ func (r *SliceGwReconciler) ReconcileGwPodStatus(ctx context.Context, slicegatew
 			log.Error(err, "Failed to update SliceGateway status for gw pods")
 			return ctrl.Result{RequeueAfter: 30 * time.Second}, nil, true
 		}
-		toReconcile = true
+		// Don't set toReconcile=true here - we've successfully updated the status,
+		// so we should continue with the rest of the reconciliation (SendConnectionContextAndQosToGwPod, etc.)
+		// Only return requeue=true if there's an actual error or pods aren't available
+		log.V(1).Info("Successfully updated SliceGateway status, continuing reconciliation", "slicegateway", slicegateway.Name)
 	}
-	if toReconcile {
-		return ctrl.Result{}, nil, true
-	}
+	// Removed the toReconcile check - we should continue with the rest of the reconciliation
+	log.V(1).Info("ReconcileGwPodStatus returning requeue=false", "slicegateway", slicegateway.Name)
 	return ctrl.Result{}, nil, false
 }
 
 func (r *SliceGwReconciler) SendConnectionContextAndQosToGwPod(ctx context.Context, slice *kubeslicev1beta1.Slice, slicegateway *kubeslicev1beta1.SliceGateway, req reconcile.Request) (ctrl.Result, error, bool) {
 	log := logger.FromContext(ctx).WithValues("type", "SliceGw")
+	log.Info("SendConnectionContextAndQosToGwPod called", "slicegateway", slicegateway.Name)
 
 	gwPodsInfo, err := r.GetGwPodInfo(ctx, slicegateway)
 	if err != nil {
@@ -956,6 +962,7 @@ func (r *SliceGwReconciler) SendConnectionContextAndQosToGwPod(ctx context.Conte
 		log.Info("Gw podIPs not available yet, requeuing")
 		return ctrl.Result{RequeueAfter: 5 * time.Second}, nil, true
 	}
+	log.V(1).Info("Got gateway pods info", "count", len(gwPodsInfo))
 	connCtx := &gwsidecar.GwConnectionContext{
 		RemoteSliceGwVpnIP:     slicegateway.Status.Config.SliceGatewayRemoteVpnIP,
 		RemoteSliceGwNsmSubnet: slicegateway.Status.Config.SliceGatewayRemoteSubnet,
@@ -983,6 +990,7 @@ func (r *SliceGwReconciler) SendConnectionContextAndQosToGwPod(ctx context.Conte
 // In the event of slice router deletion as well this function needs to be called so that the routes can be injected into the router sidecar
 func (r *SliceGwReconciler) SendConnectionContextToSliceRouter(ctx context.Context, slicegateway *kubeslicev1beta1.SliceGateway) (ctrl.Result, error, bool) {
 	log := logger.FromContext(ctx).WithValues("type", "SliceGw")
+	log.Info("SendConnectionContextToSliceRouter called", "slicegateway", slicegateway.Name)
 
 	_, podIP, err := controllers.GetSliceRouterPodNameAndIP(ctx, r.Client, slicegateway.Spec.SliceName)
 	if err != nil {
@@ -996,9 +1004,11 @@ func (r *SliceGwReconciler) SendConnectionContextToSliceRouter(ctx context.Conte
 
 	if slicegateway.Status.Config.SliceGatewayRemoteSubnet == "" ||
 		len(slicegateway.Status.GatewayPodStatus) == 0 {
-		log.Info("Waiting for remote subnet and local nsm IPs. Delaying conn ctx update to router")
+		log.Info("Waiting for remote subnet and local nsm IPs. Delaying conn ctx update to router", "remoteSubnet", slicegateway.Status.Config.SliceGatewayRemoteSubnet, "gatewayPodCount", len(slicegateway.Status.GatewayPodStatus))
 		return ctrl.Result{RequeueAfter: 10 * time.Second}, nil, true
 	}
+
+	log.V(1).Info("Starting to collect gateway NSM IPs for connection context", "gatewayPodCount", len(slicegateway.Status.GatewayPodStatus))
 
 	excludeRouteGwPodList := &corev1.PodList{}
 	listOpts := []client.ListOption{
@@ -1014,18 +1024,29 @@ func (r *SliceGwReconciler) SendConnectionContextToSliceRouter(ctx context.Conte
 	gwNsmIPs := []string{}
 	for _, gwPod := range slicegateway.Status.GatewayPodStatus {
 		if isPodPresentInPodList(excludeRouteGwPodList, gwPod.PodName) {
+			log.V(1).Info("Skipping gateway pod (excluded)", "podName", gwPod.PodName)
 			continue
 		}
 		if gwPod.LocalNsmIP == "" {
+			log.V(1).Info("Skipping gateway pod (no LocalNsmIP)", "podName", gwPod.PodName)
 			continue
 		}
 		if gwPod.PeerPodName == "" {
+			log.V(1).Info("Skipping gateway pod (no PeerPodName)", "podName", gwPod.PodName)
 			continue
 		}
+		// Check Status: if missing (defaults to 0) and UP is 0, then 0 != 0 is false, so we include
 		if gwPod.TunnelStatus.Status != int32(gwsidecarpb.TunnelStatusType_GW_TUNNEL_STATE_UP) {
+			log.Info("Skipping gateway pod (Status != UP)", "podName", gwPod.PodName, "status", gwPod.TunnelStatus.Status, "expected", int32(gwsidecarpb.TunnelStatusType_GW_TUNNEL_STATE_UP))
 			continue
 		}
+		log.V(1).Info("Including gateway pod for connection context", "podName", gwPod.PodName, "localNsmIP", gwPod.LocalNsmIP, "status", gwPod.TunnelStatus.Status)
 		gwNsmIPs = append(gwNsmIPs, gwPod.LocalNsmIP)
+	}
+
+	if len(gwNsmIPs) == 0 {
+		log.Info("No gateway NSM IPs collected, skipping connection context update", "totalGatewayPods", len(slicegateway.Status.GatewayPodStatus))
+		return ctrl.Result{RequeueAfter: 10 * time.Second}, nil, true
 	}
 
 	sidecarGrpcAddress := podIP + ":5000"
@@ -1033,7 +1054,7 @@ func (r *SliceGwReconciler) SendConnectionContextToSliceRouter(ctx context.Conte
 		RemoteSliceGwNsmSubnet: slicegateway.Status.Config.SliceGatewayRemoteSubnet,
 		LocalNsmGwPeerIPs:      gwNsmIPs,
 	}
-	log.Info("Conn ctx to send to slice router ", "connCtx", connCtx)
+	log.Info("Conn ctx to send to slice router ", "connCtx", connCtx, "gwNsmIPs", gwNsmIPs)
 	err = r.WorkerRouterClient.SendConnectionContext(ctx, sidecarGrpcAddress, connCtx)
 	if err != nil {
 		log.Error(err, "Unable to send conn ctx to slice router")
