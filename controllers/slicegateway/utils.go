@@ -133,7 +133,20 @@ func isGWPodStatusChanged(slicegateway *kubeslicev1beta1.SliceGateway, gwPod *ku
 	gwPodStatus := slicegateway.Status.GatewayPodStatus
 	for _, gw := range gwPodStatus {
 		if gw.PodName == gwPod.PodName {
-			return gw.TunnelStatus.Status == gwPod.TunnelStatus.Status && gw.PeerPodName == gwPod.PeerPodName
+			// Check if tunnel status has changed by comparing fields that matter for
+			// connection context and routing. Exclude volatile metrics (Latency, TxRate,
+			// RxRate, PacketLoss) so that normal fluctuation does not cause a status update
+			// and requeue on every reconcile; otherwise we never reach
+			// SendConnectionContextToSliceRouter and the vl3 router never gets routes.
+			tunnelUnchanged := gw.TunnelStatus.Status == gwPod.TunnelStatus.Status &&
+				gw.TunnelStatus.RemoteIP == gwPod.TunnelStatus.RemoteIP &&
+				gw.TunnelStatus.LocalIP == gwPod.TunnelStatus.LocalIP &&
+				gw.TunnelStatus.IntfName == gwPod.TunnelStatus.IntfName &&
+				gw.TunnelStatus.TunnelState == gwPod.TunnelStatus.TunnelState
+
+			peerUnchanged := gw.PeerPodName == gwPod.PeerPodName
+
+			return tunnelUnchanged && peerUnchanged
 		}
 	}
 	return false
