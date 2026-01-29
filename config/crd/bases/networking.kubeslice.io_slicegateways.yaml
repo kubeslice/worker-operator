@@ -204,8 +204,8 @@ spec:
                           format: int64
                           type: integer
                         Status:
-                          description: 'Status is the status of the tunnel. 0: DOWN,
-                            1: UP'
+                          description: 'Status is the status of the tunnel. 0: UP,
+                            1: DOWN (protobuf TunnelStatusType)'
                           format: int32
                           type: integer
                         TunnelState:
