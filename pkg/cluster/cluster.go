@@ -74,14 +74,32 @@ func (c *Cluster) getClusterLocation(ctx context.Context) (GeoLocation, error) {
 
 	g.CloudRegion = nodeList.Items[0].ObjectMeta.Labels["topology.kubernetes.io/region"]
 
-	if nodeList.Items[0].Spec.ProviderID != "" {
+	// Oracle (OKE) is always discovered from node labels (oci.oraclecloud.com/*, oke.oraclecloud.com/*).
+	if cloudFromLabels := detectOracleFromNodeLabels(nodeList); cloudFromLabels != "" {
+		g.CloudProvider = cloudFromLabels
+	} else if nodeList.Items[0].Spec.ProviderID != "" {
 		g.CloudProvider = strings.Split(nodeList.Items[0].Spec.ProviderID, ":")[0]
-		//change gce to gcp
 		if g.CloudProvider == "gce" {
 			g.CloudProvider = "gcp"
 		}
 	}
 	return g, nil
+}
+
+// detectOracleFromNodeLabels checks for well-known OKE/OCI node labels.
+// OKE nodes typically have labels like oci.oraclecloud.com/* and oke.oraclecloud.com/*.
+func detectOracleFromNodeLabels(nodeList corev1.NodeList) string {
+	okeLabelPrefix := "oke.oraclecloud.com/"
+	ociLabelPrefix := "oci.oraclecloud.com/"
+	for i := range nodeList.Items {
+		node := &nodeList.Items[i]
+		for key := range node.Labels {
+			if strings.HasPrefix(key, ociLabelPrefix) || strings.HasPrefix(key, okeLabelPrefix) {
+				return "oracle"
+			}
+		}
+	}
+	return ""
 }
 
 func getPrefixes(nsmconfig corev1.ConfigMap) ([]string, error) {
