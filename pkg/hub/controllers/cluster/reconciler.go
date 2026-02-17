@@ -54,7 +54,7 @@ const (
 	AZURE                               string = "azure"
 	LINODE                              string = "linode"
 	AKAMAI                              string = "akamai"
-	ORACLE                              string = "oracle" // OKE = Oracle Kubernetes Engine
+	ORACLE                              string = "ORACLE" // OKE = Oracle Kubernetes Engine
 	MAX_CLUSTER_DEREGISTRATION_ATTEMPTS        = 3
 )
 
