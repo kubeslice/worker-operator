@@ -2,7 +2,11 @@ default: services test
 
 .PHONY: test
 test:
-	go test ./...
+	go test -race ./...
+
+.PHONY: lint
+lint:
+	golangci-lint run
 
 .PHONY: cover
 cover:

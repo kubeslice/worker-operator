@@ -128,3 +128,8 @@ func (c *StatusClient) Patch(
 	args := c.Called(ctx, obj, patch, opts)
 	return args.Error(0)
 }
+
+func (c *StatusClient) Apply(ctx context.Context, obj runtime.ApplyConfiguration, opts ...client.SubResourceApplyOption) error {
+	args := c.Called(ctx, obj, opts)
+	return args.Error(0)
+}

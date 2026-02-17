@@ -45,6 +45,7 @@ type SliceGatewayConfig struct {
 	// Slice gateway subnet range.
 	SliceSiteName string `json:"sliceSiteName,omitempty"`
 	// Slice gateway vpn type
+	// +kubebuilder:default:=OpenVPN
 	SliceGatewayType controllerv1alpha1.SliceGatewayType `json:"sliceGatewayType,omitempty"`
 	// Slice gateway subnet range.
 	SliceGatewaySubnet string `json:"sliceGatewaySubnet,omitempty"`
@@ -151,7 +152,7 @@ type TunnelStatus struct {
 	TxRate     uint64 `json:"TxRate,omitempty"`
 	RxRate     uint64 `json:"RxRate,omitempty"`
 	PacketLoss uint64 `json:"PacketLoss,omitempty"`
-	// Status is the status of the tunnel. 0: DOWN, 1: UP
+	// Status is the status of the tunnel. 0: UP, 1: DOWN (protobuf TunnelStatusType)
 	Status int32 `json:"Status,omitempty"`
 	// TunnelState is the state of the tunnel in string format: UP, DOWN, UNKNOWN
 	TunnelState string `json:"TunnelState,omitempty"`

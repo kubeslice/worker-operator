@@ -69,7 +69,7 @@ func (r *Reconciler) ReconcileServiceEntries(ctx context.Context, serviceimport 
 
 	for _, se := range toDelete {
 		log.Info("Deleting serviceentry", "se", se)
-		err = r.Delete(ctx, &se)
+		err = r.Delete(ctx, se)
 		if err != nil {
 			log.Error(err, "Unable to delete serviceentry")
 			return ctrl.Result{}, err, true
@@ -85,7 +85,7 @@ func (r *Reconciler) ReconcileServiceEntries(ctx context.Context, serviceimport 
 func (r *Reconciler) serviceEntryForEndpoint(serviceImport *kubeslicev1beta1.ServiceImport, endpoint *kubeslicev1beta1.ServiceEndpoint, ns string) *istiov1beta1.ServiceEntry {
 	p := serviceImport.Spec.Ports[0]
 
-	ports := []*networkingv1beta1.Port{{
+	ports := []*networkingv1beta1.ServicePort{{
 		Name:       p.Name,
 		Protocol:   string(p.Protocol),
 		Number:     uint32(p.ContainerPort),
@@ -133,7 +133,7 @@ func serviceEntryName(endpoint *kubeslicev1beta1.ServiceEndpoint) string {
 }
 
 // getServiceEntriesForSI returns all the serviceentries belongs to an import
-func getServiceEntriesForSI(ctx context.Context, c client.Client, serviceimport *kubeslicev1beta1.ServiceImport, ns string) ([]istiov1beta1.ServiceEntry, error) {
+func getServiceEntriesForSI(ctx context.Context, c client.Client, serviceimport *kubeslicev1beta1.ServiceImport, ns string) ([]*istiov1beta1.ServiceEntry, error) {
 	seList := &istiov1beta1.ServiceEntryList{}
 	listOpts := []client.ListOption{
 		client.MatchingLabels(labelsForServiceEntry(serviceimport)),
@@ -143,16 +143,19 @@ func getServiceEntriesForSI(ctx context.Context, c client.Client, serviceimport 
 		return nil, err
 	}
 
-	ses := []istiov1beta1.ServiceEntry{}
-
-	ses = append(ses, seList.Items...)
+	ses := make([]*istiov1beta1.ServiceEntry, 0, len(seList.Items))
+	for _, item := range seList.Items {
+		if item != nil {
+			ses = append(ses, item)
+		}
+	}
 
 	return ses, nil
 }
 
-func serviceEntryExists(seList []istiov1beta1.ServiceEntry, e kubeslicev1beta1.ServiceEndpoint) bool {
+func serviceEntryExists(seList []*istiov1beta1.ServiceEntry, e kubeslicev1beta1.ServiceEndpoint) bool {
 	for _, se := range seList {
-		if len(se.Spec.Hosts) > 0 && se.Spec.Hosts[0] == e.DNSName {
+		if se != nil && len(se.Spec.Hosts) > 0 && se.Spec.Hosts[0] == e.DNSName {
 			return true
 		}
 	}
@@ -160,19 +163,20 @@ func serviceEntryExists(seList []istiov1beta1.ServiceEntry, e kubeslicev1beta1.S
 	return false
 }
 
-func servicesEntriesToDelete(seList []istiov1beta1.ServiceEntry, si *kubeslicev1beta1.ServiceImport) []istiov1beta1.ServiceEntry {
-
+func servicesEntriesToDelete(seList []*istiov1beta1.ServiceEntry, si *kubeslicev1beta1.ServiceImport) []*istiov1beta1.ServiceEntry {
 	exists := struct{}{}
 	dnsSet := make(map[string]struct{})
-	toDelete := []istiov1beta1.ServiceEntry{}
+	toDelete := []*istiov1beta1.ServiceEntry{}
 
 	for _, e := range si.Status.Endpoints {
 		dnsSet[e.DNSName] = exists
 	}
 
-	for _, si := range seList {
-		if _, ok := dnsSet[si.Spec.Hosts[0]]; !ok {
-			toDelete = append(toDelete, si)
+	for _, se := range seList {
+		if se != nil && len(se.Spec.Hosts) > 0 {
+			if _, ok := dnsSet[se.Spec.Hosts[0]]; !ok {
+				toDelete = append(toDelete, se)
+			}
 		}
 	}
 
@@ -190,7 +194,7 @@ func (r *Reconciler) DeleteIstioServiceEntries(ctx context.Context, serviceimpor
 	}
 
 	for _, se := range entries {
-		err = r.Delete(ctx, &se)
+		err = r.Delete(ctx, se)
 		if err != nil {
 			return nil
 		}

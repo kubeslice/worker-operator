@@ -37,6 +37,10 @@ BUNDLE_IMG ?= $(IMAGE_TAG_BASE)-bundle:v$(VERSION)
 
 # Image URL to use all building/pushing image targets
 IMG ?= docker.io/aveshasystems/worker-operator:$(VERSION)
+# PLATFORMS for multi-arch builds (used by docker-build-multi and docker-push)
+PLATFORMS ?= linux/amd64,linux/arm64
+# Buildx builder name (reused to avoid creating multiple builders)
+BUILDX_BUILDER ?= worker-operator-builder
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
 ENVTEST_K8S_VERSION = 1.23
 
@@ -114,14 +118,18 @@ run: manifests generate fmt vet ## Run a controller from your host.
 	go run ./main.go
 
 .PHONY: docker-build
-docker-build: ## Build docker image with the manager.
-	docker buildx create --name container --driver=docker-container || true
-	docker build --builder container --platform linux/amd64,linux/arm64 -t ${IMG} .
+docker-build: ## Build docker image for current platform and load into docker (for local use).
+	docker build -t ${IMG} .
+
+.PHONY: docker-build-multi
+docker-build-multi: ## Build multi-arch image (result in buildx cache; follow with docker-push to push).
+	docker buildx create --name $(BUILDX_BUILDER) --driver docker-container --use 2>/dev/null || docker buildx use $(BUILDX_BUILDER)
+	docker buildx build --platform $(PLATFORMS) -t ${IMG} .
 
 .PHONY: docker-push
-docker-push: ## Push docker image with the manager.
-	docker buildx create --name container --driver=docker-container || true
-	docker build --push --builder container --platform linux/amd64,linux/arm64 -t ${IMG} .
+docker-push: ## Build multi-arch image and push to registry.
+	docker buildx create --name $(BUILDX_BUILDER) --driver docker-container --use 2>/dev/null || docker buildx use $(BUILDX_BUILDER)
+	docker buildx build --platform $(PLATFORMS) -t ${IMG} --push .
 
 ##@ Deployment
 

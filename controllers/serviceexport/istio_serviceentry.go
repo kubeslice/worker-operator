@@ -60,7 +60,7 @@ func (r *Reconciler) ReconcileServiceEntries(ctx context.Context, serviceexport 
 		}
 
 		// Check if the endpoint IP address in the service entry matches the pod's nsm IP
-		if checkEndpoint(endpoint, *seFound) {
+		if checkEndpoint(endpoint, seFound) {
 			seFound.Spec.Endpoints[0].Address = endpoint.NsmIP
 			err := r.Update(ctx, seFound)
 			if err != nil {
@@ -81,7 +81,7 @@ func (r *Reconciler) ReconcileServiceEntries(ctx context.Context, serviceexport 
 
 	for _, se := range toDelete {
 		log.Info("Deleting serviceentry", "se", se)
-		err = r.Delete(ctx, &se)
+		err = r.Delete(ctx, se)
 		if err != nil {
 			log.Error(err, "Unable to delete serviceentry")
 			return ctrl.Result{}, err, true
@@ -93,7 +93,7 @@ func (r *Reconciler) ReconcileServiceEntries(ctx context.Context, serviceexport 
 }
 
 // getServiceEntries returns all the serviceentries belongs to a serviceexport
-func getServiceEntries(ctx context.Context, r client.Reader, serviceexport *kubeslicev1beta1.ServiceExport) ([]istiov1beta1.ServiceEntry, error) {
+func getServiceEntries(ctx context.Context, r client.Reader, serviceexport *kubeslicev1beta1.ServiceExport) ([]*istiov1beta1.ServiceEntry, error) {
 	seList := &istiov1beta1.ServiceEntryList{}
 	listOpts := []client.ListOption{
 		client.MatchingLabels(labelsForServiceEntry(serviceexport)),
@@ -103,19 +103,22 @@ func getServiceEntries(ctx context.Context, r client.Reader, serviceexport *kube
 		return nil, err
 	}
 
-	ses := []istiov1beta1.ServiceEntry{}
-
-	ses = append(ses, seList.Items...)
+	ses := make([]*istiov1beta1.ServiceEntry, 0, len(seList.Items))
+	for _, item := range seList.Items {
+		if item != nil {
+			ses = append(ses, item)
+		}
+	}
 
 	return ses, nil
 }
 
 // Create serviceEntry based on serviceExport endpoint spec
 func (r *Reconciler) createServiceEntryForEndpoint(serviceexport *kubeslicev1beta1.ServiceExport, endpoint *kubeslicev1beta1.ServicePod) *istiov1beta1.ServiceEntry {
-	ports := []*networkingv1beta1.Port{}
+	ports := []*networkingv1beta1.ServicePort{}
 
 	for _, p := range serviceexport.Spec.Ports {
-		po := &networkingv1beta1.Port{
+		po := &networkingv1beta1.ServicePort{
 			Name:       p.Name,
 			Protocol:   string(p.Protocol),
 			Number:     uint32(p.ContainerPort),
@@ -157,19 +160,20 @@ func serviceEntryName(endpoint *kubeslicev1beta1.ServicePod, ns string) string {
 	return endpoint.Name + "-" + ns + "-ingress"
 }
 
-func servicesEntriesToDelete(seList []istiov1beta1.ServiceEntry, se *kubeslicev1beta1.ServiceExport) []istiov1beta1.ServiceEntry {
-
+func servicesEntriesToDelete(seList []*istiov1beta1.ServiceEntry, se *kubeslicev1beta1.ServiceExport) []*istiov1beta1.ServiceEntry {
 	exists := struct{}{}
 	dnsSet := make(map[string]struct{})
-	toDelete := []istiov1beta1.ServiceEntry{}
+	toDelete := []*istiov1beta1.ServiceEntry{}
 
 	for _, e := range se.Status.Pods {
 		dnsSet[e.DNSName] = exists
 	}
 
 	for _, s := range seList {
-		if _, ok := dnsSet[s.Spec.Hosts[0]]; !ok {
-			toDelete = append(toDelete, s)
+		if s != nil && len(s.Spec.Hosts) > 0 {
+			if _, ok := dnsSet[s.Spec.Hosts[0]]; !ok {
+				toDelete = append(toDelete, s)
+			}
 		}
 	}
 
@@ -184,10 +188,10 @@ func labelsForServiceEntry(se *kubeslicev1beta1.ServiceExport) map[string]string
 	}
 }
 
-func serviceEntryExists(seList []istiov1beta1.ServiceEntry, e kubeslicev1beta1.ServicePod) *istiov1beta1.ServiceEntry {
+func serviceEntryExists(seList []*istiov1beta1.ServiceEntry, e kubeslicev1beta1.ServicePod) *istiov1beta1.ServiceEntry {
 	for _, se := range seList {
-		if len(se.Spec.Hosts) > 0 && se.Spec.Hosts[0] == e.DNSName {
-			return &se
+		if se != nil && len(se.Spec.Hosts) > 0 && se.Spec.Hosts[0] == e.DNSName {
+			return se
 		}
 	}
 
@@ -204,7 +208,7 @@ func (r *Reconciler) DeleteIstioServiceEntries(ctx context.Context, serviceexpor
 	}
 
 	for _, se := range entries {
-		err = r.Delete(ctx, &se)
+		err = r.Delete(ctx, se)
 		if err != nil {
 			return err
 		}
@@ -213,6 +217,6 @@ func (r *Reconciler) DeleteIstioServiceEntries(ctx context.Context, serviceexpor
 	return nil
 }
 
-func checkEndpoint(endpoint kubeslicev1beta1.ServicePod, seFound istiov1beta1.ServiceEntry) bool {
-	return endpoint.NsmIP != "" && seFound.Spec.Endpoints[0].Address != endpoint.NsmIP
+func checkEndpoint(endpoint kubeslicev1beta1.ServicePod, seFound *istiov1beta1.ServiceEntry) bool {
+	return endpoint.NsmIP != "" && seFound != nil && len(seFound.Spec.Endpoints) > 0 && seFound.Spec.Endpoints[0].Address != endpoint.NsmIP
 }

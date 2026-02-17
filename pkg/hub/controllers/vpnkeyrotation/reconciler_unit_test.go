@@ -97,15 +97,23 @@ var sliceGateway = &kubeslicev1beta1.SliceGateway{
 			{
 				PodName: "pod-1",
 				TunnelStatus: kubeslicev1beta1.TunnelStatus{
-					Status: int32(gwsidecarpb.TunnelStatusType_GW_TUNNEL_STATE_UP),
+					Status:   int32(gwsidecarpb.TunnelStatusType_GW_TUNNEL_STATE_UP),
+					IntfName: "tun0",
+					LocalIP:  "10.0.0.1",
+					RemoteIP: "10.0.0.2",
 				},
 				PeerPodName: "fire-worker-3-worker-2",
 			},
 			{
-				PodName: "pod-2", TunnelStatus: kubeslicev1beta1.TunnelStatus{
-					Status: int32(gwsidecarpb.TunnelStatusType_GW_TUNNEL_STATE_UP),
+				PodName: "pod-2",
+				TunnelStatus: kubeslicev1beta1.TunnelStatus{
+					Status:   int32(gwsidecarpb.TunnelStatusType_GW_TUNNEL_STATE_UP),
+					IntfName: "tun0",
+					LocalIP:  "10.0.0.3",
+					RemoteIP: "10.0.0.4",
 				},
-				PeerPodName: "fire-worker-3-worker-2"},
+				PeerPodName: "fire-worker-3-worker-2",
+			},
 		},
 	},
 }
@@ -536,8 +544,15 @@ func TestReconcilerVPNRotationReconcilerIntervalTest(t *testing.T) {
 	if expected.res != result {
 		t.Error("Expected response :", expected.res, " but got ", result)
 	}
-	if expected.errStr != err.Error() {
-		t.Error("Expected error:", expected.errStr, " but got ", err)
+	// Handle error comparison safely (err may be nil when reconciler requeues)
+	if expected.errStr != "" {
+		if err == nil {
+			t.Error("Expected error:", expected.errStr, " but got nil")
+		} else if expected.errStr != err.Error() {
+			t.Error("Expected error:", expected.errStr, " but got ", err)
+		}
+	} else if err != nil {
+		t.Error("Expected no error but got ", err)
 	}
 }
 
