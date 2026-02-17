@@ -1,4 +1,19 @@
-# More info: https://docs.docker.com/engine/reference/builder/#dockerignore-file
-# Ignore build and test binaries.
+# https://docs.docker.com/engine/reference/builder/#dockerignore-file
 bin/
 testbin/
+# Git and CI
+.git
+.gitignore
+.github
+# Docs and non-runtime
+*.md
+LICENSE
+coverage.out
+*.test
+# Avoid sending unnecessary context
+.dockerignore
+Dockerfile*
+Makefile
+config/
+bundle.Dockerfile
+test.Dockerfile

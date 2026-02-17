@@ -45,6 +45,7 @@ type SliceGatewayConfig struct {
 	// Slice gateway subnet range.
 	SliceSiteName string `json:"sliceSiteName,omitempty"`
 	// Slice gateway vpn type
+	// +kubebuilder:default:=OpenVPN
 	SliceGatewayType controllerv1alpha1.SliceGatewayType `json:"sliceGatewayType,omitempty"`
 	// Slice gateway subnet range.
 	SliceGatewaySubnet string `json:"sliceGatewaySubnet,omitempty"`

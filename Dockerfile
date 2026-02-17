@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1.4
 ##########################################################
 #Dockerfile
 #Copyright (c) 2022 Avesha, Inc. All rights reserved.
@@ -18,45 +19,46 @@
 ##########################################################
 
 # Build the manager binary
-FROM golang:1.24 AS builder
+FROM golang:1.25-alpine AS builder
 
 WORKDIR /workspace
-# Copy the Go Modules manifests
-COPY go.mod go.mod
-COPY go.sum go.sum
-ADD vendor vendor
-# cache deps before building and copying source so that we don't need to re-download as much
-# and so that source changes don't invalidate our downloaded layer
-#RUN echo "[url \"git@bitbucket.org:\"]\n\tinsteadOf = https://bitbucket.org/" >> /root/.gitconfig
 
-ARG TARGETOS
-ARG TARGETPLATFORM
-ARG TARGETARCH
+# Multi-arch build args (injected by buildx when using --platform)
+ARG TARGETOS=linux
+ARG TARGETARCH=amd64
+ARG TARGETVARIANT
+# TARGETVARIANT is set for arm/v7 (e.g. arm32); empty for amd64/arm64
 
-# Copy the go source
-COPY main.go main.go
+# Copy module manifests and vendor first (better layer cache)
+COPY go.mod go.sum ./
+COPY vendor/ vendor/
+
+# Copy source
+COPY main.go ./
 COPY api/ api/
 COPY controllers/ controllers/
 COPY pkg/ pkg/
 COPY events/ events/
-# Build
-RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} GO111MODULE=on go build -mod=vendor -a -o manager main.go
 
-# Use distroless as minimal base image to package the manager binary
-# Refer to https://github.com/GoogleContainerTools/distroless for more details
+# Build with cache mount for faster rebuilds; -ldflags -s -w reduces binary size
+RUN --mount=type=cache,target=/root/.cache/go-build \
+    CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} GO111MODULE=on \
+    go build -mod=vendor -trimpath -ldflags="-s -w" -o manager main.go
+
+# Final image: distroless static (multi-arch manifest)
 FROM gcr.io/distroless/static-debian12:nonroot
 LABEL maintainer="Avesha Systems"
+
 WORKDIR /
 COPY --from=builder /workspace/manager .
 
 # Copy manifest files for istio gateways deployment
 COPY files files
-ENV MANIFEST_PATH="/files/manifests"
-# Copy script files
-ENV SCRIPT_PATH="/scripts"
 COPY scripts scripts
 
-USER 65532:65532
+ENV MANIFEST_PATH="/files/manifests"
+ENV SCRIPT_PATH="/scripts"
 
+USER 65532:65532
 ENTRYPOINT ["/manager"]
 

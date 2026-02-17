@@ -190,7 +190,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 				return ctrl.Result{}, err
 			}
 
-			err = f.Event(EV_verify_new_deployment_created)
+			err = f.Event(ctx, EV_verify_new_deployment_created)
 			if err != nil {
 				return ctrl.Result{}, err
 			}
@@ -250,7 +250,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 				return ctrl.Result{}, err
 			}
 
-			err = f.Event(EV_update_routing_table)
+			err = f.Event(ctx, EV_update_routing_table)
 			if err != nil {
 				return ctrl.Result{}, err
 			}
@@ -305,7 +305,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 				return ctrl.Result{}, err
 			}
 
-			err = f.Event(EV_delete_old_gw_deployment)
+			err = f.Event(ctx, EV_delete_old_gw_deployment)
 			if err != nil {
 				return ctrl.Result{}, err
 			}
@@ -358,7 +358,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 				return ctrl.Result{}, err
 			}
 
-			err = f.Event(EV_end)
+			err = f.Event(ctx, EV_end)
 			if err != nil {
 				return ctrl.Result{}, err
 			}

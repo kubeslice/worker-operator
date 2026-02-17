@@ -131,6 +131,7 @@ spec:
                     description: Slice gateway subnet range.
                     type: string
                   sliceGatewayType:
+                    default: OpenVPN
                     description: Slice gateway vpn type
                     enum:
                     - OpenVPN
