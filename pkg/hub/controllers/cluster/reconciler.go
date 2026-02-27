@@ -262,6 +262,19 @@ func (r *Reconciler) updateClusterMetrics(cr *hubv1alpha1.Cluster) {
 	}
 }
 
+// isPodReady returns true if the pod is Running and has the Ready condition True (readiness probe passed).
+func isPodReady(pod *corev1.Pod) bool {
+	if pod.Status.Phase != corev1.PodRunning {
+		return false
+	}
+	for _, cond := range pod.Status.Conditions {
+		if cond.Type == corev1.PodReady && cond.Status == corev1.ConditionTrue {
+			return true
+		}
+	}
+	return false
+}
+
 func (r *Reconciler) getComponentStatus(ctx context.Context, c *component, cr *hubv1alpha1.Cluster) (*hubv1alpha1.ComponentStatus, error) {
 	log := logger.FromContext(ctx)
 	cs := &hubv1alpha1.ComponentStatus{
@@ -310,30 +323,21 @@ func (r *Reconciler) getComponentStatus(ctx context.Context, c *component, cr *h
 		cs.ComponentHealthStatus = hubv1alpha1.ComponentHealthStatusError
 		return cs, nil
 	}
-	// TODO: verify "PodConditionType == ContainersReady" when
-	// readiness-probe for kubeslice components are implemented
+	// Component is healthy if at least one pod is Running and Ready (readiness probe passed).
+	// This avoids marking the component Error when some replicas are Completed/Pending (e.g. during rollout).
+	readyCount := 0
 	for _, pod := range pods {
-		if pod.Status.Phase != corev1.PodRunning {
-			log.Error(fmt.Errorf("pod is not in running state"), "component is unhealthy", "component", c.name, "pod", pod.Name)
-			cs.ComponentHealthStatus = hubv1alpha1.ComponentHealthStatusError
-			return cs, nil
-		} else {
-			for _, containerStatus := range pod.Status.ContainerStatuses {
-				terminatedState := containerStatus.State.Terminated
-				if terminatedState != nil && terminatedState.ExitCode != 0 {
-					log.Info("container terminated with non-zero exitcode",
-						"component", c.name,
-						"pod", pod.Name,
-						"container", containerStatus.Name,
-						"exitcode", terminatedState.ExitCode)
-					cs.ComponentHealthStatus = hubv1alpha1.ComponentHealthStatusError
-					return cs, nil
-				}
-			}
+		if isPodReady(&pod) {
+			readyCount++
 		}
 	}
-	log.Info("health status normal", "component", c.name)
-	cs.ComponentHealthStatus = hubv1alpha1.ComponentHealthStatusNormal
+	if readyCount >= 1 {
+		log.Info("health status normal", "component", c.name, "readyPods", readyCount, "totalPods", len(pods))
+		cs.ComponentHealthStatus = hubv1alpha1.ComponentHealthStatusNormal
+		return cs, nil
+	}
+	log.Error(fmt.Errorf("no ready pods"), "component is unhealthy", "component", c.name, "totalPods", len(pods))
+	cs.ComponentHealthStatus = hubv1alpha1.ComponentHealthStatusError
 	return cs, nil
 }
 
