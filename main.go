@@ -84,7 +84,6 @@ func init() {
 	utilruntime.Must(nsmv1.AddToScheme(scheme))
 	utilruntime.Must(istiov1beta1.AddToScheme(scheme))
 	utilruntime.Must(kubeslicev1beta1.AddToScheme(scheme))
-	utilruntime.Must(istiov1beta1.AddToScheme(scheme))
 	//+kubebuilder:scaffold:scheme
 }
 
