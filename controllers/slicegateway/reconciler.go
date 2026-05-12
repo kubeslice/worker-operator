@@ -134,7 +134,7 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	if slice.Status.SliceConfig != nil &&
 		slice.Status.SliceConfig.SliceOverlayNetworkDeploymentMode == v1alpha1.NONET {
 		log.Info("No communication slice. Skipping slicegw reconcilation")
-		return ctrl.Result{}, err
+		return ctrl.Result{}, nil
 	}
 
 	// Check if slice router network service endpoint (NSE) is present before spawning slice gateway pod.

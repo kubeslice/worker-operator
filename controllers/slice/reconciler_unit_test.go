@@ -196,3 +196,72 @@ func TestHandleDnsSvc(t *testing.T) {
 		})
 	}
 }
+
+func TestIsAppPodStatusChanged(t *testing.T) {
+	tests := []struct {
+		name    string
+		current []kubeslicev1beta1.AppPod
+		old     []kubeslicev1beta1.AppPod
+		want    bool
+	}{
+		{
+			name: "same pods same IPs",
+			current: []kubeslicev1beta1.AppPod{
+				{PodName: "pod-a", PodIP: "10.0.0.1"},
+				{PodName: "pod-b", PodIP: "10.0.0.2"},
+			},
+			old: []kubeslicev1beta1.AppPod{
+				{PodName: "pod-a", PodIP: "10.0.0.1"},
+				{PodName: "pod-b", PodIP: "10.0.0.2"},
+			},
+			want: false,
+		},
+		{
+			name: "same pod name different IP",
+			current: []kubeslicev1beta1.AppPod{
+				{PodName: "pod-a", PodIP: "10.0.0.99"},
+			},
+			old: []kubeslicev1beta1.AppPod{
+				{PodName: "pod-a", PodIP: "10.0.0.1"},
+			},
+			want: true,
+		},
+		{
+			name: "pod added to current",
+			current: []kubeslicev1beta1.AppPod{
+				{PodName: "pod-a", PodIP: "10.0.0.1"},
+				{PodName: "pod-b", PodIP: "10.0.0.2"},
+			},
+			old: []kubeslicev1beta1.AppPod{
+				{PodName: "pod-a", PodIP: "10.0.0.1"},
+			},
+			want: true,
+		},
+		{
+			name: "pod removed from current",
+			current: []kubeslicev1beta1.AppPod{
+				{PodName: "pod-a", PodIP: "10.0.0.1"},
+			},
+			old: []kubeslicev1beta1.AppPod{
+				{PodName: "pod-a", PodIP: "10.0.0.1"},
+				{PodName: "pod-b", PodIP: "10.0.0.2"},
+			},
+			want: true,
+		},
+		{
+			name:    "both empty",
+			current: []kubeslicev1beta1.AppPod{},
+			old:     []kubeslicev1beta1.AppPod{},
+			want:    false,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			got := isAppPodStatusChanged(test.current, test.old)
+			if got != test.want {
+				t.Errorf("isAppPodStatusChanged() = %v, want %v", got, test.want)
+			}
+		})
+	}
+}
