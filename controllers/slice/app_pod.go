@@ -44,7 +44,7 @@ func isAppPodStatusChanged(current []kubeslicev1beta1.AppPod, old []kubeslicev1b
 	}
 
 	for _, cp := range current {
-		if _, ok := oldPodMap[cp.PodName]; !ok {
+		if oldPodMap[cp.PodName] != cp.PodIP {
 			return true
 		}
 	}
