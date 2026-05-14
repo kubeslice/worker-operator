@@ -21,7 +21,6 @@ package slice
 import (
 	"context"
 	"fmt"
-	"log"
 	"reflect"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -405,7 +404,7 @@ func (r *SliceReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	sliceSelector := labels.NewSelector()
 	requirement, err := labels.NewRequirement(controllers.ApplicationNamespaceSelectorLabelKey, selection.Exists, nil)
 	if err != nil {
-		log.Fatalf("Error creating label requirement: %v", err)
+		return fmt.Errorf("error creating label requirement: %w", err)
 	}
 	sliceSelector = sliceSelector.Add(*requirement)
 	return ctrl.NewControllerManagedBy(mgr).
