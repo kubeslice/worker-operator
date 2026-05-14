@@ -31,6 +31,7 @@ import (
 	"github.com/kubeslice/worker-operator/controllers"
 	ossEvents "github.com/kubeslice/worker-operator/events"
 	hubutils "github.com/kubeslice/worker-operator/pkg/hub"
+	slicegwstatus "github.com/kubeslice/worker-operator/pkg/hub/slicegwstatus"
 	"github.com/kubeslice/worker-operator/pkg/logger"
 	"github.com/kubeslice/worker-operator/pkg/utils"
 	corev1 "k8s.io/api/core/v1"
@@ -71,8 +72,8 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req reconcile.Request
 	log.Info("got sliceGw from hub", "sliceGw", sliceGw.Name)
 	*r.EventRecorder = (*r.EventRecorder).WithSlice(sliceGw.Spec.SliceName)
 	// Return if the slice gw resource does not belong to our cluster
-	if sliceGw.Spec.LocalGatewayConfig.ClusterName != r.ClusterName {
-		log.Info("sliceGw doesn't belong to this cluster", "sliceGw", sliceGw.Name, "cluster", clusterName, "slicegw cluster", sliceGw.Spec.LocalGatewayConfig.ClusterName)
+	if !slicegwstatus.WorkerSliceGatewayTargetsCluster(sliceGw, r.ClusterName) {
+		log.Info("sliceGw doesn't belong to this cluster", "sliceGw", sliceGw.Name, "cluster", r.ClusterName, "slicegw cluster", sliceGw.Spec.LocalGatewayConfig.ClusterName)
 		return reconcile.Result{}, nil
 	}
 	requeue, result, err := r.handleSliceGWDeletion(sliceGw, ctx, req)
@@ -97,7 +98,6 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req reconcile.Request
 	}
 
 	// Update the slicegateway CR on the worker cluster only if something has changed.
-	toUpdate := false
 	sliceGwRef := client.ObjectKey{
 		Name:      sliceGwName,
 		Namespace: ControlPlaneNamespace,
@@ -106,36 +106,16 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req reconcile.Request
 	if err != nil {
 		return reconcile.Result{}, err
 	}
-	// First check all the static fields.
-	if meshSliceGw.Status.Config.SliceGatewayID != sliceGw.Spec.LocalGatewayConfig.GatewayName ||
-		meshSliceGw.Status.Config.SliceGatewaySubnet != sliceGw.Spec.LocalGatewayConfig.GatewaySubnet ||
-		meshSliceGw.Status.Config.SliceGatewayRemoteSubnet != sliceGw.Spec.RemoteGatewayConfig.GatewaySubnet ||
-		meshSliceGw.Status.Config.SliceGatewayHostType != sliceGw.Spec.GatewayHostType ||
-		meshSliceGw.Status.Config.SliceGatewayRemoteClusterID != sliceGw.Spec.RemoteGatewayConfig.ClusterName ||
-		meshSliceGw.Status.Config.SliceGatewayRemoteGatewayID != sliceGw.Spec.RemoteGatewayConfig.GatewayName ||
-		meshSliceGw.Status.Config.SliceGatewayName != strconv.Itoa(sliceGw.Spec.GatewayNumber) ||
-		meshSliceGw.Status.Config.SliceGatewayConnectivityType != sliceGw.Spec.GatewayConnectivityType ||
-		meshSliceGw.Status.Config.SliceGatewayProtocol != sliceGw.Spec.GatewayProtocol ||
-		meshSliceGw.Status.Config.SliceGatewayType != sliceGw.Spec.GatewayType {
-		toUpdate = true
-	}
-	// If no change in static fields, check the dynamic fields
-	if !toUpdate {
-		// For client type, check the following fields
+	toUpdate := slicegwstatus.MeshSliceGatewayStatusOutOfSync(meshSliceGw, sliceGw)
+	if toUpdate {
 		if meshSliceGw.Status.Config.SliceGatewayHostType == "Client" {
 			if !hubutils.ListEqual(meshSliceGw.Status.Config.SliceGatewayRemoteNodeIPs, sliceGw.Spec.RemoteGatewayConfig.NodeIps) {
 				log.Info("Update from hub: Node IPs changed", "SliceGw", sliceGw.Name, "NodeIPs", sliceGw.Spec.RemoteGatewayConfig.NodeIps)
-				toUpdate = true
 			}
-			// Next check node port
-			if !toUpdate {
-				if !hubutils.ListEqual(meshSliceGw.Status.Config.SliceGatewayNodePorts, sliceGw.Spec.RemoteGatewayConfig.NodePorts) {
-					log.Info("Update from hub: NodePort numbers changed", "SliceGw", sliceGw.Name, "NodePorts", sliceGw.Spec.RemoteGatewayConfig.NodePorts)
-					toUpdate = true
-				}
+			if !hubutils.ListEqual(meshSliceGw.Status.Config.SliceGatewayNodePorts, sliceGw.Spec.RemoteGatewayConfig.NodePorts) {
+				log.Info("Update from hub: NodePort numbers changed", "SliceGw", sliceGw.Name, "NodePorts", sliceGw.Spec.RemoteGatewayConfig.NodePorts)
 			}
 		}
-		// Nothing dynamic to check for the server type
 	}
 
 	if toUpdate {

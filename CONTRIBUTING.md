@@ -2,7 +2,7 @@
 
 Guidelines on how to contribute to KubeSlice
 
-There are a number of ways you can contribute to the KubeSlice project. We would like to accept your patches and contributions to the KubeSlice code base. This document provides guidelines on how to contribute to the KubeSlice code base. We require all participants to adhere to the [Code of Conduct](https://github.com/kubeslice/worker-operator/blob/doc/contributing-guide/code_of_conduct.md).
+There are a number of ways you can contribute to the KubeSlice project. We would like to accept your patches and contributions to the KubeSlice code base. This document provides guidelines on how to contribute to the KubeSlice code base. We require all participants to adhere to the [Code of Conduct](https://github.com/kubeslice/worker-operator/blob/master/code_of_conduct.md).
 
 
 Here are some ways to contribute:
@@ -26,7 +26,7 @@ A signed commit is a commit where the commit message contains the following cont
 This can be done by adding `--signoff` to your git command line
 
 ## Code of Conduct
-Please make sure to read and observe our [Code of Conduct](https://github.com/kubeslice/worker-operator/blob/doc/contributing-guide/code_of_conduct.md).
+Please make sure to read and observe our [Code of Conduct](https://github.com/kubeslice/worker-operator/blob/master/code_of_conduct.md).
 
 ## Contributor Workflow
 
@@ -49,7 +49,7 @@ If you encounter a bug, please file an issue in the Github repository. Please pr
 * Write good [commit messages](https://github.com/angular/angular/blob/main/CONTRIBUTING.md#-commit-message-format).
 
 ## Developer Guide
-This guide helps you to get started with developing [kubeslice-worker](https://github.com/kubeslice/worker-operator/blob/doc/contributing-guide/developer_guide.md).
+This guide helps you to get started with developing [kubeslice-worker](https://github.com/kubeslice/worker-operator/blob/master/developer_guide.md) (`developer_guide.md` in this repository).
 
 ## License
 Apache License 2.0
