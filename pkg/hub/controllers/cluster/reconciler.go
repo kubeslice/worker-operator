@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"os"
 	"reflect"
+	"strconv"
 	"time"
 
 	hubv1alpha1 "github.com/kubeslice/apis/pkg/controller/v1alpha1"
@@ -85,7 +86,6 @@ func NewReconciler(c client.Client, mc client.Client, er *events.EventRecorder, 
 	}
 }
 
-var retryAttempts = 0
 var clusterDeregisterFinalizer = "worker.kubeslice.io/cluster-deregister-finalizer"
 
 func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
@@ -607,15 +607,23 @@ func (r *Reconciler) handleClusterDeletion(cluster *hubv1alpha1.Cluster, ctx con
 		}
 	} else {
 		// The object is being deleted
+		attempts, _ := strconv.Atoi(cluster.Annotations["kubeslice.io/deregistration-attempts"])
 		if controllerutil.ContainsFinalizer(cluster, clusterDeregisterFinalizer) &&
 			cluster.Status.RegistrationStatus != hubv1alpha1.RegistrationStatusDeregisterInProgress &&
-			retryAttempts < MAX_CLUSTER_DEREGISTRATION_ATTEMPTS {
+			attempts < MAX_CLUSTER_DEREGISTRATION_ATTEMPTS {
 			// our finalizer is present, so lets handle any external dependency
 			if err := r.createDeregisterJob(ctx, cluster); err != nil {
 				// unable to deregister the worker operator, return with an error and raise event
 				log.Error(err, "unable to deregister the worker operator")
-				// increment count for retryAttempts
-				retryAttempts++
+				base := cluster.DeepCopy()
+				attempts++
+				if cluster.Annotations == nil {
+					cluster.Annotations = make(map[string]string)
+				}
+				cluster.Annotations["kubeslice.io/deregistration-attempts"] = strconv.Itoa(attempts)
+				if patchErr := r.Patch(ctx, cluster, client.MergeFrom(base)); patchErr != nil {
+					log.Error(patchErr, "unable to patch deregistration attempt count")
+				}
 				statusUpdateErr := r.updateRegistrationStatus(ctx, cluster, hubv1alpha1.RegistrationStatusDeregisterFailed)
 				if statusUpdateErr != nil {
 					log.Error(statusUpdateErr, "unable to update registration status")
