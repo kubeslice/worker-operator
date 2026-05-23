@@ -1,10 +1,10 @@
 # Development guidelines for KubeSlice Worker
 
 The KubeSlice-worker operator manages the life cycle of KubeSlice worker cluster related [CRDs](https://kubernetes.io/docs/tasks/extend-kubernetes/custom-resources/custom-resource-definitions/).
-It is strongly recommended to use a released version. Follow the instructions provided in this [guide](https://docs.avesha.io/documentation/open-source/1.4.0/install-kubeslice/kubeslice-cli/install-kubeslice/).
+It is strongly recommended to use a released version. Follow the instructions provided in this [guide](https://docs.avesha.io/documentation/open-source/latest/install-kubeslice/kubeslice-cli/install-kubeslice/).
 
 ## Building and Installing `kubeslice-worker` in a Local Kind Cluster
-For more information, see [getting started with kind clusters](https://docs.avesha.io/documentation/open-source/1.4.0/category/get-started/).
+For more information, see [getting started with kind clusters](https://docs.avesha.io/documentation/open-source/latest/category/get-started/).
 
 ### Setting up Development Environment
 
@@ -82,7 +82,7 @@ make test
 
 ### Uninstalling the kubeslice-worker
 
-Refer to the [uninstall guide](https://docs.avesha.io/documentation/open-source/1.4.0/uninstall-kubeslice/)
+Refer to the [uninstall guide](https://docs.avesha.io/documentation/open-source/latest/uninstall-kubeslice/)
 
 1. [Detach](https://docs.avesha.io/opensource/detaching-the-applications) the application from the slice.
 
