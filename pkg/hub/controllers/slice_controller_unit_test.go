@@ -384,6 +384,50 @@ func TestUpdateSliceConfigByModyfingSubnetOfControllerSlice(t *testing.T) {
 		t.Error("Expected error:", controllerSlice.Spec.SliceSubnet, " but got ", workerslice.Status.SliceConfig.SliceSubnet)
 	}
 }
+func TestUpdateSliceConfigDisplayNameUpdatedOnSubsequentReconcile(t *testing.T) {
+	client := NewClient()
+	reconciler := &SliceReconciler{
+		Client:     client,
+		MeshClient: client,
+		Log:        ctrl.Log.WithName("controller").WithName("controllers").WithName("SliceConfig"),
+	}
+	ctx := context.WithValue(context.Background(), types.NamespacedName{Name: "test-slice", Namespace: "kubeslice-system"}, controllerSlice)
+
+	client.StatusMock.On("Update",
+		mock.IsType(ctx),
+		mock.IsType(&kubeslicev1beta1.Slice{}),
+		mock.IsType([]k8sclient.SubResourceUpdateOption(nil)),
+	).Return(nil)
+
+	slice := &kubeslicev1beta1.Slice{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-slice",
+			Namespace: "kubeslice-system",
+		},
+		Status: kubeslicev1beta1.SliceStatus{
+			SliceConfig: &kubeslicev1beta1.SliceConfig{
+				SliceDisplayName: "old-display-name",
+			},
+		},
+	}
+	hubSlice := &workerv1alpha1.WorkerSliceConfig{
+		Spec: workerv1alpha1.WorkerSliceConfigSpec{
+			SliceName: "new-display-name",
+			SliceGatewayProvider: workerv1alpha1.WorkerSliceGatewayProvider{
+				SliceGatewayServiceType: "NodePort",
+			},
+		},
+	}
+	err := reconciler.updateSliceConfig(ctx, slice, hubSlice)
+	if err != nil {
+		t.Error("Expected no error but got:", err)
+	}
+	if slice.Status.SliceConfig.SliceDisplayName != "new-display-name" {
+		t.Errorf("Expected SliceDisplayName to be updated to %q but got %q",
+			"new-display-name", slice.Status.SliceConfig.SliceDisplayName)
+	}
+}
+
 func TestDeleteSliceResourceOnWorker(t *testing.T) {
 	expected := struct {
 		ctx context.Context
