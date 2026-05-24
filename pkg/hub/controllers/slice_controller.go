@@ -281,6 +281,8 @@ func (r *SliceReconciler) updateSliceConfig(ctx context.Context, meshSlice *kube
 			SliceType:         spokeSlice.Spec.SliceType,
 		}
 	}
+	meshSlice.Status.SliceConfig.SliceDisplayName = spokeSlice.Spec.SliceName
+
 	if meshSlice.Status.SliceConfig.SliceSubnet == "" {
 		meshSlice.Status.SliceConfig.SliceSubnet = spokeSlice.Spec.SliceSubnet
 	}
