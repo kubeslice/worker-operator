@@ -3,6 +3,7 @@ package cluster
 import (
 	"context"
 	"errors"
+	"os"
 	"testing"
 	"time"
 
@@ -397,6 +398,86 @@ func TestUpdateNetworkStatus(t *testing.T) {
 			}
 			test.loadMocks(clientMock, ctx)
 			err := r.updateNetworkStatus(ctx, test.cluster)
+			if test.err != nil && err != nil {
+				if test.err.Error() != err.Error() {
+					t.Error("Expected error:", test.err, " but got ", err)
+				}
+			} else if test.err != err {
+				t.Error("Expected error:", test.err, " but got ", err)
+			}
+		})
+	}
+}
+
+func Test_updateDashboardCreds(t *testing.T) {
+	tests := []struct {
+		name      string
+		ctx       context.Context
+		loadMocks MockClientCall
+		err       error
+	}{
+		{
+			"no token secret found for dashboard SA — returns error",
+			context.WithValue(context.Background(), types.NamespacedName{}, testClusterObj),
+			func(clientMock *utilmock.MockClient, ctx context.Context) {
+				clientMock.On("List",
+					mock.IsType(ctx),
+					mock.IsType(&corev1.SecretList{}),
+					mock.Anything,
+				).Return(nil) // empty list — no matching secret
+			},
+			errors.New("no token secret found for ServiceAccount kubeslice-kubernetes-dashboard"),
+		},
+		{
+			"token secret found via annotation — credentials updated successfully",
+			context.WithValue(context.Background(), types.NamespacedName{}, testClusterObj),
+			func(clientMock *utilmock.MockClient, ctx context.Context) {
+				clientMock.On("List",
+					mock.IsType(ctx),
+					mock.IsType(&corev1.SecretList{}),
+					mock.Anything,
+				).Return(nil).Run(func(args mock.Arguments) {
+					list := args.Get(1).(*corev1.SecretList)
+					list.Items = []corev1.Secret{{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "kubeslice-kubernetes-dashboard-token",
+							Namespace: ControlPlaneNamespace,
+							Annotations: map[string]string{
+								corev1.ServiceAccountNameKey: KubeSliceDashboardSA,
+							},
+						},
+						Type: corev1.SecretTypeServiceAccountToken,
+						Data: map[string][]byte{
+							"token":  []byte("test-token"),
+							"ca.crt": []byte("test-ca"),
+						},
+					}}
+				})
+				clientMock.On("Create",
+					mock.IsType(ctx),
+					mock.IsType(&corev1.Secret{}),
+					mock.IsType([]k8sclient.CreateOption(nil)),
+				).Return(nil)
+				clientMock.On("Update",
+					mock.IsType(ctx),
+					mock.IsType(&hubv1alpha1.Cluster{}),
+					mock.IsType([]k8sclient.UpdateOption(nil)),
+				).Return(nil)
+			},
+			nil,
+		},
+	}
+
+	os.Setenv("CLUSTER_NAME", "test-cluster")
+	os.Setenv("HUB_PROJECT_NAMESPACE", "kubeslice-avesha")
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			ctx := test.ctx
+			clientMock := utilmock.NewClient()
+			mf, _ := metrics.NewMetricsFactory(prometheus.NewRegistry(), metrics.MetricsFactoryOptions{})
+			r := NewReconciler(clientMock, clientMock, nil, mf)
+			test.loadMocks(clientMock, ctx)
+			err := r.updateDashboardCreds(ctx, &hubv1alpha1.Cluster{})
 			if test.err != nil && err != nil {
 				if test.err.Error() != err.Error() {
 					t.Error("Expected error:", test.err, " but got ", err)
