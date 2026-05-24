@@ -72,7 +72,7 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req reconcile.Request
 	*r.EventRecorder = (*r.EventRecorder).WithSlice(sliceGw.Spec.SliceName)
 	// Return if the slice gw resource does not belong to our cluster
 	if sliceGw.Spec.LocalGatewayConfig.ClusterName != r.ClusterName {
-		log.Info("sliceGw doesn't belong to this cluster", "sliceGw", sliceGw.Name, "cluster", clusterName, "slicegw cluster", sliceGw.Spec.LocalGatewayConfig.ClusterName)
+		log.Info("sliceGw doesn't belong to this cluster", "sliceGw", sliceGw.Name, "cluster", r.ClusterName, "slicegw cluster", sliceGw.Spec.LocalGatewayConfig.ClusterName)
 		return reconcile.Result{}, nil
 	}
 	requeue, result, err := r.handleSliceGWDeletion(sliceGw, ctx, req)
