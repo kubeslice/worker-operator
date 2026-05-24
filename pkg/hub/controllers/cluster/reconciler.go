@@ -507,27 +507,24 @@ func (r *Reconciler) updateDashboardCreds(ctx context.Context, cr *hubv1alpha1.C
 	log := logger.FromContext(ctx)
 	log.Info("Updating kubernetes dashboard creds")
 
-	sa := &corev1.ServiceAccount{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      KubeSliceDashboardSA,
-			Namespace: controllers.ControlPlaneNamespace,
-		},
-	}
-	if err := r.MeshClient.Get(ctx, types.NamespacedName{Name: sa.Name, Namespace: controllers.ControlPlaneNamespace}, sa); err != nil {
-		log.Error(err, "Error getting service account")
+	secretList := &corev1.SecretList{}
+	if err := r.MeshClient.List(ctx, secretList, client.InNamespace(controllers.ControlPlaneNamespace)); err != nil {
+		log.Error(err, "Error listing secrets for dashboard credentials")
 		return err
 	}
 
-	if len(sa.Secrets) == 0 {
-		err := fmt.Errorf("ServiceAccount has no secret")
-		log.Error(err, "Error getting service account secret")
-		return err
+	var secret *corev1.Secret
+	for i := range secretList.Items {
+		s := &secretList.Items[i]
+		if s.Type == corev1.SecretTypeServiceAccountToken &&
+			s.Annotations[corev1.ServiceAccountNameKey] == KubeSliceDashboardSA {
+			secret = s
+			break
+		}
 	}
-
-	secret := &corev1.Secret{}
-	err := r.MeshClient.Get(ctx, types.NamespacedName{Name: sa.Secrets[0].Name, Namespace: controllers.ControlPlaneNamespace}, secret)
-	if err != nil {
-		log.Error(err, "Error getting service account's secret")
+	if secret == nil {
+		err := fmt.Errorf("no token secret found for ServiceAccount %s", KubeSliceDashboardSA)
+		log.Error(err, "Error getting dashboard token secret")
 		return err
 	}
 
@@ -556,7 +553,7 @@ func (r *Reconciler) updateDashboardCreds(ctx context.Context, cr *hubv1alpha1.C
 		Data: secretData,
 	}
 	log.Info("creating secret on hub", "hubSecret", hubSecret.Name)
-	err = r.Create(ctx, &hubSecret)
+	err := r.Create(ctx, &hubSecret)
 	if apierrors.IsAlreadyExists(err) {
 		err = r.Update(ctx, &hubSecret)
 	}
