@@ -73,9 +73,9 @@ func (r *NetpolReconciler) initPrivateIPBlocks() error {
 	return nil
 }
 
-func (c *NetpolReconciler) getSliceNameFromNsOfNetPol(ns string) (string, error) {
+func (c *NetpolReconciler) getSliceNameFromNsOfNetPol(ctx context.Context, ns string) (string, error) {
 	namespace := corev1.Namespace{}
-	err := c.Client.Get(context.Background(), types.NamespacedName{Name: ns}, &namespace)
+	err := c.Client.Get(ctx, types.NamespacedName{Name: ns}, &namespace)
 	if err != nil {
 		c.Log.Error(err, "error while retrieving namespace")
 		return "", err
@@ -102,7 +102,7 @@ func (r *NetpolReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	}
 
 	//get the sliceName from namespace label
-	sliceName, err := r.getSliceNameFromNsOfNetPol(req.Namespace)
+	sliceName, err := r.getSliceNameFromNsOfNetPol(ctx, req.Namespace)
 	if err != nil {
 		log.Error(err, "error while retrieving labels from namespace")
 		return ctrl.Result{}, err
@@ -116,7 +116,7 @@ func (r *NetpolReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 
 	//get slice
 	slice := &kubeslicev1beta1.Slice{}
-	err = r.Get(context.Background(), types.NamespacedName{Name: sliceName, Namespace: "kubeslice-system"}, slice)
+	err = r.Get(ctx, types.NamespacedName{Name: sliceName, Namespace: "kubeslice-system"}, slice)
 	if err != nil {
 		log.Error(err, fmt.Sprintf("error while retrieving slice(%s/%s)", "kubeslice-system", sliceName))
 		return ctrl.Result{}, err
@@ -145,16 +145,16 @@ func (r *NetpolReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	utils.RecordEvent(ctx, r.EventRecorder, slice, nil, ossEvents.EventNetPolAdded, netpolControllerName)
 	log.Info(fmt.Sprintf("added network policy(%s) in slice(%s/%s) of cluster(%s)", netpol.Name, netpol.Namespace, slice.Name, clusterName))
 
-	return r.Compare(&netpol, slice)
+	return r.Compare(ctx, &netpol, slice)
 }
 
-func (c *NetpolReconciler) Compare(np *networkingv1.NetworkPolicy, slice *kubeslicev1beta1.Slice) (ctrl.Result, error) {
-	var ApplicationNamespaces, err1 = c.GetAppNamespacesBySliceNameAndLabel(context.Background(), slice.Name, controllers.ApplicationNamespaceSelectorLabelKey)
+func (c *NetpolReconciler) Compare(ctx context.Context, np *networkingv1.NetworkPolicy, slice *kubeslicev1beta1.Slice) (ctrl.Result, error) {
+	var ApplicationNamespaces, err1 = c.GetAppNamespacesBySliceNameAndLabel(ctx, slice.Name, controllers.ApplicationNamespaceSelectorLabelKey)
 	if err1 != nil {
 		c.Log.Error(err1, "error while retrieving application namespaces by sliceName")
 		return ctrl.Result{}, err1
 	}
-	var AllowedNamespaces, err2 = c.GetAllowedNamespacesBySliceNameAndLabel(context.Background(), slice,
+	var AllowedNamespaces, err2 = c.GetAllowedNamespacesBySliceNameAndLabel(ctx, slice,
 		slicepkg.AllowedNamespaceSelectorLabelKey)
 	if err2 != nil {
 		c.Log.Error(err2, "error while retrieving allowed namespaces by sliceName")
@@ -169,7 +169,7 @@ func (c *NetpolReconciler) Compare(np *networkingv1.NetworkPolicy, slice *kubesl
 				listOpts := []client.ListOption{
 					client.MatchingLabels(networkPolicyPeer.NamespaceSelector.MatchLabels),
 				}
-				err := c.Client.List(context.Background(), namespaceList, listOpts...)
+				err := c.Client.List(ctx, namespaceList, listOpts...)
 				if err != nil {
 					c.Log.Error(err, "error while retrieving namespace")
 					return ctrl.Result{}, err
@@ -180,7 +180,7 @@ func (c *NetpolReconciler) Compare(np *networkingv1.NetworkPolicy, slice *kubesl
 						if !Contains(&ApplicationNamespaces, item.Name) && !Contains(&AllowedNamespaces, item.Name) {
 							clusterName := os.Getenv("CLUSTER_NAME")
 							// Record net pol modified event
-							utils.RecordEvent(context.Background(), c.EventRecorder, slice, nil, ossEvents.EventNetPolScopeWidenedNamespace, netpolControllerName)
+							utils.RecordEvent(ctx, c.EventRecorder, slice, nil, ossEvents.EventNetPolScopeWidenedNamespace, netpolControllerName)
 							c.Log.Info(fmt.Sprintf("widened scope with network policy(%s) in slice(%s/%s) of cluster(%s)",
 								np.Name,
 								slice.Namespace,
@@ -196,7 +196,7 @@ func (c *NetpolReconciler) Compare(np *networkingv1.NetworkPolicy, slice *kubesl
 					if c.isPrivateIP(netpolNet.IP) {
 						clusterName := os.Getenv("CLUSTER_NAME")
 						// Record net pol modified event
-						utils.RecordEvent(context.Background(), c.EventRecorder, slice, nil, ossEvents.EventNetPolScopeWidenedIPBlock, netpolControllerName)
+						utils.RecordEvent(ctx, c.EventRecorder, slice, nil, ossEvents.EventNetPolScopeWidenedIPBlock, netpolControllerName)
 
 						c.Log.Info(fmt.Sprintf("widened scope with network policy(%s) in slice(%s/%s) of cluster("+
 							"%s) : Reason(IPBlock violation)",
