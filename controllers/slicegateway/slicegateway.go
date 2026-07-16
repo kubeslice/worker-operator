@@ -1026,8 +1026,31 @@ func (r *SliceGwReconciler) SendConnectionContextToSliceRouter(ctx context.Conte
 	}
 
 	sidecarGrpcAddress := podIP + ":5000"
+	// For a spoke's gateway to the hub (HubAndSpoke topology), route the entire
+	// slice subnet via this gateway instead of just the peer gateway's subnet, so
+	// spoke-to-spoke traffic is forwarded to the hub, which relays it.
+	sliceSubnet := ""
+	if slicegateway.Status.Config.RouteEntireSliceSubnet {
+		slice, err := controllers.GetSlice(ctx, r.Client, slicegateway.Spec.SliceName)
+		if err != nil {
+			log.Error(err, "Unable to get slice for entire-subnet route", "slice", slicegateway.Spec.SliceName)
+			return ctrl.Result{}, err, true
+		}
+		if slice != nil && slice.Status.SliceConfig != nil {
+			sliceSubnet = slice.Status.SliceConfig.SliceSubnet
+		}
+	}
+	remoteNsmSubnet, ready := remoteNsmSubnetForRoute(
+		slicegateway.Status.Config.RouteEntireSliceSubnet,
+		slicegateway.Status.Config.SliceGatewayRemoteSubnet,
+		sliceSubnet,
+	)
+	if !ready {
+		log.Info("Slice subnet not available yet for entire-subnet route, requeuing")
+		return ctrl.Result{RequeueAfter: 10 * time.Second}, nil, true
+	}
 	connCtx := &router.SliceRouterConnCtx{
-		RemoteSliceGwNsmSubnet: slicegateway.Status.Config.SliceGatewayRemoteSubnet,
+		RemoteSliceGwNsmSubnet: remoteNsmSubnet,
 		LocalNsmGwPeerIPs:      gwNsmIPs,
 	}
 	log.Info("Conn ctx to send to slice router ", "connCtx", connCtx)

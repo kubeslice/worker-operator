@@ -116,6 +116,7 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req reconcile.Request
 		meshSliceGw.Status.Config.SliceGatewayName != strconv.Itoa(sliceGw.Spec.GatewayNumber) ||
 		meshSliceGw.Status.Config.SliceGatewayConnectivityType != sliceGw.Spec.GatewayConnectivityType ||
 		meshSliceGw.Status.Config.SliceGatewayProtocol != sliceGw.Spec.GatewayProtocol ||
+		meshSliceGw.Status.Config.RouteEntireSliceSubnet != sliceGw.Spec.RouteEntireSliceSubnet ||
 		meshSliceGw.Status.Config.SliceGatewayType != sliceGw.Spec.GatewayType {
 		toUpdate = true
 	}
@@ -166,6 +167,7 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req reconcile.Request
 				SliceGatewayConnectivityType:        sliceGw.Spec.GatewayConnectivityType,
 				SliceGatewayProtocol:                sliceGw.Spec.GatewayProtocol,
 				SliceGatewayServerLBIPs:             sliceGw.Spec.RemoteGatewayConfig.LoadBalancerIps,
+				RouteEntireSliceSubnet:              sliceGw.Spec.RouteEntireSliceSubnet,
 			}
 
 			err = r.MeshClient.Status().Update(ctx, meshSliceGw)
