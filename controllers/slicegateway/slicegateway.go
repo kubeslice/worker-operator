@@ -941,6 +941,38 @@ func (r *SliceGwReconciler) ReconcileGwPodStatus(ctx context.Context, slicegatew
 	return ctrl.Result{}, nil, false
 }
 
+// remoteSubnetForGateway returns the destination subnet that traffic crossing
+// this gateway to its peer should be routed to. Normally it is the peer
+// gateway's own subnet (SliceGatewayRemoteSubnet). For a spoke's gateway to the
+// hub in a HubAndSpoke topology (RouteEntireSliceSubnet), it is the entire slice
+// subnet, so the spoke forwards all slice-internal traffic - including traffic
+// destined for other spokes - to the hub, which relays it.
+//
+// The returned subnet is programmed both into the local slice router (so pods
+// reach the gateway) and into the gateway pod itself (so it forwards the traffic
+// over the tunnel); both must agree, otherwise packets loop at the gateway.
+//
+// ready is false when the entire-slice route is requested but the slice subnet
+// is not known yet, signalling the caller to requeue.
+func (r *SliceGwReconciler) remoteSubnetForGateway(ctx context.Context, slicegateway *kubeslicev1beta1.SliceGateway) (subnet string, ready bool, err error) {
+	sliceSubnet := ""
+	if slicegateway.Status.Config.RouteEntireSliceSubnet {
+		slice, err := controllers.GetSlice(ctx, r.Client, slicegateway.Spec.SliceName)
+		if err != nil {
+			return "", false, err
+		}
+		if slice != nil && slice.Status.SliceConfig != nil {
+			sliceSubnet = slice.Status.SliceConfig.SliceSubnet
+		}
+	}
+	subnet, ready = remoteNsmSubnetForRoute(
+		slicegateway.Status.Config.RouteEntireSliceSubnet,
+		slicegateway.Status.Config.SliceGatewayRemoteSubnet,
+		sliceSubnet,
+	)
+	return subnet, ready, nil
+}
+
 func (r *SliceGwReconciler) SendConnectionContextAndQosToGwPod(ctx context.Context, slice *kubeslicev1beta1.Slice, slicegateway *kubeslicev1beta1.SliceGateway, req reconcile.Request) (ctrl.Result, error, bool) {
 	log := logger.FromContext(ctx).WithValues("type", "SliceGw")
 
@@ -953,9 +985,20 @@ func (r *SliceGwReconciler) SendConnectionContextAndQosToGwPod(ctx context.Conte
 		log.Info("Gw podIPs not available yet, requeuing")
 		return ctrl.Result{RequeueAfter: 5 * time.Second}, nil, true
 	}
+	// The gateway pod must forward the same subnet the slice router hands it,
+	// otherwise (for spoke-to-spoke) the packet loops back to the slice router.
+	remoteSubnet, ready, err := r.remoteSubnetForGateway(ctx, slicegateway)
+	if err != nil {
+		log.Error(err, "Unable to get slice for entire-subnet route", "slice", slicegateway.Spec.SliceName)
+		return ctrl.Result{}, err, true
+	}
+	if !ready {
+		log.Info("Slice subnet not available yet for entire-subnet route, requeuing")
+		return ctrl.Result{RequeueAfter: 10 * time.Second}, nil, true
+	}
 	connCtx := &gwsidecar.GwConnectionContext{
 		RemoteSliceGwVpnIP:     slicegateway.Status.Config.SliceGatewayRemoteVpnIP,
-		RemoteSliceGwNsmSubnet: slicegateway.Status.Config.SliceGatewayRemoteSubnet,
+		RemoteSliceGwNsmSubnet: remoteSubnet,
 	}
 	for i := range gwPodsInfo {
 		sidecarGrpcAddress := gwPodsInfo[i].PodIP + ":5000"
@@ -1026,25 +1069,14 @@ func (r *SliceGwReconciler) SendConnectionContextToSliceRouter(ctx context.Conte
 	}
 
 	sidecarGrpcAddress := podIP + ":5000"
-	// For a spoke's gateway to the hub (HubAndSpoke topology), route the entire
-	// slice subnet via this gateway instead of just the peer gateway's subnet, so
-	// spoke-to-spoke traffic is forwarded to the hub, which relays it.
-	sliceSubnet := ""
-	if slicegateway.Status.Config.RouteEntireSliceSubnet {
-		slice, err := controllers.GetSlice(ctx, r.Client, slicegateway.Spec.SliceName)
-		if err != nil {
-			log.Error(err, "Unable to get slice for entire-subnet route", "slice", slicegateway.Spec.SliceName)
-			return ctrl.Result{}, err, true
-		}
-		if slice != nil && slice.Status.SliceConfig != nil {
-			sliceSubnet = slice.Status.SliceConfig.SliceSubnet
-		}
+	// The slice router and the gateway pod must be programmed with the same
+	// remote subnet; for a spoke->hub gateway this is the entire slice subnet so
+	// spoke-to-spoke traffic is forwarded to the hub for relaying.
+	remoteNsmSubnet, ready, err := r.remoteSubnetForGateway(ctx, slicegateway)
+	if err != nil {
+		log.Error(err, "Unable to get slice for entire-subnet route", "slice", slicegateway.Spec.SliceName)
+		return ctrl.Result{}, err, true
 	}
-	remoteNsmSubnet, ready := remoteNsmSubnetForRoute(
-		slicegateway.Status.Config.RouteEntireSliceSubnet,
-		slicegateway.Status.Config.SliceGatewayRemoteSubnet,
-		sliceSubnet,
-	)
 	if !ready {
 		log.Info("Slice subnet not available yet for entire-subnet route, requeuing")
 		return ctrl.Result{RequeueAfter: 10 * time.Second}, nil, true
