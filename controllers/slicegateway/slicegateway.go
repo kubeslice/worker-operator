@@ -954,22 +954,26 @@ func (r *SliceGwReconciler) ReconcileGwPodStatus(ctx context.Context, slicegatew
 //
 // ready is false when the entire-slice route is requested but the slice subnet
 // is not known yet, signalling the caller to requeue.
-func (r *SliceGwReconciler) remoteSubnetForGateway(ctx context.Context, slicegateway *kubeslicev1beta1.SliceGateway) (subnet string, ready bool, err error) {
-	sliceSubnet := ""
-	if slicegateway.Status.Config.RouteEntireSliceSubnet {
-		slice, err := controllers.GetSlice(ctx, r.Client, slicegateway.Spec.SliceName)
-		if err != nil {
-			return "", false, err
-		}
-		if slice != nil && slice.Status.SliceConfig != nil {
-			sliceSubnet = slice.Status.SliceConfig.SliceSubnet
-		}
+func (r *SliceGwReconciler) remoteSubnetForGateway(ctx context.Context, slicegateway *kubeslicev1beta1.SliceGateway) (string, bool, error) {
+	routeEntireSlice := slicegateway.Status.Config.RouteEntireSliceSubnet
+	gatewayRemoteSubnet := slicegateway.Status.Config.SliceGatewayRemoteSubnet
+
+	// Only the entire-slice case needs the slice subnet; the common (peer-subnet)
+	// case avoids the extra lookup entirely.
+	if !routeEntireSlice {
+		subnet, ready := remoteNsmSubnetForRoute(false, gatewayRemoteSubnet, "")
+		return subnet, ready, nil
 	}
-	subnet, ready = remoteNsmSubnetForRoute(
-		slicegateway.Status.Config.RouteEntireSliceSubnet,
-		slicegateway.Status.Config.SliceGatewayRemoteSubnet,
-		sliceSubnet,
-	)
+
+	slice, err := controllers.GetSlice(ctx, r.Client, slicegateway.Spec.SliceName)
+	if err != nil {
+		return "", false, err
+	}
+	sliceSubnet := ""
+	if slice != nil && slice.Status.SliceConfig != nil {
+		sliceSubnet = slice.Status.SliceConfig.SliceSubnet
+	}
+	subnet, ready := remoteNsmSubnetForRoute(true, gatewayRemoteSubnet, sliceSubnet)
 	return subnet, ready, nil
 }
 
