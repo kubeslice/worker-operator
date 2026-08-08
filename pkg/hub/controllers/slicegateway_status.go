@@ -60,9 +60,27 @@ func deriveGatewayConnectionState(pods []*kubeslicev1beta1.GwPodInfo) string {
 // to the WorkerSliceGateway.status on the hub so the controller can aggregate
 // slice-level topology convergence. The write is guarded against conflicts by
 // re-fetching the latest object and retrying.
+// reasonMessageForState returns a short machine-readable reason and a
+// human-readable message for a connection state. The worker only observes
+// tunnel up/down, so the reasons are coarse (it cannot distinguish e.g. a dial
+// timeout from a not-yet-ready peer); they give operators a stable, honest
+// signal without over-claiming precision.
+func reasonMessageForState(state string) (reason, message string) {
+	switch state {
+	case spokev1alpha1.GatewayConnectionStateConnected:
+		return "TunnelEstablished", "gateway tunnel is up"
+	case spokev1alpha1.GatewayConnectionStateNotConnected:
+		return "TunnelDown", "all gateway pods report their tunnel is down"
+	default: // Pending / empty
+		return "Reconciling", "waiting for gateway tunnel connectivity to be reported"
+	}
+}
+
 func (r *SliceGwReconciler) reconcileGatewayConnectionStatus(ctx context.Context, sliceGw *spokev1alpha1.WorkerSliceGateway, meshSliceGw *kubeslicev1beta1.SliceGateway) error {
 	state := deriveGatewayConnectionState(meshSliceGw.Status.GatewayPodStatus)
-	if sliceGw.Status.ConnectionState == state {
+	reason, message := reasonMessageForState(state)
+	// Nothing to do when neither the state nor its reason/message has drifted.
+	if sliceGw.Status.ConnectionState == state && sliceGw.Status.Reason == reason && sliceGw.Status.Message == message {
 		return nil
 	}
 	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
@@ -70,12 +88,18 @@ func (r *SliceGwReconciler) reconcileGatewayConnectionStatus(ctx context.Context
 		if err := r.Get(ctx, client.ObjectKey{Name: sliceGw.Name, Namespace: sliceGw.Namespace}, latest); err != nil {
 			return err
 		}
-		if latest.Status.ConnectionState == state {
+		if latest.Status.ConnectionState == state && latest.Status.Reason == reason && latest.Status.Message == message {
 			return nil
 		}
-		now := metav1.Now()
+		// LastTransitionTime marks connection-state changes; don't churn it on a
+		// reason/message-only correction.
+		if latest.Status.ConnectionState != state {
+			now := metav1.Now()
+			latest.Status.LastTransitionTime = &now
+		}
 		latest.Status.ConnectionState = state
-		latest.Status.LastTransitionTime = &now
+		latest.Status.Reason = reason
+		latest.Status.Message = message
 		return r.Status().Update(ctx, latest)
 	})
 }

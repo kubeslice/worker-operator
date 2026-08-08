@@ -138,3 +138,18 @@ func TestReconcileGatewayConnectionStatus(t *testing.T) {
 		}
 	})
 }
+
+func TestReasonMessageForState(t *testing.T) {
+	cases := map[string]struct{ reason, msg string }{
+		spokev1alpha1.GatewayConnectionStateConnected:    {"TunnelEstablished", "gateway tunnel is up"},
+		spokev1alpha1.GatewayConnectionStateNotConnected: {"TunnelDown", "all gateway pods report their tunnel is down"},
+		spokev1alpha1.GatewayConnectionStatePending:      {"Reconciling", "waiting for gateway tunnel connectivity to be reported"},
+		"":                                               {"Reconciling", "waiting for gateway tunnel connectivity to be reported"},
+	}
+	for state, want := range cases {
+		r, m := reasonMessageForState(state)
+		if r != want.reason || m != want.msg {
+			t.Errorf("state %q: got (%q,%q), want (%q,%q)", state, r, m, want.reason, want.msg)
+		}
+	}
+}
