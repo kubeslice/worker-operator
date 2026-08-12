@@ -99,6 +99,11 @@ test:   fmt vet envtest ## Run tests.
 unit-test-coverage: test
 	go tool cover -func coverage.out
 
+# Unit-only coverage (skips envtest suites; excludes generated files from the metric).
+.PHONY: unit-coverage
+unit-coverage:
+	bash scripts/coverage-unit.sh
+
 .PHONY: test-docker
 test-docker:
 	docker build -t test -f test.Dockerfile . && docker run test
