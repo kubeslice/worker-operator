@@ -155,7 +155,16 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req reconcile.Request
 		}
 	}
 
-	return reconcile.Result{}, nil
+	// Report this gateway's tunnel connectivity up to the hub WorkerSliceGateway
+	// so the controller can aggregate slice-level topology convergence.
+	if err := r.reconcileGatewayConnectionStatus(ctx, sliceGw, meshSliceGw); err != nil {
+		log.Error(err, "unable to update gateway connection status on hub", "sliceGw", sliceGwName)
+		return reconcile.Result{}, err
+	}
+
+	// The hub reconciler does not watch the mesh cluster's SliceGateway, so
+	// periodically re-reconcile to pick up tunnel connectivity changes.
+	return reconcile.Result{RequeueAfter: gatewayStatusRefreshInterval}, nil
 }
 
 func (r *SliceGwReconciler) InjectClient(c client.Client) error {
