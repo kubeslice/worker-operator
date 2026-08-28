@@ -47,10 +47,20 @@ func deriveGatewayConnectionState(pods []*kubeslicev1beta1.GwPodInfo) string {
 	if len(pods) == 0 {
 		return spokev1alpha1.GatewayConnectionStatePending
 	}
+	reported := false
 	for _, pod := range pods {
-		if pod != nil && pod.TunnelStatus.TunnelState == tunnelStateUp {
+		if pod == nil {
+			continue
+		}
+		reported = true
+		if pod.TunnelStatus.TunnelState == tunnelStateUp {
 			return spokev1alpha1.GatewayConnectionStateConnected
 		}
+	}
+	// No non-nil pod status means nothing has been reported yet, which is Pending
+	// rather than NotConnected (we have no evidence the tunnel is down).
+	if !reported {
+		return spokev1alpha1.GatewayConnectionStatePending
 	}
 	return spokev1alpha1.GatewayConnectionStateNotConnected
 }
@@ -80,6 +90,9 @@ func (r *SliceGwReconciler) reconcileGatewayConnectionStatus(ctx context.Context
 	state := deriveGatewayConnectionState(meshSliceGw.Status.GatewayPodStatus)
 	reason, message := reasonMessageForState(state)
 	// Nothing to do when neither the state nor its reason/message has drifted.
+	// This reconciler is the sole writer of these connection-status fields, so the
+	// passed-in sliceGw.Status is a safe basis for the fast-path skip; the write
+	// below still re-fetches and re-checks under RetryOnConflict for safety.
 	if sliceGw.Status.ConnectionState == state && sliceGw.Status.Reason == reason && sliceGw.Status.Message == message {
 		return nil
 	}
