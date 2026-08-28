@@ -55,11 +55,6 @@ func deriveGatewayConnectionState(pods []*kubeslicev1beta1.GwPodInfo) string {
 	return spokev1alpha1.GatewayConnectionStateNotConnected
 }
 
-// reconcileGatewayConnectionStatus derives the gateway's connection state from
-// the local SliceGateway's pod tunnel status and, when it has changed, writes it
-// to the WorkerSliceGateway.status on the hub so the controller can aggregate
-// slice-level topology convergence. The write is guarded against conflicts by
-// re-fetching the latest object and retrying.
 // reasonMessageForState returns a short machine-readable reason and a
 // human-readable message for a connection state. The worker only observes
 // tunnel up/down, so the reasons are coarse (it cannot distinguish e.g. a dial
@@ -76,6 +71,11 @@ func reasonMessageForState(state string) (reason, message string) {
 	}
 }
 
+// reconcileGatewayConnectionStatus derives the gateway's connection state from
+// the local SliceGateway's pod tunnel status and, when it has changed, writes it
+// to the WorkerSliceGateway.status on the hub so the controller can aggregate
+// slice-level topology convergence. The write is guarded against conflicts by
+// re-fetching the latest object and retrying.
 func (r *SliceGwReconciler) reconcileGatewayConnectionStatus(ctx context.Context, sliceGw *spokev1alpha1.WorkerSliceGateway, meshSliceGw *kubeslicev1beta1.SliceGateway) error {
 	state := deriveGatewayConnectionState(meshSliceGw.Status.GatewayPodStatus)
 	reason, message := reasonMessageForState(state)

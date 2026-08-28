@@ -967,6 +967,11 @@ func (r *SliceGwReconciler) remoteSubnetForGateway(ctx context.Context, slicegat
 
 	slice, err := controllers.GetSlice(ctx, r.Client, slicegateway.Spec.SliceName)
 	if err != nil {
+		// The Slice can lag gateway reconciliation (creation/deletion race), so a
+		// missing Slice is not fatal: report not-ready and let the caller requeue.
+		if apierrors.IsNotFound(err) {
+			return "", false, nil
+		}
 		return "", false, err
 	}
 	sliceSubnet := ""
