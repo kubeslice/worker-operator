@@ -190,7 +190,12 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req reconcile.Request
 	}
 
 	// The hub reconciler does not watch the mesh cluster's SliceGateway, so
-	// periodically re-reconcile to pick up tunnel connectivity changes.
+	// periodically re-reconcile to pick up tunnel connectivity changes. This runs
+	// for every gateway (not only hub-and-spoke) by design: the connection-status
+	// report the controller aggregates for TopologyConverged is needed on all
+	// slices. The poll is intentionally bounded and cheap - it only reads status
+	// and writes the WorkerSliceGateway status when it actually changed (see
+	// reconcileGatewayConnectionStatus), so a steady-state fleet produces no writes.
 	return reconcile.Result{RequeueAfter: gatewayStatusRefreshInterval}, nil
 }
 

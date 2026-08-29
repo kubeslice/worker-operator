@@ -69,6 +69,11 @@ func TestDeriveGatewayConnectionState(t *testing.T) {
 			pods: []*kubeslicev1beta1.GwPodInfo{nil, pod("UP")},
 			want: spokev1alpha1.GatewayConnectionStateConnected,
 		},
+		{
+			name: "all pod entries nil (no status reported) is Pending",
+			pods: []*kubeslicev1beta1.GwPodInfo{nil, nil},
+			want: spokev1alpha1.GatewayConnectionStatePending,
+		},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -144,7 +149,7 @@ func TestReasonMessageForState(t *testing.T) {
 		spokev1alpha1.GatewayConnectionStateConnected:    {"TunnelEstablished", "gateway tunnel is up"},
 		spokev1alpha1.GatewayConnectionStateNotConnected: {"TunnelDown", "all gateway pods report their tunnel is down"},
 		spokev1alpha1.GatewayConnectionStatePending:      {"Reconciling", "waiting for gateway tunnel connectivity to be reported"},
-		"":                                               {"Reconciling", "waiting for gateway tunnel connectivity to be reported"},
+		"": {"Reconciling", "waiting for gateway tunnel connectivity to be reported"},
 	}
 	for state, want := range cases {
 		r, m := reasonMessageForState(state)
