@@ -69,6 +69,12 @@ spec:
               config:
                 description: SliceGatewayConfig defines the config received from backend
                 properties:
+                  routeEntireSliceSubnet:
+                    description: |-
+                      RouteEntireSliceSubnet, when true, tells the slice router to route the whole
+                      slice subnet via this gateway (a spoke's uplink to the hub in HubAndSpoke
+                      topology), so spoke-to-spoke traffic is relayed through the hub.
+                    type: boolean
                   sliceGatewayConnectivityType:
                     description: SliceGateway Connectivity Type
                     type: string

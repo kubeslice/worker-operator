@@ -70,6 +70,10 @@ type SliceGatewayConfig struct {
 	SliceGatewayRemoteClusterID string `json:"sliceGatewayRemoteClusterId,omitempty"`
 	// Intermediate Slice Gw Deployments
 	SliceGatewayIntermediateDeployments []string `json:"sliceGatewayIntermediateDeployments,omitempty"`
+	// RouteEntireSliceSubnet, when true, tells the slice router to route the whole
+	// slice subnet via this gateway (a spoke's uplink to the hub in HubAndSpoke
+	// topology), so spoke-to-spoke traffic is relayed through the hub.
+	RouteEntireSliceSubnet bool `json:"routeEntireSliceSubnet,omitempty"`
 	// SliceGateway Connectivity Type
 	SliceGatewayConnectivityType string `json:"sliceGatewayConnectivityType,omitempty"`
 	// SliceGateway Protocol Type: UDP or TCP

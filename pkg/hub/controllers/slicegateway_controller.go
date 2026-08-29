@@ -108,16 +108,7 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req reconcile.Request
 		return reconcile.Result{}, err
 	}
 	// First check all the static fields.
-	if meshSliceGw.Status.Config.SliceGatewayID != sliceGw.Spec.LocalGatewayConfig.GatewayName ||
-		meshSliceGw.Status.Config.SliceGatewaySubnet != sliceGw.Spec.LocalGatewayConfig.GatewaySubnet ||
-		meshSliceGw.Status.Config.SliceGatewayRemoteSubnet != sliceGw.Spec.RemoteGatewayConfig.GatewaySubnet ||
-		meshSliceGw.Status.Config.SliceGatewayHostType != sliceGw.Spec.GatewayHostType ||
-		meshSliceGw.Status.Config.SliceGatewayRemoteClusterID != sliceGw.Spec.RemoteGatewayConfig.ClusterName ||
-		meshSliceGw.Status.Config.SliceGatewayRemoteGatewayID != sliceGw.Spec.RemoteGatewayConfig.GatewayName ||
-		meshSliceGw.Status.Config.SliceGatewayName != strconv.Itoa(sliceGw.Spec.GatewayNumber) ||
-		meshSliceGw.Status.Config.SliceGatewayConnectivityType != sliceGw.Spec.GatewayConnectivityType ||
-		meshSliceGw.Status.Config.SliceGatewayProtocol != sliceGw.Spec.GatewayProtocol ||
-		meshSliceGw.Status.Config.SliceGatewayType != sliceGw.Spec.GatewayType {
+	if staticGatewayConfigChanged(meshSliceGw, sliceGw) {
 		toUpdate = true
 	}
 	// If no change in static fields, check the dynamic fields
@@ -149,25 +140,7 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req reconcile.Request
 			if err != nil {
 				return err
 			}
-			meshSliceGw.Status.Config = kubeslicev1beta1.SliceGatewayConfig{
-				SliceName:                           sliceGw.Spec.SliceName,
-				SliceGatewayID:                      sliceGw.Spec.LocalGatewayConfig.GatewayName,
-				SliceGatewaySubnet:                  sliceGw.Spec.LocalGatewayConfig.GatewaySubnet,
-				SliceGatewayRemoteSubnet:            sliceGw.Spec.RemoteGatewayConfig.GatewaySubnet,
-				SliceGatewayHostType:                sliceGw.Spec.GatewayHostType,
-				SliceGatewayRemoteNodeIPs:           sliceGw.Spec.RemoteGatewayConfig.NodeIps,
-				SliceGatewayRemoteNodePorts:         sliceGw.Spec.RemoteGatewayConfig.NodePorts,
-				SliceGatewayRemoteClusterID:         sliceGw.Spec.RemoteGatewayConfig.ClusterName,
-				SliceGatewayRemoteGatewayID:         sliceGw.Spec.RemoteGatewayConfig.GatewayName,
-				SliceGatewayLocalVpnIP:              sliceGw.Spec.LocalGatewayConfig.VpnIp,
-				SliceGatewayRemoteVpnIP:             sliceGw.Spec.RemoteGatewayConfig.VpnIp,
-				SliceGatewayName:                    strconv.Itoa(sliceGw.Spec.GatewayNumber),
-				SliceGatewayType:                    sliceGw.Spec.GatewayType,
-				SliceGatewayIntermediateDeployments: meshSliceGw.Status.Config.SliceGatewayIntermediateDeployments,
-				SliceGatewayConnectivityType:        sliceGw.Spec.GatewayConnectivityType,
-				SliceGatewayProtocol:                sliceGw.Spec.GatewayProtocol,
-				SliceGatewayServerLBIPs:             sliceGw.Spec.RemoteGatewayConfig.LoadBalancerIps,
-			}
+			meshSliceGw.Status.Config = newMeshGatewayConfig(meshSliceGw, sliceGw)
 
 			err = r.MeshClient.Status().Update(ctx, meshSliceGw)
 			if err != nil {
@@ -205,6 +178,52 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req reconcile.Request
 func (r *SliceGwReconciler) InjectClient(c client.Client) error {
 	r.Client = c
 	return nil
+}
+
+// staticGatewayConfigChanged reports whether any static field of the local
+// SliceGateway's reported config differs from the hub WorkerSliceGateway spec —
+// including RouteEntireSliceSubnet, so a flag flip from the controller triggers
+// an update on the worker.
+func staticGatewayConfigChanged(meshSliceGw *kubeslicev1beta1.SliceGateway, sliceGw *spokev1alpha1.WorkerSliceGateway) bool {
+	c := meshSliceGw.Status.Config
+	return c.SliceGatewayID != sliceGw.Spec.LocalGatewayConfig.GatewayName ||
+		c.SliceGatewaySubnet != sliceGw.Spec.LocalGatewayConfig.GatewaySubnet ||
+		c.SliceGatewayRemoteSubnet != sliceGw.Spec.RemoteGatewayConfig.GatewaySubnet ||
+		c.SliceGatewayHostType != sliceGw.Spec.GatewayHostType ||
+		c.SliceGatewayRemoteClusterID != sliceGw.Spec.RemoteGatewayConfig.ClusterName ||
+		c.SliceGatewayRemoteGatewayID != sliceGw.Spec.RemoteGatewayConfig.GatewayName ||
+		c.SliceGatewayName != strconv.Itoa(sliceGw.Spec.GatewayNumber) ||
+		c.SliceGatewayConnectivityType != sliceGw.Spec.GatewayConnectivityType ||
+		c.SliceGatewayProtocol != sliceGw.Spec.GatewayProtocol ||
+		c.RouteEntireSliceSubnet != sliceGw.Spec.RouteEntireSliceSubnet ||
+		c.SliceGatewayType != sliceGw.Spec.GatewayType
+}
+
+// newMeshGatewayConfig builds the local SliceGateway status config from the hub
+// WorkerSliceGateway spec, preserving the existing intermediate deployments. The
+// controller-set RouteEntireSliceSubnet flag is propagated here so the worker
+// dataplane can route the whole slice via a spoke's hub gateway.
+func newMeshGatewayConfig(meshSliceGw *kubeslicev1beta1.SliceGateway, sliceGw *spokev1alpha1.WorkerSliceGateway) kubeslicev1beta1.SliceGatewayConfig {
+	return kubeslicev1beta1.SliceGatewayConfig{
+		SliceName:                           sliceGw.Spec.SliceName,
+		SliceGatewayID:                      sliceGw.Spec.LocalGatewayConfig.GatewayName,
+		SliceGatewaySubnet:                  sliceGw.Spec.LocalGatewayConfig.GatewaySubnet,
+		SliceGatewayRemoteSubnet:            sliceGw.Spec.RemoteGatewayConfig.GatewaySubnet,
+		SliceGatewayHostType:                sliceGw.Spec.GatewayHostType,
+		SliceGatewayRemoteNodeIPs:           sliceGw.Spec.RemoteGatewayConfig.NodeIps,
+		SliceGatewayRemoteNodePorts:         sliceGw.Spec.RemoteGatewayConfig.NodePorts,
+		SliceGatewayRemoteClusterID:         sliceGw.Spec.RemoteGatewayConfig.ClusterName,
+		SliceGatewayRemoteGatewayID:         sliceGw.Spec.RemoteGatewayConfig.GatewayName,
+		SliceGatewayLocalVpnIP:              sliceGw.Spec.LocalGatewayConfig.VpnIp,
+		SliceGatewayRemoteVpnIP:             sliceGw.Spec.RemoteGatewayConfig.VpnIp,
+		SliceGatewayName:                    strconv.Itoa(sliceGw.Spec.GatewayNumber),
+		SliceGatewayType:                    sliceGw.Spec.GatewayType,
+		SliceGatewayIntermediateDeployments: meshSliceGw.Status.Config.SliceGatewayIntermediateDeployments,
+		SliceGatewayConnectivityType:        sliceGw.Spec.GatewayConnectivityType,
+		SliceGatewayProtocol:                sliceGw.Spec.GatewayProtocol,
+		SliceGatewayServerLBIPs:             sliceGw.Spec.RemoteGatewayConfig.LoadBalancerIps,
+		RouteEntireSliceSubnet:              sliceGw.Spec.RouteEntireSliceSubnet,
+	}
 }
 
 func (r *SliceGwReconciler) createSliceGwCerts(ctx context.Context, sliceGw *spokev1alpha1.WorkerSliceGateway, req reconcile.Request) (reconcile.Result, error) {
