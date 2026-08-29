@@ -37,6 +37,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -196,7 +197,9 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req reconcile.Request
 	// slices. The poll is intentionally bounded and cheap - it only reads status
 	// and writes the WorkerSliceGateway status when it actually changed (see
 	// reconcileGatewayConnectionStatus), so a steady-state fleet produces no writes.
-	return reconcile.Result{RequeueAfter: gatewayStatusRefreshInterval}, nil
+	// Jitter the interval so gateways don't all re-reconcile in lockstep (e.g. after
+	// an operator restart), spreading the load on the hub and mesh API servers.
+	return reconcile.Result{RequeueAfter: wait.Jitter(gatewayStatusRefreshInterval, 0.2)}, nil
 }
 
 func (r *SliceGwReconciler) InjectClient(c client.Client) error {
