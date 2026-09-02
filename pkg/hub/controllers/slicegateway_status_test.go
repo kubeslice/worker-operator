@@ -122,7 +122,10 @@ func TestReconcileGatewayConnectionStatus(t *testing.T) {
 		}
 	})
 
-	t.Run("no write when state is unchanged", func(t *testing.T) {
+	t.Run("does not touch LastTransitionTime on a reason/message-only correction", func(t *testing.T) {
+		// Seed only ConnectionState: the derived reason/message still drift, so the
+		// reconciler writes to correct them, but the state itself is unchanged so
+		// LastTransitionTime must not be churned.
 		gw := &spokev1alpha1.WorkerSliceGateway{}
 		gw.Name, gw.Namespace = key.Name, key.Namespace
 		gw.Status.ConnectionState = spokev1alpha1.GatewayConnectionStateNotConnected
@@ -130,7 +133,7 @@ func TestReconcileGatewayConnectionStatus(t *testing.T) {
 			WithObjects(gw).WithStatusSubresource(gw).Build()
 		r := &SliceGwReconciler{Client: c}
 
-		// all pods down -> NotConnected, same as current -> no update, no timestamp.
+		// all pods down -> NotConnected, same state as current.
 		if err := r.reconcileGatewayConnectionStatus(context.Background(), gw, meshGwWithPods("DOWN")); err != nil {
 			t.Fatalf("reconcile: %v", err)
 		}
@@ -140,6 +143,41 @@ func TestReconcileGatewayConnectionStatus(t *testing.T) {
 		}
 		if got.Status.LastTransitionTime != nil {
 			t.Fatal("expected no LastTransitionTime when state is unchanged")
+		}
+		// reason/message should have been corrected to match the derived state.
+		wantReason, wantMsg := reasonMessageForState(spokev1alpha1.GatewayConnectionStateNotConnected)
+		if got.Status.Reason != wantReason || got.Status.Message != wantMsg {
+			t.Fatalf("reason/message not corrected: got (%q,%q), want (%q,%q)",
+				got.Status.Reason, got.Status.Message, wantReason, wantMsg)
+		}
+	})
+
+	t.Run("no write when state, reason and message are all unchanged", func(t *testing.T) {
+		// Seed all three fields to the derived values: the fast-path skip must fire
+		// and nothing is written (resourceVersion unchanged).
+		reason, msg := reasonMessageForState(spokev1alpha1.GatewayConnectionStateNotConnected)
+		gw := &spokev1alpha1.WorkerSliceGateway{}
+		gw.Name, gw.Namespace = key.Name, key.Namespace
+		gw.Status.ConnectionState = spokev1alpha1.GatewayConnectionStateNotConnected
+		gw.Status.Reason, gw.Status.Message = reason, msg
+		c := fake.NewClientBuilder().WithScheme(scheme).
+			WithObjects(gw).WithStatusSubresource(gw).Build()
+		r := &SliceGwReconciler{Client: c}
+
+		before := &spokev1alpha1.WorkerSliceGateway{}
+		if err := c.Get(context.Background(), key, before); err != nil {
+			t.Fatalf("get before: %v", err)
+		}
+		if err := r.reconcileGatewayConnectionStatus(context.Background(), gw, meshGwWithPods("DOWN")); err != nil {
+			t.Fatalf("reconcile: %v", err)
+		}
+		after := &spokev1alpha1.WorkerSliceGateway{}
+		if err := c.Get(context.Background(), key, after); err != nil {
+			t.Fatalf("get after: %v", err)
+		}
+		if before.ResourceVersion != after.ResourceVersion {
+			t.Fatalf("expected no write when nothing changed: resourceVersion %q -> %q",
+				before.ResourceVersion, after.ResourceVersion)
 		}
 	})
 }
