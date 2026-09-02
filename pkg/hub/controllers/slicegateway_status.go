@@ -1,0 +1,118 @@
+/*
+ *  Copyright (c) 2026 Avesha, Inc. All rights reserved.
+ *
+ *  SPDX-License-Identifier: Apache-2.0
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *  http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+
+package controllers
+
+import (
+	"context"
+	"time"
+
+	spokev1alpha1 "github.com/kubeslice/apis/pkg/worker/v1alpha1"
+	kubeslicev1beta1 "github.com/kubeslice/worker-operator/api/v1beta1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/util/retry"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+)
+
+// tunnelStateUp is the value gateway-sidecar reports (via getTunnelState) on a
+// gateway pod whose tunnel is established. It mirrors the "UP" string set on
+// SliceGateway.Status.GatewayPodStatus[].TunnelStatus.TunnelState.
+const tunnelStateUp = "UP"
+
+// gatewayStatusRefreshInterval is how often the hub reconciler re-checks the
+// local SliceGateway tunnel status and reports it up, since it does not watch
+// the mesh cluster directly.
+const gatewayStatusRefreshInterval = 30 * time.Second
+
+// deriveGatewayConnectionState aggregates the per-pod tunnel states of a local
+// SliceGateway into a single WorkerSliceGateway connection state. It is HA-aware:
+// the gateway is Connected when at least one pod's tunnel is up, NotConnected
+// when all pods are down, and Pending when no pod status has been reported yet.
+func deriveGatewayConnectionState(pods []*kubeslicev1beta1.GwPodInfo) string {
+	if len(pods) == 0 {
+		return spokev1alpha1.GatewayConnectionStatePending
+	}
+	reported := false
+	for _, pod := range pods {
+		if pod == nil {
+			continue
+		}
+		reported = true
+		if pod.TunnelStatus.TunnelState == tunnelStateUp {
+			return spokev1alpha1.GatewayConnectionStateConnected
+		}
+	}
+	// No non-nil pod status means nothing has been reported yet, which is Pending
+	// rather than NotConnected (we have no evidence the tunnel is down).
+	if !reported {
+		return spokev1alpha1.GatewayConnectionStatePending
+	}
+	return spokev1alpha1.GatewayConnectionStateNotConnected
+}
+
+// reasonMessageForState returns a short machine-readable reason and a
+// human-readable message for a connection state. The worker only observes
+// tunnel up/down, so the reasons are coarse (it cannot distinguish e.g. a dial
+// timeout from a not-yet-ready peer); they give operators a stable, honest
+// signal without over-claiming precision.
+func reasonMessageForState(state string) (reason, message string) {
+	switch state {
+	case spokev1alpha1.GatewayConnectionStateConnected:
+		return "TunnelEstablished", "gateway tunnel is up"
+	case spokev1alpha1.GatewayConnectionStateNotConnected:
+		return "TunnelDown", "all gateway pods report their tunnel is down"
+	default: // Pending / empty
+		return "Reconciling", "waiting for gateway tunnel connectivity to be reported"
+	}
+}
+
+// reconcileGatewayConnectionStatus derives the gateway's connection state from
+// the local SliceGateway's pod tunnel status and, when it has changed, writes it
+// to the WorkerSliceGateway.status on the hub so the controller can aggregate
+// slice-level topology convergence. The write is guarded against conflicts by
+// re-fetching the latest object and retrying.
+func (r *SliceGwReconciler) reconcileGatewayConnectionStatus(ctx context.Context, sliceGw *spokev1alpha1.WorkerSliceGateway, meshSliceGw *kubeslicev1beta1.SliceGateway) error {
+	state := deriveGatewayConnectionState(meshSliceGw.Status.GatewayPodStatus)
+	reason, message := reasonMessageForState(state)
+	// Nothing to do when neither the state nor its reason/message has drifted.
+	// This reconciler is the sole writer of these connection-status fields, so the
+	// passed-in sliceGw.Status is a safe basis for the fast-path skip; the write
+	// below still re-fetches and re-checks under RetryOnConflict for safety.
+	if sliceGw.Status.ConnectionState == state && sliceGw.Status.Reason == reason && sliceGw.Status.Message == message {
+		return nil
+	}
+	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		latest := &spokev1alpha1.WorkerSliceGateway{}
+		if err := r.Get(ctx, client.ObjectKey{Name: sliceGw.Name, Namespace: sliceGw.Namespace}, latest); err != nil {
+			return err
+		}
+		if latest.Status.ConnectionState == state && latest.Status.Reason == reason && latest.Status.Message == message {
+			return nil
+		}
+		// LastTransitionTime marks connection-state changes; don't churn it on a
+		// reason/message-only correction.
+		if latest.Status.ConnectionState != state {
+			now := metav1.Now()
+			latest.Status.LastTransitionTime = &now
+		}
+		latest.Status.ConnectionState = state
+		latest.Status.Reason = reason
+		latest.Status.Message = message
+		return r.Status().Update(ctx, latest)
+	})
+}

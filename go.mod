@@ -102,3 +102,5 @@ require (
 	sigs.k8s.io/structured-merge-diff/v4 v4.4.2 // indirect
 	sigs.k8s.io/yaml v1.4.0 // indirect
 )
+
+replace github.com/kubeslice/apis => github.com/Shreesha001/apis v0.0.0-20260716162233-4dfda414c6d2

@@ -37,6 +37,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -107,16 +108,7 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req reconcile.Request
 		return reconcile.Result{}, err
 	}
 	// First check all the static fields.
-	if meshSliceGw.Status.Config.SliceGatewayID != sliceGw.Spec.LocalGatewayConfig.GatewayName ||
-		meshSliceGw.Status.Config.SliceGatewaySubnet != sliceGw.Spec.LocalGatewayConfig.GatewaySubnet ||
-		meshSliceGw.Status.Config.SliceGatewayRemoteSubnet != sliceGw.Spec.RemoteGatewayConfig.GatewaySubnet ||
-		meshSliceGw.Status.Config.SliceGatewayHostType != sliceGw.Spec.GatewayHostType ||
-		meshSliceGw.Status.Config.SliceGatewayRemoteClusterID != sliceGw.Spec.RemoteGatewayConfig.ClusterName ||
-		meshSliceGw.Status.Config.SliceGatewayRemoteGatewayID != sliceGw.Spec.RemoteGatewayConfig.GatewayName ||
-		meshSliceGw.Status.Config.SliceGatewayName != strconv.Itoa(sliceGw.Spec.GatewayNumber) ||
-		meshSliceGw.Status.Config.SliceGatewayConnectivityType != sliceGw.Spec.GatewayConnectivityType ||
-		meshSliceGw.Status.Config.SliceGatewayProtocol != sliceGw.Spec.GatewayProtocol ||
-		meshSliceGw.Status.Config.SliceGatewayType != sliceGw.Spec.GatewayType {
+	if staticGatewayConfigChanged(meshSliceGw, sliceGw) {
 		toUpdate = true
 	}
 	// If no change in static fields, check the dynamic fields
@@ -148,25 +140,7 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req reconcile.Request
 			if err != nil {
 				return err
 			}
-			meshSliceGw.Status.Config = kubeslicev1beta1.SliceGatewayConfig{
-				SliceName:                           sliceGw.Spec.SliceName,
-				SliceGatewayID:                      sliceGw.Spec.LocalGatewayConfig.GatewayName,
-				SliceGatewaySubnet:                  sliceGw.Spec.LocalGatewayConfig.GatewaySubnet,
-				SliceGatewayRemoteSubnet:            sliceGw.Spec.RemoteGatewayConfig.GatewaySubnet,
-				SliceGatewayHostType:                sliceGw.Spec.GatewayHostType,
-				SliceGatewayRemoteNodeIPs:           sliceGw.Spec.RemoteGatewayConfig.NodeIps,
-				SliceGatewayRemoteNodePorts:         sliceGw.Spec.RemoteGatewayConfig.NodePorts,
-				SliceGatewayRemoteClusterID:         sliceGw.Spec.RemoteGatewayConfig.ClusterName,
-				SliceGatewayRemoteGatewayID:         sliceGw.Spec.RemoteGatewayConfig.GatewayName,
-				SliceGatewayLocalVpnIP:              sliceGw.Spec.LocalGatewayConfig.VpnIp,
-				SliceGatewayRemoteVpnIP:             sliceGw.Spec.RemoteGatewayConfig.VpnIp,
-				SliceGatewayName:                    strconv.Itoa(sliceGw.Spec.GatewayNumber),
-				SliceGatewayType:                    sliceGw.Spec.GatewayType,
-				SliceGatewayIntermediateDeployments: meshSliceGw.Status.Config.SliceGatewayIntermediateDeployments,
-				SliceGatewayConnectivityType:        sliceGw.Spec.GatewayConnectivityType,
-				SliceGatewayProtocol:                sliceGw.Spec.GatewayProtocol,
-				SliceGatewayServerLBIPs:             sliceGw.Spec.RemoteGatewayConfig.LoadBalancerIps,
-			}
+			meshSliceGw.Status.Config = newMeshGatewayConfig(meshSliceGw, sliceGw)
 
 			err = r.MeshClient.Status().Update(ctx, meshSliceGw)
 			if err != nil {
@@ -182,12 +156,74 @@ func (r *SliceGwReconciler) Reconcile(ctx context.Context, req reconcile.Request
 		}
 	}
 
-	return reconcile.Result{}, nil
+	// Report this gateway's tunnel connectivity up to the hub WorkerSliceGateway
+	// so the controller can aggregate slice-level topology convergence.
+	if err := r.reconcileGatewayConnectionStatus(ctx, sliceGw, meshSliceGw); err != nil {
+		log.Error(err, "unable to update gateway connection status on hub", "sliceGw", sliceGwName)
+		return reconcile.Result{}, err
+	}
+
+	// The hub reconciler does not watch the mesh cluster's SliceGateway, so
+	// periodically re-reconcile to pick up tunnel connectivity changes. This runs
+	// for every gateway (not only hub-and-spoke) by design: the connection-status
+	// report the controller aggregates for TopologyConverged is needed on all
+	// slices. The poll is intentionally bounded and cheap - it only reads status
+	// and writes the WorkerSliceGateway status when it actually changed (see
+	// reconcileGatewayConnectionStatus), so a steady-state fleet produces no writes.
+	// Jitter the interval so gateways don't all re-reconcile in lockstep (e.g. after
+	// an operator restart), spreading the load on the hub and mesh API servers.
+	return reconcile.Result{RequeueAfter: wait.Jitter(gatewayStatusRefreshInterval, 0.2)}, nil
 }
 
 func (r *SliceGwReconciler) InjectClient(c client.Client) error {
 	r.Client = c
 	return nil
+}
+
+// staticGatewayConfigChanged reports whether any static field of the local
+// SliceGateway's reported config differs from the hub WorkerSliceGateway spec —
+// including RouteEntireSliceSubnet, so a flag flip from the controller triggers
+// an update on the worker.
+func staticGatewayConfigChanged(meshSliceGw *kubeslicev1beta1.SliceGateway, sliceGw *spokev1alpha1.WorkerSliceGateway) bool {
+	c := meshSliceGw.Status.Config
+	return c.SliceGatewayID != sliceGw.Spec.LocalGatewayConfig.GatewayName ||
+		c.SliceGatewaySubnet != sliceGw.Spec.LocalGatewayConfig.GatewaySubnet ||
+		c.SliceGatewayRemoteSubnet != sliceGw.Spec.RemoteGatewayConfig.GatewaySubnet ||
+		c.SliceGatewayHostType != sliceGw.Spec.GatewayHostType ||
+		c.SliceGatewayRemoteClusterID != sliceGw.Spec.RemoteGatewayConfig.ClusterName ||
+		c.SliceGatewayRemoteGatewayID != sliceGw.Spec.RemoteGatewayConfig.GatewayName ||
+		c.SliceGatewayName != strconv.Itoa(sliceGw.Spec.GatewayNumber) ||
+		c.SliceGatewayConnectivityType != sliceGw.Spec.GatewayConnectivityType ||
+		c.SliceGatewayProtocol != sliceGw.Spec.GatewayProtocol ||
+		c.RouteEntireSliceSubnet != sliceGw.Spec.RouteEntireSliceSubnet ||
+		c.SliceGatewayType != sliceGw.Spec.GatewayType
+}
+
+// newMeshGatewayConfig builds the local SliceGateway status config from the hub
+// WorkerSliceGateway spec, preserving the existing intermediate deployments. The
+// controller-set RouteEntireSliceSubnet flag is propagated here so the worker
+// dataplane can route the whole slice via a spoke's hub gateway.
+func newMeshGatewayConfig(meshSliceGw *kubeslicev1beta1.SliceGateway, sliceGw *spokev1alpha1.WorkerSliceGateway) kubeslicev1beta1.SliceGatewayConfig {
+	return kubeslicev1beta1.SliceGatewayConfig{
+		SliceName:                           sliceGw.Spec.SliceName,
+		SliceGatewayID:                      sliceGw.Spec.LocalGatewayConfig.GatewayName,
+		SliceGatewaySubnet:                  sliceGw.Spec.LocalGatewayConfig.GatewaySubnet,
+		SliceGatewayRemoteSubnet:            sliceGw.Spec.RemoteGatewayConfig.GatewaySubnet,
+		SliceGatewayHostType:                sliceGw.Spec.GatewayHostType,
+		SliceGatewayRemoteNodeIPs:           sliceGw.Spec.RemoteGatewayConfig.NodeIps,
+		SliceGatewayRemoteNodePorts:         sliceGw.Spec.RemoteGatewayConfig.NodePorts,
+		SliceGatewayRemoteClusterID:         sliceGw.Spec.RemoteGatewayConfig.ClusterName,
+		SliceGatewayRemoteGatewayID:         sliceGw.Spec.RemoteGatewayConfig.GatewayName,
+		SliceGatewayLocalVpnIP:              sliceGw.Spec.LocalGatewayConfig.VpnIp,
+		SliceGatewayRemoteVpnIP:             sliceGw.Spec.RemoteGatewayConfig.VpnIp,
+		SliceGatewayName:                    strconv.Itoa(sliceGw.Spec.GatewayNumber),
+		SliceGatewayType:                    sliceGw.Spec.GatewayType,
+		SliceGatewayIntermediateDeployments: meshSliceGw.Status.Config.SliceGatewayIntermediateDeployments,
+		SliceGatewayConnectivityType:        sliceGw.Spec.GatewayConnectivityType,
+		SliceGatewayProtocol:                sliceGw.Spec.GatewayProtocol,
+		SliceGatewayServerLBIPs:             sliceGw.Spec.RemoteGatewayConfig.LoadBalancerIps,
+		RouteEntireSliceSubnet:              sliceGw.Spec.RouteEntireSliceSubnet,
+	}
 }
 
 func (r *SliceGwReconciler) createSliceGwCerts(ctx context.Context, sliceGw *spokev1alpha1.WorkerSliceGateway, req reconcile.Request) (reconcile.Result, error) {
