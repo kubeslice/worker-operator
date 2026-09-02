@@ -31,7 +31,6 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
-	"k8s.io/client-go/rest"
 	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -76,13 +75,12 @@ type HubClientRpc interface {
 	UpdateLBIPsForSliceGwServer(ctx context.Context, lbIP []string, sliceGwName string) error
 }
 
-func NewHubClientConfig(er *monitoring.EventRecorder) (*HubClientConfig, error) {
-	hubClient, err := client.New(&rest.Config{
-		Host:            os.Getenv("HUB_HOST_ENDPOINT"),
-		BearerTokenFile: HubTokenFile,
-		TLSClientConfig: rest.TLSClientConfig{
-			CAFile: HubCAFile,
-		}},
+// NewHubClientConfig builds the uncached hub client. conn says which hub to
+// reach and with what; pass PrimaryConnection() for the single-hub case, which
+// is byte-for-byte the configuration this function used to read from the
+// environment itself.
+func NewHubClientConfig(er *monitoring.EventRecorder, conn Connection) (*HubClientConfig, error) {
+	hubClient, err := client.New(conn.RestConfig(),
 		client.Options{
 			Scheme: scheme,
 		},

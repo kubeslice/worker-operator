@@ -509,3 +509,27 @@ events:
     type: Warning
     reportingController: worker
     message: Gateway recycling failed
+  - name: ControllerEndpointChanged
+    reason: ControllerEndpointChanged
+    action: None
+    type: Normal
+    reportingController: worker
+    message: This worker followed a resolved controller failover and is now reconciling against a different hub endpoint
+  - name: ControllerConnected
+    reason: ControllerConnected
+    action: None
+    type: Normal
+    reportingController: worker
+    message: Connection to the hub controller is healthy
+  - name: ControllerConnectionLost
+    reason: ControllerConnectionLost
+    action: None
+    type: Warning
+    reportingController: worker
+    message: The active hub changed and this worker is restarting to reconnect; the previous connection may already be lost
+  - name: CertVerificationFailed
+    reason: CertVerificationFailed
+    action: None
+    type: Warning
+    reportingController: worker
+    message: TLS handshake with the hub controller failed certificate verification; check the configured CA bundle

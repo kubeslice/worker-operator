@@ -67,9 +67,17 @@ type Reconciler struct {
 	gaugeComponentUp *prometheus.GaugeVec
 
 	ReconcileInterval time.Duration
+
+	// connInfo and reportedReconnect back setConnectionConditions (issue
+	// #469). reportedReconnect flips true the first time this process reports
+	// ReconnectedAfterFailover, so every later reconcile reports plain
+	// Connected instead — connInfo.Reconnected itself never changes for the
+	// life of the process.
+	connInfo          ConnectionInfo
+	reportedReconnect bool
 }
 
-func NewReconciler(c client.Client, mc client.Client, er *events.EventRecorder, mf metrics.MetricsFactory) *Reconciler {
+func NewReconciler(c client.Client, mc client.Client, er *events.EventRecorder, mf metrics.MetricsFactory, connInfo ConnectionInfo) *Reconciler {
 	gaugeClusterUp := mf.NewGauge("cluster_up", "Kubeslice cluster health status", []string{})
 	gaugeComponentUp := mf.NewGauge("cluster_component_up", "Kubeslice cluster component health status", []string{"slice_cluster_component"})
 
@@ -82,6 +90,8 @@ func NewReconciler(c client.Client, mc client.Client, er *events.EventRecorder, 
 		gaugeComponentUp: gaugeComponentUp,
 
 		ReconcileInterval: 120 * time.Second,
+
+		connInfo: connInfo,
 	}
 }
 
@@ -173,6 +183,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	}
 
 	r.updateClusterMetrics(cr)
+	r.setConnectionConditions(ctx, cr)
 
 	if time.Since(cr.Status.ClusterHealth.LastUpdated.Time) > r.ReconcileInterval {
 		cr.Status.ClusterHealth.LastUpdated = metav1.Now()

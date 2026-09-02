@@ -702,6 +702,38 @@ var EventsMap = map[events.EventName]*events.EventSchema{
 		ReportingController: "worker",
 		Message:             "Gateway recycling failed",
 	},
+	"ControllerEndpointChanged": {
+		Name:                "ControllerEndpointChanged",
+		Reason:              "ControllerEndpointChanged",
+		Action:              "None",
+		Type:                events.EventTypeNormal,
+		ReportingController: "worker",
+		Message:             "This worker followed a resolved controller failover and is now reconciling against a different hub endpoint",
+	},
+	"ControllerConnected": {
+		Name:                "ControllerConnected",
+		Reason:              "ControllerConnected",
+		Action:              "None",
+		Type:                events.EventTypeNormal,
+		ReportingController: "worker",
+		Message:             "Connection to the hub controller is healthy",
+	},
+	"ControllerConnectionLost": {
+		Name:                "ControllerConnectionLost",
+		Reason:              "ControllerConnectionLost",
+		Action:              "None",
+		Type:                events.EventTypeWarning,
+		ReportingController: "worker",
+		Message:             "The active hub changed and this worker is restarting to reconnect; the previous connection may already be lost",
+	},
+	"CertVerificationFailed": {
+		Name:                "CertVerificationFailed",
+		Reason:              "CertVerificationFailed",
+		Action:              "None",
+		Type:                events.EventTypeWarning,
+		ReportingController: "worker",
+		Message:             "TLS handshake with the hub controller failed certificate verification; check the configured CA bundle",
+	},
 }
 
 var (
@@ -790,4 +822,8 @@ var (
 	EventTriggeredFSMToRecycleGateways                    events.EventName = "TriggeredFSMToRecycleGateways"
 	EventGatewayRecyclingSuccessful                       events.EventName = "GatewayRecyclingSuccessful"
 	EventGatewayRecyclingFailed                           events.EventName = "GatewayRecyclingFailed"
+	EventControllerEndpointChanged                        events.EventName = "ControllerEndpointChanged"
+	EventControllerConnected                              events.EventName = "ControllerConnected"
+	EventControllerConnectionLost                         events.EventName = "ControllerConnectionLost"
+	EventCertVerificationFailed                           events.EventName = "CertVerificationFailed"
 )

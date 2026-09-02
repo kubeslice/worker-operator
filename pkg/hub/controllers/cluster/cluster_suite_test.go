@@ -132,6 +132,7 @@ var _ = BeforeSuite(func() {
 		k8sClient,
 		&spokeClusterEventRecorder,
 		mf,
+		ConnectionInfo{},
 	)
 	clusterReconciler.ReconcileInterval = 5 * time.Second
 	err = builder.

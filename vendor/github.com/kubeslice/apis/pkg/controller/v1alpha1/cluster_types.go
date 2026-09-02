@@ -137,6 +137,58 @@ type ClusterStatus struct {
 	// VCPURestriction is the restriction on the cluster disabling the creation of new pods
 	VCPURestriction *VCPURestriction `json:"vCPURestriction,omitempty"`
 	GPURestriction  *GPURestriction  `json:"GPURestriction,omitempty"`
+	// StorageCapabilities contains auto-detected storage capabilities reported by the worker operator.
+	// Populated only when the worker operator's storage-capability reconciler is active.
+	StorageCapabilities *StorageCapabilities `json:"storageCapabilities,omitempty"`
+	// ActiveController identifies the hub controller that currently holds leadership.
+	// Populated only on an Active/Standby HA deployment; absent otherwise, so a
+	// non-HA worker sees no behaviour change.
+	ActiveController *ActiveControllerInfo `json:"activeController,omitempty"`
+	// Conditions describe this worker's connection to its hub controller, e.g.
+	// ControllerConnected and ControllerEndpointSynced. Written by the worker
+	// operator about itself; absent on a worker that has never reported one.
+	Conditions []metav1.Condition `json:"conditions,omitempty"`
+}
+
+// ActiveControllerInfo describes the hub controller currently holding leadership.
+//
+// Each hub writes this field about itself, on its own API server, and only while
+// it holds leadership. A Standby's copy is populated by the state mirror from the
+// Active, so it names the Active rather than itself — which lets a worker watching
+// both hubs identify the Active by the rule "trust whichever endpoint is reachable
+// and reports an ActiveIdentity matching that endpoint's own identity", without
+// needing to know which role either hub currently holds.
+type ActiveControllerInfo struct {
+	// Endpoint is the API server endpoint of the hub currently holding leadership
+	Endpoint string `json:"endpoint,omitempty"`
+	// CABundle is the base64-encoded PEM CA bundle for Endpoint
+	CABundle string `json:"caBundle,omitempty"`
+	// ActiveIdentity is the HA identity of the hub that wrote this field about itself
+	ActiveIdentity string `json:"activeIdentity,omitempty"`
+	// LastUpdated is the timestamp when this declaration was last written. It gives
+	// a consumer a deterministic tie-break if both hubs self-declare simultaneously.
+	LastUpdated metav1.Time `json:"lastUpdated,omitempty"`
+}
+
+// StorageCapabilities holds auto-detected RWX-capable storage classes on the worker cluster.
+// To add support for a new storage system, append its CSI provisioner string to the
+// worker operator's rwxProvisioners list — no changes to this struct are required.
+type StorageCapabilities struct {
+	// RWXStorageClasses lists all ReadWriteMany-capable StorageClasses detected on the cluster
+	RWXStorageClasses []RWXStorageClass `json:"rwxStorageClasses,omitempty"`
+	// DefaultStorageClass is the name of the StorageClass annotated with
+	// storageclass.kubernetes.io/is-default-class: "true" on the worker cluster
+	DefaultStorageClass string `json:"defaultStorageClass,omitempty"`
+	// LastUpdated is the timestamp when capabilities were last detected
+	LastUpdated metav1.Time `json:"lastUpdated,omitempty"`
+}
+
+// RWXStorageClass describes a single ReadWriteMany-capable StorageClass.
+type RWXStorageClass struct {
+	// Name is the StorageClass name (e.g. "rook-cephfs", "juicefs-sc")
+	Name string `json:"name"`
+	// Provisioner is the CSI provisioner string (e.g. "rook-ceph.cephfs.csi.ceph.com")
+	Provisioner string `json:"provisioner"`
 }
 
 type GPURestriction struct {

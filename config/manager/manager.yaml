@@ -45,10 +45,27 @@ spec:
             value: "cluster-1"
           - name: NODE_IP
             value: "1.2.3.4"
+          # Controller failover (worker-operator #467). Setting the endpoint of
+          # a second hub turns on active-hub resolution: the worker reads
+          # status.activeController from both hubs, connects to whichever one
+          # currently holds leadership, and restarts to follow a promotion.
+          # Leave unset for a single-hub deployment — nothing below applies and
+          # behaviour is unchanged.
+          # - name: HUB_SECONDARY_HOST_ENDPOINT
+          #   value: "https://10.1.80.12:6443"
+          # The second hub needs its own credential, valid on that hub. See
+          # docs/hub-failover.md for how to mint and install it.
+          # - name: HUB_SECONDARY_TOKEN_FILE
+          #   value: "/var/run/secrets/kubernetes.io/hub-secondary-serviceaccount/token"
+          # - name: HUB_SECONDARY_CA_FILE
+          #   value: "/var/run/secrets/kubernetes.io/hub-secondary-serviceaccount/ca.crt"
         volumeMounts:
           - mountPath: /var/run/secrets/kubernetes.io/hub-serviceaccount
             name: hub-token
             readOnly: true
+          # - mountPath: /var/run/secrets/kubernetes.io/hub-secondary-serviceaccount
+          #   name: hub-secondary-token
+          #   readOnly: true
           - mountPath: /etc/webhook/certs
             name: webhook-certs
             readOnly: true
@@ -84,3 +101,8 @@ spec:
           secret:
             defaultMode: 420
             secretName: hub-avesha-tenant-token
+        # Paired with the HUB_SECONDARY_* env above; see docs/hub-failover.md.
+        # - name: hub-secondary-token
+        #   secret:
+        #     defaultMode: 420
+        #     secretName: hub-secondary-tenant-token

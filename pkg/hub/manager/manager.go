@@ -26,7 +26,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
-	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -47,6 +46,7 @@ import (
 	"github.com/kubeslice/worker-operator/pkg/hub/controllers"
 	hubCluster "github.com/kubeslice/worker-operator/pkg/hub/controllers/cluster"
 	"github.com/kubeslice/worker-operator/pkg/hub/controllers/vpnkeyrotation"
+	hub "github.com/kubeslice/worker-operator/pkg/hub/hubclient"
 
 	"github.com/kubeslice/worker-operator/pkg/hub/controllers/workerslicegwrecycler"
 	"github.com/kubeslice/worker-operator/pkg/logger"
@@ -66,18 +66,17 @@ func init() {
 	utilruntime.Must(hubv1alpha1.AddToScheme(scheme))
 }
 
-func Start(meshClient client.Client, hubClient client.Client, ctx context.Context) {
-	config := &rest.Config{
-		Host:            os.Getenv("HUB_HOST_ENDPOINT"),
-		BearerTokenFile: HubTokenFile,
-		TLSClientConfig: rest.TLSClientConfig{
-			CAFile: HubCAFile,
-		},
-	}
+// Start runs the hub-side manager against the hub described by conn. Callers
+// with a single hub pass hub.PrimaryConnection(), which is the same endpoint
+// and credentials this function used to assemble from the environment itself.
+// connInfo carries what main.go already knows about failover-following
+// (issue #469) for the cluster reconciler's ControllerConnected condition.
+func Start(meshClient client.Client, hubClient client.Client, ctx context.Context, conn hub.Connection, connInfo hubCluster.ConnectionInfo) {
+	config := conn.RestConfig()
 
 	var log = log.Log.WithName("hub")
 
-	log.Info("Connecting to hub cluster", "endpoint", HubEndpoint, "ns", ProjectNamespace)
+	log.Info("Connecting to hub cluster", "endpoint", conn.Endpoint, "ns", ProjectNamespace)
 
 	webhookServer := webhook.NewServer(webhook.Options{
 		Host: HubEndpoint,
@@ -206,6 +205,7 @@ func Start(meshClient client.Client, hubClient client.Client, ctx context.Contex
 		meshClient,
 		&workerSliceEventRecorder,
 		mf,
+		connInfo,
 	)
 	err = builder.
 		ControllerManagedBy(mgr).
